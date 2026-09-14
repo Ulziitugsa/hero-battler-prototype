@@ -1,0 +1,153 @@
+import type { CardDefinition } from '../types';
+
+// Infernal - demons and fire creatures. Aggression, direct damage, risky Power swings.
+
+export const INFERNAL_CARDS: CardDefinition[] = [
+  {
+    id: 'inf-flame-imp',
+    name: 'Flame Imp',
+    shortName: 'Flame Imp',
+    faction: 'infernal',
+    type: 'hero',
+    role: 'Fighter',
+    rarity: 'common',
+    cost: 1,
+    power: 3,
+    tags: ['Demon'],
+    boardText: 'Direct hit: +1 damage',
+    abilities: [
+      {
+        trigger: 'ON_DIRECT_DAMAGE',
+        actions: [{ type: 'PLAYER_DAMAGE', amount: 1 }],
+        text: 'When this deals direct damage, deal 1 extra damage.',
+      },
+    ],
+  },
+  {
+    id: 'inf-cultist',
+    name: 'Infernal Cultist',
+    shortName: 'Cultist',
+    faction: 'infernal',
+    type: 'hero',
+    role: 'Fighter',
+    rarity: 'common',
+    cost: 1,
+    power: 3,
+    tags: ['Demon'],
+    boardText: 'Before Combat: +1 Power',
+    abilities: [
+      {
+        trigger: 'BEFORE_COMBAT',
+        actions: [{ type: 'CHANGE_POWER', amount: 1, duration: 'UNTIL_ROUND_END', target: 'SELF' }],
+        text: 'Before Combat: gain +1 Power this round.',
+      },
+    ],
+  },
+  {
+    id: 'inf-pit-fiend',
+    name: 'Pit Fiend',
+    shortName: 'Pit Fiend',
+    faction: 'infernal',
+    type: 'hero',
+    role: 'Fighter',
+    rarity: 'common',
+    cost: 2,
+    power: 5,
+    tags: ['Demon'],
+    boardText: 'Death:2dmg; Enemy died:+2',
+    abilities: [
+      {
+        trigger: 'ON_DEATH',
+        actions: [{ type: 'PLAYER_DAMAGE', amount: 2 }],
+        text: 'On Death: Deal 2 damage to the enemy player.',
+      },
+      {
+        trigger: 'BEFORE_COMBAT',
+        conditions: [{ type: 'ENEMY_DIED_THIS_ROUND' }],
+        actions: [{ type: 'CHANGE_POWER', amount: 2, duration: 'UNTIL_ROUND_END', target: 'SELF' }],
+        text: 'Before Combat: if an enemy Hero has died this round, gain +2 Power this round.',
+      },
+    ],
+  },
+  {
+    id: 'inf-hellhound',
+    name: 'Hellhound',
+    shortName: 'Hellhound',
+    faction: 'infernal',
+    type: 'hero',
+    role: 'Fighter',
+    rarity: 'rare',
+    cost: 2,
+    power: 5,
+    tags: ['Demon', 'Beast'],
+    boardText: 'On Play: Silence; BC: Enemy-2',
+    abilities: [
+      {
+        trigger: 'ON_PLAY',
+        actions: [{ type: 'SILENCE', target: 'ENEMY_SAME_LANE' }],
+        text: 'On Play: Silence the enemy Hero in this lane for the rest of the round.',
+      },
+      {
+        trigger: 'BEFORE_COMBAT',
+        actions: [{ type: 'CHANGE_POWER', amount: -2, duration: 'UNTIL_ROUND_END', target: 'ENEMY_SAME_LANE' }],
+        text: 'Before Combat: the enemy Hero in this lane loses 2 Power this round.',
+      },
+    ],
+  },
+  {
+    id: 'inf-blood-demon',
+    name: 'Blood Demon',
+    shortName: 'Blood Demon',
+    faction: 'infernal',
+    type: 'hero',
+    role: 'Fighter',
+    rarity: 'epic',
+    cost: 3,
+    power: 6,
+    tags: ['Demon'],
+    boardText: 'Any death:+1; Died:+3 rnd',
+    abilities: [
+      {
+        trigger: 'ON_ALLY_DEATH',
+        actions: [{ type: 'CHANGE_POWER', amount: 1, duration: 'PERMANENT', target: 'SELF' }],
+        text: 'When another Hero dies, gain +1 Power.',
+      },
+      {
+        trigger: 'ON_ENEMY_DEATH',
+        actions: [{ type: 'CHANGE_POWER', amount: 1, duration: 'PERMANENT', target: 'SELF' }],
+        text: 'When another Hero dies, gain +1 Power.',
+      },
+      {
+        trigger: 'BEFORE_COMBAT',
+        conditions: [{ type: 'ALLY_DIED_THIS_ROUND' }],
+        actions: [{ type: 'CHANGE_POWER', amount: 3, duration: 'UNTIL_ROUND_END', target: 'SELF' }],
+        text: 'Before Combat: if an allied Hero died this round, gain +3 Power this round.',
+      },
+    ],
+  },
+  {
+    id: 'inf-infernal-lord',
+    name: 'Infernal Lord',
+    shortName: 'Inf. Lord',
+    faction: 'infernal',
+    type: 'hero',
+    role: 'Fighter',
+    rarity: 'legendary',
+    cost: 4,
+    power: 7,
+    tags: ['Demon'],
+    boardText: 'All -2; Destroy enemy Spell',
+    abilities: [
+      {
+        trigger: 'ON_PLAY',
+        actions: [{ type: 'DEBUFF_ALL_OTHERS', amount: -2, duration: 'UNTIL_ROUND_END' }],
+        text: "On Play: every other Hero's Power is reduced by 2 this round.",
+      },
+      {
+        trigger: 'ON_PLAY',
+        actions: [{ type: 'DESTROY_SPELL_ZONE', target: 'ENEMY_SAME_LANE' }],
+        text: 'On Play: also destroy the enemy Continuous Spell in this lane.',
+      },
+    ],
+  },
+];
