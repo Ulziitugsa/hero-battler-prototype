@@ -1,5 +1,6 @@
 import type { HeroInstance, LaneId, Side } from '../game/types';
-import { BoardChit, type ChitFx } from './BoardChit';
+import { BoardChit } from './BoardChit';
+import type { ChitVisual } from './animation/chitEffects';
 import { Icon } from './Icon';
 
 export function LaneSlot({
@@ -8,7 +9,8 @@ export function LaneSlot({
   hero,
   targetable,
   hasSelection,
-  fx,
+  anim,
+  interactionDisabled,
   onSlotClick,
   onChitClick,
 }: {
@@ -18,7 +20,9 @@ export function LaneSlot({
   targetable: boolean;
   /** True while the player has a card selected - dims this zone (once known unavailable) rather than leaving it at resting opacity. Only meaningful for the player's own board. */
   hasSelection?: boolean;
-  fx?: ChitFx | null;
+  anim?: ChitVisual | null;
+  /** True while the round is resolving - the chit itself still renders (so its animation can play), but tapping it to inspect is locked out (see GamePage's resolving-state rule). */
+  interactionDisabled?: boolean;
   onSlotClick?: () => void;
   onChitClick?: (hero: HeroInstance) => void;
 }) {
@@ -38,7 +42,7 @@ export function LaneSlot({
       }}
     >
       {hero ? (
-        <BoardChit hero={hero} side={side} fx={fx} onClick={() => onChitClick?.(hero)} />
+        <BoardChit hero={hero} side={side} anim={anim} disabled={interactionDisabled} onClick={() => onChitClick?.(hero)} />
       ) : (
         <span className="zone-ghost">
           <span className="zone-ghost-corner tl" />

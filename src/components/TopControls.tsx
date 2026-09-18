@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { AnimationSpeed } from '../pages/GamePage';
+import type { AnimationSpeed } from './animation/types';
 import { Icon } from './Icon';
 import { HelpModal } from './HelpModal';
 

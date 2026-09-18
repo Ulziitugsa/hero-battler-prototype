@@ -197,10 +197,24 @@ These are about the frozen ruleset itself, distinct from the content questions i
 
 **Direct damage** - Is full-Power direct damage too lethal, especially from a Hero that's been growing for several rounds?
 
+## Campaign (vertical slice, as of Card Set v0.1)
+
+One real, playable chapter exists: Region 1 / Chapter 1 - "The Ashen Road" (`src/game/campaign/`,
+`src/pages/campaign/`). Thirteen story/battle/reward/elite/boss nodes with real localStorage-persisted
+node-clearing progress, a real per-stage Energy economy (current/max/regen, also localStorage-persisted
+with a timestamp so it keeps regenerating while the app is closed), and battles that run on the actual
+match engine (`GamePage`, unchanged) rather than a parallel system. Reached from Home's Fight seal
+("Campaign" vs. "Quick Battle"). Region 1 is the only real content; Regions 2-9 render as locked
+placeholders with no fabricated content behind them. Energy's tuning numbers (60 max, 5/7/10 costs, +1
+per 5 min) are the design's own placeholders, centralized in `game/campaign/energy.ts` for easy
+retuning. See `game/campaign/types.ts` for how a second region/chapter would be added (content only, no
+new UI).
+
 ## Things explicitly not built (still, as of Card Set v0.1)
 
 Gacha, premium currency, card ownership/unlocking (all 32 cards are unlocked for everyone - this is a
 card *browser*, not the future collection system), card upgrades, accounts, a backend, real PvP,
-matchmaking, a campaign, quests, a battle pass, a store, purchases, final character art, sound
-production, and mobile packaging. The deckbuilder, starter decks, and a real card set are no longer on
-this list - they're what this pass built - but everything above stays deliberately deferred.
+matchmaking, Energy purchases/refill monetization, Hard/Nightmare difficulty, Mastery, Ascension,
+quests, a battle pass, a store, purchases, final character art, sound production, and mobile packaging.
+The deckbuilder, starter decks, a real card set, and one real Campaign chapter are no longer on this
+list - they're what these passes built - but everything above stays deliberately deferred.

@@ -27,7 +27,12 @@ export type IconName =
   | 'trophy'
   | 'plus'
   | 'minus'
-  | 'bug';
+  | 'bug'
+  | 'mute'
+  | 'cards'
+  | 'lock'
+  | 'sort'
+  | 'ember';
 
 const PATHS: Record<IconName, string> = {
   home: 'M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9',
@@ -56,6 +61,11 @@ const PATHS: Record<IconName, string> = {
   plus: 'M12 5v14M5 12h14',
   minus: 'M5 12h14',
   bug: 'M8 6l-2-2M16 6l2-2M9 9h6M6 12h12M6 15h12M8 21l-1.5-3M16 21l1.5-3M9 3.5a3 3 0 0 1 6 0V6H9V3.5ZM7 9v9a5 5 0 0 0 10 0V9',
+  mute: 'M11 5 6 9H3v6h3l5 4V5ZM16 9l6 6M22 9l-6 6',
+  cards: 'M6 8.5 12 5l6 3.5-6 3.5-6-3.5ZM6 14 12 17.5 18 14',
+  lock: 'M6.5 10.5h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1ZM8.5 10.5V7.8a3.5 3.5 0 0 1 7 0v2.7M12 14v2.5',
+  sort: 'M7 20V5M7 5 4 8.5M7 5l3 3.5M17 4v15M17 19l3-3.5M17 19l-3-3.5',
+  ember: 'M12 3c1.2 3.2 4.5 4.4 4.5 8a4.5 4.5 0 0 1-9 0c0-2 1.2-2.8 1.2-4.6',
 };
 
 /** `filled` swaps to a solid fill with no stroke - used for small glyphs (e.g. the HP heart) sitting

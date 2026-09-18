@@ -1,5 +1,6 @@
 import type { LaneId, SpellZoneInstance, Side } from '../game/types';
 import { SpellZoneChit } from './SpellZoneChit';
+import type { ChitVisual } from './animation/chitEffects';
 import { Icon } from './Icon';
 
 export function SpellLaneSlot({
@@ -8,6 +9,8 @@ export function SpellLaneSlot({
   targetable,
   hasSelection,
   spell,
+  anim,
+  interactionDisabled,
   onSlotClick,
   onChitClick,
 }: {
@@ -16,6 +19,8 @@ export function SpellLaneSlot({
   targetable: boolean;
   hasSelection?: boolean;
   spell: SpellZoneInstance | null;
+  anim?: ChitVisual | null;
+  interactionDisabled?: boolean;
   onSlotClick?: () => void;
   onChitClick?: (spell: SpellZoneInstance) => void;
 }) {
@@ -26,7 +31,7 @@ export function SpellLaneSlot({
     <div
       className={`battle-zone spell-zone ${targetable ? 'targetable' : ''} ${dim ? 'dim' : ''} ${spell ? 'filled' : ''} ${side}`}
       aria-label={spell ? undefined : `${side === 'player' ? 'Your' : "Enemy's"} spell slot, ${lane} lane`}
-      onClick={targetable ? onSlotClick : spell ? () => onChitClick?.(spell) : undefined}
+      onClick={targetable ? onSlotClick : spell && !interactionDisabled ? () => onChitClick?.(spell) : undefined}
       onDragOver={(e) => {
         if (targetable) e.preventDefault();
       }}
@@ -38,7 +43,7 @@ export function SpellLaneSlot({
       {spell ? (
         // While targetable, the slot itself handles the click (placing an instant Spell that
         // passes through this lane) - the chit isn't independently clickable in that moment.
-        <SpellZoneChit spell={spell} side={side} onClick={targetable ? () => {} : () => onChitClick?.(spell)} />
+        <SpellZoneChit spell={spell} side={side} anim={anim} disabled={interactionDisabled} onClick={targetable ? () => {} : () => onChitClick?.(spell)} />
       ) : (
         <span className="zone-ghost spell-ghost">
           <Icon name="continuousSpell" size={targetable ? 18 : 15} />

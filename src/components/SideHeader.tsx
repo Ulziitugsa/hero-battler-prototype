@@ -1,5 +1,6 @@
 import { STARTING_HP } from '../game/engine/constants';
 import { Icon } from './Icon';
+import type { HpFx } from './animation/chitEffects';
 
 /**
  * Battle Screen v8: the enemy banner (top) and the player's HP row (bottom) share the same HP-bar
@@ -13,9 +14,11 @@ export function SideHeader({
   name,
   rank,
   hp,
-  hpFlash,
+  hpFx,
+  graveyardPulse,
   deckCount,
   graveyardCount,
+  graveyardDisabled,
   onClose,
   onGraveyardClick,
 }: {
@@ -23,9 +26,14 @@ export function SideHeader({
   name: string;
   rank: string;
   hp: number;
-  hpFlash?: boolean;
+  /** Drives the HP plate's flash colour, an enlarge/shake pulse on the numeral, and a floating +/- number by the bar - see components/animation/chitEffects.ts. */
+  hpFx?: HpFx | null;
+  /** Briefly highlights the Graveyard pill - a card just entered it. */
+  graveyardPulse?: boolean;
   deckCount?: number;
   graveyardCount?: number;
+  /** Locked out while a round is resolving - see GamePage's resolving-state rule. */
+  graveyardDisabled?: boolean;
   onClose?: () => void;
   onGraveyardClick?: () => void;
 }) {
@@ -44,7 +52,7 @@ export function SideHeader({
       </span>
       <div className="side-header-body">
         <div className="side-header-name">{name}</div>
-        <div className={`hp-plate ${low ? 'low' : ''} ${hpFlash ? 'flash-damage' : ''}`}>
+        <div className={`hp-plate ${low ? 'low' : ''} ${hpFx?.kind === 'damage' ? 'flash-damage hp-hit' : ''} ${hpFx?.kind === 'heal' ? 'flash-heal hp-hit' : ''}`}>
           <span className="hp-plate-fill" style={{ width: `${pct}%` }} />
           <span className="hp-plate-scrim" />
           <span className="hp-plate-readout">
@@ -53,11 +61,23 @@ export function SideHeader({
               {side === 'player' ? `${hp} / ${STARTING_HP}` : hp}
             </span>
           </span>
+          {hpFx && (
+            <span key={`${hpFx.kind}-${hp}`} className={`floater hp-floater floater-${hpFx.kind === 'heal' ? 'heal' : 'power-down'}`}>
+              {hpFx.kind === 'heal' ? '+' : '-'}
+              {hpFx.amount}
+            </span>
+          )}
         </div>
       </div>
       {side === 'player' && deckCount !== undefined && graveyardCount !== undefined && (
         <div className="side-header-pills">
-          <button type="button" className="side-header-pill interactive" onClick={onGraveyardClick} aria-label={`Open Graveyard, ${graveyardCount} cards`}>
+          <button
+            type="button"
+            className={`side-header-pill interactive ${graveyardPulse ? 'pill-pulse' : ''}`}
+            onClick={onGraveyardClick}
+            disabled={graveyardDisabled}
+            aria-label={`Open Graveyard, ${graveyardCount} cards`}
+          >
             <Icon name="graveyard" size={10} />
             {graveyardCount}
           </button>

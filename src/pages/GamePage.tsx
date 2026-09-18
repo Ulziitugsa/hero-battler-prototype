@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { DeployPlay, GameEvent, GameState, HandCard as HandCardModel, HeroInstance, LaneId, PlayerAction, SpellZoneInstance } from '../game/types';
 import { LANES } from '../game/types';
 import { getCard } from '../game/cards';
 import { createMatch } from '../game/engine/match';
 import { beginRound, resolveRound, spellHasAValidTarget, validateDeployment } from '../game/engine/resolveRound';
-import { replayUpTo } from '../game/engine/replay';
 import { withEffectivePowers } from '../game/engine/power';
 import { makeSeed } from '../game/engine/rng';
 import { chooseAiAction } from '../game/ai/simpleAI';
@@ -20,9 +19,11 @@ import { DebugPanel } from '../components/DebugPanel';
 import { TopControls } from '../components/TopControls';
 import { MatchSummary } from '../components/MatchSummary';
 import { Icon } from '../components/Icon';
-import { chitFxFromEvent, hpFxFromEvent } from '../components/eventPresentation';
+import { useAnimationController } from '../components/animation/useAnimationController';
+import { resolveDuration } from '../components/animation/timing';
+import type { AnimationSpeed } from '../components/animation/types';
 
-export type AnimationSpeed = '1x' | '2x' | 'instant';
+export type { AnimationSpeed };
 type Phase = 'DEPLOY' | 'REVEALING' | 'MATCH_END';
 
 export interface GamePageProps {
@@ -31,6 +32,12 @@ export interface GamePageProps {
   playerDeckLabel: string;
   enemyDeckLabel: string;
   onExit: () => void;
+  /** Overrides the match's starting HP (both sides) - used by Campaign's challenge nodes. Omit for the default STARTING_HP. */
+  startingHp?: number;
+  /** Fires once, the instant this match reaches MATCH_END - before the player dismisses the summary
+   * screen. Campaign uses this to record node progress independent of how/when the player exits;
+   * Quick Battle never passes it, so it never touches Campaign state. */
+  onMatchEnd?: (status: GameState['status'], stats: MatchStats, events: GameEvent[]) => void;
 }
 
 /** Overlays this round's not-yet-locked plays onto the real board, Deploy-phase display only. A
@@ -74,9 +81,9 @@ function buildPreviewZones(
   return { heroZones: previewHero, spellZones: previewSpell };
 }
 
-export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit }: GamePageProps) {
+export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, startingHp, onMatchEnd }: GamePageProps) {
   function buildMatch(matchSeed: number) {
-    return createMatch({ seed: matchSeed, playerDeck, enemyDeck });
+    return createMatch({ seed: matchSeed, playerDeck, enemyDeck, startingHp });
   }
 
   const [seed, setSeed] = useState(() => makeSeed());
@@ -90,13 +97,18 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const [inspectCardId, setInspectCardId] = useState<string | null>(null);
 
   const [revealEvents, setRevealEvents] = useState<GameEvent[]>([]);
-  const [revealIndex, setRevealIndex] = useState(0);
   const [baseStateForReveal, setBaseStateForReveal] = useState<GameState | null>(null);
   const [pendingNextState, setPendingNextState] = useState<GameState | null>(null);
   const [lastAiAction, setLastAiAction] = useState<PlayerAction | null>(null);
   const [matchStats, setMatchStats] = useState<MatchStats | null>(null);
   const [mobileDebugOpen, setMobileDebugOpen] = useState(false);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
+
+  // The presentation layer: plays revealEvents back as a sequence of animation beats. The engine
+  // itself (resolveRound, above) already fully decided the round synchronously - this hook only
+  // explains it visually, on its own timer, never mutating game state. See components/animation.
+  const isRevealing = phase === 'REVEALING';
+  const anim = useAnimationController({ events: revealEvents, baseState: baseStateForReveal ?? gameState, speed: animationSpeed, active: isRevealing });
 
   function restartWithSeed(newSeed: number) {
     const built = buildMatch(newSeed);
@@ -107,55 +119,51 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     setPendingPlays([]);
     setSelectedHand(null);
     setRevealEvents([]);
-    setRevealIndex(0);
     setBaseStateForReveal(null);
     setPendingNextState(null);
     setLastAiAction(null);
     setMatchStats(null);
   }
 
-  // Drives FIGHT playback: steps revealIndex forward on a timer, then hands off to the next round.
+  // Once the animation queue finishes playing revealEvents, hand off to the next round - using the
+  // engine's own pendingNextState (resolveRound's real result), never a locally-replayed
+  // reconstruction, so the settled board is always byte-identical to what the engine decided.
   useEffect(() => {
-    if (phase !== 'REVEALING') return;
-
-    if (revealIndex >= revealEvents.length) {
-      const next = pendingNextState;
-      if (!next) return;
-      if (next.status !== 'IN_PROGRESS') {
-        const merged = [...fullLog, ...revealEvents];
-        const stats = computeMatchStats(
-          merged,
-          next.player.hp,
-          next.enemy.hp,
-          { player: next.player.graveyard.length, enemy: next.enemy.graveyard.length },
-          { player: playerDeckLabel, enemy: enemyDeckLabel },
-        );
-        saveRecentMatch(seed, stats);
-        setFullLog(merged);
-        setMatchStats(stats);
-        setGameState(next);
-        setPhase('MATCH_END');
-      } else {
-        const begun = beginRound(next);
-        setFullLog([...fullLog, ...revealEvents, ...begun.events]);
-        setGameState(begun.nextState);
-        setPhase('DEPLOY');
+    if (!isRevealing || !anim.isDone) return;
+    const next = pendingNextState;
+    if (!next) return;
+    if (next.status !== 'IN_PROGRESS') {
+      const merged = [...fullLog, ...revealEvents];
+      const stats = computeMatchStats(
+        merged,
+        next.player.hp,
+        next.enemy.hp,
+        { player: next.player.graveyard.length, enemy: next.enemy.graveyard.length },
+        { player: playerDeckLabel, enemy: enemyDeckLabel },
+      );
+      saveRecentMatch(seed, stats);
+      setFullLog(merged);
+      setMatchStats(stats);
+      setGameState(next);
+      setPhase('MATCH_END');
+      if (onMatchEnd) {
+        // A Campaign battle owns its own post-match moment - the carved StageResultSheet back on
+        // the map, which already covers win/loss/rewards. Hand off straight to it instead of
+        // showing this screen's plain, developer-facing MatchSummary first and making the player
+        // click through two different "you won" screens in a row for the same result.
+        onMatchEnd(next.status, stats, merged);
+        onExit();
       }
-      setPendingNextState(null);
-      setRevealEvents([]);
-      setRevealIndex(0);
-      return;
+    } else {
+      const begun = beginRound(next);
+      setFullLog([...fullLog, ...revealEvents, ...begun.events]);
+      setGameState(begun.nextState);
+      setPhase('DEPLOY');
     }
-
-    if (animationSpeed === 'instant') {
-      setRevealIndex(revealEvents.length);
-      return;
-    }
-    const delay = animationSpeed === '2x' ? 260 : 550;
-    const timer = setTimeout(() => setRevealIndex((i) => i + 1), delay);
-    return () => clearTimeout(timer);
+    setPendingNextState(null);
+    setRevealEvents([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, revealIndex, animationSpeed]);
+  }, [isRevealing, anim.isDone]);
 
   function handleFight() {
     if (phase !== 'DEPLOY') return;
@@ -169,7 +177,6 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     setLastAiAction(ai.action);
     setBaseStateForReveal(gameState);
     setRevealEvents(result.events);
-    setRevealIndex(0);
     setPendingNextState(result.nextState);
     setPendingPlays([]);
     setSelectedHand(null);
@@ -233,25 +240,28 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
         )
       : new Set<LaneId>();
 
-  const isRevealing = phase === 'REVEALING';
-  const currentEvent = isRevealing && revealIndex > 0 ? revealEvents[revealIndex - 1] : null;
-  const displayState = isRevealing && baseStateForReveal ? replayUpTo(baseStateForReveal, revealEvents, revealIndex - 1) : gameState;
-
-  const chitFx = currentEvent ? chitFxFromEvent(currentEvent) : null;
-  const hpFxSide = currentEvent ? hpFxFromEvent(currentEvent) : null;
-  const fxByInstanceId = new Map<string, { kind: 'dmg' | 'buf'; text: string }>();
-  if (chitFx) fxByInstanceId.set(chitFx.instanceId, chitFx.fx);
+  const displayState = isRevealing ? anim.displayState : gameState;
+  const hpFxFor = (side: 'player' | 'enemy') => anim.visuals.hpFx.find((fx) => fx.side === side) ?? null;
 
   const preview = phase === 'DEPLOY' ? buildPreviewZones(displayState.player.heroZones, displayState.player.spellZones, pendingPlays) : null;
 
+  // Tapping a chit to inspect it - like every other board interaction - is locked out while the round
+  // is resolving, so a mid-animation tap can never race the animation queue or open stale card data.
   function handlePlayerChitClick(hero: HeroInstance) {
+    if (isRevealing) return;
     if (hero.instanceId.startsWith('pending-')) handleRemovePending(hero.instanceId.replace('pending-', ''));
     else setInspectCardId(hero.cardId);
   }
 
   function handlePlayerSpellChitClick(spell: SpellZoneInstance) {
+    if (isRevealing) return;
     if (spell.instanceId.startsWith('pending-')) handleRemovePending(spell.instanceId.replace('pending-', ''));
     else setInspectCardId(spell.cardId);
+  }
+
+  function handleEnemyChitClick(cardId: string) {
+    if (isRevealing) return;
+    setInspectCardId(cardId);
   }
 
   function handleDragStart(hand: HandCardModel) {
@@ -278,9 +288,14 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   else if (selectedCard) hint = selectedCard.type === 'hero' ? 'Tap a hero slot' : 'Tap a spell slot';
   else hint = 'Tap a card';
 
+  // Every CSS animation keyframe reads its pace from this one variable (see global.css's "Combat
+  // animations" section) - the single point where the currently-playing step's resolved duration
+  // (speed setting + reduced motion, both handled in timing.ts) reaches the DOM.
+  const stepMs = anim.currentStep ? resolveDuration(anim.currentStep.timingCategory, animationSpeed, anim.reducedMotion) : 300;
+
   return (
     <div className="app-shell">
-      <div className="battle-stage">
+      <div className="battle-stage" style={{ '--step-ms': `${Math.max(stepMs, 1)}ms` } as CSSProperties}>
         <div className="battle-scene">
           <div className="battle-sky" aria-hidden="true" />
           <div className="battle-terrace" aria-hidden="true" />
@@ -293,7 +308,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             <Icon name="bug" size={14} />
           </button>
 
-          <SideHeader side="enemy" name="Enemy" rank={enemyDeckLabel} hp={displayState.enemy.hp} hpFlash={hpFxSide === 'enemy'} onClose={onExit} />
+          <SideHeader side="enemy" name="Enemy" rank={enemyDeckLabel} hp={displayState.enemy.hp} hpFx={hpFxFor('enemy')} onClose={onExit} />
           <OpponentHand count={displayState.enemy.hand.length} />
 
           <Battlefield
@@ -302,13 +317,18 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             targetableHeroLanes={targetableHeroLanes}
             targetableSpellLanes={targetableSpellLanes}
             hasSelection={!!selectedHand}
-            fxByInstanceId={fxByInstanceId}
+            heroAnimById={anim.visuals.heroChit}
+            spellAnimById={anim.visuals.spellChit}
+            clashLane={anim.visuals.clashLane}
+            vfxCues={anim.visuals.vfx}
+            stageShake={anim.visuals.stageShake && !anim.reducedMotion}
+            interactionDisabled={isRevealing}
             onHeroSlotClick={handleHeroLaneClick}
             onHeroChitClick={handlePlayerChitClick}
             onSpellSlotClick={handleSpellLaneClick}
             onSpellChitClick={handlePlayerSpellChitClick}
-            onEnemyHeroChitClick={(h) => setInspectCardId(h.cardId)}
-            onEnemySpellChitClick={(s) => setInspectCardId(s.cardId)}
+            onEnemyHeroChitClick={(h) => handleEnemyChitClick(h.cardId)}
+            onEnemySpellChitClick={(s) => handleEnemyChitClick(s.cardId)}
             canFight={phase === 'DEPLOY'}
             fighting={isRevealing}
             onFight={handleFight}
@@ -319,9 +339,11 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             name="You"
             rank={playerDeckLabel}
             hp={displayState.player.hp}
-            hpFlash={hpFxSide === 'player'}
+            hpFx={hpFxFor('player')}
+            graveyardPulse={anim.visuals.graveyardPulse === 'player'}
             deckCount={displayState.player.deck.length}
             graveyardCount={displayState.player.graveyard.length}
+            graveyardDisabled={isRevealing}
             onGraveyardClick={() => setGraveyardOpen(true)}
           />
 

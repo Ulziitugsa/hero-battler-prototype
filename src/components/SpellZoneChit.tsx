@@ -1,15 +1,17 @@
 import type { SpellZoneInstance, Side } from '../game/types';
 import { getCard } from '../game/cards';
 import { Icon } from './Icon';
+import type { ChitVisual } from './animation/chitEffects';
 
 /**
  * A Spell zone's filled state (Battle Screen v8). Kind is always re-derived from the card definition
  * rather than trusted from the instance, because this same component renders two different things
  * that share the `SpellZoneInstance` shape: a real Continuous Spell occupying its zone, and a
  * ONE_TIME Spell staged this round as a `pending-` preview (see `buildPreviewZones` in GamePage) -
- * both need their kind's own treatment (floating+Ready vs clamped+rune ring).
+ * both need their kind's own treatment (floating+Ready vs clamped+rune ring). `anim`, when present, is
+ * this round's currently-playing animation beat for this Spell (see `components/animation`).
  */
-export function SpellZoneChit({ spell, side, onClick }: { spell: SpellZoneInstance; side: Side; onClick: () => void }) {
+export function SpellZoneChit({ spell, side, anim, disabled, onClick }: { spell: SpellZoneInstance; side: Side; anim?: ChitVisual | null; disabled?: boolean; onClick: () => void }) {
   const card = getCard(spell.cardId);
   const mine = side === 'player';
   const continuous = card.spellKind === 'CONTINUOUS';
@@ -18,8 +20,9 @@ export function SpellZoneChit({ spell, side, onClick }: { spell: SpellZoneInstan
   return (
     <button
       type="button"
-      className={`zone-card spell-zone-card ${mine ? 'mine' : 'theirs'} ${continuous ? 'clamped' : 'floating'}`}
+      className={`zone-card spell-zone-card ${mine ? 'mine' : 'theirs'} ${continuous ? 'clamped' : 'floating'} ${anim?.className ?? ''}`}
       onClick={onClick}
+      disabled={disabled}
       aria-label={continuous ? `${card.name}, Continuous` : `${card.name}, staged`}
     >
       {continuous && (
@@ -47,6 +50,11 @@ export function SpellZoneChit({ spell, side, onClick }: { spell: SpellZoneInstan
           {spell.shortName}
         </span>
       )}
+      {anim?.floaters.map((f) => (
+        <span key={f.key} className={`floater floater-${f.kind}`}>
+          {f.text}
+        </span>
+      ))}
     </button>
   );
 }

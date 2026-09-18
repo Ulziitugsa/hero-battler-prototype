@@ -15,7 +15,9 @@ export const SUPPORTED_DECK_SIZES = [15, 18, 21] as const;
 
 // Energy/cost was tested and removed for this prototype (see README). CardDefinition.cost is kept
 // in the data model and this constant stays defined so a cost system can be reintroduced later
-// without a schema change - nothing currently reads it.
+// without a schema change - nothing currently reads it. Unrelated to Campaign Energy
+// (game/campaign/energy.ts), a real-time meta-progression resource that gates starting a Campaign
+// stage - the two are different systems that happen to share a name.
 export const ENERGY_ENABLED = false;
 
 // How much direct damage an unopposed Hero deals to the enemy player. FULL_POWER is the brief's

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { CardDetail } from '../components/CardDetail';
 import { HowToPlaySheet } from '../components/HowToPlaySheet';
+import { FightChoiceSheet } from '../components/FightChoiceSheet';
 import { getCard } from '../game/cards';
 import { ROSTER_BY_FACTION } from '../game/cards/roster';
 import { STARTER_DECK_NAMES, STARTER_DECKS, type StarterFaction } from '../game/cards/starterDecks';
@@ -17,11 +18,13 @@ const MOTE_COUNT = 5;
 
 export function HomePage({
   onOpenBattleSetup,
+  onOpenCampaign,
   onStartQuickBattle,
   onOpenDecks,
   onOpenProfile,
 }: {
   onOpenBattleSetup: () => void;
+  onOpenCampaign: () => void;
   onStartQuickBattle: (player: DeckChoice, opponent: DeckChoice) => void;
   onOpenDecks: () => void;
   onOpenProfile: () => void;
@@ -43,6 +46,7 @@ export function HomePage({
 
   const [inspectCardId, setInspectCardId] = useState<string | null>(null);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [showFightChoice, setShowFightChoice] = useState(false);
 
   function selectStarter(faction: StarterFaction) {
     const id = `starter-${faction}`;
@@ -198,7 +202,7 @@ export function HomePage({
         <div className="home-fight-socket">
           <div className="home-fight-socket-glow" />
           <div className="home-fight-socket-ring" />
-          <button type="button" className="home-fight-seal" onClick={onOpenBattleSetup} aria-label="Fight">
+          <button type="button" className="home-fight-seal" onClick={() => setShowFightChoice(true)} aria-label="Fight">
             <span className="home-fight-seal-core">
               <Icon name="battle" size={20} />
               <span>Fight</span>
@@ -209,6 +213,19 @@ export function HomePage({
 
       {showHowToPlay && <HowToPlaySheet onClose={() => setShowHowToPlay(false)} />}
       {inspectCardId && <CardDetail cardId={inspectCardId} onClose={() => setInspectCardId(null)} />}
+      {showFightChoice && (
+        <FightChoiceSheet
+          onClose={() => setShowFightChoice(false)}
+          onOpenCampaign={() => {
+            setShowFightChoice(false);
+            onOpenCampaign();
+          }}
+          onOpenQuickBattle={() => {
+            setShowFightChoice(false);
+            onOpenBattleSetup();
+          }}
+        />
+      )}
     </div>
   );
 }
