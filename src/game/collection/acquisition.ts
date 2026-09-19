@@ -1,6 +1,9 @@
 import { CHAPTER_1 } from '../campaign/chapter1';
 import { PLAYTEST_ROSTER } from '../cards/roster';
 import { buildStarterCollection } from './starterCollection';
+import { isCampaignExclusive } from './exclusives';
+import { bannersFor } from '../summon/pool';
+import { getBanner } from '../summon/banners';
 
 // Where every collectible card comes from - the single source of truth the UI reads. Sources are stable
 // ids (a stage id, a region id), never display strings; labels are derived in describeAcquisition().
@@ -8,6 +11,8 @@ import { buildStarterCollection } from './starterCollection';
 export type AcquisitionSource =
   | { kind: 'starter' }
   | { kind: 'campaign'; nodeId: string; copies: number }
+  /** One summon banner that can pull the card (see summon/banners.ts). */
+  | { kind: 'summon'; bannerId: string }
   /** Intentionally not obtainable in the current prototype; planned for a later region. */
   | { kind: 'future'; regionId: string }
   | { kind: 'unavailable' };
@@ -55,6 +60,7 @@ export function getCardAcquisitionSources(cardId: string): AcquisitionSource[] {
   const out: AcquisitionSource[] = [];
   if ((buildStarterCollection()[cardId] ?? 0) > 0) out.push({ kind: 'starter' });
   out.push(...(campaignSources().get(cardId) ?? []));
+  for (const b of bannersFor(cardId)) out.push({ kind: 'summon', bannerId: b.id });
   const region = FUTURE_REGION_CARDS[cardId];
   if (region) out.push({ kind: 'future', regionId: region });
   return out.length > 0 ? out : [{ kind: 'unavailable' }];
@@ -74,11 +80,33 @@ export function describeAcquisition(source: AcquisitionSource): string {
       const name = CHAPTER_1.nodes.find((n) => n.id === source.nodeId)?.name ?? 'The Ashen Road';
       return `Campaign · ${name}`;
     }
+    case 'summon':
+      return `Summon · ${getBanner(source.bannerId)?.name ?? 'Banner'}`;
     case 'future':
       return 'Future region';
     default:
       return 'Not obtainable yet';
   }
+}
+
+/**
+ * Every real way to get a card, as one line: "Campaign · Broken Palisade / Summon · Gravebound", "Summon · Infernal Hunt / Future region",
+ * "Campaign exclusive · Grave Tyrant". "Future region" only appears alongside real sources (or alone if parked).
+ */
+export function acquisitionSummary(cardId: string): string {
+  const sources = getCardAcquisitionSources(cardId);
+  const parts: string[] = [];
+  const starter = sources.find((s) => s.kind === 'starter');
+  const campaign = sources.find((s) => s.kind === 'campaign');
+  if (starter) parts.push(describeAcquisition(starter));
+  if (campaign) {
+    const line = describeAcquisition(campaign);
+    parts.push(isCampaignExclusive(cardId) && !sources.some((s) => s.kind === 'summon') ? line.replace('Campaign ·', 'Campaign exclusive ·') : line);
+  }
+  const banners = sources.flatMap((s) => (s.kind === 'summon' ? [getBanner(s.bannerId)?.name ?? 'Banner'] : []));
+  if (banners.length > 0) parts.push(`Summon · ${banners.join(', ')}`);
+  if (sources.some((s) => s.kind === 'future')) parts.push('Future region');
+  return parts.length > 0 ? parts.join(' / ') : describeAcquisition({ kind: 'unavailable' });
 }
 
 /** The one line to show on a card: the best real source (starter, then the first Campaign stage), else the parked/unavailable note. */

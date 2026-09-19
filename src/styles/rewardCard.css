@@ -54,3 +54,8 @@
 .xp-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 800; color: #f0dcc0; background: rgba(10, 4, 6, 0.45); border: 1px solid rgba(255, 226, 180, 0.3); }
 .xp-pill.level { color: var(--ember-gold-ink); background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep)); border-color: transparent; }
 .xp-pill.mastery { border-color: rgba(185, 196, 238, 0.6); color: #dfe5ff; }
+
+/* Gems */
+.gem-icon { flex: none; filter: drop-shadow(0 1px 1px rgba(10, 4, 6, 0.5)); }
+.gem-gain { color: #bfeaf4; }
+.gem-balance { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 7px; border-radius: 14px; font-family: var(--ember-font-display); font-size: 0.95rem; color: #e8f8fc; background: rgba(10, 4, 6, 0.55); border: 1px solid rgba(143, 216, 232, 0.4); }

@@ -28,4 +28,6 @@ export interface XpGrantResult {
   /** Masteries newly unlocked by the levels gained. */
   masteriesUnlocked: MasteryId[];
   masteryPointsGained: number;
+  /** Gems awarded by the levels gained (milestone levels only; 0 otherwise). */
+  gemsGained: number;
 }

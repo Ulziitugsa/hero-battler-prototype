@@ -3,6 +3,8 @@ import type { MasteryLoadout } from '../types';
 import { MASTERY_POINT_LEVELS, MASTERY_RANK_UP_COST, MAX_LEVEL, xpToNextLevel } from './config';
 import { clearStoredAccount, defaultAccount, readStoredAccount, sanitizeAccount, writeStoredAccount } from './persistence';
 import type { AccountState, XpGrantResult } from './types';
+import { grantGems } from '../economy/economy';
+import { levelGems } from '../economy/rewards';
 
 // The single source of truth for account progression. Same shape as the collection store: an in-memory
 // snapshot mirroring localStorage, replaced on every write, with subscribers - so any mounted screen
@@ -96,6 +98,8 @@ export function grantXp(amount: number): XpGrantResult {
   }
   if (next.level >= MAX_LEVEL) next.xp = 0;
   const masteriesUnlocked = unlockForLevel(next);
+  const gemsGained = levelGems(levelsGained);
+  if (gemsGained > 0) grantGems(gemsGained, 'level');
   if (gained > 0) commit(next);
   return {
     gained,
@@ -105,6 +109,7 @@ export function grantXp(amount: number): XpGrantResult {
     xpAfter: next.xp,
     masteriesUnlocked,
     masteryPointsGained: masteryPointsEarned(next.level) - masteryPointsEarned(before.level),
+    gemsGained,
   };
 }
 

@@ -6,6 +6,7 @@ import { DecksPage } from './pages/DecksPage';
 import { HeroesPage } from './pages/HeroesPage';
 import { StatsPage } from './pages/StatsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { SummonPage } from './pages/SummonPage';
 import { CampaignPage } from './pages/campaign/CampaignPage';
 import { AppShell, type TabId } from './components/AppShell';
 import { recordBattleResult, type BattleResultOutcome } from './game/campaign/progress';
@@ -19,6 +20,7 @@ export default function App() {
   const [showStats, setShowStats] = useState(false);
   const [showBattleSetup, setShowBattleSetup] = useState(false);
   const [showCampaign, setShowCampaign] = useState(false);
+  const [showSummon, setShowSummon] = useState(false);
   const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; startingHp?: number; mastery: MasteryLoadout | null; ascensions: Record<string, number> } | null>(null);
   // Which Campaign node the in-progress battle belongs to, if any - set only by startCampaignBattle,
   // never by Quick Battle, so Quick Battle can never touch Campaign state (see progress.ts's own note).
@@ -81,6 +83,9 @@ export default function App() {
     );
   }
 
+  // Summon, like Campaign, is a full-screen destination reached from Home - the player picks what to open in Heroes/Decks afterwards.
+  if (showSummon) return <SummonPage onBack={() => setShowSummon(false)} />;
+
   function startBattle(player: DeckChoice, enemy: DeckChoice) {
     battleCounter.current += 1;
     setShowBattleSetup(false);
@@ -103,6 +108,7 @@ export default function App() {
         onStartQuickBattle={startBattle}
         onOpenDecks={() => setTab('decks')}
         onOpenProfile={() => setTab('profile')}
+        onOpenSummon={() => setShowSummon(true)}
       />
     );
   } else if (tab === 'heroes') {

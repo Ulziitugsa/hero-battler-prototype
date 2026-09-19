@@ -9,7 +9,7 @@ import { loadPreferences } from '../game/engine/preferences';
 import { Icon } from '../components/Icon';
 import { Gems, Sigil } from '../components/CardParts';
 import { useCollection } from '../game/collection/useCollection';
-import { getCardAcquisitionSources, primaryAcquisitionLabel } from '../game/collection/acquisition';
+import { acquisitionSummary, getCardAcquisitionSources } from '../game/collection/acquisition';
 import { useAscension } from '../game/ascension/useAscension';
 import { getAscensionRank } from '../game/ascension/store';
 import { ascensionNumeral } from '../game/ascension/ascend';
@@ -40,7 +40,7 @@ function ruleText(text: string, trigger: string): string {
 /** One quiet line: where the card comes from. Parked / unobtainable cards say so plainly rather than promising a stage. */
 function sourceLine(cardId: string, owned: boolean): string {
   const kinds = getCardAcquisitionSources(cardId).map((x) => x.kind);
-  if (kinds.includes('starter') || kinds.includes('campaign')) return `${owned ? 'Source' : 'Earn it'}: ${primaryAcquisitionLabel(cardId)}`;
+  if (kinds.includes('starter') || kinds.includes('campaign') || kinds.includes('summon')) return `${owned ? 'Source' : 'Earn it'}: ${acquisitionSummary(cardId)}`;
   return kinds.includes('future') ? 'Arrives in a later region' : 'Not obtainable yet';
 }
 

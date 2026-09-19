@@ -399,7 +399,7 @@ describe('Toll of the Ford, Fortify and starter safety', () => {
     expect(toll?.encounter?.firstClearReward).toMatchObject({ cardId: 'kng-royal-guard', label: 'Royal Guard' });
     expect(getCardAscension('kng-royal-guard')).toBeDefined(); // the spare exists to be Ascended
     expect(FUTURE_REGION_CARDS['spl-fortify']).toBe('region-2');
-    expect(getCardAcquisitionSources('spl-fortify')).toEqual([{ kind: 'future', regionId: 'region-2' }]);
+    expect(getCardAcquisitionSources('spl-fortify')).toEqual([{ kind: 'summon', bannerId: 'royal-vanguard' }, { kind: 'future', regionId: 'region-2' }]);
   });
   it('Ascension cannot re-lock an unlocked starter deck', () => {
     // Undead starter unlocked with exactly the cards it needs: Bone Soldier x2 (needed) cannot be spent

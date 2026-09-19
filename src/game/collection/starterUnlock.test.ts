@@ -66,9 +66,9 @@ describe('acquisition coverage', () => {
     }
   });
   it('starter cards are starter, Campaign rewards point at real stages, future cards name a region', () => {
-    expect(getCardAcquisitionSources('kng-paladin')).toEqual([{ kind: 'starter' }]);
-    expect(getCardAcquisitionSources('und-vharos')).toEqual([{ kind: 'campaign', nodeId: 'boss-grave-tyrant', copies: 1 }]);
-    expect(getCardAcquisitionSources('inf-infernal-lord')).toEqual([{ kind: 'future', regionId: 'region-3' }]);
+    expect(getCardAcquisitionSources('kng-paladin')).toEqual([{ kind: 'starter' }, { kind: 'summon', bannerId: 'royal-vanguard' }]);
+    expect(getCardAcquisitionSources('und-vharos')).toEqual([{ kind: 'campaign', nodeId: 'boss-grave-tyrant', copies: 1 }, { kind: 'summon', bannerId: 'gravebound' }]);
+    expect(getCardAcquisitionSources('inf-infernal-lord')).toEqual([{ kind: 'summon', bannerId: 'infernal-hunt' }, { kind: 'future', regionId: 'region-3' }]); // summonable now, Campaign region later
     const nodeIds = new Set(CHAPTER_1.nodes.map((n) => n.id));
     for (const id of PLAYTEST_ROSTER) for (const s of getCardAcquisitionSources(id)) if (s.kind === 'campaign') expect(nodeIds.has(s.nodeId)).toBe(true);
   });
@@ -79,7 +79,7 @@ describe('acquisition coverage', () => {
   it('resolves player-facing labels without ids', () => {
     expect(primaryAcquisitionLabel('kng-archer')).toBe('Starter collection');
     expect(primaryAcquisitionLabel('und-bone-soldier')).toBe('Campaign · Broken Palisade');
-    expect(primaryAcquisitionLabel('spl-fireball')).toBe('Future region');
+    expect(primaryAcquisitionLabel('spl-fireball')).toBe('Summon · Infernal Hunt');
   });
   it('every Undead-starter requirement is fully obtainable in Chapter 1, and any extra copies are deliberate Ascension spares', () => {
     const need = new Map<string, number>();

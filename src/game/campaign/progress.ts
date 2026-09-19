@@ -8,6 +8,8 @@ import type { GrantResult } from '../collection/types';
 import { getStarterProgressUpdate, type StarterProgressUpdate } from '../collection/starterUnlock';
 import { grantCampaignXp } from '../progression/rewards';
 import type { XpGrantResult } from '../progression/types';
+import { grantGems } from '../economy/economy';
+import { campaignFirstClearGems, chapterCompleteGems } from '../economy/rewards';
 
 // Campaign node-clearing progress. localStorage-only, following the same convention as
 // localDecks.ts/preferences.ts (try/catch-wrapped, sane defaults, never throws).
@@ -113,6 +115,8 @@ export interface BattleResultOutcome {
   starterProgress: StarterProgressUpdate | null;
   /** Account XP this result granted (win, replay win or loss); null for a claim that has no fight. */
   xp: XpGrantResult | null;
+  /** Gems this result granted: the node's first-clear Gems plus the chapter bonus when this clear completed the chapter. 0 for replays and losses. */
+  gems: number;
   chapterComplete: boolean;
 }
 
@@ -123,6 +127,12 @@ function grantReward(def: CampaignRewardDef): { cardGrant: GrantResult | null; s
   const cardGrant = grantCard(def.cardId, def.count ?? 1);
   const starterProgress = cardGrant ? getStarterProgressUpdate(def.cardId, before, getCollection()) : null;
   return { cardGrant, starterProgress };
+}
+
+/** Grants first-clear Gems (when this is the node's first claim) and the chapter bonus (when this claim flipped the chapter to complete), once, in one grant. */
+function grantCampaignGems(node: CampaignNodeDef, firstClaim: boolean, chapterWasComplete: boolean, chapterIsComplete: boolean): number {
+  const total = (firstClaim ? campaignFirstClearGems(node.type) : 0) + (!chapterWasComplete && chapterIsComplete ? chapterCompleteGems() : 0);
+  return total > 0 ? grantGems(total, 'campaign').gained : 0;
 }
 
 /** Call once, right when a Campaign battle's match ends (GamePage's onMatchEnd) - a win marks the node
@@ -144,8 +154,10 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
   });
 
   const wasCleared = isNodeCleared(nodeId, progress);
+  const chapterWasComplete = isChapterComplete(progress);
   const isFirstClear = won && !wasCleared;
   let granted: ReturnType<typeof grantReward> = { cardGrant: null, starterProgress: null };
+  let gems = 0;
 
   if (won) {
     progress.objectivesMet[nodeId] = [...alreadyMet];
@@ -156,6 +168,7 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
     if (claimNew) progress.firstClearClaimed = [...progress.firstClearClaimed, nodeId];
     saveProgress(progress);
     if (claimNew) granted = grantReward(node.encounter.firstClearReward);
+    gems = grantCampaignGems(node, claimNew, chapterWasComplete, isChapterComplete(progress));
   }
 
   return {
@@ -167,24 +180,28 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
     cardGrant: granted.cardGrant,
     starterProgress: granted.starterProgress,
     xp: grantCampaignXp(node.type, { won, isFirstClear }),
+    gems,
     chapterComplete: won && isChapterComplete(loadProgress()),
   };
 }
 
 /** Reward/story nodes have no battle - claiming/viewing them clears them directly. */
-export function clearNonBattleNode(nodeId: string): { node: CampaignNodeDef; chapterComplete: boolean; cardGrant: GrantResult | null; starterProgress: StarterProgressUpdate | null } {
+export function clearNonBattleNode(nodeId: string): { node: CampaignNodeDef; chapterComplete: boolean; cardGrant: GrantResult | null; starterProgress: StarterProgressUpdate | null; gems: number } {
   const node = findNode(nodeId);
   if (!node) throw new Error(`clearNonBattleNode: unknown node "${nodeId}"`);
   const progress = loadProgress();
   let granted: ReturnType<typeof grantReward> = { cardGrant: null, starterProgress: null };
+  let gems = 0;
+  const chapterWasComplete = isChapterComplete(progress);
   if (!isNodeCleared(nodeId, progress)) {
     progress.clearedNodes = [...progress.clearedNodes, nodeId];
     const claimNew = !progress.firstClearClaimed.includes(nodeId);
     if (claimNew) progress.firstClearClaimed = [...progress.firstClearClaimed, nodeId];
     saveProgress(progress);
     if (claimNew && node.reward) granted = grantReward(node.reward);
+    gems = grantCampaignGems(node, claimNew, chapterWasComplete, isChapterComplete(progress));
   }
-  return { node, chapterComplete: isChapterComplete(loadProgress()), ...granted };
+  return { node, chapterComplete: isChapterComplete(loadProgress()), ...granted, gems };
 }
 
 export { STARTING_HP };

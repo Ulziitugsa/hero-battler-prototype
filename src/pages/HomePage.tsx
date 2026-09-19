@@ -14,6 +14,10 @@ import { MASTERIES, rankNumeral } from '../game/mastery/definitions';
 import { MasteryCrest } from '../components/MasteryCrest';
 import { loadPreferences, savePreferences } from '../game/engine/preferences';
 import { loadRecentMatches } from '../game/engine/localMatchHistory';
+import { GemBalance } from '../components/GemIcon';
+import { SUMMON_BANNERS, getBanner } from '../game/summon/banners';
+import { loadSelectedBanner } from '../game/summon/selectedBanner';
+import { cardArtUrl } from '../game/cards/art';
 import type { DeckChoice } from './BattleSetupPage';
 
 const STARTER_FACTIONS: StarterFaction[] = ['kingdom', 'undead', 'infernal'];
@@ -27,12 +31,14 @@ export function HomePage({
   onStartQuickBattle,
   onOpenDecks,
   onOpenProfile,
+  onOpenSummon,
 }: {
   onOpenBattleSetup: () => void;
   onOpenCampaign: () => void;
   onStartQuickBattle: (player: DeckChoice, opponent: DeckChoice) => void;
   onOpenDecks: () => void;
   onOpenProfile: () => void;
+  onOpenSummon: () => void;
 }) {
   const prefs = useMemo(() => loadPreferences(), []);
   const deckOptions = useMemo(() => listDeckOptions(), []);
@@ -51,6 +57,10 @@ export function HomePage({
 
   const featuredCardId = ROSTER_BY_FACTION[selectedDeck.faction].find((id) => getCard(id).rarity === 'legendary');
   const featuredCard = featuredCardId ? getCard(featuredCardId) : null;
+
+  // Echo the banner the player last browsed: its chase card and name hint at what's in the vault.
+  const summonBanner = useMemo(() => getBanner(loadSelectedBanner()) ?? SUMMON_BANNERS[0], []);
+  const summonArt = cardArtUrl(summonBanner.featured.main);
 
   const [inspectCardId, setInspectCardId] = useState<string | null>(null);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
@@ -168,6 +178,14 @@ export function HomePage({
             <Icon name="back" size={13} className="home-nameplate-chevron" />
           </button>
         )}
+        <button type="button" className={`home-summon-plate theme-${summonBanner.faction}`} onClick={onOpenSummon} aria-label={`Summon - ${summonBanner.name}`}>
+          <span className="home-summon-medal">{summonArt ? <img src={summonArt} alt="" draggable={false} /> : <span className="home-sigil" data-faction={summonBanner.faction} />}</span>
+          <span className="home-summon-text">
+            <span className="home-summon-name">Summon</span>
+            <span className="home-summon-banner">{summonBanner.name}</span>
+            <GemBalance className="home-summon-gems" />
+          </span>
+        </button>
       </div>
 
       <div className="home-terrace">
