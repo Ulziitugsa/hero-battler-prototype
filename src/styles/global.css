@@ -3321,8 +3321,10 @@ button {
 
 .skirmish-ridge-b {
   top: 54%;
-  height: 8%;
+  bottom: 0;
   left: -20%;
+  right: -20%;
+  border-radius: 50% 50% 0 0 / 46px 46px 0 0;
   background: #4a2d3a;
 }
 
@@ -3353,12 +3355,11 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--ember-gold-ink);
-  background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep));
+  color: var(--ember-gold-light);
+  background: linear-gradient(180deg, var(--ember-wood), #42221a);
   box-shadow:
-    0 4px 10px rgba(18, 8, 6, 0.65),
-    inset 0 2px 0 rgba(255, 250, 230, 0.5),
-    inset 0 -2px 0 rgba(70, 36, 8, 0.4);
+    0 4px 10px rgba(20, 8, 6, 0.6),
+    inset 0 1.5px 0 rgba(255, 226, 180, 0.34);
   -webkit-tap-highlight-color: transparent;
 }
 
