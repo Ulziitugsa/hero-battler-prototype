@@ -259,28 +259,48 @@ button {
    canvas, same technique as Home, so the whole scene scales as one unit.
    ============================================================================ */
 
+/* MOBILE-FIRST framing (the default): the stage takes the screen's WIDTH - exactly like Home / Heroes / Decks - and
+   its height follows the 390:844 aspect (never shorter than the visible viewport). The width is NEVER derived from
+   viewport height: on iPhone Safari the dynamic toolbar shrinks 100dvh, and a height-derived width made Battle and
+   Campaign render at ~75-85% scale next to every other screen. If the aspect height exceeds the visible area the
+   page simply scrolls (the toolbar collapses) - it does not shrink. The letterboxed, height-fitted phone frame is
+   a DESKTOP-only presentation (see the min-width media query below). */
 .app-shell {
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   min-height: 100dvh;
-  padding: 8px;
+  padding: 0;
   background: #0a0508;
 }
 
 .battle-stage {
   position: relative;
-  width: min(100%, calc((100dvh - 16px) * 390 / 844));
+  width: 100%;
+  max-width: 480px;
   aspect-ratio: 390 / 844;
-  max-height: calc(100dvh - 16px);
+  min-height: 100dvh;
+}
+
+@media (min-width: 900px) {
+  .app-shell {
+    align-items: center;
+    padding: 8px;
+  }
+  .battle-stage {
+    width: min(100%, calc((100dvh - 16px) * 390 / 844));
+    max-width: none;
+    min-height: 0;
+    max-height: calc(100dvh - 16px);
+  }
 }
 
 .battle-scene {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 0;
   background: linear-gradient(180deg, #3a2333 0%, #6a3a3f 20%, #8d5642 40%, #5d3735 64%, #2e1d26 100%);
   box-shadow: 0 26px 60px rgba(10, 4, 8, 0.7);
   font-family: var(--ember-font-body);
@@ -6069,16 +6089,31 @@ button {
 
 .campaign-world-stage {
   position: relative;
-  width: min(100%, calc((100dvh - 16px) * 390 / 844));
+  width: 100%;
+  max-width: 480px;
   aspect-ratio: 390 / 844;
-  max-height: calc(100dvh - 16px);
+  min-height: 100dvh;
+}
+
+/* Desktop only: keep the letterboxed phone frame, fitted to the window height. */
+@media (min-width: 900px) {
+  .campaign-world-stage {
+    width: min(100%, calc((100dvh - 16px) * 390 / 844));
+    max-width: none;
+    min-height: 0;
+    max-height: calc(100dvh - 16px);
+  }
+  .battle-scene,
+  .campaign-world-scene {
+    border-radius: 8px;
+  }
 }
 
 .campaign-world-scene {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 0;
   background: #150d13;
   box-shadow: 0 26px 60px rgba(10, 4, 8, 0.7);
   font-family: var(--ember-font-body);

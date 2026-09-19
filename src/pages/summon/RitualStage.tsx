@@ -107,92 +107,100 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, preview = 
   const tier = view.tier;
   const showStage = !!stagePull && (view.phase === 'emerge' || view.phase === 'reveal' || (!ten && result));
 
-  return (
-    <div className={`ritual ${ten ? 'ten' : 'single'} ${result ? 'is-result' : ''}`} data-phase={view.phase} data-tier={tier} data-faction={faction} data-featured={view.featured ? '1' : '0'} data-stage={view.stageSlot !== null && ten ? '1' : '0'} data-grid={ten && (view.phase === 'slot' || view.isResult || view.stageSlot !== null || view.revealed > 0) ? '1' : '0'} style={{ ['--step-ms' as string]: `${view.ms}ms` } as CSSProperties} role="dialog" aria-label="Summon results">
-      <div className="ritual-vignette" />
-      <div className="ritual-env" />
-
-      <div className="ritual-center">
-        <div className="ritual-crest" />
-        <div className="ritual-beam" />
-        <div className="ritual-flare" />
-        <SummonSeal faction={faction} />
-        <div className="ritual-rings">
-          <span />
-          <span />
-        </div>
-        <div className="ritual-sparks">
-          {Array.from({ length: SPARKS[tier] }, (_, i) => (
-            <span key={i} style={{ ['--i' as string]: i } as CSSProperties} />
-          ))}
-        </div>
-        <div className="ritual-impact" />
-        {showStage && stagePull && <StageCard key={view.stageSlot} pull={stagePull} phase={view.phase} faction={faction} />}
-      </div>
-
-      {ten && (
-        <div className="ritual-grid" aria-live="polite">
-          {outcome.pulls.map((p, i) => (
-            <GridTile key={i} pull={p} revealed={i < view.revealed} onInspect={result ? setInspectId : () => {}} faction={faction} />
-          ))}
-        </div>
-      )}
-
-      {!result && <button type="button" className="ritual-skip" onClick={onSkip} aria-label="Skip" />}
-
-      {result && (
-        <div className="ritual-info">
-          {!ten && (
-            <div className="ri-card">
-              <span className="ri-line">
-                <Gems rarity={singleCard.rarity} />
-                <strong className={`ri-rarity r-${singleCard.rarity}`}>{RARITY_LABEL[singleCard.rarity]}</strong>
-                <span>· {FACTION_LABEL[singleCard.faction] ?? singleCard.faction}</span>
-              </span>
+  const infoEl = result ? (
+          <div className="ritual-info">
+            {!ten && (
+              <div className="ri-card">
+                <span className="ri-line">
+                  <Gems rarity={singleCard.rarity} />
+                  <strong className={`ri-rarity r-${singleCard.rarity}`}>{RARITY_LABEL[singleCard.rarity]}</strong>
+                  <span>· {FACTION_LABEL[singleCard.faction] ?? singleCard.faction}</span>
+                </span>
+                <span className="ri-chips">
+                  {single.grant.isNew ? <span className="chip gold">New to your collection</span> : <span className="chip">Owned ×{single.grant.owned}</span>}
+                  {single.featured && <span className="chip gold">Featured</span>}
+                  {single.pityTriggered && <span className="chip gold">Guarantee reached</span>}
+                  {single.ascensionAvailable && (
+                    <span className="chip">
+                      <Icon name="power" size={12} /> Ascension available
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+            {ten && (
               <span className="ri-chips">
-                {single.grant.isNew ? <span className="chip gold">New to your collection</span> : <span className="chip">Owned ×{single.grant.owned}</span>}
-                {single.featured && <span className="chip gold">Featured</span>}
-                {single.pityTriggered && <span className="chip gold">Guarantee reached</span>}
-                {single.ascensionAvailable && (
-                  <span className="chip">
-                    <Icon name="power" size={12} /> Ascension available
+                <span className="chip">
+                  {newCount} new · {outcome.pulls.length - newCount} duplicate{outcome.pulls.length - newCount === 1 ? '' : 's'}
+                </span>
+                {outcome.pulls.some((p) => p.pityTriggered) && <span className="chip gold">Guarantee reached</span>}
+                {ascendable.map((id) => (
+                  <span key={id} className="chip">
+                    <Icon name="power" size={12} /> Ascension · {getCard(id).name}
                   </span>
+                ))}
+              </span>
+            )}
+            {outcome.starterProgress.map((s) => (
+              <span key={s.deckId} className={`chip wide ${s.unlockedNow ? 'gold' : ''}`}>
+                {s.unlockedNow ? (
+                  <>
+                    <Icon name="check" size={12} /> <strong>{s.name} unlocked</strong> — ready in Decks
+                  </>
+                ) : (
+                  <>
+                    {s.name} · {s.collected} / {s.total}
+                  </>
                 )}
               </span>
-            </div>
-          )}
-          {ten && (
-            <span className="ri-chips">
-              <span className="chip">
-                {newCount} new · {outcome.pulls.length - newCount} duplicate{outcome.pulls.length - newCount === 1 ? '' : 's'}
-              </span>
-              {outcome.pulls.some((p) => p.pityTriggered) && <span className="chip gold">Guarantee reached</span>}
-              {ascendable.map((id) => (
-                <span key={id} className="chip">
-                  <Icon name="power" size={12} /> Ascension · {getCard(id).name}
-                </span>
-              ))}
-            </span>
-          )}
-          {outcome.starterProgress.map((s) => (
-            <span key={s.deckId} className={`chip wide ${s.unlockedNow ? 'gold' : ''}`}>
-              {s.unlockedNow ? (
-                <>
-                  <Icon name="check" size={12} /> <strong>{s.name} unlocked</strong> — ready in Decks
-                </>
-              ) : (
-                <>
-                  {s.name} · {s.collected} / {s.total}
-                </>
-              )}
-            </span>
-          ))}
-          <button type="button" className="ritual-continue" onClick={onDone} autoFocus>
-            {ten ? 'Done' : 'Continue'}
-          </button>
-          {preview && <span className="chip">Dev preview — nothing was granted</span>}
+            ))}
+            <button type="button" className="ritual-continue" onClick={onDone} autoFocus>
+              {ten ? 'Done' : 'Continue'}
+            </button>
+            {preview && <span className="chip">Dev preview — nothing was granted</span>}
+          </div>
+  ) : null;
+
+  return (
+    <div className={`ritual ${ten ? 'ten' : 'single'} ${result ? 'is-result' : ''}`} data-phase={view.phase} data-tier={tier} data-faction={faction} data-featured={view.featured ? '1' : '0'} data-stage={view.stageSlot !== null && ten ? '1' : '0'} data-grid={ten && (view.phase === 'slot' || view.isResult || view.stageSlot !== null || view.revealed > 0) ? '1' : '0'} style={{ ['--step-ms' as string]: `${view.ms}ms` } as CSSProperties} role="dialog" aria-label="Summon results">
+      <div className="ritual-canvas">
+        <div className="ritual-vignette" />
+        <div className="ritual-env" />
+
+        <div className="ritual-center">
+          <div className="ritual-crest" />
+          <div className="ritual-beam" />
+          <div className="ritual-flare" />
+          <SummonSeal faction={faction} />
+          <div className="ritual-rings">
+            <span />
+            <span />
+          </div>
+          <div className="ritual-sparks">
+            {Array.from({ length: SPARKS[tier] }, (_, i) => (
+              <span key={i} style={{ ['--i' as string]: i } as CSSProperties} />
+            ))}
+          </div>
+          <div className="ritual-impact" />
+          {showStage && stagePull && <StageCard key={view.stageSlot} pull={stagePull} phase={view.phase} faction={faction} />}
         </div>
-      )}
+
+        {ten ? (
+          <div className="ritual-ten">
+            <div className="ritual-ten-title">Summon result</div>
+            <div className="ritual-grid" aria-live="polite">
+              {outcome.pulls.map((p, i) => (
+                <GridTile key={i} pull={p} revealed={i < view.revealed} onInspect={result ? setInspectId : () => {}} faction={faction} />
+              ))}
+            </div>
+            {infoEl}
+          </div>
+        ) : (
+          infoEl
+        )}
+
+        {!result && <button type="button" className="ritual-skip" onClick={onSkip} aria-label="Skip" />}
+      </div>
 
       {inspectId && <CardDetail cardId={inspectId} onClose={() => setInspectId(null)} />}
     </div>

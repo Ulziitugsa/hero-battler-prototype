@@ -94,13 +94,8 @@ function HeroTile({ card, owned, count, rank, onClick }: { card: CardDefinition;
           <span className="hr-power">{card.power}</span>
         </span>
         <span className="hr-card-plate">
+          <Sigil faction={card.faction} size="sm" />
           <span className="hr-card-name">{card.name}</span>
-          <span className="hr-card-role">
-            <Sigil faction={card.faction} size="sm" />
-            <span>
-              {[FACTION_LABEL[card.faction], displayRole(card)].filter(Boolean).join(' · ')}
-            </span>
-          </span>
         </span>
       </span>
     </button>

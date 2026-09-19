@@ -159,7 +159,9 @@
 
 /* ---- Card grid ---- */
 
-.hr-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 14px; padding-top: 6px; }
+/* 3 columns - the same browsing density as Decks. The tile is art-first: frame + rarity + state marks + a two-line name.
+   Role / faction wording and rules text live in the detail sheet, not here. */
+.hr-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 8px; padding-top: 6px; }
 
 .hr-card {
   --frame-a: #7a746c;
@@ -180,33 +182,33 @@
 .hr-card-frame {
   position: relative;
   display: block;
-  padding: 3px;
-  border-radius: 14px;
+  padding: 2.5px;
+  border-radius: 11px;
   background: linear-gradient(180deg, var(--frame-a), var(--frame-b));
-  box-shadow: 0 8px 16px rgba(10, 4, 6, 0.55);
+  box-shadow: 0 6px 12px rgba(10, 4, 6, 0.55);
 }
-.hr-card.r-rare .hr-card-frame { padding: 3.5px; }
-.hr-card.r-epic .hr-card-frame { padding: 4px; box-shadow: 0 8px 16px rgba(10, 4, 6, 0.55), 0 0 18px rgba(150, 104, 208, 0.28); }
-.hr-card.r-legendary .hr-card-frame { padding: 4.5px; box-shadow: 0 8px 18px rgba(10, 4, 6, 0.6), 0 0 22px rgba(255, 216, 148, 0.4); }
+.hr-card.r-rare .hr-card-frame { padding: 3px; }
+.hr-card.r-epic .hr-card-frame { padding: 3px; box-shadow: 0 6px 12px rgba(10, 4, 6, 0.55), 0 0 14px rgba(150, 104, 208, 0.28); }
+.hr-card.r-legendary .hr-card-frame { padding: 3.5px; box-shadow: 0 6px 14px rgba(10, 4, 6, 0.6), 0 0 16px rgba(255, 216, 148, 0.4); }
 .hr-card.missing .hr-card-frame { filter: saturate(0.8) brightness(0.9); box-shadow: 0 6px 12px rgba(10, 4, 6, 0.5); }
 
 .hr-crown {
   position: absolute;
   z-index: 2;
   left: 50%;
-  top: -9px;
-  width: 30px;
-  height: 12px;
-  margin-left: -15px;
+  top: -7px;
+  width: 22px;
+  height: 9px;
+  margin-left: -11px;
   background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep));
   clip-path: polygon(0 100%, 0 30%, 16% 62%, 34% 0, 50% 52%, 66% 0, 84% 62%, 100% 30%, 100% 100%);
 }
 .hr-card.missing .hr-crown { opacity: 0.6; }
 
-.hr-card-window { position: relative; display: block; border-radius: 10px 10px 0 0; overflow: hidden; }
+.hr-card-window { position: relative; display: block; border-radius: 8px 8px 0 0; overflow: hidden; }
 
 /* Art: real image, or the faction-tinted fallback with a large sigil. */
-.hr-art { position: relative; display: block; width: 100%; aspect-ratio: 4 / 4.6; overflow: hidden; }
+.hr-art { position: relative; display: block; width: 100%; aspect-ratio: 4 / 4.9; overflow: hidden; }
 .hr-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; }
 .hr-art.fallback.kingdom { background: radial-gradient(circle at 50% 36%, #6a92d0, #1b2a4a 78%); }
 .hr-art.fallback.undead { background: radial-gradient(circle at 50% 36%, #4f9c82, #123028 78%); }
@@ -231,13 +233,13 @@
 .hr-art.large.veiled.fallback { filter: saturate(0.7) brightness(1); }
 .hr-art-veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(60, 50, 96, 0.12), rgba(28, 22, 56, 0.5)); }
 
-.hr-card-gems { position: absolute; top: 7px; left: 7px; padding: 4px 6px; border-radius: 8px; background: rgba(10, 4, 6, 0.6); line-height: 0; }
+.hr-card-gems { position: absolute; top: 4px; left: 4px; padding: 3px 4px; border-radius: 6px; background: rgba(10, 4, 6, 0.6); line-height: 0; transform: scale(0.82); transform-origin: top left; }
 .hr-lock {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 30px;
-  height: 30px;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -248,19 +250,19 @@
 .hr-lock.big { top: 12px; right: 12px; width: 38px; height: 38px; }
 .hr-power {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
-  min-width: 34px;
-  height: 34px;
-  padding: 0 4px;
+  right: 4px;
+  bottom: 4px;
+  min-width: 25px;
+  height: 25px;
+  padding: 0 2px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #4a2c1f, #1e100a);
-  border: 2px solid var(--ember-gold);
+  border: 1.5px solid var(--ember-gold);
   color: var(--ember-gold-light);
   font-family: var(--ember-font-display);
-  font-size: 1.1rem;
+  font-size: 0.84rem;
   line-height: 1;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
 }
@@ -269,19 +271,25 @@
 
 .hr-card-plate {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 9px 10px 10px;
-  border-radius: 0 0 10px 10px;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 6px 6px 7px;
+  border-radius: 0 0 8px 8px;
   background: linear-gradient(180deg, #3a2317, #22120c);
   border-top: 1px solid rgba(255, 226, 180, 0.15);
 }
+.hr-card-plate .cp-sigil { flex: none; margin-top: 2px; }
 .hr-card-name {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.3em; /* two lines reserved so every tile is the same height */
   font-family: var(--ember-font-display);
-  font-size: 1.02rem;
+  font-size: 0.8rem;
   line-height: 1.15;
   color: var(--ember-ink);
   overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -381,7 +389,9 @@
 }
 
 /* Duplicate copies: a quiet corner count, only when you own more than one. */
-.hr-copies { position: absolute; top: 7px; right: 7px; min-width: 30px; height: 26px; padding: 0 8px; display: grid; place-items: center; border-radius: 13px; background: rgba(10, 4, 6, 0.7); border: 1px solid rgba(255, 226, 180, 0.3); font-size: 0.8rem; font-weight: 800; color: var(--ember-ink-2); }
+.hr-copies { position: absolute; top: 4px; right: 4px; min-width: 22px; height: 19px; padding: 0 5px; display: grid; place-items: center; border-radius: 10px; background: rgba(10, 4, 6, 0.7); border: 1px solid rgba(255, 226, 180, 0.3); font-size: 0.68rem; font-weight: 800; color: var(--ember-ink-2); }
+.hr-card .hr-lock + .hr-copies { top: 28px; }
+.hr-card .asc-mark { left: 4px; bottom: 4px; min-width: 18px; height: 17px; padding: 0 4px; font-size: 0.62rem; }
 
 /* Where the card comes from - one quiet line, more useful on missing cards. */
 .hr-source { display: flex; align-items: center; gap: 7px; font-size: 0.85rem; font-weight: 700; color: var(--ember-ink-3); }
