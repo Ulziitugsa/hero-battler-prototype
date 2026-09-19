@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '../components/Icon';
-import { TopBar } from '../components/TopBar';
 import { STARTER_DECKS, STARTER_DECK_NAMES, type StarterFaction } from '../game/cards/starterDecks';
 import { listDeckOptions } from '../game/engine/deckOptions';
 import { loadPreferences, savePreferences } from '../game/engine/preferences';
 import { validateDeck } from '../game/engine/deckRules';
 
 const FACTIONS: StarterFaction[] = ['kingdom', 'undead', 'infernal'];
+const FACTION_LABEL: Record<StarterFaction, string> = { kingdom: 'Kingdom', undead: 'Undead', infernal: 'Infernal' };
 
 export interface DeckChoice {
   label: string;
@@ -21,6 +21,7 @@ export function BattleSetupPage({ onStartBattle, onBack }: { onStartBattle: (pla
   const [opponent, setOpponent] = useState<StarterFaction>(prefs.opponentFaction);
 
   const playerDeck = deckOptions.find((d) => d.id === playerDeckId) ?? deckOptions[0];
+  const playerDeckIndex = deckOptions.indexOf(playerDeck);
   const validation = validateDeck(playerDeck.cardIds);
 
   function updatePlayerDeck(id: string) {
@@ -33,64 +34,127 @@ export function BattleSetupPage({ onStartBattle, onBack }: { onStartBattle: (pla
     savePreferences({ selectedDeckId: playerDeckId, opponentFaction: f });
   }
 
-  return (
-    <div className="screen-shell">
-      <TopBar
-        title="Battle"
-        caption="Choose your deck and opponent"
-        right={
-          onBack && (
-            <button type="button" className="btn btn-icon" onClick={onBack} aria-label="Back to Home">
-              <Icon name="back" />
-            </button>
-          )
-        }
-      />
+  function stepDeck(delta: number) {
+    updatePlayerDeck(deckOptions[(playerDeckIndex + delta + deckOptions.length) % deckOptions.length].id);
+  }
 
-      <div className="battle-setup-card panel-raised">
-        <label className="menu-field">
-          <span>
-            <Icon name="deck" size={15} /> Your deck
-          </span>
-          <select value={playerDeckId} onChange={(e) => updatePlayerDeck(e.target.value)}>
-            {deckOptions.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.label}
-              </option>
+  return (
+    <div className="skirmish">
+      <div className="skirmish-world" aria-hidden="true">
+        <div className="skirmish-sky" />
+        <div className="skirmish-sun" />
+        <div className="skirmish-ridge skirmish-ridge-a" />
+        <div className="skirmish-ridge skirmish-ridge-b" />
+        <div className="skirmish-scrim" />
+      </div>
+
+      <header className="skirmish-header">
+        {onBack && (
+          <button type="button" className="skirmish-back" onClick={onBack} aria-label="Back to Home">
+            <Icon name="back" size={20} />
+          </button>
+        )}
+        <div className="skirmish-heading">
+          <h1 className="skirmish-title">Quick battle</h1>
+          <p className="skirmish-caption">Pick a rival, then fight</p>
+        </div>
+      </header>
+
+      <section className="skirmish-yard" aria-labelledby="skirmish-opponent-title">
+        <h2 className="skirmish-section" id="skirmish-opponent-title">
+          <span>Who are you facing?</span>
+        </h2>
+        <div className="skirmish-hanging">
+          <div className="skirmish-beam" />
+          <div className="skirmish-pennants" role="radiogroup" aria-labelledby="skirmish-opponent-title">
+            {FACTIONS.map((f) => (
+              <button
+                key={f}
+                type="button"
+                role="radio"
+                aria-checked={opponent === f}
+                aria-label={STARTER_DECK_NAMES[f]}
+                className={`skirmish-pennant ${opponent === f ? 'active' : ''}`}
+                onClick={() => updateOpponent(f)}
+              >
+                <span className="skirmish-pennant-cloth">
+                  <span className="skirmish-pennant-sigil">
+                    <span className="home-sigil" data-faction={f} />
+                  </span>
+                  <span className="skirmish-pennant-name">{FACTION_LABEL[f]}</span>
+                </span>
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+        </div>
+      </section>
+
+      <div className="home-terrace skirmish-terrace">
+        <h2 className="skirmish-section skirmish-section-terrace">
+          <span>Your deck</span>
+        </h2>
+
+        <div className="home-deck-rail skirmish-rail">
+          <div className="home-deck-fan" data-faction={playerDeck.faction}>
+            <span className="home-deck-card home-deck-card-0" />
+            <span className="home-deck-card home-deck-card-1">
+              <span className="home-deck-card-gem" />
+            </span>
+            <span className="home-deck-card home-deck-card-2" />
+          </div>
+          <div className="home-deck-info" aria-live="polite">
+            <div className="home-deck-name">{playerDeck.label}</div>
+            <div className="home-deck-meta">
+              <span className="home-sigil" data-faction={playerDeck.faction} />
+              <span>
+                {FACTION_LABEL[playerDeck.faction]} · {playerDeck.cardIds.length} {playerDeck.cardIds.length === 1 ? 'card' : 'cards'}
+              </span>
+            </div>
+            {deckOptions.length > 1 && (
+              <div className="skirmish-pips" aria-hidden="true">
+                {deckOptions.map((d) => (
+                  <span key={d.id} className={`skirmish-pip ${d.id === playerDeck.id ? 'active' : ''}`} />
+                ))}
+              </div>
+            )}
+          </div>
+          {deckOptions.length > 1 && (
+            <div className="skirmish-steppers">
+              <button type="button" className="skirmish-step" onClick={() => stepDeck(-1)} aria-label="Previous deck">
+                <Icon name="back" size={18} />
+              </button>
+              <button type="button" className="skirmish-step skirmish-step-next" onClick={() => stepDeck(1)} aria-label="Next deck">
+                <Icon name="back" size={18} />
+              </button>
+            </div>
+          )}
+        </div>
 
         {!validation.valid && (
-          <div className="menu-warning">
-            <Icon name="warning" size={15} />
-            This deck isn't valid yet: {validation.errors.join(' ')} Fix it in Decks before playing.
+          <div className="skirmish-warning" role="alert">
+            <Icon name="warning" size={16} />
+            <span>This deck isn't valid yet: {validation.errors.join(' ')} Fix it in Decks before playing.</span>
           </div>
         )}
 
-        <label className="menu-field">
-          <span>
-            <Icon name="heroes" size={15} /> Opponent
-          </span>
-          <select value={opponent} onChange={(e) => updateOpponent(e.target.value as StarterFaction)}>
-            {FACTIONS.map((f) => (
-              <option key={f} value={f}>
-                {STARTER_DECK_NAMES[f]}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button
-          type="button"
-          className="btn btn-primary weave-cta"
-          disabled={!validation.valid}
-          onClick={() =>
-            onStartBattle({ label: playerDeck.label, cardIds: playerDeck.cardIds }, { label: STARTER_DECK_NAMES[opponent], cardIds: STARTER_DECKS[opponent] })
-          }
-        >
-          <Icon name="battle" size={18} /> FIGHT
-        </button>
+        <div className={`home-fight-socket skirmish-socket ${validation.valid ? '' : 'disabled'}`}>
+          <div className="home-fight-socket-glow" />
+          <div className="home-fight-socket-ring" />
+          <button
+            type="button"
+            className="home-fight-seal"
+            aria-label="Fight"
+            disabled={!validation.valid}
+            onClick={() =>
+              onStartBattle({ label: playerDeck.label, cardIds: playerDeck.cardIds }, { label: STARTER_DECK_NAMES[opponent], cardIds: STARTER_DECKS[opponent] })
+            }
+          >
+            <span className="home-fight-seal-core">
+              <Icon name="battle" size={20} />
+              <span>Fight</span>
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   );
