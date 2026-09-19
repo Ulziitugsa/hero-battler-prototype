@@ -1,6 +1,8 @@
 import type { MatchStats } from '../game/engine/stats';
+import type { XpGrantResult } from '../game/progression/types';
+import { XpSummary } from './XpSummary';
 
-export function MatchSummary({ stats, onPlayAgain, onExit }: { stats: MatchStats; onPlayAgain: () => void; onExit: () => void }) {
+export function MatchSummary({ stats, xp, onPlayAgain, onExit }: { stats: MatchStats; xp?: XpGrantResult | null; onPlayAgain: () => void; onExit: () => void }) {
   const title = stats.winner === 'player' ? 'You win' : stats.winner === 'enemy' ? 'You lose' : 'Draw';
   return (
     <div className="summary-overlay">
@@ -9,6 +11,7 @@ export function MatchSummary({ stats, onPlayAgain, onExit }: { stats: MatchStats
         <div className="subtitle">
           {stats.playerDeckLabel} vs {stats.enemyDeckLabel} - {stats.roundsPlayed} rounds - final HP {stats.finalPlayerHp} / {stats.finalEnemyHp}
         </div>
+        <XpSummary xp={xp ?? null} />
         <div className="summary-stats">
           <span className="k">Rounds played</span>
           <span className="v">{stats.roundsPlayed}</span>

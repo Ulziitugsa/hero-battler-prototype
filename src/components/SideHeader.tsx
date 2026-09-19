@@ -1,5 +1,6 @@
 import { STARTING_HP } from '../game/engine/constants';
 import { Icon } from './Icon';
+import type { ReactNode } from 'react';
 import type { HpFx } from './animation/chitEffects';
 
 /**
@@ -21,6 +22,7 @@ export function SideHeader({
   graveyardDisabled,
   onClose,
   onGraveyardClick,
+  badge,
 }: {
   side: 'player' | 'enemy';
   name: string;
@@ -36,6 +38,8 @@ export function SideHeader({
   graveyardDisabled?: boolean;
   onClose?: () => void;
   onGraveyardClick?: () => void;
+  /** Small extra HUD element shown beside the pills (the equipped Mastery badge). */
+  badge?: ReactNode;
 }) {
   const pct = Math.max(0, Math.min(100, (hp / STARTING_HP) * 100));
   const low = hp <= STARTING_HP * 0.3;
@@ -71,6 +75,7 @@ export function SideHeader({
       </div>
       {side === 'player' && deckCount !== undefined && graveyardCount !== undefined && (
         <div className="side-header-pills">
+          {badge}
           <button
             type="button"
             className={`side-header-pill interactive ${graveyardPulse ? 'pill-pulse' : ''}`}

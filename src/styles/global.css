@@ -1721,6 +1721,7 @@ button {
      query - same trick used by `body .app-frame-content > *` below.) */
   body .home-embervale,
   body .decks-screen,
+  body .profile-screen,
   body .heroes-screen {
     flex: none;
   }
@@ -7804,4 +7805,13 @@ button {
   color: #ffeec4;
   background: rgba(10, 4, 6, 0.45);
   border: 1px solid rgba(255, 226, 180, 0.3);
+}
+
+.home-deck-mastery {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--ember-gold);
 }

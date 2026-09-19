@@ -1,4 +1,4 @@
-import type { GameState } from '../types';
+import type { GameState, MasteryLoadout, Side } from '../types';
 import { STARTING_HP } from './constants';
 import { createPlayerState } from './deck';
 import { beginRound } from './resolveRound';
@@ -8,6 +8,8 @@ export interface MatchSetup {
   playerDeck: string[];
   enemyDeck: string[];
   startingHp?: number;
+  /** Equipped Masteries for this match. Omit for none. */
+  masteries?: Partial<Record<Side, MasteryLoadout>>;
 }
 
 /** Builds the round-1 state (shuffled decks, Round 1 start-of-round effects + draw-to-target already applied). */
@@ -22,6 +24,7 @@ export function createMatch(setup: MatchSetup): { state: GameState; events: Retu
     player,
     enemy,
     status: 'IN_PROGRESS',
+    ...(setup.masteries ? { masteries: setup.masteries } : {}),
   };
 
   const { nextState, events } = beginRound(round1);

@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import type { DeployPlay, GameEvent, GameState, HandCard as HandCardModel, HeroInstance, LaneId, PlayerAction, SpellZoneInstance } from '../game/types';
+import type { DeployPlay, GameEvent, GameState, HandCard as HandCardModel, HeroInstance, LaneId, MasteryLoadout, PlayerAction, SpellZoneInstance } from '../game/types';
 import { LANES } from '../game/types';
 import { getCard } from '../game/cards';
 import { createMatch } from '../game/engine/match';
@@ -18,6 +18,10 @@ import { GraveyardSheet } from '../components/GraveyardSheet';
 import { DebugPanel } from '../components/DebugPanel';
 import { TopControls } from '../components/TopControls';
 import { MatchSummary } from '../components/MatchSummary';
+import { MasteryBadge } from '../components/MasteryBadge';
+import { masteryToastFrom, type MasteryToast } from '../components/masteryToast';
+import { grantQuickBattleXp } from '../game/progression/rewards';
+import type { XpGrantResult } from '../game/progression/types';
 import { Icon } from '../components/Icon';
 import { useAnimationController } from '../components/animation/useAnimationController';
 import { resolveDuration } from '../components/animation/timing';
@@ -32,6 +36,8 @@ export interface GamePageProps {
   playerDeckLabel: string;
   enemyDeckLabel: string;
   onExit: () => void;
+  /** The player's equipped Mastery, captured when the battle was set up. Omit/null for none. */
+  playerMastery?: MasteryLoadout | null;
   /** Overrides the match's starting HP (both sides) - used by Campaign's challenge nodes. Omit for the default STARTING_HP. */
   startingHp?: number;
   /** Fires once, the instant this match reaches MATCH_END - before the player dismisses the summary
@@ -81,9 +87,9 @@ function buildPreviewZones(
   return { heroZones: previewHero, spellZones: previewSpell };
 }
 
-export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, startingHp, onMatchEnd }: GamePageProps) {
+export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, startingHp, onMatchEnd }: GamePageProps) {
   function buildMatch(matchSeed: number) {
-    return createMatch({ seed: matchSeed, playerDeck, enemyDeck, startingHp });
+    return createMatch({ seed: matchSeed, playerDeck, enemyDeck, startingHp, masteries: playerMastery ? { player: playerMastery } : undefined });
   }
 
   const [seed, setSeed] = useState(() => makeSeed());
@@ -103,6 +109,15 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const [matchStats, setMatchStats] = useState<MatchStats | null>(null);
   const [mobileDebugOpen, setMobileDebugOpen] = useState(false);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
+  // Presentation-only: the last Mastery trigger (label shown briefly) and the Quick Battle XP result.
+  const [masteryToast, setMasteryToast] = useState<MasteryToast | null>(null);
+  const [xpResult, setXpResult] = useState<XpGrantResult | null>(null);
+
+  useEffect(() => {
+    if (!masteryToast) return;
+    const t = window.setTimeout(() => setMasteryToast(null), 2800);
+    return () => window.clearTimeout(t);
+  }, [masteryToast]);
 
   // The presentation layer: plays revealEvents back as a sequence of animation beats. The engine
   // itself (resolveRound, above) already fully decided the round synchronously - this hook only
@@ -123,6 +138,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     setPendingNextState(null);
     setLastAiAction(null);
     setMatchStats(null);
+    setMasteryToast(null);
+    setXpResult(null);
   }
 
   // Once the animation queue finishes playing revealEvents, hand off to the next round - using the
@@ -146,6 +163,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
       setMatchStats(stats);
       setGameState(next);
       setPhase('MATCH_END');
+      // Quick Battle grants its small XP here; a Campaign battle grants its own inside recordBattleResult.
+      if (!onMatchEnd) setXpResult(grantQuickBattleXp(next.status));
       if (onMatchEnd) {
         // A Campaign battle owns its own post-match moment - the carved StageResultSheet back on
         // the map, which already covers win/loss/rewards. Hand off straight to it instead of
@@ -156,6 +175,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
       }
     } else {
       const begun = beginRound(next);
+      const toast = masteryToastFrom(begun.events);
+      if (toast) setMasteryToast(toast);
       setFullLog([...fullLog, ...revealEvents, ...begun.events]);
       setGameState(begun.nextState);
       setPhase('DEPLOY');
@@ -345,6 +366,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             graveyardCount={displayState.player.graveyard.length}
             graveyardDisabled={isRevealing}
             onGraveyardClick={() => setGraveyardOpen(true)}
+            badge={playerMastery ? <MasteryBadge loadout={playerMastery} toast={masteryToast} /> : undefined}
           />
 
           <div className="hand-apron">
@@ -377,7 +399,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
           )}
 
           {inspectCardId && <CardDetail cardId={inspectCardId} onClose={() => setInspectCardId(null)} />}
-          {phase === 'MATCH_END' && matchStats && <MatchSummary stats={matchStats} onPlayAgain={() => restartWithSeed(makeSeed())} onExit={onExit} />}
+          {phase === 'MATCH_END' && matchStats && <MatchSummary stats={matchStats} xp={xpResult} onPlayAgain={() => restartWithSeed(makeSeed())} onExit={onExit} />}
         </div>
       </div>
 

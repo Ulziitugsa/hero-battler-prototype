@@ -9,6 +9,9 @@ import { STARTER_DECK_NAMES, STARTER_DECKS, type StarterFaction } from '../game/
 import { listDeckOptions } from '../game/engine/deckOptions';
 import { getActiveDeck, isDeckPlayable } from '../game/engine/activeDeck';
 import { useCollection } from '../game/collection/useCollection';
+import { useAccount } from '../game/progression/useAccount';
+import { MASTERIES, rankNumeral } from '../game/mastery/definitions';
+import { MasteryCrest } from '../components/MasteryCrest';
 import { loadPreferences, savePreferences } from '../game/engine/preferences';
 import { loadRecentMatches } from '../game/engine/localMatchHistory';
 import type { DeckChoice } from './BattleSetupPage';
@@ -38,6 +41,8 @@ export function HomePage({
   // switch their active starter deck without leaving Home, so this screen needs to re-render on that
   // change rather than only picking up a new preference on next mount.
   const owned = useCollection();
+  const account = useAccount();
+  const equippedMastery = account.equippedMasteryId ? MASTERIES[account.equippedMasteryId] : null;
   const [selectedDeckId, setSelectedDeckId] = useState(() => getActiveDeck().id);
   const selectedDeck = deckOptions.find((d) => d.id === selectedDeckId) ?? deckOptions[0];
 
@@ -132,7 +137,7 @@ export function HomePage({
             </span>
             <span className="home-identity-text">
               <span className="home-identity-name">Wanderer</span>
-              <span className="home-identity-caption">Level 1 · Playtester</span>
+              <span className="home-identity-caption">Level {account.level}</span>
             </span>
           </button>
           <button type="button" className="home-help-plate" onClick={() => setShowHowToPlay(true)}>
@@ -182,6 +187,14 @@ export function HomePage({
                 {FACTION_LABEL[selectedDeck.faction]} · {selectedDeck.cardIds.length} cards
               </span>
             </div>
+            {equippedMastery && (
+              <div className="home-deck-mastery">
+                <MasteryCrest id={equippedMastery.id} size={12} />
+                <span>
+                  {equippedMastery.name} {rankNumeral(account.unlockedMasteries[equippedMastery.id] ?? 1)}
+                </span>
+              </div>
+            )}
             <div className="home-deck-crests">
               {STARTER_FACTIONS.map((f) => {
                 const deck = deckOptions.find((d) => d.id === `starter-${f}`);

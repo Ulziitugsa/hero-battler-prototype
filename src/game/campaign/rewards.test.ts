@@ -10,6 +10,8 @@ import { getCollection, getOwnedCount, grantCard, reloadCollection } from '../co
 import { isStarterDeckUnlocked } from '../collection/starterUnlock';
 import { STARTER_DECKS } from '../cards/starterDecks';
 import { isDeckPlayable } from '../engine/activeDeck';
+import { getAccount, reloadAccount } from '../progression/account';
+import { XP_REWARDS } from '../progression/config';
 import { migrateToRealCollection } from './collectionMigration';
 import { clearNonBattleNode, loadProgress, recordBattleResult } from './progress';
 import type { MatchStats } from '../engine/stats';
@@ -31,6 +33,7 @@ function installLocalStoragePolyfill() {
 beforeEach(() => {
   installLocalStoragePolyfill();
   reloadCollection();
+  reloadAccount();
 });
 
 const stats = { roundsPlayed: 4, finalPlayerHp: 20 } as unknown as MatchStats;
@@ -149,5 +152,38 @@ describe('active deck safety', () => {
     expect(getActiveDeck().id).toBe('starter-kingdom');
     expect(JSON.parse(localStorage.getItem('skyloom:preferences')!).selectedDeckId).toBe('starter-kingdom');
     expect(JSON.parse(localStorage.getItem('skyloom:decks')!)[0].id).toBe('deck-legacy');
+  });
+});
+
+describe('Campaign account XP', () => {
+  it('a first clear grants the stage-type XP, persisted on the account', () => {
+    const r = win('battle-broken-palisade');
+    expect(r.xp).toMatchObject({ gained: XP_REWARDS.campaignFirstClear.battle, levelAfter: 1 });
+    expect(getAccount().xp).toBe(XP_REWARDS.campaignFirstClear.battle);
+    expect(win('boss-grave-tyrant').xp?.gained).toBe(XP_REWARDS.campaignFirstClear.boss);
+  });
+  it('a replay win grants the smaller replay XP', () => {
+    win('battle-broken-palisade');
+    const replay = win('battle-broken-palisade');
+    expect(replay.xp?.gained).toBe(XP_REWARDS.campaignReplayWin);
+    expect(getAccount().xp).toBe(XP_REWARDS.campaignFirstClear.battle + XP_REWARDS.campaignReplayWin);
+  });
+  it('a loss grants a little XP and does not consume the first clear', () => {
+    const lost = recordBattleResult('battle-broken-palisade', 'ENEMY_WIN', stats, [], 'kingdom');
+    expect(lost.xp?.gained).toBe(XP_REWARDS.campaignLoss);
+    expect(win('battle-broken-palisade').xp?.gained).toBe(XP_REWARDS.campaignFirstClear.battle);
+  });
+  it('levels up from Campaign XP and reports the unlock', () => {
+    for (const id of ['battle-broken-palisade', 'battle-dust-crossing', 'battle-grey-orchard']) win(id); // 120 XP -> level 2
+    expect(getAccount().level).toBe(2);
+    const r = win('elite-mira-grave-warden'); // +70 -> 90 into level 2 (needs 150)
+    expect(r.xp?.levelsGained).toEqual([]);
+    const boss = win('boss-grave-tyrant'); // +120 -> 210 -> level 3, 60 left
+    expect(boss.xp).toMatchObject({ levelAfter: 3, levelsGained: [3], masteriesUnlocked: ['necromancy'] });
+    expect(getAccount()).toMatchObject({ level: 3, xp: 60 });
+  });
+  it('claiming a reward node does not grant XP (no fight)', () => {
+    clearNonBattleNode('reward-wayside-cairn');
+    expect(getAccount().xp).toBe(0);
   });
 });

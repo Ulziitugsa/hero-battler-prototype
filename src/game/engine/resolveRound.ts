@@ -5,6 +5,7 @@ import { DRAW_PER_ROUND, INITIAL_HAND_SIZE, directDamageAmount } from './constan
 import { makeDrawnHandCard } from './deck';
 import { type Ctx, getHero, getSpellZone, opposite, playerOf, push, setHero, setSpellZone } from './board';
 import { effectivePower } from './power';
+import { applyMasteries } from './mastery';
 import {
   dealDirectDamageAndTrigger,
   dealOverflowDamage,
@@ -134,6 +135,9 @@ export function beginRound(state: GameState): ResolveResult {
       push(ctx, { type: 'DRAW', side, cardId, cardName: getCard(cardId).name, fizzled: false });
     }
   }
+
+  // Masteries resolve here: after both draws, before Deploy (see engine/mastery.ts).
+  applyMasteries(ctx);
 
   ctx.state.rngState = ctx.rngState;
   return { nextState: ctx.state, events: ctx.events };

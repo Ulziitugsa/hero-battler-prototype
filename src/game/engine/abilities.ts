@@ -54,6 +54,20 @@ function setHeroPower(ctx: Ctx, side: Side, lane: LaneId, value: number, duratio
   push(ctx, { type: 'POWER_CHANGED', side, instanceId: hero.instanceId, name: hero.name, from, to: hero.power, reason: sourceName, permanent: duration === 'PERMANENT' });
 }
 
+/**
+ * Gives the Hero at (side, lane) a one-time destruction shield. The single shield primitive: GRANT_SHIELD
+ * effects and the Fortification Mastery both go through here, and the shield is consumed at the same
+ * destruction choke point either way. Returns false (and emits nothing) if there's no Hero or it is
+ * already shielded.
+ */
+export function grantShield(ctx: Ctx, side: Side, lane: LaneId): boolean {
+  const hero = getHero(ctx, side, lane);
+  if (!hero || hero.shielded) return false;
+  hero.shielded = true;
+  push(ctx, { type: 'SHIELD_GRANTED', side, instanceId: hero.instanceId, name: hero.name, lane });
+  return true;
+}
+
 function dealDirectDamage(ctx: Ctx, side: Side, amount: number, sourceName: string): void {
   const p = playerOf(ctx, side);
   const from = p.hp;
@@ -319,12 +333,7 @@ function executeAction(ctx: Ctx, action: ActionDef, exec: AbilityContext): void 
       return;
     }
     case 'GRANT_SHIELD': {
-      for (const loc of resolveTargetLocations(ctx, exec, action.target)) {
-        const hero = getHero(ctx, loc.side, loc.lane);
-        if (!hero || hero.shielded) continue;
-        hero.shielded = true;
-        push(ctx, { type: 'SHIELD_GRANTED', side: loc.side, instanceId: hero.instanceId, name: hero.name, lane: loc.lane });
-      }
+      for (const loc of resolveTargetLocations(ctx, exec, action.target)) grantShield(ctx, loc.side, loc.lane);
       return;
     }
     case 'GRANT_IMMUNITY':

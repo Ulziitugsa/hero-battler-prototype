@@ -271,12 +271,20 @@ export interface PlayerState {
   spellZones: Record<LaneId, SpellZoneInstance | null>;
 }
 
+/** The equipped Mastery a side brought into this match (see game/mastery). Fixed for the whole match; never persisted from here. */
+export interface MasteryLoadout {
+  id: string;
+  rank: number;
+}
+
 export interface GameState {
   round: number;
   rngState: number;
   player: PlayerState;
   enemy: PlayerState;
   status: 'IN_PROGRESS' | 'PLAYER_WIN' | 'ENEMY_WIN' | 'DRAW';
+  /** Equipped Masteries per side; absent/undefined side = none. Read by beginRound (engine/mastery.ts). */
+  masteries?: Partial<Record<Side, MasteryLoadout>>;
 }
 
 /**
@@ -354,6 +362,13 @@ export type GameEvent =
   | { type: 'SILENCED'; side: Side; instanceId: string; name: string; lane: LaneId }
   /** An `oncePerRound` ability fired and marked its own instance used for the rest of the round - see AbilityDefinition.oncePerRound. */
   | { type: 'ONCE_PER_ROUND_USED'; side: Side; instanceId: string; zone: 'hero' | 'spell' }
+  /**
+   * A Mastery fired at the start of a round (after draws, before Deploy). It is the announcement/label
+   * for whatever follows - the actual state changes reuse the existing events (RETURNED_TO_HAND,
+   * SHIELD_GRANTED) so replay and animation keep working unchanged. `outcome` is 'no-target' when it
+   * fired but had nothing to act on (empty Graveyard, no eligible Hero, ...), in which case nothing else changed.
+   */
+  | { type: 'MASTERY_TRIGGERED'; side: Side; masteryId: string; name: string; rank: number; outcome: 'applied' | 'no-target'; detail: string }
   | { type: 'ROUND_END'; round: number }
   | { type: 'MATCH_END'; winner: Side | 'draw'; reason: string };
 

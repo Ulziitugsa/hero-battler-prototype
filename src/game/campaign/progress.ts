@@ -6,6 +6,8 @@ import { CHAPTER_1 } from './chapter1';
 import { getCollection, grantCard } from '../collection/collection';
 import type { GrantResult } from '../collection/types';
 import { getStarterProgressUpdate, type StarterProgressUpdate } from '../collection/starterUnlock';
+import { grantCampaignXp } from '../progression/rewards';
+import type { XpGrantResult } from '../progression/types';
 
 // Campaign node-clearing progress. localStorage-only, following the same convention as
 // localDecks.ts/preferences.ts (try/catch-wrapped, sane defaults, never throws).
@@ -109,6 +111,8 @@ export interface BattleResultOutcome {
   cardGrant: GrantResult | null;
   /** How that card moved a still-locked starter deck toward (or into) being unlocked. */
   starterProgress: StarterProgressUpdate | null;
+  /** Account XP this result granted (win, replay win or loss); null for a claim that has no fight. */
+  xp: XpGrantResult | null;
   chapterComplete: boolean;
 }
 
@@ -162,6 +166,7 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
     reward: won ? { firstClear: isFirstClear, def: isFirstClear ? node.encounter.firstClearReward : node.encounter.repeatReward } : null,
     cardGrant: granted.cardGrant,
     starterProgress: granted.starterProgress,
+    xp: grantCampaignXp(node.type, { won, isFirstClear }),
     chapterComplete: won && isChapterComplete(loadProgress()),
   };
 }

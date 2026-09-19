@@ -176,7 +176,7 @@ export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedRes
     setOpenNodeId(null);
     // A claim gets a result sheet when it completes the chapter or handed over a card (so the player sees what they got).
     if (node.reward && (chapterComplete || cardGrant)) {
-      setClaimResult({ node, won: true, isFirstClear: true, objectivesMet: [], reward: { firstClear: true, def: node.reward }, cardGrant, starterProgress, chapterComplete });
+      setClaimResult({ node, won: true, isFirstClear: true, objectivesMet: [], reward: { firstClear: true, def: node.reward }, cardGrant, starterProgress, xp: null, chapterComplete });
     }
     refresh();
   }

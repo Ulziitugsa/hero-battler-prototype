@@ -1,6 +1,7 @@
 import type { BattleResultOutcome } from '../../game/campaign/progress';
 import { Icon, type IconName } from '../../components/Icon';
 import { RewardCard } from './RewardCard';
+import { XpSummary } from '../../components/XpSummary';
 
 const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', emblem: 'hero', star: 'trophy' };
 
@@ -9,7 +10,7 @@ const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', e
  * switched on, matching the design's "seal" screens. A loss gets its own much quieter variant - the
  * design has no defeat screen to port, so this is the minimal honest equivalent. */
 export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResultOutcome; onContinue: () => void }) {
-  const { node, won, reward, objectivesMet, chapterComplete, cardGrant, starterProgress } = outcome;
+  const { node, won, reward, objectivesMet, chapterComplete, cardGrant, starterProgress, xp } = outcome;
   const isCardReward = !!(reward?.firstClear && reward.def.cardId);
 
   if (!won) {
@@ -22,6 +23,7 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
           <span className="campaign-result-kicker">{node.name}</span>
           <span className="campaign-result-title">Not this time</span>
           <span className="campaign-result-blurb">The road is still there. Adjust your deck and try again.</span>
+          <XpSummary xp={xp} />
           <button type="button" className="campaign-result-cta" onClick={onContinue}>
             Back to the road
           </button>
@@ -86,6 +88,7 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
         <span className="campaign-result-kicker">{node.name}</span>
         <span className="campaign-result-title">{node.encounter ? 'Stage cleared' : 'Reward claimed'}</span>
         <span className="campaign-result-blurb">{node.encounter ? `${node.teach} - held.` : node.reward?.sub}</span>
+        <XpSummary xp={xp} />
 
         {objectivesMet.length > 0 && (
           <div className="campaign-result-marks">

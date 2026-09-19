@@ -10,13 +10,15 @@ import { CampaignPage } from './pages/campaign/CampaignPage';
 import { AppShell, type TabId } from './components/AppShell';
 import { recordBattleResult, type BattleResultOutcome } from './game/campaign/progress';
 import { getActiveDeck } from './game/engine/activeDeck';
+import { getEquippedLoadout } from './game/progression/account';
+import type { MasteryLoadout } from './game/types';
 
 export default function App() {
   const [tab, setTab] = useState<TabId>('home');
   const [showStats, setShowStats] = useState(false);
   const [showBattleSetup, setShowBattleSetup] = useState(false);
   const [showCampaign, setShowCampaign] = useState(false);
-  const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; startingHp?: number } | null>(null);
+  const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; startingHp?: number; mastery: MasteryLoadout | null } | null>(null);
   // Which Campaign node the in-progress battle belongs to, if any - set only by startCampaignBattle,
   // never by Quick Battle, so Quick Battle can never touch Campaign state (see progress.ts's own note).
   const [campaignNodeId, setCampaignNodeId] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export default function App() {
         playerDeckLabel={battleSetup.player.label}
         enemyDeckLabel={battleSetup.enemy.label}
         startingHp={battleSetup.startingHp}
+        playerMastery={battleSetup.mastery}
         onMatchEnd={
           campaignNodeId
             ? (status, stats, events) => {
@@ -79,14 +82,14 @@ export default function App() {
   function startBattle(player: DeckChoice, enemy: DeckChoice) {
     battleCounter.current += 1;
     setShowBattleSetup(false);
-    setBattleSetup({ player, enemy, id: battleCounter.current });
+    setBattleSetup({ player, enemy, id: battleCounter.current, mastery: getEquippedLoadout() });
   }
 
   function startCampaignBattle(nodeId: string, player: DeckChoice, enemy: DeckChoice, startingHp?: number) {
     battleCounter.current += 1;
     setShowCampaign(false);
     setCampaignNodeId(nodeId);
-    setBattleSetup({ player, enemy, id: battleCounter.current, startingHp });
+    setBattleSetup({ player, enemy, id: battleCounter.current, startingHp, mastery: getEquippedLoadout() });
   }
 
   let screen;
