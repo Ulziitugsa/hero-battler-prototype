@@ -20,7 +20,7 @@ export function sanitizeOwned(raw: unknown): Record<string, number> {
   return out;
 }
 
-export type StoredState = { status: 'missing' } | { status: 'malformed' } | { status: 'ok'; owned: Record<string, number> };
+export type StoredState = { status: 'missing' } | { status: 'malformed' } | { status: 'ok'; owned: Record<string, number>; version: number };
 
 export function readStoredCollection(): StoredState {
   let raw: string | null;
@@ -33,8 +33,8 @@ export function readStoredCollection(): StoredState {
   try {
     const parsed = JSON.parse(raw) as Partial<PersistedCollection> | null;
     if (!parsed || typeof parsed !== 'object') return { status: 'malformed' };
-    // Version 1 is the only shape so far; a future version bump would branch here.
-    return { status: 'ok', owned: sanitizeOwned(parsed.owned) };
+    const version = typeof parsed.version === 'number' && Number.isFinite(parsed.version) ? parsed.version : 1;
+    return { status: 'ok', owned: sanitizeOwned(parsed.owned), version };
   } catch {
     return { status: 'malformed' };
   }

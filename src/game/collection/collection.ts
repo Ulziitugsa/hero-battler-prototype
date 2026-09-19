@@ -87,6 +87,11 @@ export function setAllOwned(copies = 2): void {
   commit(Object.fromEntries(PLAYTEST_ROSTER.map((id) => [id, copies])));
 }
 
+/** Dev/test only - replace the whole collection (sanitised). */
+export function setCollection(owned: Record<string, number>): void {
+  commit(sanitizeOwned(owned));
+}
+
 /** Dev/test only - back to the deterministic starter collection. */
 export function resetCollection(): void {
   commit({ ...buildStarterCollection() });

@@ -27,6 +27,8 @@ export interface CampaignRewardDef {
   icon: 'card' | 'ember' | 'emblem' | 'star';
   /** Set on card rewards: the real card id that is added to the player's collection (label is display text only). */
   cardId?: string;
+  /** Copies granted (default 1). A stage can hand over the pair a starter deck needs in one go. */
+  count?: number;
 }
 
 export interface CampaignEncounterDef {

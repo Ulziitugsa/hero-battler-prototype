@@ -382,3 +382,8 @@
 
 /* Duplicate copies: a quiet corner count, only when you own more than one. */
 .hr-copies { position: absolute; top: 7px; right: 7px; min-width: 30px; height: 26px; padding: 0 8px; display: grid; place-items: center; border-radius: 13px; background: rgba(10, 4, 6, 0.7); border: 1px solid rgba(255, 226, 180, 0.3); font-size: 0.8rem; font-weight: 800; color: var(--ember-ink-2); }
+
+/* Where the card comes from - one quiet line, more useful on missing cards. */
+.hr-source { display: flex; align-items: center; gap: 7px; font-size: 0.85rem; font-weight: 700; color: var(--ember-ink-3); }
+.hr-source svg { flex: none; }
+.hr-source.missing { color: var(--ember-ink-2); }

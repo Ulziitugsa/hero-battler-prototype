@@ -5,7 +5,7 @@ import { listDeckOptions } from '../game/engine/deckOptions';
 import { loadPreferences, savePreferences } from '../game/engine/preferences';
 import { getActiveDeck } from '../game/engine/activeDeck';
 import { useCollection } from '../game/collection/useCollection';
-import { getDeckStatus } from './decks/deckStatus';
+import { getDeckPresentation } from './decks/deckPresentation';
 
 const FACTIONS: StarterFaction[] = ['kingdom', 'undead', 'infernal'];
 const FACTION_LABEL: Record<StarterFaction, string> = { kingdom: 'Kingdom', undead: 'Undead', infernal: 'Infernal' };
@@ -25,7 +25,8 @@ export function BattleSetupPage({ onStartBattle, onBack }: { onStartBattle: (pla
 
   const playerDeck = deckOptions.find((d) => d.id === playerDeckId) ?? deckOptions[0];
   const playerDeckIndex = deckOptions.indexOf(playerDeck);
-  const status = getDeckStatus(playerDeck.cardIds, owned);
+  const pres = getDeckPresentation(playerDeck, owned);
+  const status = { valid: pres.playable };
 
   function updatePlayerDeck(id: string) {
     setPlayerDeckId(id);
@@ -136,7 +137,7 @@ export function BattleSetupPage({ onStartBattle, onBack }: { onStartBattle: (pla
         {!status.valid && (
           <div className="skirmish-warning" role="alert">
             <Icon name="warning" size={16} />
-            <span>This deck isn't ready: {status.message}. Fix it in Decks before playing.</span>
+            <span>{pres.kind === 'starter-locked' ? `${pres.unlock?.name} is locked (${pres.unlock?.collected} / ${pres.unlock?.total} cards). Earn its cards in the Campaign.` : `This deck isn't ready: ${pres.message}. Fix it in Decks before playing.`}</span>
           </div>
         )}
 

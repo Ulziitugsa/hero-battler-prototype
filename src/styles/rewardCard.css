@@ -40,3 +40,10 @@
 .reward-card-line { display: inline-flex; align-items: center; gap: 10px; }
 .reward-card-tag { padding: 3px 10px; border-radius: 10px; font-size: 0.78rem; font-weight: 800; color: #ffeec4; background: rgba(10, 4, 6, 0.45); border: 1px solid rgba(255, 226, 180, 0.3); }
 .reward-card-tag.new { color: var(--ember-gold-ink); background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep)); border-color: transparent; }
+
+.reward-card-copies { color: var(--ember-gold-light); }
+
+/* Starter-deck progress under a card reward: a quiet line, gold when the deck just unlocked. */
+.campaign-result-unlock { display: flex; align-items: center; gap: 8px; margin: 2px 0 4px; padding: 8px 14px; border-radius: 12px; font-size: 0.88rem; font-weight: 700; line-height: 1.25; color: #f0dcc0; background: rgba(10, 4, 6, 0.4); border: 1px dashed rgba(255, 226, 180, 0.3); text-align: left; }
+.campaign-result-unlock svg { flex: none; }
+.campaign-result-unlock.done { color: #3d2210; background: linear-gradient(180deg, #ffe6ad, #d9a54b); border: 1px solid #fff0c8; box-shadow: 0 0 18px rgba(255, 216, 148, 0.35); }

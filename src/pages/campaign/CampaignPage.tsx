@@ -172,10 +172,11 @@ export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedRes
 
   function handleClaimReward() {
     if (!openNodeId) return;
-    const { node, chapterComplete, cardGrant } = clearNonBattleNode(openNodeId);
+    const { node, chapterComplete, cardGrant, starterProgress } = clearNonBattleNode(openNodeId);
     setOpenNodeId(null);
-    if (chapterComplete && node.reward) {
-      setClaimResult({ node, won: true, isFirstClear: true, objectivesMet: [], reward: { firstClear: true, def: node.reward }, cardGrant, chapterComplete: true });
+    // A claim gets a result sheet when it completes the chapter or handed over a card (so the player sees what they got).
+    if (node.reward && (chapterComplete || cardGrant)) {
+      setClaimResult({ node, won: true, isFirstClear: true, objectivesMet: [], reward: { firstClear: true, def: node.reward }, cardGrant, starterProgress, chapterComplete });
     }
     refresh();
   }

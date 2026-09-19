@@ -14,7 +14,10 @@ import { getOwnedCount, usableCopies } from '../game/collection/collection';
 import { CardDetail } from '../components/CardDetail';
 import { Icon } from '../components/Icon';
 import { Gems, Sigil } from '../components/CardParts';
-import { cardOrder, countCopies, deckComposition, getDeckStatus, plural, sortedEntries, type DeckStatus } from './decks/deckStatus';
+import { cardOrder, countCopies, deckComposition, getDeckStatus, plural, sortedEntries } from './decks/deckStatus';
+import { getDeckPresentation, type DeckPresentation } from './decks/deckPresentation';
+import { primaryAcquisitionLabel } from '../game/collection/acquisition';
+import type { StarterRequirement } from '../game/collection/starterUnlock';
 import '../styles/decks.css';
 
 // Decks screen (Embervale). Saved decks hang as carved plaques on a shelf rail; the selected one is
@@ -120,6 +123,32 @@ function DeckCard({
   );
 }
 
+/** One card a locked starter needs: art-first, "have / need" badge, and where to earn it while it is still missing. */
+function RequirementTile({ req }: { req: StarterRequirement }) {
+  const card = getCard(req.cardId);
+  const have = Math.min(req.have, req.need);
+  return (
+    <div className={`dk-card dk-req r-${card.rarity} ${req.met ? 'met' : 'blocked'}`}>
+      <span className="dk-card-frame">
+        <span className="dk-card-face">
+          <CardArt card={card} sigil="lg" />
+          <span className="dk-card-gems">
+            <Gems rarity={card.rarity} />
+          </span>
+          <span className={`dk-card-count ${req.met ? 'met' : ''}`}>
+            {req.met && <Icon name="check" size={10} />}
+            {have}/{req.need}
+          </span>
+        </span>
+        <span className="dk-card-plate">
+          <span className="dk-card-name">{card.shortName}</span>
+          <span className="dk-req-source">{req.met ? 'Collected' : primaryAcquisitionLabel(req.cardId)}</span>
+        </span>
+      </span>
+    </div>
+  );
+}
+
 export function DecksPage() {
   const [decks, setDecks] = useState<DeckOption[]>(() => listDeckOptions());
   const owned = useCollection();
@@ -127,7 +156,7 @@ export function DecksPage() {
   const [prefs, setPrefs] = useState(() => ({ ...loadPreferences(), selectedDeckId: getActiveDeck().id }));
   const [selectedId, setSelectedId] = useState(() => (decks.some((d) => d.id === prefs.selectedDeckId) ? prefs.selectedDeckId : (decks[0]?.id ?? '')));
 
-  const [mode, setMode] = useState<'browse' | 'edit'>('browse');
+  const [mode, setMode] = useState<'browse' | 'edit' | 'requirements'>('browse');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('New Deck');
   const [deckFaction, setDeckFaction] = useState<StarterFaction>('kingdom');
@@ -181,6 +210,11 @@ export function DecksPage() {
   }
 
   function openEdit(deck: DeckOption, forceNew: boolean) {
+    // A locked starter has nothing to edit yet - show what it needs instead of an editor full of cards the player doesn't own.
+    if (!forceNew && getDeckPresentation(deck, owned).kind === 'starter-locked') {
+      setMode('requirements');
+      return;
+    }
     const saved = isSaved(deck.id);
     const nextName = forceNew ? 'New Deck' : saved ? deck.label : `${deck.label} (custom)`;
     const nextCards = forceNew ? [] : [...deck.cardIds];
@@ -373,9 +407,46 @@ export function DecksPage() {
     );
   }
 
+  // ---- Locked starter requirements ---------------------------------------------------------------
+  if (mode === 'requirements') {
+    const rp = getDeckPresentation(selectedDeck, owned);
+    const unlock = rp.unlock;
+    return (
+      <div className="decks-screen">
+        <div className="dk-req-head">
+          <button type="button" className="dk-round-btn" onClick={() => setMode('browse')} aria-label="Back to Decks">
+            <Icon name="back" size={18} />
+          </button>
+          <div className="dk-req-title">
+            <h1 className="dk-banner-name">{selectedDeck.label}</h1>
+            <span className={`dk-banner-status ${unlock?.unlocked ? 'ready' : 'locked'}`}>{unlock?.unlocked ? 'Unlocked — ready to use' : 'Locked starter'}</span>
+          </div>
+          {unlock && (
+            <span className={`dk-count-seal lg ${unlock.unlocked ? 'ready' : 'locked'}`}>
+              {unlock.collected}
+              <small>/{unlock.total}</small>
+            </span>
+          )}
+        </div>
+        {unlock && (
+          <>
+            <p className="dk-req-blurb">{unlock.unlocked ? 'You have every card this deck needs.' : rp.message + ' Each card below shows how many you hold and where to earn it.'}</p>
+            <div className="dk-grid">
+              {unlock.requirements.map((r) => (
+                <RequirementTile key={r.cardId} req={r} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
   // ---- Browse ------------------------------------------------------------------------------------
   const sel = selectedDeck;
-  const selStatus = getDeckStatus(sel.cardIds, owned);
+  const pres = getDeckPresentation(sel, owned);
+  const selStatus = pres.status;
+  const locked = pres.kind === 'starter-locked';
   const isActive = sel.id === activeId;
   const entries = sortedEntries(sel.cardIds);
   const comp = deckComposition(sel.cardIds);
@@ -407,12 +478,13 @@ export function DecksPage() {
         <div className="dk-shelf-board" aria-hidden="true" />
       </div>
 
-      <section className={`dk-banner ${isActive ? 'active' : ''} ${selStatus.state}`}>
+      <section className={`dk-banner ${isActive ? 'active' : ''} ${pres.kind}`}>
         <div className="dk-banner-top">
           <span className="dk-banner-seal">
-            <span className={`dk-count-seal lg ${selStatus.state}`}>
-              {selStatus.count}
-              <small>/{DECK_SIZE}</small>
+            <span className={`dk-count-seal lg ${locked ? 'locked' : selStatus.state}`}>
+              {locked && <Icon name="lock" size={13} />}
+              {locked ? pres.unlock?.collected : selStatus.count}
+              <small>/{locked ? pres.unlock?.total : DECK_SIZE}</small>
             </span>
             {isActive && (
               <span className="dk-wax" role="img" aria-label="Active deck">
@@ -422,13 +494,18 @@ export function DecksPage() {
           </span>
           <div className="dk-banner-text">
             <h2 className="dk-banner-name">{sel.label}</h2>
-            <span className={`dk-banner-status ${selStatus.state}`}>
-              {selStatus.message}
+            <span className={`dk-banner-status ${locked ? 'locked' : selStatus.state}`}>
+              {locked ? 'Locked starter' : pres.message}
             </span>
           </div>
         </div>
         <div className="dk-banner-actions">
-          {isActive ? (
+          {locked ? (
+            <button type="button" className="dk-plate-btn gold wide" onClick={() => setMode('requirements')}>
+              <Icon name="cards" size={15} />
+              View requirements
+            </button>
+          ) : isActive ? (
             <span className="dk-active-note">
               <Icon name="hero" size={15} />
               {selStatus.valid ? 'Active — your battle deck' : 'Active, but not battle-ready'}
@@ -439,13 +516,29 @@ export function DecksPage() {
               {selStatus.valid ? 'Use this deck' : selStatus.state === 'building' ? 'Finish it to use' : 'Fix it to use'}
             </button>
           )}
-          <button type="button" className="dk-plate-btn" onClick={() => openEdit(sel, false)}>
-            <Icon name="edit" size={15} />
-            {saved ? 'Edit' : 'Customise'}
-          </button>
+          {!locked && (
+            <button type="button" className="dk-plate-btn" onClick={() => openEdit(sel, false)}>
+              <Icon name="edit" size={15} />
+              {saved ? 'Edit' : 'Customise'}
+            </button>
+          )}
         </div>
       </section>
 
+      {locked && pres.unlock && (
+        <div className="dk-locked-panel">
+          <span className="dk-locked-msg">{pres.message}</span>
+          <span className="dk-locked-bar" aria-hidden="true">
+            <span style={{ width: `${Math.round((pres.unlock.collected / pres.unlock.total) * 100)}%` }} />
+          </span>
+          <span className="dk-locked-meta">
+            {pres.unlock.collected} of {pres.unlock.total} cards collected · earn the rest in the Campaign
+          </span>
+        </div>
+      )}
+
+      {!locked && (
+        <>
       <div className="dk-rail-label">
         <span>In this deck</span>
         <span className="dk-rail-rule" />
@@ -466,6 +559,8 @@ export function DecksPage() {
         )}
       </div>
       {entries.length === 0 && <p className="dk-empty-note">An empty deck. Tap the open slot to start building.</p>}
+        </>
+      )}
 
       {saved && (
         <div className="dk-delete">
@@ -494,9 +589,9 @@ export function DecksPage() {
 
 /** A saved deck as a carved plaque: faction crest, name (wraps to two lines), count. The active deck wears a wax seal. */
 function Plaque({ deck, selected, active, onSelect }: { deck: DeckOption; selected: boolean; active: boolean; onSelect: () => void }) {
-  const st: DeckStatus = getDeckStatus(deck.cardIds, useCollection());
+  const p: DeckPresentation = getDeckPresentation(deck, useCollection());
   return (
-    <button type="button" role="option" aria-selected={selected} data-selected={selected} data-deck-id={deck.id} className={`dk-plaque ${selected ? 'lit' : ''} ${active ? 'active' : ''} ${st.state}`} onClick={onSelect}>
+    <button type="button" role="option" aria-selected={selected} data-selected={selected} data-deck-id={deck.id} className={`dk-plaque ${selected ? 'lit' : ''} ${active ? 'active' : ''} ${p.kind}`} onClick={onSelect}>
       {active && (
         <span className="dk-wax" role="img" aria-label="Active deck">
           <Icon name="hero" size={13} />
@@ -506,9 +601,11 @@ function Plaque({ deck, selected, active, onSelect }: { deck: DeckOption; select
         <Sigil faction={deck.faction} size="md" />
       </span>
       <span className="dk-plaque-name">{deck.label}</span>
-      <span className={`dk-plaque-count ${st.state}`}>
-        {st.count}/{DECK_SIZE}
-        {st.state === 'invalid' && <Icon name="warning" size={11} />}
+      <span className={`dk-plaque-count ${p.kind}`}>
+        {p.kind === 'starter-locked' && <Icon name="lock" size={11} />}
+        {p.kind === 'custom-draft' && 'Draft '}
+        {p.progressText}
+        {p.kind === 'custom-invalid' && <Icon name="warning" size={11} />}
       </span>
     </button>
   );

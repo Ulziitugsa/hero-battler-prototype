@@ -9,7 +9,8 @@ const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', e
  * switched on, matching the design's "seal" screens. A loss gets its own much quieter variant - the
  * design has no defeat screen to port, so this is the minimal honest equivalent. */
 export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResultOutcome; onContinue: () => void }) {
-  const { node, won, reward, objectivesMet, chapterComplete, cardGrant } = outcome;
+  const { node, won, reward, objectivesMet, chapterComplete, cardGrant, starterProgress } = outcome;
+  const isCardReward = !!(reward?.firstClear && reward.def.cardId);
 
   if (!won) {
     return (
@@ -83,8 +84,8 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
           <Icon name="trophy" size={30} />
         </div>
         <span className="campaign-result-kicker">{node.name}</span>
-        <span className="campaign-result-title">Stage cleared</span>
-        <span className="campaign-result-blurb">{node.teach} - held.</span>
+        <span className="campaign-result-title">{node.encounter ? 'Stage cleared' : 'Reward claimed'}</span>
+        <span className="campaign-result-blurb">{node.encounter ? `${node.teach} - held.` : node.reward?.sub}</span>
 
         {objectivesMet.length > 0 && (
           <div className="campaign-result-marks">
@@ -99,9 +100,24 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
           </div>
         )}
 
-        {reward?.firstClear && reward.def.cardId && <RewardCard cardId={reward.def.cardId} grant={cardGrant} />}
+        {isCardReward && reward?.def.cardId && <RewardCard cardId={reward.def.cardId} grant={cardGrant} copies={reward.def.count ?? 1} />}
 
-        {reward && !(reward.firstClear && reward.def.cardId) && (
+        {starterProgress && (
+          <div className={`campaign-result-unlock ${starterProgress.unlockedNow ? 'done' : ''}`}>
+            <Icon name={starterProgress.unlockedNow ? 'check' : 'lock'} size={15} />
+            {starterProgress.unlockedNow ? (
+              <span>
+                <strong>{starterProgress.name} unlocked</strong> — ready in Decks
+              </span>
+            ) : (
+              <span>
+                {starterProgress.name} · {starterProgress.collected} / {starterProgress.total} cards collected
+              </span>
+            )}
+          </div>
+        )}
+
+        {reward && !isCardReward && (
           <div className="campaign-result-reward-card">
             <div className={`campaign-result-reward-portrait ${node.encounter?.foeFaction}`}>
               <Icon name={REWARD_ICON[reward.def.icon]} size={26} />
@@ -111,24 +127,28 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
         )}
 
         <div className="campaign-result-rows">
+          {!isCardReward && (
           <div className="campaign-result-row">
             <span className="campaign-result-row-icon gold">
               <Icon name={reward?.firstClear ? 'cards' : 'ember'} size={16} />
             </span>
             <div className="campaign-result-row-text">
-              <span>{reward?.firstClear ? (cardGrant ? (cardGrant.isNew ? 'New card unlocked' : 'Another copy added') : 'New reward unlocked') : 'First clear · already claimed'}</span>
-              <span>{reward?.firstClear && cardGrant ? (cardGrant.isNew ? 'Added to your collection' : `You now own ${cardGrant.owned}`) : reward?.def.sub}</span>
+              <span>{reward?.firstClear ? 'New reward unlocked' : 'First clear · already claimed'}</span>
+              <span>{reward?.def.sub}</span>
             </div>
           </div>
+          )}
+          {node.encounter && (
           <div className="campaign-result-row">
             <span className="campaign-result-row-icon">
               <Icon name="ember" size={16} />
             </span>
             <div className="campaign-result-row-text">
               <span>Repeat reward</span>
-              <span>{node.encounter?.repeatReward.label} each time you clear it again</span>
+              <span>{node.encounter.repeatReward.label} each time you clear it again</span>
             </div>
           </div>
+          )}
         </div>
 
         <button type="button" className="campaign-result-cta" onClick={onContinue}>

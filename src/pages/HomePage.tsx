@@ -193,7 +193,7 @@ export function HomePage({
                     className={`home-crest ${selectedDeckId === `starter-${f}` ? 'active' : ''} ${usable ? '' : 'locked'}`}
                     onClick={() => selectStarter(f)}
                     disabled={!usable}
-                    aria-label={usable ? STARTER_DECK_NAMES[f] : `${STARTER_DECK_NAMES[f]} (not collected yet)`}
+                    aria-label={usable ? STARTER_DECK_NAMES[f] : `${STARTER_DECK_NAMES[f]} (locked)`}
                   >
                     <span className="home-sigil" data-faction={f} />
                   </button>

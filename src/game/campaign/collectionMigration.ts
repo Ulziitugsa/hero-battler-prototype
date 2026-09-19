@@ -1,23 +1,37 @@
 import { buildStarterCollection } from '../collection/starterCollection';
 import { readStoredCollection, sanitizeOwned, writeStoredCollection } from '../collection/persistence';
 import { reloadCollection } from '../collection/collection';
+import { COLLECTION_VERSION } from '../collection/types';
 import { findNode, loadProgress } from './progress';
 
-/**
- * One-time move from the prototype (where card rewards were only visual) to a real collection. Runs at
- * startup; does nothing when a usable collection already exists. When there is none it writes the
- * starter collection plus the card rewards for every stage the player had ALREADY first-cleared, so
- * existing Campaign progress isn't shortchanged. Saved decks, Campaign progress and the active-deck
- * preference are never modified here.
- */
-export function migrateToRealCollection(): void {
-  if (readStoredCollection().status === 'ok') return;
+/** What a player who already first-cleared these stages is owed: starter cards plus every claimed card reward (with its copy count). */
+function expectedFromProgress(): Record<string, number> {
   const owned: Record<string, number> = { ...buildStarterCollection() };
   for (const nodeId of loadProgress().firstClearClaimed) {
     const node = findNode(nodeId);
-    const cardId = node?.encounter?.firstClearReward.cardId ?? node?.reward?.cardId;
-    if (cardId) owned[cardId] = (owned[cardId] ?? 0) + 1;
+    const reward = node?.encounter?.firstClearReward ?? node?.reward;
+    if (reward?.cardId) owned[reward.cardId] = (owned[reward.cardId] ?? 0) + (reward.count ?? 1);
   }
-  writeStoredCollection(sanitizeOwned(owned));
+  return owned;
+}
+
+/**
+ * Startup migration for the collection. Saved decks, Campaign progress and the active-deck preference
+ * are never modified here.
+ *  - No usable collection: write the starter collection plus rewards for stages already first-cleared
+ *    (the prototype's rewards were only visual, so existing progress must not be shortchanged).
+ *  - Older collection (v1): one-time top-up. Rewards became multi-copy, so a player who cleared a stage
+ *    when it gave 1 copy would otherwise be stuck short of a starter deck forever. Owned counts are only
+ *    ever raised (max of what they have and what their cleared stages now give), then stamped v2.
+ *  - Current version: untouched.
+ */
+export function migrateToRealCollection(): void {
+  const stored = readStoredCollection();
+  if (stored.status === 'ok' && stored.version >= COLLECTION_VERSION) return;
+  const expected = expectedFromProgress();
+  const base = stored.status === 'ok' ? stored.owned : {};
+  const merged: Record<string, number> = { ...base };
+  for (const [id, n] of Object.entries(expected)) merged[id] = Math.max(merged[id] ?? 0, n);
+  writeStoredCollection(sanitizeOwned(merged));
   reloadCollection();
 }

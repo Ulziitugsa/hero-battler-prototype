@@ -36,7 +36,7 @@ describe('starter collection', () => {
   });
   it('initialises and persists on first read (clean profile)', () => {
     expect(getCollection()).toEqual(buildStarterCollection());
-    expect(stored()).toEqual({ version: 1, owned: { ...buildStarterCollection() } });
+    expect(stored()).toEqual({ version: 2, owned: { ...buildStarterCollection() } });
   });
   it('does not include cards the player has not earned', () => {
     expect(ownsCard('und-mira')).toBe(false);

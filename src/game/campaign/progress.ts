@@ -3,8 +3,9 @@ import type { MatchStats } from '../engine/stats';
 import { STARTING_HP } from '../engine/constants';
 import type { CampaignNodeDef, CampaignObjectiveDef, CampaignRewardDef } from './types';
 import { CHAPTER_1 } from './chapter1';
-import { grantCard } from '../collection/collection';
+import { getCollection, grantCard } from '../collection/collection';
 import type { GrantResult } from '../collection/types';
+import { getStarterProgressUpdate, type StarterProgressUpdate } from '../collection/starterUnlock';
 
 // Campaign node-clearing progress. localStorage-only, following the same convention as
 // localDecks.ts/preferences.ts (try/catch-wrapped, sane defaults, never throws).
@@ -106,7 +107,18 @@ export interface BattleResultOutcome {
   reward: { firstClear: boolean; def: CampaignRewardDef } | null;
   /** Set when this clear's first-clear reward was a card and it was added to the collection (isNew tells NEW vs duplicate). */
   cardGrant: GrantResult | null;
+  /** How that card moved a still-locked starter deck toward (or into) being unlocked. */
+  starterProgress: StarterProgressUpdate | null;
   chapterComplete: boolean;
+}
+
+/** Adds a reward's card(s) to the collection and reports how it moved any starter deck. Shared by battle and reward-node claims. */
+function grantReward(def: CampaignRewardDef): { cardGrant: GrantResult | null; starterProgress: StarterProgressUpdate | null } {
+  if (!def.cardId) return { cardGrant: null, starterProgress: null };
+  const before = getCollection();
+  const cardGrant = grantCard(def.cardId, def.count ?? 1);
+  const starterProgress = cardGrant ? getStarterProgressUpdate(def.cardId, before, getCollection()) : null;
+  return { cardGrant, starterProgress };
 }
 
 /** Call once, right when a Campaign battle's match ends (GamePage's onMatchEnd) - a win marks the node
@@ -129,7 +141,7 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
 
   const wasCleared = isNodeCleared(nodeId, progress);
   const isFirstClear = won && !wasCleared;
-  let cardGrant: GrantResult | null = null;
+  let granted: ReturnType<typeof grantReward> = { cardGrant: null, starterProgress: null };
 
   if (won) {
     progress.objectivesMet[nodeId] = [...alreadyMet];
@@ -139,8 +151,7 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
     const claimNew = isFirstClear && !progress.firstClearClaimed.includes(nodeId);
     if (claimNew) progress.firstClearClaimed = [...progress.firstClearClaimed, nodeId];
     saveProgress(progress);
-    const cardId = node.encounter.firstClearReward.cardId;
-    if (claimNew && cardId) cardGrant = grantCard(cardId, 1);
+    if (claimNew) granted = grantReward(node.encounter.firstClearReward);
   }
 
   return {
@@ -149,25 +160,26 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
     isFirstClear,
     objectivesMet,
     reward: won ? { firstClear: isFirstClear, def: isFirstClear ? node.encounter.firstClearReward : node.encounter.repeatReward } : null,
-    cardGrant,
+    cardGrant: granted.cardGrant,
+    starterProgress: granted.starterProgress,
     chapterComplete: won && isChapterComplete(loadProgress()),
   };
 }
 
 /** Reward/story nodes have no battle - claiming/viewing them clears them directly. */
-export function clearNonBattleNode(nodeId: string): { node: CampaignNodeDef; chapterComplete: boolean; cardGrant: GrantResult | null } {
+export function clearNonBattleNode(nodeId: string): { node: CampaignNodeDef; chapterComplete: boolean; cardGrant: GrantResult | null; starterProgress: StarterProgressUpdate | null } {
   const node = findNode(nodeId);
   if (!node) throw new Error(`clearNonBattleNode: unknown node "${nodeId}"`);
   const progress = loadProgress();
-  let cardGrant: GrantResult | null = null;
+  let granted: ReturnType<typeof grantReward> = { cardGrant: null, starterProgress: null };
   if (!isNodeCleared(nodeId, progress)) {
     progress.clearedNodes = [...progress.clearedNodes, nodeId];
     const claimNew = !progress.firstClearClaimed.includes(nodeId);
     if (claimNew) progress.firstClearClaimed = [...progress.firstClearClaimed, nodeId];
     saveProgress(progress);
-    if (claimNew && node.reward?.cardId) cardGrant = grantCard(node.reward.cardId, 1);
+    if (claimNew && node.reward) granted = grantReward(node.reward);
   }
-  return { node, chapterComplete: isChapterComplete(loadProgress()), cardGrant };
+  return { node, chapterComplete: isChapterComplete(loadProgress()), ...granted };
 }
 
 export { STARTING_HP };

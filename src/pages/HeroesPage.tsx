@@ -9,6 +9,7 @@ import { loadPreferences } from '../game/engine/preferences';
 import { Icon } from '../components/Icon';
 import { Gems, Sigil } from '../components/CardParts';
 import { useCollection } from '../game/collection/useCollection';
+import { getCardAcquisitionSources, primaryAcquisitionLabel } from '../game/collection/acquisition';
 import { displayRole, emptyCopy, FACTION_LABEL, FACTION_ORDER, filterHeroes, isFiltered, scopeOf, SORT_LABEL, tally, type HeroFilters, type OwnedFilter, type SortMode } from './heroes/collection';
 import '../styles/heroes.css';
 
@@ -29,6 +30,13 @@ const HEROES: CardDefinition[] = HERO_IDS.map(getCard);
 function ruleText(text: string, trigger: string): string {
   const m = text.match(/^([^:]{1,24}):\s+(.+)$/s);
   return m && m[1].toLowerCase() === trigger.toLowerCase() ? m[2].charAt(0).toUpperCase() + m[2].slice(1) : text;
+}
+
+/** One quiet line: where the card comes from. Parked / unobtainable cards say so plainly rather than promising a stage. */
+function sourceLine(cardId: string, owned: boolean): string {
+  const kinds = getCardAcquisitionSources(cardId).map((x) => x.kind);
+  if (kinds.includes('starter') || kinds.includes('campaign')) return `${owned ? 'Source' : 'Earn it'}: ${primaryAcquisitionLabel(cardId)}`;
+  return kinds.includes('future') ? 'Arrives in a later region' : 'Not obtainable yet';
 }
 
 const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
@@ -174,6 +182,11 @@ function HeroDetail({
               <span>
                 {[`${FACTION_LABEL[card.faction]} Hero`, displayRole(card)].filter(Boolean).join(' · ')}
               </span>
+            </div>
+
+            <div className={`hr-source ${owned ? '' : 'missing'}`}>
+              <Icon name={owned ? 'check' : 'lock'} size={13} />
+              <span>{sourceLine(card.id, owned)}</span>
             </div>
 
             {card.tags.length > 0 && (
