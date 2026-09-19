@@ -1,0 +1,32 @@
+/* Shared card primitives: faction sigils and rarity gems (used by Decks and Heroes). */
+
+.cp-sigil {
+  display: block;
+  flex-shrink: 0;
+}
+.cp-sigil-lg { width: 26px; height: 26px; }
+.cp-sigil-md { width: 15px; height: 15px; }
+.cp-sigil-sm { width: 8px; height: 8px; }
+.cp-sigil.kingdom { background: var(--ember-kingdom); transform: rotate(45deg); }
+.cp-sigil.undead { border-radius: 50%; border: 2px solid var(--ember-undead); }
+.cp-sigil-sm.undead { border-width: 1.5px; }
+.cp-sigil.infernal { background: var(--ember-infernal); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.cp-sigil.wildborn { background: var(--fx-wildborn); clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%); }
+.cp-sigil.spell { border-radius: 2px; background: linear-gradient(135deg, var(--ember-gold-light), var(--ember-gold-deep)); transform: rotate(45deg); }
+
+.cp-gems { display: inline-flex; gap: 3px; }
+.cp-gem {
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  border-radius: 1.5px;
+  background: rgba(10, 4, 6, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 226, 180, 0.16);
+}
+.cp-gems.r-common { --gem: #cfc4b6; }
+.cp-gems.r-rare { --gem: #8fc0ef; }
+.cp-gems.r-epic { --gem: #c79cf2; }
+.cp-gems.r-legendary { --gem: var(--ember-gold-light); }
+.cp-gem.lit { background: var(--gem); box-shadow: 0 0 5px var(--gem); }
+
+.cp-gems.dim .cp-gem.lit { opacity: 0.55; box-shadow: none; }

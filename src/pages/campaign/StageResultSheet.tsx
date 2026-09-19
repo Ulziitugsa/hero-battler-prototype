@@ -1,5 +1,6 @@
 import type { BattleResultOutcome } from '../../game/campaign/progress';
 import { Icon, type IconName } from '../../components/Icon';
+import { RewardCard } from './RewardCard';
 
 const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', emblem: 'hero', star: 'trophy' };
 
@@ -8,7 +9,7 @@ const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', e
  * switched on, matching the design's "seal" screens. A loss gets its own much quieter variant - the
  * design has no defeat screen to port, so this is the minimal honest equivalent. */
 export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResultOutcome; onContinue: () => void }) {
-  const { node, won, reward, objectivesMet, chapterComplete } = outcome;
+  const { node, won, reward, objectivesMet, chapterComplete, cardGrant } = outcome;
 
   if (!won) {
     return (
@@ -98,7 +99,9 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
           </div>
         )}
 
-        {reward && (
+        {reward?.firstClear && reward.def.cardId && <RewardCard cardId={reward.def.cardId} grant={cardGrant} />}
+
+        {reward && !(reward.firstClear && reward.def.cardId) && (
           <div className="campaign-result-reward-card">
             <div className={`campaign-result-reward-portrait ${node.encounter?.foeFaction}`}>
               <Icon name={REWARD_ICON[reward.def.icon]} size={26} />
@@ -113,8 +116,8 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
               <Icon name={reward?.firstClear ? 'cards' : 'ember'} size={16} />
             </span>
             <div className="campaign-result-row-text">
-              <span>{reward?.firstClear ? 'New reward unlocked' : 'First clear · already claimed'}</span>
-              <span>{reward?.def.sub}</span>
+              <span>{reward?.firstClear ? (cardGrant ? (cardGrant.isNew ? 'New card unlocked' : 'Another copy added') : 'New reward unlocked') : 'First clear · already claimed'}</span>
+              <span>{reward?.firstClear && cardGrant ? (cardGrant.isNew ? 'Added to your collection' : `You now own ${cardGrant.owned}`) : reward?.def.sub}</span>
             </div>
           </div>
           <div className="campaign-result-row">

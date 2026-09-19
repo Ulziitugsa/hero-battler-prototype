@@ -7,6 +7,8 @@ import { getCard } from '../game/cards';
 import { ROSTER_BY_FACTION } from '../game/cards/roster';
 import { STARTER_DECK_NAMES, STARTER_DECKS, type StarterFaction } from '../game/cards/starterDecks';
 import { listDeckOptions } from '../game/engine/deckOptions';
+import { getActiveDeck, isDeckPlayable } from '../game/engine/activeDeck';
+import { useCollection } from '../game/collection/useCollection';
 import { loadPreferences, savePreferences } from '../game/engine/preferences';
 import { loadRecentMatches } from '../game/engine/localMatchHistory';
 import type { DeckChoice } from './BattleSetupPage';
@@ -35,7 +37,8 @@ export function HomePage({
   // Real state, not just a memoed read of preferences - the deck-rail crests below let the player
   // switch their active starter deck without leaving Home, so this screen needs to re-render on that
   // change rather than only picking up a new preference on next mount.
-  const [selectedDeckId, setSelectedDeckId] = useState(() => (deckOptions.some((d) => d.id === prefs.selectedDeckId) ? prefs.selectedDeckId : deckOptions[0].id));
+  const owned = useCollection();
+  const [selectedDeckId, setSelectedDeckId] = useState(() => getActiveDeck().id);
   const selectedDeck = deckOptions.find((d) => d.id === selectedDeckId) ?? deckOptions[0];
 
   const recentMatches = useMemo(() => loadRecentMatches(), []);
@@ -50,6 +53,8 @@ export function HomePage({
 
   function selectStarter(faction: StarterFaction) {
     const id = `starter-${faction}`;
+    const deck = deckOptions.find((d) => d.id === id);
+    if (!deck || !isDeckPlayable(deck.cardIds, owned)) return;
     setSelectedDeckId(id);
     savePreferences({ selectedDeckId: id, opponentFaction: prefs.opponentFaction });
   }
@@ -178,17 +183,22 @@ export function HomePage({
               </span>
             </div>
             <div className="home-deck-crests">
-              {STARTER_FACTIONS.map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  className={`home-crest ${selectedDeckId === `starter-${f}` ? 'active' : ''}`}
-                  onClick={() => selectStarter(f)}
-                  aria-label={STARTER_DECK_NAMES[f]}
-                >
-                  <span className="home-sigil" data-faction={f} />
-                </button>
-              ))}
+              {STARTER_FACTIONS.map((f) => {
+                const deck = deckOptions.find((d) => d.id === `starter-${f}`);
+                const usable = !!deck && isDeckPlayable(deck.cardIds, owned);
+                return (
+                  <button
+                    key={f}
+                    type="button"
+                    className={`home-crest ${selectedDeckId === `starter-${f}` ? 'active' : ''} ${usable ? '' : 'locked'}`}
+                    onClick={() => selectStarter(f)}
+                    disabled={!usable}
+                    aria-label={usable ? STARTER_DECK_NAMES[f] : `${STARTER_DECK_NAMES[f]} (not collected yet)`}
+                  >
+                    <span className="home-sigil" data-faction={f} />
+                  </button>
+                );
+              })}
             </div>
           </div>
           <button type="button" className="home-edit-seal" onClick={onOpenDecks}>

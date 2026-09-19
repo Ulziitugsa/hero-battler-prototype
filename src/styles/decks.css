@@ -1,0 +1,656 @@
+/* ============================================================================
+   Decks screen (Embervale). Saved decks are carved plaques on a shelf rail (selected one lifted and
+   lit, active one wearing a wax seal); one banner names the selected deck and holds its two actions;
+   cards are art-first tiles framed by rarity, not faction. The editor is a sticky carved "Current
+   deck" dock over a separate stone "Available cards" pool. Lives inside the shared AppShell, so it is
+   a flowing column that scrolls with .app-frame-content (the dock sticks to that scroller).
+   ============================================================================ */
+
+.decks-screen {
+  position: relative;
+  flex: 1;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background:
+    radial-gradient(120% 40% at 50% 0%, rgba(232, 103, 79, 0.1), transparent 70%),
+    var(--ember-bg);
+  color: var(--ember-ink);
+  font-family: var(--ember-font-body);
+  padding: 16px 16px 28px;
+}
+
+.decks-screen button {
+  font-family: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- Shared materials: plate buttons, seals ---- */
+
+.dk-plate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 226, 180, 0.22);
+  background: linear-gradient(180deg, #5b3626, #3b2117);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.18), 0 3px 0 rgba(10, 4, 6, 0.5);
+  color: var(--ember-ink);
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dk-plate-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.18); }
+.dk-plate-btn.gold {
+  border-color: rgba(255, 230, 173, 0.45);
+  background: linear-gradient(180deg, #7d5a3a, #4d3120);
+  color: var(--ember-gold);
+}
+.dk-plate-btn.gold.ready {
+  background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep));
+  border-color: rgba(255, 246, 214, 0.7);
+  color: var(--ember-gold-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 3px 0 #5c3a0c, 0 0 18px rgba(255, 216, 148, 0.25);
+}
+.dk-plate-btn.wide { flex: 1; }
+.dk-plate-btn:disabled { opacity: 0.6; cursor: default; }
+.dk-plate-btn.danger { border-color: rgba(240, 134, 106, 0.5); color: var(--ember-infernal); }
+
+.dk-round-btn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 226, 180, 0.25);
+  background: linear-gradient(180deg, #5b3626, #3b2117);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.18), 0 3px 0 rgba(10, 4, 6, 0.5);
+  cursor: pointer;
+}
+
+/* Count seal: the deck's N / 15, a stamped disc. Warm gold when full and legal, amber when over a limit. */
+.dk-count-seal {
+  flex: none;
+  min-width: 46px;
+  height: 46px;
+  padding: 0 6px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  align-self: center;
+  gap: 1px;
+  padding-top: 12px;
+  font-family: var(--ember-font-display);
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--ember-ink);
+  background: radial-gradient(circle at 35% 30%, #4a2c1f, #26130d);
+  border: 2px solid rgba(255, 226, 180, 0.25);
+  box-shadow: inset 0 0 0 2px rgba(10, 4, 6, 0.5);
+}
+.dk-count-seal small { font-size: 0.68rem; color: var(--ember-ink-2); font-family: var(--ember-font-body); font-weight: 800; }
+.dk-count-seal.ready { border-color: var(--ember-gold); color: var(--ember-gold-light); box-shadow: inset 0 0 0 2px rgba(10, 4, 6, 0.5), 0 0 12px rgba(255, 216, 148, 0.35); }
+.dk-count-seal.invalid { border-color: var(--ember-infernal); color: #ffd2c4; }
+.dk-count-seal.lg { min-width: 58px; height: 58px; padding-top: 16px; font-size: 1.3rem; }
+
+/* ---- Browse: header ---- */
+
+.dk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dk-title {
+  margin: 0;
+  font-family: var(--ember-font-display);
+  font-weight: 400;
+  font-size: 1.7rem;
+  color: var(--ember-gold-light);
+}
+.dk-header .dk-plate-btn { min-height: 40px; padding: 0 14px; font-size: 0.85rem; }
+
+/* ---- Browse: shelf of plaques ---- */
+
+.dk-shelf { position: relative; margin: 0 -16px; }
+.dk-shelf-row {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 14px 16px 12px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 22px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 22px), transparent 100%);
+}
+.dk-shelf-row::-webkit-scrollbar { display: none; }
+.dk-shelf-board {
+  height: 10px;
+  margin: 0 12px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--ember-wood), #3a1f16);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 226, 180, 0.22);
+}
+
+.dk-plaque {
+  position: relative;
+  flex: none;
+  width: 104px;
+  min-height: 132px;
+  scroll-snap-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 226, 180, 0.14);
+  background: linear-gradient(180deg, #4a2b1e, #2b170f);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.12), 0 3px 8px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  text-align: center;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+.dk-plaque.lit {
+  transform: translateY(-6px);
+  border-color: var(--ember-gold);
+  background: linear-gradient(180deg, #6a4029, #3a2015);
+  box-shadow: inset 0 1px 0 rgba(255, 230, 173, 0.35), 0 0 0 1px rgba(255, 216, 148, 0.2), 0 12px 20px -6px rgba(0, 0, 0, 0.7);
+}
+.dk-plaque-crest {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle, rgba(255, 226, 180, 0.2), rgba(10, 4, 6, 0.4));
+  border: 1px solid rgba(255, 226, 180, 0.2);
+}
+.dk-plaque-name {
+  flex: 1;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  font-weight: 800;
+  color: var(--ember-ink-2);
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+.dk-plaque.lit .dk-plaque-name { color: var(--ember-gold-light); }
+.dk-plaque-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--ember-ink-3);
+}
+.dk-plaque-count.ready { color: var(--ember-ink-2); }
+.dk-plaque-count.building { color: #e8b978; }
+.dk-plaque-count.invalid { color: var(--ember-infernal); }
+
+/* Wax seal marking the active deck: pressed disc with a flame, half-hung off the plaque's corner. */
+.dk-wax {
+  position: absolute;
+  top: -9px;
+  right: -7px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #ffe6ad;
+  background: radial-gradient(circle at 35% 30%, #d4553f, #7e231d 75%);
+  border: 2px solid #a63a2c;
+  box-shadow: inset 0 0 0 2px rgba(255, 190, 150, 0.22), 0 3px 6px rgba(0, 0, 0, 0.55), 0 0 12px rgba(232, 103, 79, 0.5);
+}
+.dk-banner-seal { position: relative; flex: none; }
+.dk-banner-seal .dk-wax { top: -6px; right: -8px; }
+
+.dk-plaque-empty {
+  justify-content: center;
+  border-style: dashed;
+  border-color: rgba(255, 226, 180, 0.3);
+  background: transparent;
+  box-shadow: none;
+  color: var(--ember-ink-2);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+/* ---- Browse: banner ---- */
+
+.dk-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #3d2418, #25130d);
+  border: 1px solid rgba(255, 226, 180, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.14), 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+.dk-banner.active {
+  border-color: rgba(255, 216, 148, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 230, 173, 0.3), 0 0 22px rgba(232, 103, 79, 0.22), 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+.dk-banner-top { display: flex; align-items: center; gap: 12px; }
+.dk-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.dk-banner-name {
+  margin: 0;
+  font-family: var(--ember-font-display);
+  font-weight: 400;
+  font-size: 1.25rem;
+  line-height: 1.15;
+  color: var(--ember-gold-light);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.dk-banner-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--ember-ink-2);
+}
+.dk-banner-status.ready { color: var(--ember-gold); }
+.dk-banner-status.building { color: #e8b978; }
+.dk-banner-status.invalid { color: var(--ember-infernal); }
+.dk-banner-actions { display: flex; gap: 10px; align-items: stretch; }
+.dk-active-note {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: rgba(10, 4, 6, 0.35);
+  border: 1px dashed rgba(255, 216, 148, 0.35);
+  color: var(--ember-ink-2);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.dk-active-note svg { flex: none; color: var(--ember-fire); }
+
+/* ---- Rail label (section heading with a carved rule) ---- */
+
+.dk-rail-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--ember-font-display);
+  font-size: 1rem;
+  color: var(--ember-gold-light);
+}
+.dk-rail-rule { flex: 1; height: 2px; border-radius: 1px; background: linear-gradient(90deg, rgba(255, 216, 148, 0.35), rgba(255, 216, 148, 0.04)); }
+.dk-rail-meta { font-family: var(--ember-font-body); font-size: 0.78rem; font-weight: 700; color: var(--ember-ink-3); }
+
+/* ---- Card tiles ---- */
+
+.dk-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; }
+
+.dk-card {
+  --frame-a: #7a746c;
+  --frame-b: #3a3733;
+  position: relative;
+  display: flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+.dk-card.r-rare { --frame-a: #8fb0d4; --frame-b: #3d556e; }
+.dk-card.r-epic { --frame-a: #b08fd8; --frame-b: #4e3672; }
+.dk-card.r-legendary { --frame-a: var(--ember-gold-light); --frame-b: var(--ember-gold-deep); }
+.dk-card:active { transform: scale(0.97); }
+
+.dk-card-frame {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 3px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--frame-a), var(--frame-b));
+  box-shadow: 0 5px 10px rgba(10, 4, 6, 0.55);
+}
+.dk-card.r-epic .dk-card-frame { box-shadow: 0 5px 10px rgba(10, 4, 6, 0.55), 0 0 14px rgba(150, 104, 208, 0.3); }
+.dk-card.r-legendary .dk-card-frame { padding: 3.5px; box-shadow: 0 5px 12px rgba(10, 4, 6, 0.6), 0 0 18px rgba(255, 216, 148, 0.4); }
+.dk-card-face { position: relative; flex: none; display: block; border-radius: 7px 7px 0 0; overflow: hidden; background: #1d100b; }
+
+/* Second copy: a card edge peeking out behind, so a duplicate reads as a stack, not a bigger number. */
+.dk-card-under {
+  position: absolute;
+  inset: 5px -5px -5px 5px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--frame-b), #1a0e09);
+  border: 1px solid rgba(255, 226, 180, 0.12);
+}
+
+.dk-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1 / 1.02;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 38%, #3a4258, #1a1d2b);
+}
+.dk-art.undead { background: radial-gradient(circle at 50% 38%, #2f4d45, #142420); }
+.dk-art.infernal { background: radial-gradient(circle at 50% 38%, #5a2c22, #241010); }
+.dk-art.spell, .dk-art.wildborn { background: radial-gradient(circle at 50% 38%, #4d3a22, #21160b); }
+.dk-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
+.dk-art .cp-sigil-lg { transform-origin: center; }
+.dk-art .cp-sigil-lg.kingdom { transform: rotate(45deg) scale(1.3); }
+.dk-art .cp-sigil-lg.undead, .dk-art .cp-sigil-lg.infernal { transform: scale(1.3); }
+.dk-rune {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--ember-gold);
+  box-shadow: 0 0 12px rgba(255, 216, 148, 0.35), inset 0 0 8px rgba(255, 216, 148, 0.25);
+}
+.dk-rune.continuous { border-style: dashed; }
+
+.dk-card-gems { position: absolute; top: 5px; left: 5px; padding: 3px 4px; border-radius: 6px; background: rgba(10, 4, 6, 0.55); line-height: 0; }
+.dk-card-power {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  min-width: 25px;
+  height: 25px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #4a2c1f, #1e100a);
+  border: 1.5px solid var(--ember-gold);
+  color: var(--ember-gold-light);
+  font-family: var(--ember-font-display);
+  font-size: 0.9rem;
+  line-height: 1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.dk-card-power.spell { color: var(--ember-gold); }
+
+.dk-card-count {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 7px;
+  justify-content: center;
+  border-radius: 11px;
+  background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep));
+  color: var(--ember-gold-ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.dk-card-count.full { background: linear-gradient(180deg, #5b3626, #3b2117); color: var(--ember-gold); border: 1px solid rgba(255, 216, 148, 0.5); }
+.dk-card-count.over { background: linear-gradient(180deg, #f0866a, #a63a2c); color: #fff4ea; }
+.dk-card-add {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(10, 4, 6, 0.6);
+  border: 1px solid rgba(255, 226, 180, 0.4);
+  color: var(--ember-gold-light);
+}
+.dk-card-add svg { stroke-width: 2.4; }
+.dk-card-count + .dk-card-add { display: none; }
+
+.dk-card-plate {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px 7px;
+  background: linear-gradient(180deg, #3a2317, #22120c);
+  border-top: 1px solid rgba(255, 226, 180, 0.15);
+  border-radius: 0 0 7px 7px;
+}
+.dk-card-name {
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--ember-ink);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.dk-card-role { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 700; color: var(--ember-ink-3); }
+
+.dk-card.blocked .dk-card-face .dk-art { filter: saturate(0.6) brightness(0.72); }
+.dk-card.maxed .dk-card-plate .dk-card-role { color: var(--ember-gold); }
+.dk-card.blocked:active { transform: none; }
+.dk-card.over .dk-card-frame { --frame-a: #f0866a; --frame-b: #8f2e2c; }
+
+.dk-open-slot {
+  min-height: 100%;
+  aspect-ratio: 1 / 1.4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 2px dashed rgba(255, 216, 148, 0.35);
+  background: rgba(255, 226, 180, 0.03);
+  color: var(--ember-gold);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+}
+.dk-empty-note { margin: 0; text-align: center; color: var(--ember-ink-3); font-size: 0.85rem; font-weight: 700; }
+
+.dk-delete { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 6px; color: var(--ember-ink-2); font-size: 0.85rem; font-weight: 700; flex-wrap: wrap; }
+.dk-delete .dk-plate-btn { min-height: 40px; padding: 0 14px; }
+.dk-delete-link { min-height: 44px; padding: 0 16px; background: none; border: 0; color: var(--ember-ink-3); font-size: 0.85rem; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
+/* ---- Editor: Current deck dock ---- */
+
+.dk-edit { padding-top: 0; gap: 12px; }
+
+.dk-dock {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 -16px;
+  padding: 12px 16px 0;
+  background: linear-gradient(180deg, #4a2b1e, #2b170f);
+  border-bottom: 1px solid rgba(255, 226, 180, 0.2);
+  box-shadow: 0 10px 18px -6px rgba(0, 0, 0, 0.7);
+}
+.dk-dock-head { display: flex; align-items: center; gap: 10px; }
+.dk-name-input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 226, 180, 0.2);
+  background: rgba(10, 4, 6, 0.4);
+  color: var(--ember-gold-light);
+  font-family: var(--ember-font-display);
+  font-size: 1.05rem;
+}
+.dk-name-input:focus { outline: 2px solid rgba(255, 216, 148, 0.6); outline-offset: 1px; }
+.dk-dock-head .dk-plate-btn { padding: 0 14px; }
+
+.dk-dock-status { display: flex; align-items: center; gap: 10px; margin-top: 8px; min-height: 40px; }
+.dk-dock-status .dk-count-seal { min-width: 40px; height: 40px; padding-top: 10px; font-size: 0.95rem; }
+.dk-dock-msg { font-size: 0.85rem; font-weight: 800; color: var(--ember-ink-2); line-height: 1.25; }
+.dk-dock-status.ready .dk-dock-msg { color: var(--ember-gold); }
+.dk-dock-status.invalid .dk-dock-msg, .dk-dock-status.notice .dk-dock-msg { color: #f5a98f; }
+
+.dk-strip {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  overflow-x: auto;
+  margin: 4px -16px 0;
+  padding: 6px 16px 10px;
+  scrollbar-width: none;
+}
+.dk-strip::-webkit-scrollbar { display: none; }
+.dk-strip-hint { align-self: center; font-size: 0.82rem; font-weight: 700; color: var(--ember-ink-3); }
+.dk-dock-rail { height: 6px; margin: 0 -16px; background: linear-gradient(180deg, #7a4630, #3a1f16); box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.3); }
+
+.dk-chit { --frame-a: #7a746c; --frame-b: #3a3733; position: relative; flex: none; width: 60px; padding: 0; border: 0; background: none; cursor: pointer; }
+.dk-chit.r-rare { --frame-a: #8fb0d4; --frame-b: #3d556e; }
+.dk-chit.r-epic { --frame-a: #b08fd8; --frame-b: #4e3672; }
+.dk-chit.r-legendary { --frame-a: var(--ember-gold-light); --frame-b: var(--ember-gold-deep); }
+.dk-chit.over { --frame-a: #f0866a; --frame-b: #8f2e2c; }
+.dk-chit-under { position: absolute; inset: 4px -4px -4px 4px; border-radius: 8px; background: var(--frame-b); opacity: 0.85; }
+.dk-chit-frame {
+  position: relative;
+  display: block;
+  padding: 2.5px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--frame-a), var(--frame-b));
+  overflow: hidden;
+  box-shadow: 0 3px 6px rgba(10, 4, 6, 0.55);
+}
+.dk-chit-frame .dk-art { aspect-ratio: 60 / 76; border-radius: 5px; }
+.dk-chit-frame .cp-sigil-md { transform: none; }
+.dk-chit-frame .cp-sigil-md.kingdom { transform: rotate(45deg) scale(1.2); }
+.dk-chit-name {
+  position: absolute;
+  left: 2.5px;
+  right: 2.5px;
+  bottom: 2.5px;
+  padding: 10px 3px 3px;
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(180deg, transparent, rgba(10, 4, 6, 0.92) 55%);
+  color: var(--ember-ink);
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.dk-chit-count {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep));
+  color: var(--ember-gold-ink);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+.dk-chit-minus {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #d4553f, #7e231d 80%);
+  border: 1.5px solid #ffcfb8;
+  color: #fff4ea;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.dk-chit-minus svg { stroke-width: 3; }
+.dk-chit:active { transform: scale(0.95); }
+
+.dk-chit-open {
+  flex: none;
+  width: 60px;
+  min-height: 82px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 8px;
+  border: 2px dashed rgba(255, 216, 148, 0.4);
+  background: rgba(10, 4, 6, 0.25);
+  color: var(--ember-gold);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+/* ---- Editor: Available cards pool ---- */
+
+.dk-pool {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 10px 16px;
+  margin: 2px 0 0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(122, 96, 72, 0.16), rgba(122, 96, 72, 0.06));
+  border: 1px solid rgba(255, 226, 180, 0.12);
+}
+.dk-pool-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.dk-pool-title { font-family: var(--ember-font-display); font-size: 1.15rem; color: var(--ember-gold-light); }
+.dk-pool-count { font-size: 0.78rem; font-weight: 700; color: var(--ember-ink-3); }
+
+.dk-filters { display: flex; align-items: center; gap: 8px; }
+.dk-seg { display: flex; flex: 1; padding: 3px; gap: 2px; border-radius: 12px; background: rgba(10, 4, 6, 0.45); border: 1px solid rgba(255, 226, 180, 0.12); }
+.dk-seg-btn { flex: 1; min-height: 38px; padding: 0 6px; border: 0; border-radius: 9px; background: transparent; color: var(--ember-ink-2); font-size: 0.85rem; font-weight: 800; cursor: pointer; }
+.dk-seg-btn.on { background: linear-gradient(180deg, #7d5a3a, #4d3120); color: var(--ember-gold-light); box-shadow: inset 0 1px 0 rgba(255, 230, 173, 0.3); }
+.dk-crests { display: flex; gap: 4px; flex: none; }
+.dk-crest { width: 38px; height: 44px; min-width: 0; display: grid; place-items: center; border-radius: 12px; border: 1px solid rgba(255, 226, 180, 0.18); background: rgba(10, 4, 6, 0.45); color: var(--ember-ink-2); cursor: pointer; }
+.dk-crest.on { border-color: var(--ember-gold); background: radial-gradient(circle, #6a4029, #35190f); box-shadow: 0 0 10px rgba(255, 216, 148, 0.3); color: var(--ember-gold-light); }
+
+.dk-rarity-row { display: flex; gap: 6px; }
+.dk-rar-btn { min-width: 0; min-height: 40px; padding: 0 12px; display: grid; place-items: center; border-radius: 10px; border: 1px solid rgba(255, 226, 180, 0.15); background: rgba(10, 4, 6, 0.45); color: var(--ember-ink-2); font-size: 0.82rem; font-weight: 800; cursor: pointer; }
+.dk-rar-btn.gems { flex: 1; padding: 0 4px; }
+.dk-rar-btn.gems .cp-gem { width: 8px; height: 8px; }
+.dk-rar-btn.on { border-color: var(--ember-gold); background: linear-gradient(180deg, #6a4029, #35190f); color: var(--ember-gold-light); }
+
+.dk-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 12px; color: var(--ember-ink-3); font-size: 0.9rem; font-weight: 700; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dk-plaque, .dk-card, .dk-chit { transition: none; }
+}

@@ -4,7 +4,9 @@ import { TopBar } from '../components/TopBar';
 import { STARTER_DECKS, STARTER_DECK_NAMES, type StarterFaction } from '../game/cards/starterDecks';
 import { listDeckOptions } from '../game/engine/deckOptions';
 import { loadPreferences, savePreferences } from '../game/engine/preferences';
-import { validateDeck } from '../game/engine/deckRules';
+import { getActiveDeck } from '../game/engine/activeDeck';
+import { useCollection } from '../game/collection/useCollection';
+import { getDeckStatus } from './decks/deckStatus';
 
 const FACTIONS: StarterFaction[] = ['kingdom', 'undead', 'infernal'];
 
@@ -16,12 +18,13 @@ export interface DeckChoice {
 export function BattleSetupPage({ onStartBattle, onBack }: { onStartBattle: (player: DeckChoice, opponent: DeckChoice) => void; onBack?: () => void }) {
   const deckOptions = useMemo(() => listDeckOptions(), []);
   const prefs = useMemo(() => loadPreferences(), []);
+  const owned = useCollection();
 
-  const [playerDeckId, setPlayerDeckId] = useState(deckOptions.some((d) => d.id === prefs.selectedDeckId) ? prefs.selectedDeckId : deckOptions[0].id);
+  const [playerDeckId, setPlayerDeckId] = useState(() => getActiveDeck().id);
   const [opponent, setOpponent] = useState<StarterFaction>(prefs.opponentFaction);
 
   const playerDeck = deckOptions.find((d) => d.id === playerDeckId) ?? deckOptions[0];
-  const validation = validateDeck(playerDeck.cardIds);
+  const status = getDeckStatus(playerDeck.cardIds, owned);
 
   function updatePlayerDeck(id: string) {
     setPlayerDeckId(id);
@@ -54,17 +57,17 @@ export function BattleSetupPage({ onStartBattle, onBack }: { onStartBattle: (pla
           </span>
           <select value={playerDeckId} onChange={(e) => updatePlayerDeck(e.target.value)}>
             {deckOptions.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.label}
+              <option key={d.id} value={d.id} disabled={!getDeckStatus(d.cardIds, owned).valid}>
+                {d.label}{getDeckStatus(d.cardIds, owned).valid ? '' : ' (not ready)'}
               </option>
             ))}
           </select>
         </label>
 
-        {!validation.valid && (
+        {!status.valid && (
           <div className="menu-warning">
             <Icon name="warning" size={15} />
-            This deck isn't valid yet: {validation.errors.join(' ')} Fix it in Decks before playing.
+            This deck isn't ready: {status.message}. Fix it in Decks before playing.
           </div>
         )}
 
@@ -84,7 +87,7 @@ export function BattleSetupPage({ onStartBattle, onBack }: { onStartBattle: (pla
         <button
           type="button"
           className="btn btn-primary weave-cta"
-          disabled={!validation.valid}
+          disabled={!status.valid}
           onClick={() =>
             onStartBattle({ label: playerDeck.label, cardIds: playerDeck.cardIds }, { label: STARTER_DECK_NAMES[opponent], cardIds: STARTER_DECKS[opponent] })
           }

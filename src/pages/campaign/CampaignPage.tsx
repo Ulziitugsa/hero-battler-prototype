@@ -5,8 +5,7 @@ import { REGIONS } from '../../game/campaign/regions';
 import { loadProgress, isNodeCleared, isNodeUnlocked, getCurrentNodeId, findNode, clearNonBattleNode, type BattleResultOutcome, type CampaignProgress } from '../../game/campaign/progress';
 import { loadEnergy, spendEnergy, formatCountdown, type EnergyState } from '../../game/campaign/energy';
 import { chapterWorldArtUrl } from '../../game/campaign/art';
-import { listDeckOptions } from '../../game/engine/deckOptions';
-import { loadPreferences } from '../../game/engine/preferences';
+import { getActiveDeck } from '../../game/engine/activeDeck';
 import { STARTER_DECKS, STARTER_DECK_NAMES } from '../../game/cards/starterDecks';
 import type { CampaignNodeDef, CampaignNodeType } from '../../game/campaign/types';
 import { Icon, type IconName } from '../../components/Icon';
@@ -157,9 +156,7 @@ export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedRes
     if (!openNode_?.encounter) return;
     const encounter = openNode_.encounter;
     setEnergy(spendEnergy(encounter.energyCost));
-    const deckOptions = listDeckOptions();
-    const prefs = loadPreferences();
-    const activeDeck = deckOptions.find((d) => d.id === prefs.selectedDeckId) ?? deckOptions[0];
+    const activeDeck = getActiveDeck();
     const playerChoice: DeckChoice = { label: activeDeck.label, cardIds: activeDeck.cardIds };
     const enemyChoice: DeckChoice = { label: STARTER_DECK_NAMES[encounter.enemyDeckFaction], cardIds: STARTER_DECKS[encounter.enemyDeckFaction] };
     setOpenNodeId(null);
@@ -175,10 +172,10 @@ export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedRes
 
   function handleClaimReward() {
     if (!openNodeId) return;
-    const { node, chapterComplete } = clearNonBattleNode(openNodeId);
+    const { node, chapterComplete, cardGrant } = clearNonBattleNode(openNodeId);
     setOpenNodeId(null);
     if (chapterComplete && node.reward) {
-      setClaimResult({ node, won: true, isFirstClear: true, objectivesMet: [], reward: { firstClear: true, def: node.reward }, chapterComplete: true });
+      setClaimResult({ node, won: true, isFirstClear: true, objectivesMet: [], reward: { firstClear: true, def: node.reward }, cardGrant, chapterComplete: true });
     }
     refresh();
   }

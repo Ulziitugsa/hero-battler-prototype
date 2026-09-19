@@ -1,0 +1,384 @@
+/* ============================================================================
+   Heroes screen (Embervale) - the collection gallery. Two roomy columns of art-first cards framed by
+   RARITY (faction only shows as a small crest), one engraved counter that follows the filters, and
+   missing cards veiled but readable. Sigils / gems come from cardParts.css. Lives inside the shared
+   AppShell, so it is a flowing column scrolling with .app-frame-content.
+   ============================================================================ */
+
+.heroes-screen {
+  position: relative;
+  flex: 1;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px 32px;
+  background:
+    radial-gradient(120% 34% at 50% 0%, rgba(232, 103, 79, 0.1), transparent 70%),
+    var(--ember-bg);
+  color: var(--ember-ink);
+  font-family: var(--ember-font-body);
+}
+.heroes-screen button,
+.hr-sheet button { font-family: inherit; color: inherit; -webkit-tap-highlight-color: transparent; cursor: pointer; }
+
+/* ---- Header / tools ---- */
+
+.hr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.hr-title { margin: 0; font-family: var(--ember-font-display); font-weight: 400; font-size: 1.7rem; color: var(--ember-gold-light); }
+.hr-tools { display: flex; align-items: center; gap: 8px; }
+.hr-tool {
+  height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 226, 180, 0.22);
+  background: linear-gradient(180deg, #5b3626, #3b2117);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.18), 0 3px 0 rgba(10, 4, 6, 0.5);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+.hr-tool.on { border-color: var(--ember-gold); color: var(--ember-gold-light); }
+.hr-sort { position: relative; }
+.hr-sort-scrim { position: fixed; inset: 0; z-index: 30; background: transparent; border: 0; }
+.hr-sort-menu {
+  position: absolute;
+  z-index: 31;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 168px;
+  padding: 6px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #4a2b1e, #2b170f);
+  border: 1px solid rgba(255, 226, 180, 0.3);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.6);
+}
+.hr-sort-opt {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-align: left;
+}
+.hr-sort-opt.on { background: rgba(255, 216, 148, 0.12); color: var(--ember-gold-light); }
+
+.hr-search { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 6px 0 14px; border-radius: 12px; background: rgba(10, 4, 6, 0.5); border: 1px solid rgba(255, 216, 148, 0.3); color: var(--ember-ink-2); }
+.hr-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--ember-ink); font-family: inherit; font-size: 1rem; font-weight: 700; }
+.hr-search input::placeholder { color: var(--ember-ink-3); }
+.hr-search-clear { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgba(255, 226, 180, 0.1); }
+
+/* ---- Ledger: one engraved counter ---- */
+
+.hr-ledger {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(10, 4, 6, 0.55), rgba(10, 4, 6, 0.3));
+  border: 1px solid rgba(255, 226, 180, 0.14);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.hr-ledger-count { flex: none; font-family: var(--ember-font-display); font-size: 1.6rem; line-height: 1; color: var(--ember-gold-light); min-width: 3.4ch; }
+.hr-ledger-side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.hr-ledger-caption { font-size: 0.85rem; font-weight: 800; color: var(--ember-ink-2); line-height: 1.2; }
+.hr-ledger-bar { display: block; height: 6px; border-radius: 3px; background: rgba(255, 226, 180, 0.1); overflow: hidden; }
+.hr-ledger-bar span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--ember-gold-deep), var(--ember-gold-light)); transition: width 220ms ease; }
+
+/* ---- Faction crests ---- */
+
+.hr-crests { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.hr-crest { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 2px 0; border: 0; background: none; min-height: 44px; }
+.hr-crest-coin {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--ember-ink-2);
+  background: radial-gradient(circle at 35% 28%, #5a3626, #26130d);
+  border: 2px solid rgba(255, 226, 180, 0.16);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 226, 180, 0.15);
+  transition: transform 140ms ease;
+}
+.hr-crest.on .hr-crest-coin {
+  border-color: var(--ember-gold);
+  background: radial-gradient(circle at 35% 28%, #7a4a30, #35190f);
+  color: var(--ember-gold-light);
+  box-shadow: 0 0 0 2px rgba(255, 216, 148, 0.18), 0 0 14px rgba(255, 216, 148, 0.3), 0 4px 8px rgba(0, 0, 0, 0.5);
+  transform: translateY(-2px);
+}
+.hr-crest-label { font-size: 0.8rem; font-weight: 800; color: var(--ember-ink-3); }
+.hr-crest.on .hr-crest-label { color: var(--ember-gold-light); }
+.hr-crest-coin .cp-sigil-lg.kingdom { width: 20px; height: 20px; }
+.hr-crest-coin .cp-sigil-lg.undead { width: 24px; height: 24px; }
+
+/* ---- Ownership segmented + rarity selectors ---- */
+
+.hr-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; border-radius: 14px; background: rgba(10, 4, 6, 0.5); border: 1px solid rgba(255, 226, 180, 0.12); }
+.hr-seg-btn { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 11px; background: transparent; color: var(--ember-ink-2); font-size: 0.92rem; font-weight: 800; }
+.hr-seg-btn.on { background: linear-gradient(180deg, #7d5a3a, #4d3120); color: var(--ember-gold-light); box-shadow: inset 0 1px 0 rgba(255, 230, 173, 0.3), 0 2px 4px rgba(0, 0, 0, 0.4); }
+
+.hr-rarities { display: grid; grid-template-columns: 0.7fr repeat(4, 1fr); gap: 6px; }
+.hr-rar {
+  --gem: var(--ember-ink-2);
+  min-height: 50px;
+  min-width: 0;
+  padding: 4px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 226, 180, 0.14);
+  background: rgba(10, 4, 6, 0.45);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--ember-ink-2);
+}
+.hr-rar.r-common { --gem: #cfc4b6; }
+.hr-rar.r-rare { --gem: #8fc0ef; }
+.hr-rar.r-epic { --gem: #c79cf2; }
+.hr-rar.r-legendary { --gem: var(--ember-gold-light); }
+.hr-rar-gem { width: 13px; height: 13px; transform: rotate(45deg); border-radius: 2.5px; background: var(--gem); box-shadow: 0 0 8px var(--gem); }
+.hr-rar-any { font-size: 0.85rem; }
+.hr-rar.on { border-color: var(--gem); background: rgba(255, 226, 180, 0.08); color: var(--ember-ink); box-shadow: 0 0 0 1px var(--gem), 0 0 14px -2px var(--gem); }
+.hr-rar-name { max-width: 100%; letter-spacing: 0; }
+
+/* ---- Card grid ---- */
+
+.hr-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 14px; padding-top: 6px; }
+
+.hr-card {
+  --frame-a: #7a746c;
+  --frame-b: #3a3733;
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  min-width: 0;
+}
+.hr-card.r-rare { --frame-a: #8fb0d4; --frame-b: #3d556e; }
+.hr-card.r-epic { --frame-a: #b08fd8; --frame-b: #4e3672; }
+.hr-card.r-legendary { --frame-a: var(--ember-gold-light); --frame-b: var(--ember-gold-deep); }
+.hr-card:active { transform: scale(0.98); }
+
+.hr-card-frame {
+  position: relative;
+  display: block;
+  padding: 3px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--frame-a), var(--frame-b));
+  box-shadow: 0 8px 16px rgba(10, 4, 6, 0.55);
+}
+.hr-card.r-rare .hr-card-frame { padding: 3.5px; }
+.hr-card.r-epic .hr-card-frame { padding: 4px; box-shadow: 0 8px 16px rgba(10, 4, 6, 0.55), 0 0 18px rgba(150, 104, 208, 0.28); }
+.hr-card.r-legendary .hr-card-frame { padding: 4.5px; box-shadow: 0 8px 18px rgba(10, 4, 6, 0.6), 0 0 22px rgba(255, 216, 148, 0.4); }
+.hr-card.missing .hr-card-frame { filter: saturate(0.8) brightness(0.9); box-shadow: 0 6px 12px rgba(10, 4, 6, 0.5); }
+
+.hr-crown {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: -9px;
+  width: 30px;
+  height: 12px;
+  margin-left: -15px;
+  background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep));
+  clip-path: polygon(0 100%, 0 30%, 16% 62%, 34% 0, 50% 52%, 66% 0, 84% 62%, 100% 30%, 100% 100%);
+}
+.hr-card.missing .hr-crown { opacity: 0.6; }
+
+.hr-card-window { position: relative; display: block; border-radius: 10px 10px 0 0; overflow: hidden; }
+
+/* Art: real image, or the faction-tinted fallback with a large sigil. */
+.hr-art { position: relative; display: block; width: 100%; aspect-ratio: 4 / 4.6; overflow: hidden; }
+.hr-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; }
+.hr-art.fallback.kingdom { background: radial-gradient(circle at 50% 36%, #6a92d0, #1b2a4a 78%); }
+.hr-art.fallback.undead { background: radial-gradient(circle at 50% 36%, #4f9c82, #123028 78%); }
+.hr-art.fallback.infernal { background: radial-gradient(circle at 50% 36%, #b95a3e, #3a1512 78%); }
+.hr-art.fallback.wildborn { background: radial-gradient(circle at 50% 40%, #5c8a3c, #172410 80%); }
+.hr-art.fallback::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 10px); }
+.hr-art-emblem { position: absolute; inset: 0; display: grid; place-items: center; filter: drop-shadow(0 0 14px rgba(255, 226, 180, 0.35)); }
+.hr-art-emblem::before { content: ''; position: absolute; inset: 0; margin: auto; width: 46%; aspect-ratio: 1; border-radius: 50%; border: 2px solid rgba(255, 226, 180, 0.4); background: radial-gradient(circle, rgba(255, 226, 180, 0.2), rgba(10, 4, 6, 0.25) 75%); box-shadow: 0 0 0 5px rgba(255, 226, 180, 0.08), 0 0 26px rgba(255, 226, 180, 0.22); }
+.hr-art-emblem .cp-sigil { position: relative; opacity: 0.95; }
+.hr-art-emblem .cp-sigil-lg { width: 50px; height: 50px; }
+.hr-art-emblem .cp-sigil-lg.kingdom { width: 40px; height: 40px; }
+.hr-art-emblem .cp-sigil-lg.undead { width: 52px; height: 52px; border-width: 5px; }
+.hr-art.large .hr-art-emblem .cp-sigil-lg { width: 72px; height: 72px; }
+.hr-art.large .hr-art-emblem .cp-sigil-lg.kingdom { width: 56px; height: 56px; }
+.hr-art.large .hr-art-emblem .cp-sigil-lg.undead { width: 74px; height: 74px; border-width: 6px; }
+
+/* Missing: the picture stays readable but drained and dusk-veiled - something you can see and want. */
+.hr-art.veiled img { filter: grayscale(0.7) brightness(0.85) contrast(1.05); }
+.hr-art.veiled.fallback { filter: saturate(0.55) brightness(0.9); }
+.hr-art.veiled .hr-art-emblem { opacity: 0.6; }
+.hr-art.large.veiled img { filter: grayscale(0.5) brightness(1) contrast(1.05); }
+.hr-art.large.veiled.fallback { filter: saturate(0.7) brightness(1); }
+.hr-art-veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(60, 50, 96, 0.12), rgba(28, 22, 56, 0.5)); }
+
+.hr-card-gems { position: absolute; top: 7px; left: 7px; padding: 4px 6px; border-radius: 8px; background: rgba(10, 4, 6, 0.6); line-height: 0; }
+.hr-lock {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(10, 4, 6, 0.7);
+  border: 1px solid rgba(255, 226, 180, 0.35);
+  color: var(--ember-gold);
+}
+.hr-lock.big { top: 12px; right: 12px; width: 38px; height: 38px; }
+.hr-power {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #4a2c1f, #1e100a);
+  border: 2px solid var(--ember-gold);
+  color: var(--ember-gold-light);
+  font-family: var(--ember-font-display);
+  font-size: 1.1rem;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+.hr-card.missing .hr-power { border-color: rgba(255, 216, 148, 0.5); color: var(--ember-ink-2); }
+.hr-power.big { min-width: 48px; height: 48px; right: 14px; bottom: 14px; font-size: 1.5rem; border-width: 2.5px; }
+
+.hr-card-plate {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 10px 10px;
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(180deg, #3a2317, #22120c);
+  border-top: 1px solid rgba(255, 226, 180, 0.15);
+}
+.hr-card-name {
+  font-family: var(--ember-font-display);
+  font-size: 1.02rem;
+  line-height: 1.15;
+  color: var(--ember-ink);
+  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.hr-card.missing .hr-card-name { color: var(--ember-ink-2); }
+.hr-card-role { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: var(--ember-ink-3); min-width: 0; }
+.hr-card-role span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- Empty state ---- */
+
+.hr-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 16px; text-align: center; }
+.hr-empty-frame { width: 64px; height: 64px; display: grid; place-items: center; margin-bottom: 6px; border-radius: 50%; color: var(--ember-gold); border: 2px dashed rgba(255, 216, 148, 0.4); background: rgba(255, 226, 180, 0.04); }
+.hr-empty-title { font-family: var(--ember-font-display); font-size: 1.3rem; color: var(--ember-gold-light); }
+.hr-empty-sub { font-size: 0.92rem; font-weight: 700; color: var(--ember-ink-3); }
+.hr-empty-actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+.hr-empty-btn { min-height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid rgba(255, 226, 180, 0.25); background: linear-gradient(180deg, #5b3626, #3b2117); box-shadow: 0 3px 0 rgba(10, 4, 6, 0.5); font-size: 0.9rem; font-weight: 800; }
+
+/* ---- Inspection sheet ---- */
+
+.hr-sheet-backdrop { align-items: flex-end; justify-content: center; padding: 0; background: rgba(8, 3, 6, 0.72); }
+.hr-sheet {
+  --frame-a: #7a746c;
+  --frame-b: #3a3733;
+  position: relative;
+  width: min(480px, 100%);
+  max-height: 94dvh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px 22px 0 0;
+  background: linear-gradient(180deg, #33190f, #1b0d08);
+  border: 1px solid rgba(255, 226, 180, 0.22);
+  border-bottom: 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+.hr-sheet.r-rare { --frame-a: #8fb0d4; --frame-b: #3d556e; }
+.hr-sheet.r-epic { --frame-a: #b08fd8; --frame-b: #4e3672; }
+.hr-sheet.r-legendary { --frame-a: var(--ember-gold-light); --frame-b: var(--ember-gold-deep); }
+.hr-sheet-scroll { overflow-y: auto; overscroll-behavior: contain; padding: 0 0 max(20px, env(safe-area-inset-bottom)); }
+
+.hr-sheet-stage { position: relative; padding: 56px 56px 6px; }
+.hr-sheet-frame { padding: 5px; border-radius: 16px; background: linear-gradient(180deg, var(--frame-a), var(--frame-b)); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.55); }
+.hr-sheet.r-legendary .hr-sheet-frame { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.55), 0 0 28px rgba(255, 216, 148, 0.4); }
+.hr-sheet.r-epic .hr-sheet-frame { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.55), 0 0 22px rgba(150, 104, 208, 0.3); }
+.hr-sheet.missing .hr-sheet-frame { filter: saturate(0.65) brightness(0.85); }
+.hr-sheet-window { position: relative; display: block; border-radius: 11px; overflow: hidden; }
+.hr-sheet-window .hr-art { aspect-ratio: 4 / 4.4; max-height: 42dvh; width: 100%; }
+
+.hr-sheet-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 226, 180, 0.3);
+  background: rgba(10, 4, 6, 0.7);
+}
+.hr-sheet-nav { position: absolute; top: 50%; margin-top: -22px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(255, 226, 180, 0.28); background: linear-gradient(180deg, #5b3626, #3b2117); }
+.hr-sheet-nav.prev { left: 5px; }
+.hr-sheet-nav.next { right: 5px; }
+.hr-sheet-nav.next svg { transform: rotate(180deg); }
+
+.hr-sheet-body { display: flex; flex-direction: column; gap: 12px; padding: 14px 18px 4px; }
+.hr-sheet-name { margin: 0; font-family: var(--ember-font-display); font-weight: 400; font-size: 1.7rem; line-height: 1.12; color: var(--ember-gold-light); overflow-wrap: break-word; }
+.hr-sheet-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.hr-sheet-line.faction { justify-content: flex-start; gap: 9px; font-size: 0.95rem; font-weight: 800; color: var(--ember-ink-2); }
+.hr-rarity-tag { --gem: #cfc4b6; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 800; color: var(--gem); }
+.hr-rarity-tag.r-rare { --gem: #8fc0ef; }
+.hr-rarity-tag.r-epic { --gem: #c79cf2; }
+.hr-rarity-tag.r-legendary { --gem: var(--ember-gold-light); }
+.hr-owned-seal { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 12px; border-radius: 15px; font-size: 0.8rem; font-weight: 800; color: var(--ember-ink-2); background: rgba(10, 4, 6, 0.5); border: 1px dashed rgba(255, 226, 180, 0.3); }
+.hr-owned-seal.owned { color: var(--ember-gold); border-style: solid; border-color: rgba(255, 216, 148, 0.5); background: rgba(255, 216, 148, 0.08); }
+
+.hr-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.hr-tag { padding: 6px 12px; border-radius: 8px; background: linear-gradient(180deg, #4a2b1e, #2e180f); border: 1px solid rgba(255, 226, 180, 0.22); box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.12); font-size: 0.85rem; font-weight: 800; color: var(--ember-ink-2); overflow-wrap: anywhere; }
+
+/* Rules on a parchment-toned panel: trigger as a small heading, text large enough to read. */
+.hr-rules { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-radius: 14px; background: linear-gradient(180deg, #e9d8b8, #d4bd94); color: #3a2414; box-shadow: inset 0 0 0 1px rgba(90, 60, 30, 0.35), inset 0 2px 10px rgba(90, 60, 30, 0.25); }
+.hr-rule { display: flex; flex-direction: column; gap: 3px; }
+.hr-rule + .hr-rule { padding-top: 12px; border-top: 1px solid rgba(90, 60, 30, 0.25); }
+.hr-rule-trigger { font-family: var(--ember-font-display); font-size: 0.98rem; color: #8a4a1c; }
+.hr-rule-text { font-size: 1rem; font-weight: 700; line-height: 1.4; overflow-wrap: break-word; }
+.hr-rules-none { margin: 0; font-size: 0.95rem; font-weight: 700; font-style: italic; color: #6b4a2a; }
+
+.hr-deck-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 8px 14px; border-radius: 14px; border: 1px solid rgba(255, 226, 180, 0.22); background: rgba(10, 4, 6, 0.4); text-align: left; }
+.hr-deck-link-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 0.78rem; font-weight: 700; color: var(--ember-ink-3); }
+.hr-deck-link-text strong { font-size: 0.95rem; color: var(--ember-ink); overflow-wrap: break-word; }
+.hr-deck-link-go { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 800; color: var(--ember-gold); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hr-crest-coin, .hr-ledger-bar span { transition: none; }
+}
+
+/* Duplicate copies: a quiet corner count, only when you own more than one. */
+.hr-copies { position: absolute; top: 7px; right: 7px; min-width: 30px; height: 26px; padding: 0 8px; display: grid; place-items: center; border-radius: 13px; background: rgba(10, 4, 6, 0.7); border: 1px solid rgba(255, 226, 180, 0.3); font-size: 0.8rem; font-weight: 800; color: var(--ember-ink-2); }

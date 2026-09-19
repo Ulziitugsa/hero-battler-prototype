@@ -1,0 +1,42 @@
+/* Card presented as a Campaign reward (stage result sheet). Frame colour = rarity, like Heroes/Decks. */
+
+.reward-card {
+  --frame-a: #7a746c;
+  --frame-b: #3a3733;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.reward-card.r-rare { --frame-a: #8fb0d4; --frame-b: #3d556e; }
+.reward-card.r-epic { --frame-a: #b08fd8; --frame-b: #4e3672; }
+.reward-card.r-legendary { --frame-a: var(--ember-gold-light); --frame-b: var(--ember-gold-deep); }
+
+.reward-card-frame {
+  padding: 4px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--frame-a), var(--frame-b));
+  box-shadow: 0 14px 28px rgba(10, 4, 6, 0.6);
+}
+.reward-card.r-legendary .reward-card-frame { box-shadow: 0 14px 28px rgba(10, 4, 6, 0.6), 0 0 22px rgba(255, 216, 148, 0.4); }
+.reward-card-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 108px;
+  height: 128px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 36%, #6a92d0, #1b2a4a 78%);
+}
+.reward-card-art.undead { background: radial-gradient(circle at 50% 36%, #4f9c82, #123028 78%); }
+.reward-card-art.infernal { background: radial-gradient(circle at 50% 36%, #b95a3e, #3a1512 78%); }
+.reward-card-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; }
+.reward-card-art .cp-sigil-lg { width: 44px; height: 44px; }
+.reward-card-art .cp-sigil-lg.kingdom { width: 34px; height: 34px; }
+
+.reward-card-name { font-family: var(--ember-font-display); font-size: 1.2rem; line-height: 1.15; color: #ffeec4; text-align: center; overflow-wrap: break-word; }
+.reward-card-line { display: inline-flex; align-items: center; gap: 10px; }
+.reward-card-tag { padding: 3px 10px; border-radius: 10px; font-size: 0.78rem; font-weight: 800; color: #ffeec4; background: rgba(10, 4, 6, 0.45); border: 1px solid rgba(255, 226, 180, 0.3); }
+.reward-card-tag.new { color: var(--ember-gold-ink); background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep)); border-color: transparent; }

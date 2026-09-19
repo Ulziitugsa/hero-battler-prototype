@@ -1,7 +1,7 @@
 import type { CampaignNodeDef } from '../../game/campaign/types';
 import { canAffordEnergy, formatCountdown, loadEnergy } from '../../game/campaign/energy';
-import { listDeckOptions } from '../../game/engine/deckOptions';
-import { loadPreferences } from '../../game/engine/preferences';
+import { getActiveDeck } from '../../game/engine/activeDeck';
+import { getOwnedCount } from '../../game/collection/collection';
 import { Icon, type IconName } from '../../components/Icon';
 
 const TYPE_LABEL: Record<string, string> = { battle: 'Battle', elite: 'Elite', boss: 'Boss', challenge: 'Challenge' };
@@ -14,9 +14,7 @@ export function StagePreviewSheet({ node, cleared, onFight, onClose }: { node: C
   const encounter = node.encounter;
   if (!encounter) return null;
 
-  const deckOptions = listDeckOptions();
-  const prefs = loadPreferences();
-  const activeDeck = deckOptions.find((d) => d.id === prefs.selectedDeckId) ?? deckOptions[0];
+  const activeDeck = getActiveDeck();
 
   const energy = loadEnergy();
   const affordable = canAffordEnergy(encounter.energyCost);
@@ -105,6 +103,7 @@ export function StagePreviewSheet({ node, cleared, onFight, onClose }: { node: C
                 <Icon name={REWARD_ICON[encounter.firstClearReward.icon]} size={14} />
               </span>
               <span>{encounter.firstClearReward.label}</span>
+              {encounter.firstClearReward.cardId && !cleared && <span className="campaign-sheet-reward-note">{getOwnedCount(encounter.firstClearReward.cardId) > 0 ? `Owned ×${getOwnedCount(encounter.firstClearReward.cardId)}` : 'New'}</span>}
             </div>
           </div>
           <div className="campaign-sheet-reward-card">

@@ -9,8 +9,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { CampaignPage } from './pages/campaign/CampaignPage';
 import { AppShell, type TabId } from './components/AppShell';
 import { recordBattleResult, type BattleResultOutcome } from './game/campaign/progress';
-import { loadPreferences } from './game/engine/preferences';
-import { listDeckOptions } from './game/engine/deckOptions';
+import { getActiveDeck } from './game/engine/activeDeck';
 
 export default function App() {
   const [tab, setTab] = useState<TabId>('home');
@@ -40,7 +39,7 @@ export default function App() {
         onMatchEnd={
           campaignNodeId
             ? (status, stats, events) => {
-                const playerDeckFaction = listDeckOptions().find((d) => d.id === loadPreferences().selectedDeckId)?.faction ?? 'kingdom';
+                const playerDeckFaction = getActiveDeck().faction;
                 setPendingCampaignResult(recordBattleResult(campaignNodeId, status, stats, events, playerDeckFaction));
               }
             : undefined

@@ -25,6 +25,8 @@ export interface CampaignRewardDef {
   label: string;
   sub: string;
   icon: 'card' | 'ember' | 'emblem' | 'star';
+  /** Set on card rewards: the real card id that is added to the player's collection (label is display text only). */
+  cardId?: string;
 }
 
 export interface CampaignEncounterDef {
