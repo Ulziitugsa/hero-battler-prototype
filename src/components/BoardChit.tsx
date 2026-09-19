@@ -4,6 +4,7 @@ import { cardArtUrl } from '../game/cards/art';
 import { RARITY_GEMS } from './cardVisuals';
 import type { ChitVisual } from './animation/chitEffects';
 import { Icon } from './Icon';
+import '../styles/ascension.css';
 
 /** A Hero zone's filled state - a compact version of the card frame (art, gems, power coin, name),
  * tinted gold for the player's own Heroes and ember for the enemy's (Battle Screen v8). `anim`, when
@@ -40,6 +41,7 @@ export function BoardChit({ hero, side, anim, disabled, onClick }: { hero: HeroI
           <span key={i} className="gem" />
         ))}
       </span>
+      {hero.ascension ? <span className="zone-card-asc" title="Ascended">{['', 'I', 'II', 'III'][hero.ascension]}</span> : null}
       <span className="zone-card-power">{hero.power}</span>
       {hero.tempPower !== 0 && (
         <span className="zone-card-buff">

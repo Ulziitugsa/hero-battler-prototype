@@ -1,0 +1,28 @@
+/* Ascension: the Heroes detail panel, rank marks on tiles / deck cards / battle chits. Restrained gold. */
+
+.asc-pips { display: inline-flex; gap: 4px; }
+.asc-pips span { width: 9px; height: 9px; transform: rotate(45deg); border-radius: 2px; background: rgba(10, 4, 6, 0.6); box-shadow: inset 0 0 0 1px rgba(255, 226, 180, 0.25); }
+.asc-pips span.on { background: var(--ember-gold-light); box-shadow: 0 0 6px var(--ember-gold-light); }
+
+.asc-panel { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; background: rgba(10, 4, 6, 0.4); border: 1px solid rgba(255, 216, 148, 0.28); }
+.asc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.asc-title { display: inline-flex; align-items: center; gap: 9px; font-family: var(--ember-font-display); font-size: 1.05rem; color: var(--ember-gold-light); }
+.asc-title em { font-style: normal; font-family: var(--ember-font-body); font-size: 0.75rem; font-weight: 800; padding: 2px 8px; border-radius: 10px; color: var(--ember-gold-ink); background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep)); }
+.asc-copies { font-size: 0.82rem; font-weight: 800; color: var(--ember-ink-2); }
+.asc-next { margin: 0; display: flex; flex-direction: column; gap: 3px; font-size: 0.92rem; font-weight: 700; line-height: 1.35; color: var(--ember-ink-2); }
+.asc-next strong { color: var(--ember-gold); font-weight: 800; }
+.asc-reason { margin: 0; font-size: 0.85rem; font-weight: 700; line-height: 1.35; color: var(--ember-ink-3); }
+.asc-later { margin: 0; font-size: 0.85rem; font-weight: 700; color: var(--ember-ink-3); }
+
+.asc-btn { min-height: 46px; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 12px; border: 1px solid rgba(255, 226, 180, 0.22); background: linear-gradient(180deg, #5b3626, #3b2117); box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.18), 0 3px 0 rgba(10, 4, 6, 0.5); font-family: inherit; font-size: 0.9rem; font-weight: 800; color: var(--ember-ink); cursor: pointer; }
+.asc-btn.wide { width: 100%; }
+.asc-btn.gold { border-color: rgba(255, 246, 214, 0.7); color: var(--ember-gold-ink); background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 3px 0 #5c3a0c; }
+.asc-btn:disabled { opacity: 0.55; cursor: default; }
+.asc-confirm { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 12px; font-size: 0.92rem; font-weight: 700; line-height: 1.35; color: var(--ember-ink); background: rgba(255, 216, 148, 0.08); border: 1px dashed rgba(255, 216, 148, 0.5); }
+.asc-confirm-btns { display: flex; gap: 10px; }
+.asc-confirm-btns .asc-btn { flex: 1; }
+.asc-rule-tag { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 9px; font-family: var(--ember-font-body); font-size: 0.68rem; font-weight: 800; color: #3a2414; background: linear-gradient(180deg, #f2d48f, #d9a54b); vertical-align: middle; }
+
+/* Rank marks */
+.asc-mark { position: absolute; left: 6px; bottom: 6px; min-width: 22px; height: 20px; padding: 0 6px; display: grid; place-items: center; border-radius: 10px; font-family: var(--ember-font-display); font-size: 0.72rem; line-height: 1; color: var(--ember-gold-ink); background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep)); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); }
+.zone-card-asc { position: absolute; left: 3px; top: 3px; z-index: 3; min-width: 13px; height: 13px; padding: 0 3px; display: grid; place-items: center; border-radius: 7px; font-size: 0.5rem; font-weight: 800; line-height: 1; color: #3d2210; background: linear-gradient(180deg, #ffe6ad, #d9a54b); }

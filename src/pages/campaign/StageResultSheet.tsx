@@ -2,6 +2,7 @@ import type { BattleResultOutcome } from '../../game/campaign/progress';
 import { Icon, type IconName } from '../../components/Icon';
 import { RewardCard } from './RewardCard';
 import { XpSummary } from '../../components/XpSummary';
+import { getAscensionStatus } from '../../game/ascension/ascend';
 
 const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', emblem: 'hero', star: 'trophy' };
 
@@ -117,6 +118,13 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
                 {starterProgress.name} · {starterProgress.collected} / {starterProgress.total} cards collected
               </span>
             )}
+          </div>
+        )}
+
+        {isCardReward && cardGrant && !cardGrant.isNew && getAscensionStatus(cardGrant.cardId).canAscend && (
+          <div className="campaign-result-unlock">
+            <Icon name="power" size={15} />
+            <span>Ascension available — see Heroes</span>
           </div>
         )}
 

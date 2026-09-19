@@ -1,6 +1,7 @@
-import type { ActionDef, CountBasis, ConditionDef, ConditionSide, Faction, GraveyardPick, ImmunityKind, LaneId, Side, TargetScope, Trigger } from '../types';
+import type { AbilityDefinition, ActionDef, CountBasis, ConditionDef, ConditionSide, Faction, GraveyardPick, GameState, ImmunityKind, LaneId, Side, TargetScope, Trigger } from '../types';
 import { TRIGGER_LABEL, adjacentLanes } from '../types';
 import { getCard } from '../cards';
+import { effectiveAbilities } from '../ascension/effective';
 import { nextRandom } from './rng';
 import { STARTING_HP } from './constants';
 import { effectivePower } from './power';
@@ -34,6 +35,16 @@ interface DeadHero {
 // ---------------------------------------------------------------------------
 // Primitives
 // ---------------------------------------------------------------------------
+
+/** The Ascension rank `side` brought for this card into the match (0 = Base). */
+export function ascensionRank(state: GameState, side: Side, cardId: string): number {
+  return state.ascensions?.[side]?.[cardId] ?? 0;
+}
+
+/** A Hero's live abilities: base card + that side's Ascension modifiers. The one place the engine asks "what does this Hero do". */
+function heroAbilities(state: GameState, side: Side, cardId: string): AbilityDefinition[] {
+  return effectiveAbilities(cardId, ascensionRank(state, side, cardId));
+}
 
 function changeHeroPower(ctx: Ctx, side: Side, lane: LaneId, amount: number, duration: 'PERMANENT' | 'UNTIL_ROUND_END', sourceName: string): void {
   const hero = getHero(ctx, side, lane);
@@ -123,9 +134,8 @@ function resolveTargetLocations(ctx: Ctx, exec: AbilityContext, scope: TargetSco
 function hasImmunity(ctx: Ctx, side: Side, lane: LaneId, kind: ImmunityKind): boolean {
   const hero = getHero(ctx, side, lane);
   if (!hero || hero.silenced) return false;
-  const card = getCard(hero.cardId);
   const exec: AbilityContext = { ownerSide: side, sourceName: hero.name, sourceKind: 'hero', selfLane: lane, selfInstanceId: hero.instanceId };
-  for (const ability of card.abilities) {
+  for (const ability of heroAbilities(ctx.state, side, hero.cardId)) {
     if (ability.trigger !== 'PASSIVE') continue;
     if (!evalConditions(ctx, exec, ability.conditions)) continue;
     for (const action of ability.actions) {
@@ -142,10 +152,9 @@ function hasImmunity(ctx: Ctx, side: Side, lane: LaneId, kind: ImmunityKind): bo
 export function overflowReductionFor(ctx: Ctx, side: Side, lane: LaneId): number {
   const hero = getHero(ctx, side, lane);
   if (!hero || hero.silenced) return 0;
-  const card = getCard(hero.cardId);
   const exec: AbilityContext = { ownerSide: side, sourceName: hero.name, sourceKind: 'hero', selfLane: lane, selfInstanceId: hero.instanceId };
   let total = 0;
-  for (const ability of card.abilities) {
+  for (const ability of heroAbilities(ctx.state, side, hero.cardId)) {
     if (ability.trigger !== 'PASSIVE') continue;
     if (!evalConditions(ctx, exec, ability.conditions)) continue;
     for (const action of ability.actions) {
@@ -389,7 +398,7 @@ function executeAction(ctx: Ctx, action: ActionDef, exec: AbilityContext): void 
       const pick = pickEligibleFromGraveyard(p.graveyard, action.maxPower, action.pick, ctx, action.faction);
       if (!pick) return;
       p.graveyard.splice(pick.index, 1);
-      const revived = makeHeroInstance(exec.ownerSide, exec.selfLane, ctx.state.round, pick.cardId);
+      const revived = makeHeroInstance(exec.ownerSide, exec.selfLane, ctx.state.round, pick.cardId, ascensionRank(ctx.state, exec.ownerSide, pick.cardId));
       setHero(ctx, exec.ownerSide, exec.selfLane, revived);
       push(ctx, { type: 'REVIVED', side: exec.ownerSide, instanceId: revived.instanceId, cardId: pick.cardId, name: getCard(pick.cardId).name, lane: exec.selfLane, power: revived.power, graveyardIndex: pick.index });
       return;
@@ -401,7 +410,7 @@ function executeAction(ctx: Ctx, action: ActionDef, exec: AbilityContext): void 
       const idx = p.graveyard.lastIndexOf(exec.deathCardId);
       if (idx < 0) return;
       p.graveyard.splice(idx, 1);
-      const instance = makeHeroInstance(exec.ownerSide, exec.selfLane, ctx.state.round, exec.deathCardId);
+      const instance = makeHeroInstance(exec.ownerSide, exec.selfLane, ctx.state.round, exec.deathCardId, ascensionRank(ctx.state, exec.ownerSide, exec.deathCardId));
       instance.power = action.power;
       setHero(ctx, exec.ownerSide, exec.selfLane, instance);
       push(ctx, { type: 'REVIVED', side: exec.ownerSide, instanceId: instance.instanceId, cardId: exec.deathCardId, name: getCard(exec.deathCardId).name, lane: exec.selfLane, power: instance.power, graveyardIndex: idx });
@@ -474,9 +483,8 @@ function executeAbilityActions(ctx: Ctx, actions: ActionDef[], exec: AbilityCont
 export function dispatchTriggerForHero(ctx: Ctx, side: Side, lane: LaneId, trigger: Trigger): void {
   const hero = getHero(ctx, side, lane);
   if (!hero || hero.silenced) return;
-  const card = getCard(hero.cardId);
   const exec: AbilityContext = { ownerSide: side, sourceName: hero.name, sourceKind: 'hero', selfLane: lane, selfInstanceId: hero.instanceId };
-  for (const ability of card.abilities) {
+  for (const ability of heroAbilities(ctx.state, side, hero.cardId)) {
     if (ability.trigger !== trigger) continue;
     if (ability.oncePerRound && hero.usedThisRound) continue;
     if (!evalConditions(ctx, exec, ability.conditions)) continue;
@@ -552,9 +560,8 @@ export function dispatchInstantSpellOnPlay(ctx: Ctx, side: Side, lane: LaneId, c
 
 function dispatchDeathTriggerForDead(ctx: Ctx, dead: DeadHero, trigger: Trigger): void {
   if (dead.silenced) return; // a silenced Hero's own On Death never fires
-  const card = getCard(dead.cardId);
   const exec: AbilityContext = { ownerSide: dead.side, sourceName: dead.name, sourceKind: 'hero', selfLane: dead.lane, deathCardId: dead.cardId, deathLane: dead.lane };
-  for (const ability of card.abilities) {
+  for (const ability of heroAbilities(ctx.state, dead.side, dead.cardId)) {
     if (ability.trigger !== trigger) continue;
     push(ctx, { type: 'TRIGGER', side: dead.side, sourceName: dead.name, trigger, label: TRIGGER_LABEL[trigger] });
     executeAbilityActions(ctx, ability.actions, exec);
@@ -637,9 +644,10 @@ export function sweepPowerZero(ctx: Ctx): void {
   destroyAndChain(ctx, findPowerZero(ctx));
 }
 
-export function makeHeroInstance(side: Side, lane: LaneId, round: number, cardId: string) {
+export function makeHeroInstance(side: Side, lane: LaneId, round: number, cardId: string, ascension = 0) {
   const card = getCard(cardId);
   return {
+    ...(ascension > 0 ? { ascension } : {}),
     instanceId: makeInstanceId('h', side, lane, round),
     cardId,
     faction: card.faction,

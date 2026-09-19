@@ -10,6 +10,8 @@ export interface MatchSetup {
   startingHp?: number;
   /** Equipped Masteries for this match. Omit for none. */
   masteries?: Partial<Record<Side, MasteryLoadout>>;
+  /** Ascension ranks per side (cardId -> rank). Omit for none / Base everywhere. */
+  ascensions?: Partial<Record<Side, Record<string, number>>>;
 }
 
 /** Builds the round-1 state (shuffled decks, Round 1 start-of-round effects + draw-to-target already applied). */
@@ -25,6 +27,7 @@ export function createMatch(setup: MatchSetup): { state: GameState; events: Retu
     enemy,
     status: 'IN_PROGRESS',
     ...(setup.masteries ? { masteries: setup.masteries } : {}),
+    ...(setup.ascensions ? { ascensions: setup.ascensions } : {}),
   };
 
   const { nextState, events } = beginRound(round1);

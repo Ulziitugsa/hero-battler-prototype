@@ -57,14 +57,14 @@ describe('first-clear card rewards', () => {
     expect(getOwnedCount('und-bone-soldier')).toBe(0);
     const first = win('battle-broken-palisade');
     expect(first.isFirstClear).toBe(true);
-    expect(first.cardGrant).toMatchObject({ cardId: 'und-bone-soldier', isNew: true, granted: 2, owned: 2 });
-    expect(getOwnedCount('und-bone-soldier')).toBe(2);
+    expect(first.cardGrant).toMatchObject({ cardId: 'und-bone-soldier', isNew: true, granted: 3, owned: 3 });
+    expect(getOwnedCount('und-bone-soldier')).toBe(3);
 
     const replay = win('battle-broken-palisade');
     expect(replay.isFirstClear).toBe(false);
     expect(replay.cardGrant).toBeNull();
     expect(replay.starterProgress).toBeNull();
-    expect(getOwnedCount('und-bone-soldier')).toBe(2);
+    expect(getOwnedCount('und-bone-soldier')).toBe(3);
   });
   it('a loss grants nothing and does not consume the first clear', () => {
     const lost = recordBattleResult('battle-broken-palisade', 'ENEMY_WIN', stats, [], 'kingdom');
@@ -80,7 +80,7 @@ describe('first-clear card rewards', () => {
   it('persists across a reload', () => {
     win('battle-broken-palisade');
     reloadCollection();
-    expect(getOwnedCount('und-bone-soldier')).toBe(2);
+    expect(getOwnedCount('und-bone-soldier')).toBe(3);
   });
 });
 
@@ -111,9 +111,9 @@ describe('the Undead starter unlock loop', () => {
     expect(clearNonBattleNode('reward-wayside-cairn').cardGrant).toBeNull();
     expect(getOwnedCount('spl-raise-fallen')).toBe(2);
   });
-  it('the Kingdom challenge reward (Fortify) does not move any locked starter', () => {
+  it('the Kingdom challenge reward (a spare Royal Guard) is a duplicate and does not move any locked starter', () => {
     const r = win('challenge-toll-of-the-ford');
-    expect(r.cardGrant).toMatchObject({ cardId: 'spl-fortify', isNew: true });
+    expect(r.cardGrant).toMatchObject({ cardId: 'kng-royal-guard', isNew: false, owned: 3 });
     expect(r.starterProgress).toBeNull();
   });
 });
@@ -122,7 +122,7 @@ describe('migration from earlier collections', () => {
   it('no collection: starter + rewards (with copy counts) for stages already first-cleared', () => {
     localStorage.setItem('skyloom:campaignProgress', JSON.stringify({ clearedNodes: ['battle-broken-palisade'], objectivesMet: {}, firstClearClaimed: ['battle-broken-palisade'] }));
     migrateToRealCollection();
-    expect(getCollection()).toEqual({ ...buildStarterCollection(), 'und-bone-soldier': 2 });
+    expect(getCollection()).toEqual({ ...buildStarterCollection(), 'und-bone-soldier': 3 });
     expect(loadProgress().clearedNodes).toEqual(['battle-broken-palisade']); // progress untouched
   });
   it('a v1 collection is topped up once to what its cleared stages now give, never lowered', () => {
@@ -130,15 +130,15 @@ describe('migration from earlier collections', () => {
     localStorage.setItem(COLLECTION_STORAGE_KEY, JSON.stringify({ version: 1, owned: { ...buildStarterCollection(), 'und-bone-soldier': 1, 'und-mira': 3 } }));
     migrateToRealCollection();
     const c = getCollection();
-    expect(c['und-bone-soldier']).toBe(2);
+    expect(c['und-bone-soldier']).toBe(3);
     expect(c['und-mira']).toBe(3);
-    expect(JSON.parse(localStorage.getItem(COLLECTION_STORAGE_KEY)!).version).toBe(2);
+    expect(JSON.parse(localStorage.getItem(COLLECTION_STORAGE_KEY)!).version).toBe(3);
     grantCard('und-mira', 1); // later changes are never re-topped: a second run is a no-op
     migrateToRealCollection();
     expect(getOwnedCount('und-mira')).toBe(4);
   });
   it('a current-version collection is left alone', () => {
-    localStorage.setItem(COLLECTION_STORAGE_KEY, JSON.stringify({ version: 2, owned: { 'und-mira': 2 } }));
+    localStorage.setItem(COLLECTION_STORAGE_KEY, JSON.stringify({ version: 3, owned: { 'und-mira': 2 } }));
     migrateToRealCollection();
     expect(getCollection()).toEqual({ 'und-mira': 2 });
   });

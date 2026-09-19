@@ -1,6 +1,6 @@
 import type { GameEvent, GameState, LaneId, Side } from '../types';
 import { LANES } from '../types';
-import { makeHeroInstance, makeSpellZoneInstance } from './abilities';
+import { ascensionRank, makeHeroInstance, makeSpellZoneInstance } from './abilities';
 
 // Pure playback reducer used ONLY by the UI to reconstruct intermediate board states while animating
 // through a resolved round's event log. It never decides anything - every number it applies (the
@@ -32,7 +32,7 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
       for (const placement of event.placements) {
         const side = placement.side === 'player' ? p : e;
         if (placement.zone === 'hero') {
-          side.heroZones[placement.lane] = makeHeroInstance(placement.side, placement.lane, next.round, placement.cardId);
+          side.heroZones[placement.lane] = makeHeroInstance(placement.side, placement.lane, next.round, placement.cardId, ascensionRank(next, placement.side, placement.cardId));
         } else {
           side.spellZones[placement.lane] = makeSpellZoneInstance(placement.side, placement.lane, next.round, placement.cardId);
         }
@@ -96,7 +96,7 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
     case 'REVIVED': {
       const side = event.side === 'player' ? p : e;
       side.graveyard.splice(event.graveyardIndex, 1);
-      const instance = makeHeroInstance(event.side, event.lane, next.round, event.cardId);
+      const instance = makeHeroInstance(event.side, event.lane, next.round, event.cardId, ascensionRank(next, event.side, event.cardId));
       instance.power = event.power; // may differ from the card's base Power (e.g. Vharos's reduced self-revival)
       side.heroZones[event.lane] = instance;
       return next;

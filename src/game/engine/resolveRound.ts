@@ -15,6 +15,7 @@ import {
   dispatchTriggerForHero,
   dispatchTriggerForSpellZone,
   destroyAndChain,
+  ascensionRank,
   makeHeroInstance,
   makeSpellZoneInstance,
   overflowReductionFor,
@@ -182,7 +183,7 @@ export function resolveRound(state: GameState, playerAction: PlayerAction, enemy
       handRemovals.push({ side, handId: play.handId });
       const card = getCard(play.cardId);
       if (card.type === 'hero') {
-        const instance = makeHeroInstance(side, play.lane, round, play.cardId);
+        const instance = makeHeroInstance(side, play.lane, round, play.cardId, ascensionRank(ctx.state, side, play.cardId));
         setHero(ctx, side, play.lane, instance);
         placements.push({ side, lane: play.lane, zone: 'hero', instanceId: instance.instanceId, cardId: instance.cardId });
       } else if (card.spellKind === 'CONTINUOUS') {

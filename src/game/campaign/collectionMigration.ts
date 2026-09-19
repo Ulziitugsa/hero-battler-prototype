@@ -2,9 +2,15 @@ import { buildStarterCollection } from '../collection/starterCollection';
 import { readStoredCollection, sanitizeOwned, writeStoredCollection } from '../collection/persistence';
 import { reloadCollection } from '../collection/collection';
 import { COLLECTION_VERSION } from '../collection/types';
+import { getDuplicatesSpent } from '../ascension/store';
 import { findNode, loadProgress } from './progress';
 
-/** What a player who already first-cleared these stages is owed: starter cards plus every claimed card reward (with its copy count). */
+/**
+ * What a player who already first-cleared these stages is owed: starter cards plus every claimed card
+ * reward (with its copy count), MINUS copies already spent on Ascension. The collection quantity is the
+ * copies AVAILABLE (spending lowers it), so anything rebuilt from everything-ever-acquired must net the
+ * spend out - otherwise a rebuilt or topped-up collection would refund duplicates that were already spent.
+ */
 function expectedFromProgress(): Record<string, number> {
   const owned: Record<string, number> = { ...buildStarterCollection() };
   for (const nodeId of loadProgress().firstClearClaimed) {
@@ -12,6 +18,7 @@ function expectedFromProgress(): Record<string, number> {
     const reward = node?.encounter?.firstClearReward ?? node?.reward;
     if (reward?.cardId) owned[reward.cardId] = (owned[reward.cardId] ?? 0) + (reward.count ?? 1);
   }
+  for (const id of Object.keys(owned)) owned[id] = Math.max(0, owned[id] - getDuplicatesSpent(id));
   return owned;
 }
 

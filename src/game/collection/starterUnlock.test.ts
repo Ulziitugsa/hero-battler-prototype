@@ -5,8 +5,11 @@ import { getCardAcquisitionSources, getUnavailableCards, describeAcquisition, pr
 import { buildStarterCollection } from './starterCollection';
 import { getStarterDeckUnlockProgress, getStarterProgressUpdate, isStarterDeckUnlocked } from './starterUnlock';
 import { CHAPTER_1 } from '../campaign/chapter1';
+import { getCardAscension } from '../ascension/definitions';
 
 const fresh = buildStarterCollection();
+/** Copies a Campaign source gives beyond what its starter deck needs - intentional, so the card can Ascend. */
+const DELIBERATE_SPARES: Record<string, number> = { 'und-bone-soldier': 1, 'und-grave-knight': 1 };
 
 describe('starter deck unlock progress', () => {
   it('Kingdom is unlocked on a fresh profile; Undead and Infernal are locked', () => {
@@ -78,13 +81,15 @@ describe('acquisition coverage', () => {
     expect(primaryAcquisitionLabel('und-bone-soldier')).toBe('Campaign · Broken Palisade');
     expect(primaryAcquisitionLabel('spl-fireball')).toBe('Future region');
   });
-  it('every Undead-starter requirement is fully obtainable in Chapter 1 (copies add up), with no accidental duplicates', () => {
+  it('every Undead-starter requirement is fully obtainable in Chapter 1, and any extra copies are deliberate Ascension spares', () => {
     const need = new Map<string, number>();
     for (const id of STARTER_DECKS.undead) need.set(id, (need.get(id) ?? 0) + 1);
     for (const [id, n] of need) {
       const given = getCardAcquisitionSources(id).reduce((sum, s) => sum + (s.kind === 'campaign' ? s.copies : 0), 0);
-      expect(given, id).toBe(n);
+      const spare = DELIBERATE_SPARES[id] ?? 0;
+      expect(given, id).toBe(n + spare);
     }
+    expect(getCardAscension('und-bone-soldier')).toBeDefined(); // spares only exist where an Ascension path can use them
   });
   it('the parked-for-later list only contains cards without a Campaign or starter source', () => {
     for (const id of Object.keys(FUTURE_REGION_CARDS)) {

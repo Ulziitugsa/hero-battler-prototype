@@ -244,6 +244,8 @@ export interface HeroInstance {
   silenced: boolean;
   /** Backs `oncePerRound` ability gating (see AbilityDefinition) - reset to false at every ROUND_START, same as SpellZoneInstance's usedThisRound. */
   usedThisRound: boolean;
+  /** Ascension rank this Hero entered play with (display only - the engine resolves abilities from GameState.ascensions). Absent = Base. */
+  ascension?: number;
 }
 
 export interface SpellZoneInstance {
@@ -285,6 +287,12 @@ export interface GameState {
   status: 'IN_PROGRESS' | 'PLAYER_WIN' | 'ENEMY_WIN' | 'DRAW';
   /** Equipped Masteries per side; absent/undefined side = none. Read by beginRound (engine/mastery.ts). */
   masteries?: Partial<Record<Side, MasteryLoadout>>;
+  /**
+   * Ascension rank per card id, per side, for THIS match (cardId -> rank; missing/0 = Base). The engine resolves a
+   * Hero's abilities as base card + Ascension modifiers (game/ascension/effective.ts). Omit for none - which is
+   * also how a mode would normalise Ascension away.
+   */
+  ascensions?: Partial<Record<Side, Record<string, number>>>;
 }
 
 /**

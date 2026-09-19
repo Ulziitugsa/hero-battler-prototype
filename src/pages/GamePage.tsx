@@ -38,6 +38,8 @@ export interface GamePageProps {
   onExit: () => void;
   /** The player's equipped Mastery, captured when the battle was set up. Omit/null for none. */
   playerMastery?: MasteryLoadout | null;
+  /** The player's Ascension ranks for the cards in their deck (cardId -> rank), captured at setup. Omit for all Base. */
+  playerAscensions?: Record<string, number>;
   /** Overrides the match's starting HP (both sides) - used by Campaign's challenge nodes. Omit for the default STARTING_HP. */
   startingHp?: number;
   /** Fires once, the instant this match reaches MATCH_END - before the player dismisses the summary
@@ -87,9 +89,9 @@ function buildPreviewZones(
   return { heroZones: previewHero, spellZones: previewSpell };
 }
 
-export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, startingHp, onMatchEnd }: GamePageProps) {
+export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, startingHp, onMatchEnd }: GamePageProps) {
   function buildMatch(matchSeed: number) {
-    return createMatch({ seed: matchSeed, playerDeck, enemyDeck, startingHp, masteries: playerMastery ? { player: playerMastery } : undefined });
+    return createMatch({ seed: matchSeed, playerDeck, enemyDeck, startingHp, masteries: playerMastery ? { player: playerMastery } : undefined, ascensions: playerAscensions && Object.keys(playerAscensions).length > 0 ? { player: playerAscensions } : undefined });
   }
 
   const [seed, setSeed] = useState(() => makeSeed());

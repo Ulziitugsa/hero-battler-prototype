@@ -18,7 +18,11 @@ import { cardOrder, countCopies, deckComposition, getDeckStatus, plural, sortedE
 import { getDeckPresentation, type DeckPresentation } from './decks/deckPresentation';
 import { primaryAcquisitionLabel } from '../game/collection/acquisition';
 import type { StarterRequirement } from '../game/collection/starterUnlock';
+import { useAscension } from '../game/ascension/useAscension';
+import { getAscensionRank } from '../game/ascension/store';
+import { ascensionNumeral } from '../game/ascension/ascend';
 import '../styles/decks.css';
+import '../styles/ascension.css';
 
 // Decks screen (Embervale). Saved decks hang as carved plaques on a shelf rail; the selected one is
 // lifted and lit, the active one wears a wax seal. A single banner under the shelf names the deck,
@@ -56,6 +60,7 @@ function DeckCard({
   card,
   count,
   ownedCount,
+  ascension = 0,
   pool,
   deckFull,
   onClick,
@@ -64,6 +69,8 @@ function DeckCard({
   count: number;
   /** Copies of this card the player owns. */
   ownedCount: number;
+  /** Ascension rank of this card (0 = Base) - shown as a small mark. */
+  ascension?: number;
   pool?: boolean;
   deckFull?: boolean;
   onClick?: () => void;
@@ -105,6 +112,7 @@ function DeckCard({
               {badge}
             </span>
           )}
+          {ascension > 0 && <span className="asc-mark">{ascensionNumeral(ascension)}</span>}
           {pool && !maxed && (
             <span className="dk-card-add" aria-hidden="true">
               <Icon name="plus" size={13} />
@@ -152,6 +160,7 @@ function RequirementTile({ req }: { req: StarterRequirement }) {
 export function DecksPage() {
   const [decks, setDecks] = useState<DeckOption[]>(() => listDeckOptions());
   const owned = useCollection();
+  const ascensions = useAscension();
   // getActiveDeck() first: it repairs a stored active deck that is no longer playable before anything renders it.
   const [prefs, setPrefs] = useState(() => ({ ...loadPreferences(), selectedDeckId: getActiveDeck().id }));
   const [selectedId, setSelectedId] = useState(() => (decks.some((d) => d.id === prefs.selectedDeckId) ? prefs.selectedDeckId : (decks[0]?.id ?? '')));
@@ -326,6 +335,7 @@ export function DecksPage() {
                 {count > 1 && <span className="dk-chit-under" aria-hidden="true" />}
                 <span className="dk-chit-frame">
                   <CardArt card={card} sigil="md" />
+                  {getAscensionRank(card.id, ascensions) > 0 && <span className="zone-card-asc">{ascensionNumeral(getAscensionRank(card.id, ascensions))}</span>}
                   <span className="dk-chit-name">{card.shortName}</span>
                   {count > 1 && <span className="dk-chit-count">×{count}</span>}
                 </span>
@@ -380,7 +390,7 @@ export function DecksPage() {
 
           <div className="dk-grid">
             {pool.map((c) => (
-              <DeckCard key={c.id} card={c} count={copies.get(c.id) ?? 0} ownedCount={getOwnedCount(c.id, owned)} pool deckFull={full} onClick={() => addCard(c)} />
+              <DeckCard key={c.id} card={c} count={copies.get(c.id) ?? 0} ownedCount={getOwnedCount(c.id, owned)} ascension={getAscensionRank(c.id, ascensions)} pool deckFull={full} onClick={() => addCard(c)} />
             ))}
           </div>
           {pool.length === 0 && (
@@ -549,7 +559,7 @@ export function DecksPage() {
 
       <div className="dk-grid">
         {entries.map(({ card, count }) => (
-          <DeckCard key={card.id} card={card} count={count} ownedCount={getOwnedCount(card.id, owned)} onClick={() => setInspectCardId(card.id)} />
+          <DeckCard key={card.id} card={card} count={count} ownedCount={getOwnedCount(card.id, owned)} ascension={getAscensionRank(card.id, ascensions)} onClick={() => setInspectCardId(card.id)} />
         ))}
         {selStatus.missing > 0 && (
           <button type="button" className="dk-open-slot" onClick={() => openEdit(sel, false)}>

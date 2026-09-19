@@ -22,6 +22,7 @@ export const FUTURE_REGION_CARDS: Readonly<Record<string, string>> = {
   'spl-cursed-ground': 'region-2',
   'spl-war-cry': 'region-2',
   'spl-dispel': 'region-2',
+  'spl-fortify': 'region-2',
   // Region 3 - The Cinder Coast (the Infernal path)
   'inf-flame-imp': 'region-3',
   'inf-cultist': 'region-3',
