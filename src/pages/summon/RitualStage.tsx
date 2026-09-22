@@ -1,18 +1,21 @@
+import { SummonFilm } from '../../components/SummonFilm';
+import { CardArtwork } from '../../components/CardArtwork';
+import { MoonwellVoyage } from '../../components/MoonwellVoyage';
 import { useState, type CSSProperties } from 'react';
 import { CardDetail } from '../../components/CardDetail';
+import { CollectibleCard } from '../../components/CollectibleCard';
+import { useDialogFocus } from '../../components/useDialogFocus';
 import { Gems, Sigil } from '../../components/CardParts';
 import { Icon } from '../../components/Icon';
-import { SummonSeal } from '../../components/SummonSeal';
+import './moonwellArrival.css';
 import { getCard } from '../../game/cards';
 import { cardArtUrl } from '../../game/cards/art';
 import type { StarterFaction } from '../../game/cards/starterDecks';
-import type { Rarity } from '../../game/types';
 import type { SeqView } from '../../game/summon/sequence';
 import type { SummonPull, SummonSuccess } from '../../game/summon/summon';
 import { RARITY_LABEL } from '../../game/summon/view';
 
 const FACTION_LABEL: Record<string, string> = { kingdom: 'Kingdom', undead: 'Undead', infernal: 'Infernal', wildborn: 'Wildborn' };
-const SPARKS: Record<Rarity, number> = { common: 0, rare: 6, epic: 10, legendary: 14 };
 
 /** A card face: real art, else the faction-tinted field with its sigil - the same fallback the rest of the app uses. */
 function CardFace({ cardId, size }: { cardId: string; size: 'stage' | 'tile' }) {
@@ -20,7 +23,7 @@ function CardFace({ cardId, size }: { cardId: string; size: 'stage' | 'tile' }) 
   const url = cardArtUrl(cardId);
   return (
     <span className={`cf cf-${size} r-${card.rarity}`}>
-      <span className={`cf-art ${card.faction}`}>{url ? <img src={url} alt="" draggable={false} /> : <Sigil faction={card.type !== 'hero' ? 'spell' : card.faction} size={size === 'stage' ? 'lg' : 'md'} />}</span>
+      <span className={`cf-art ${card.faction}`}>{url ? <CardArtwork cardId={cardId} /> : <Sigil faction={card.type !== 'hero' ? 'spell' : card.faction} size={size === 'stage' ? 'lg' : 'md'} />}</span>
     </span>
   );
 }
@@ -32,7 +35,7 @@ function StageCard({ pull, phase, faction }: { pull: SummonPull; phase: SeqView[
     <div className={`rc rc-${phase} r-${card.rarity}`}>
       <div className="rc-inner">
         <div className="rc-face rc-front">
-          <CardFace cardId={pull.cardId} size="stage" />
+          <CollectibleCard cardId={pull.cardId} />
           {pull.grant.isNew && (
             <span className="wax-new" aria-label="New card">
               <span>New</span>
@@ -50,7 +53,7 @@ function StageCard({ pull, phase, faction }: { pull: SummonPull; phase: SeqView[
           </span>
         </div>
       </div>
-      <span className="rc-name">{card.name}</span>
+      <span className="rc-name">{card.rarity === 'legendary' ? 'A legend answers.' : card.rarity === 'epic' ? 'An extraordinary ally.' : 'Your story grows.'}</span>
     </div>
   );
 }
@@ -93,11 +96,12 @@ function GridTile({ pull, revealed, onInspect, faction }: { pull: SummonPull; re
  * useSummonSequence: data-phase / data-tier on the root are the only things the CSS reacts to, so pacing lives
  * in the timeline and never in this component. Any tap skips forward (never backward, never changes rewards).
  */
-export function RitualStage({ outcome, view, faction, onSkip, onDone, preview = false }: { outcome: SummonSuccess; view: SeqView; faction: StarterFaction; onSkip: () => void; onDone: () => void; preview?: boolean }) {
+export function RitualStage({ outcome, view, faction, onSkip, onDone, onIntroFinished, preview = false }: { outcome: SummonSuccess; view: SeqView; faction: StarterFaction; onSkip: () => void; onDone: () => void; onIntroFinished: () => void; preview?: boolean }) {
   const [inspectId, setInspectId] = useState<string | null>(null);
   const ten = outcome.pulls.length > 1;
   const stagePull = view.stageSlot !== null ? outcome.pulls[view.stageSlot] : null;
   const result = view.isResult;
+  const dialog = useDialogFocus(result ? onDone : onSkip);
   const newCount = outcome.pulls.filter((p) => p.grant.isNew).length;
   const ascendable = [...new Set(outcome.pulls.filter((p) => p.ascensionAvailable).map((p) => p.cardId))];
   const single = outcome.pulls[0];
@@ -163,25 +167,16 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, preview = 
 
   return (
     <div className={`ritual ${ten ? 'ten' : 'single'} ${result ? 'is-result' : ''}`} data-phase={view.phase} data-tier={tier} data-faction={faction} data-featured={view.featured ? '1' : '0'} data-stage={view.stageSlot !== null && ten ? '1' : '0'} data-grid={ten && (view.phase === 'slot' || view.isResult || view.stageSlot !== null || view.revealed > 0) ? '1' : '0'} style={{ ['--step-ms' as string]: `${view.ms}ms` } as CSSProperties} role="dialog" aria-label="Summon results">
-      <div className="ritual-canvas">
+      <div className="ritual-canvas" ref={dialog} tabIndex={-1}>
+        <SummonFilm active={view.phase === 'charging'} onFinished={onIntroFinished} />
+        
+        <div className="ritual-architecture" aria-hidden="true"><span /><span /><span /></div>
+        <div className="ritual-heading"><span>The Moonwell</span><strong>{result ? 'A new chapter begins' : view.phase === 'charging' ? 'A light beyond the clouds' : view.phase === 'telegraph' ? 'Across the midnight sky' : 'A new companion awaits'}</strong></div>
         <div className="ritual-vignette" />
         <div className="ritual-env" />
 
         <div className="ritual-center">
-          <div className="ritual-crest" />
-          <div className="ritual-beam" />
-          <div className="ritual-flare" />
-          <SummonSeal faction={faction} />
-          <div className="ritual-rings">
-            <span />
-            <span />
-          </div>
-          <div className="ritual-sparks">
-            {Array.from({ length: SPARKS[tier] }, (_, i) => (
-              <span key={i} style={{ ['--i' as string]: i } as CSSProperties} />
-            ))}
-          </div>
-          <div className="ritual-impact" />
+          <MoonwellVoyage phase={view.phase} tier={tier} duration={view.ms} pulls={view.stageSlot !== null ? [outcome.pulls[view.stageSlot]] : outcome.pulls} />
           {showStage && stagePull && <StageCard key={view.stageSlot} pull={stagePull} phase={view.phase} faction={faction} />}
         </div>
 
@@ -199,10 +194,12 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, preview = 
           infoEl
         )}
 
-        {!result && <button type="button" className="ritual-skip" onClick={onSkip} aria-label="Skip" />}
+        {!result && <button type="button" className="ritual-skip" onClick={onSkip} aria-label="Skip">Skip animation <span aria-hidden="true">↠</span></button>}
       </div>
 
       {inspectId && <CardDetail cardId={inspectId} onClose={() => setInspectId(null)} />}
     </div>
   );
 }
+
+

@@ -1,8 +1,8 @@
 /* ============================================================================
-   Heroes screen (Embervale) - the collection gallery. Two roomy columns of art-first cards framed by
-   RARITY (faction only shows as a small crest), one engraved counter that follows the filters, and
-   missing cards veiled but readable. Sigils / gems come from cardParts.css. Lives inside the shared
-   AppShell, so it is a flowing column scrolling with .app-frame-content.
+   Heroes screen - the collection gallery, pixel-art migration. Two/three roomy columns of art-first
+   cards framed by RARITY (faction only shows as a small crest), one counter that follows the filters,
+   missing cards veiled but readable. Structure unchanged from the previous pass - see src/styles/pixel/*
+   for the shared frame/border/type language this now speaks.
    ============================================================================ */
 
 .heroes-screen {
@@ -13,11 +13,9 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px 16px 32px;
-  background:
-    radial-gradient(120% 34% at 50% 0%, rgba(232, 103, 79, 0.1), transparent 70%),
-    var(--ember-bg);
-  color: var(--ember-ink);
-  font-family: var(--ember-font-body);
+  background: linear-gradient(180deg, var(--px-bg-deep, #0a141e) 0%, var(--px-bg, #0e1a26) 100%);
+  color: var(--px-ink, #f4ecd7);
+  font-family: var(--px-font-display, serif);
 }
 .heroes-screen button,
 .hr-sheet button { font-family: inherit; color: inherit; -webkit-tap-highlight-color: transparent; cursor: pointer; }
@@ -25,24 +23,24 @@
 /* ---- Header / tools ---- */
 
 .hr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.hr-title { margin: 0; font-family: var(--ember-font-display); font-weight: 400; font-size: 1.7rem; color: var(--ember-gold-light); }
+.hr-title { margin: 0; font-family: var(--px-font-display); font-weight: 400; font-size: 1.7rem; color: var(--px-gold-strong, #ffeec4); }
 .hr-tools { display: flex; align-items: center; gap: 8px; }
 .hr-tool {
-  height: 44px;
-  min-width: 44px;
+  height: 42px;
+  min-width: 42px;
   padding: 0 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 226, 180, 0.22);
-  background: linear-gradient(180deg, #5b3626, #3b2117);
-  box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.18), 0 3px 0 rgba(10, 4, 6, 0.5);
-  font-size: 0.85rem;
-  font-weight: 800;
+  border: 1px solid var(--px-line-dim);
+  background: var(--px-panel, #16232c);
+  box-shadow: var(--px-shadow-panel);
+  font: 700 11px var(--px-font-label);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
-.hr-tool.on { border-color: var(--ember-gold); color: var(--ember-gold-light); }
+.hr-tool.on { border-color: var(--px-gold, #ebc989); color: var(--px-gold, #ebc989); }
 .hr-sort { position: relative; }
 .hr-sort-scrim { position: fixed; inset: 0; z-index: 30; background: transparent; border: 0; }
 .hr-sort-menu {
@@ -51,89 +49,83 @@
   top: calc(100% + 8px);
   right: 0;
   width: 168px;
-  padding: 6px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #4a2b1e, #2b170f);
-  border: 1px solid rgba(255, 226, 180, 0.3);
-  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.6);
+  padding: 4px;
+  background: var(--px-panel, #16232c);
+  border: 1px solid var(--px-line-dim);
+  box-shadow: 0 16px 30px rgba(4, 8, 10, 0.6);
 }
 .hr-sort-opt {
   width: 100%;
-  min-height: 44px;
-  padding: 0 12px;
+  min-height: 42px;
+  padding: 0 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border: 0;
-  border-radius: 9px;
   background: transparent;
-  font-size: 0.92rem;
-  font-weight: 800;
+  font: 700 12px var(--px-font-label);
   text-align: left;
 }
-.hr-sort-opt.on { background: rgba(255, 216, 148, 0.12); color: var(--ember-gold-light); }
+.hr-sort-opt.on { background: rgba(235, 201, 137, 0.12); color: var(--px-gold, #ebc989); }
 
-.hr-search { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 6px 0 14px; border-radius: 12px; background: rgba(10, 4, 6, 0.5); border: 1px solid rgba(255, 216, 148, 0.3); color: var(--ember-ink-2); }
-.hr-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--ember-ink); font-family: inherit; font-size: 1rem; font-weight: 700; }
-.hr-search input::placeholder { color: var(--ember-ink-3); }
-.hr-search-clear { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgba(255, 226, 180, 0.1); }
+.hr-search { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 14px; background: var(--px-panel, #16232c); border: 1px solid var(--px-line-dim); color: var(--px-ink-dim, #c8a98f); }
+.hr-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--px-ink, #fff6e6); font-family: var(--px-font-display); font-size: 1rem; font-weight: 400; }
+.hr-search input::placeholder { color: var(--px-ink-faint, #a98d78); }
+.hr-search-clear { width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: rgba(235, 201, 137, 0.1); }
 
-/* ---- Ledger: one engraved counter ---- */
+/* ---- Ledger: one counter ---- */
 
 .hr-ledger {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 10px 14px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(10, 4, 6, 0.55), rgba(10, 4, 6, 0.3));
-  border: 1px solid rgba(255, 226, 180, 0.14);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+  background: var(--px-panel, #16232c);
+  border: 1px solid var(--px-line-dim);
+  border-top: 2px solid var(--px-gold-deep, #c69f65);
 }
-.hr-ledger-count { flex: none; font-family: var(--ember-font-display); font-size: 1.6rem; line-height: 1; color: var(--ember-gold-light); min-width: 3.4ch; }
+.hr-ledger-count { flex: none; font-family: var(--px-font-display); font-weight: 400; font-size: 1.6rem; line-height: 1; color: var(--px-gold-strong, #ffeec4); min-width: 3.4ch; }
 .hr-ledger-side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.hr-ledger-caption { font-size: 0.85rem; font-weight: 800; color: var(--ember-ink-2); line-height: 1.2; }
-.hr-ledger-bar { display: block; height: 6px; border-radius: 3px; background: rgba(255, 226, 180, 0.1); overflow: hidden; }
-.hr-ledger-bar span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--ember-gold-deep), var(--ember-gold-light)); transition: width 220ms ease; }
+.hr-ledger-caption { font: 700 11px var(--px-font-label); letter-spacing: 0.04em; text-transform: uppercase; color: var(--px-ink-dim, #c8a98f); line-height: 1.2; }
+.hr-ledger-bar { display: block; height: 5px; background: rgba(6, 10, 14, 0.75); overflow: hidden; box-shadow: 0 0 0 1px var(--px-line-soft); }
+.hr-ledger-bar span { display: block; height: 100%; background: var(--px-gold, #ebc989); transition: width 220ms ease; }
 
 /* ---- Faction crests ---- */
 
 .hr-crests { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .hr-crest { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 2px 0; border: 0; background: none; min-height: 44px; }
 .hr-crest-coin {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  color: var(--ember-ink-2);
-  background: radial-gradient(circle at 35% 28%, #5a3626, #26130d);
-  border: 2px solid rgba(255, 226, 180, 0.16);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 226, 180, 0.15);
+  color: var(--px-ink-dim, #c8a98f);
+  background: var(--px-panel, #16232c);
+  border: 1px solid var(--px-line-dim);
   transition: transform 140ms ease;
 }
 .hr-crest.on .hr-crest-coin {
-  border-color: var(--ember-gold);
-  background: radial-gradient(circle at 35% 28%, #7a4a30, #35190f);
-  color: var(--ember-gold-light);
-  box-shadow: 0 0 0 2px rgba(255, 216, 148, 0.18), 0 0 14px rgba(255, 216, 148, 0.3), 0 4px 8px rgba(0, 0, 0, 0.5);
+  border-color: var(--px-gold, #ebc989);
+  background: var(--px-panel-raised, #223139);
+  color: var(--px-gold, #ebc989);
+  box-shadow: 0 3px 0 var(--px-gold-deep, #6e553c);
   transform: translateY(-2px);
 }
-.hr-crest-label { font-size: 0.8rem; font-weight: 800; color: var(--ember-ink-3); }
-.hr-crest.on .hr-crest-label { color: var(--ember-gold-light); }
+.hr-crest-label { font: 700 10px var(--px-font-label); letter-spacing: 0.03em; text-transform: uppercase; color: var(--px-ink-faint, #a98d78); }
+.hr-crest.on .hr-crest-label { color: var(--px-gold, #ebc989); }
 .hr-crest-coin .cp-sigil-lg.kingdom { width: 20px; height: 20px; }
 .hr-crest-coin .cp-sigil-lg.undead { width: 24px; height: 24px; }
 
 /* ---- Ownership segmented + rarity selectors ---- */
 
-.hr-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; border-radius: 14px; background: rgba(10, 4, 6, 0.5); border: 1px solid rgba(255, 226, 180, 0.12); }
-.hr-seg-btn { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 11px; background: transparent; color: var(--ember-ink-2); font-size: 0.92rem; font-weight: 800; }
-.hr-seg-btn.on { background: linear-gradient(180deg, #7d5a3a, #4d3120); color: var(--ember-gold-light); box-shadow: inset 0 1px 0 rgba(255, 230, 173, 0.3), 0 2px 4px rgba(0, 0, 0, 0.4); }
+.hr-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; background: var(--px-panel, #16232c); border: 1px solid var(--px-line-dim); }
+.hr-seg-btn { min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; background: transparent; color: var(--px-ink-dim, #c8a98f); font: 700 11px var(--px-font-label); letter-spacing: 0.03em; text-transform: uppercase; }
+.hr-seg-btn.on { background: var(--px-panel-raised, #223139); color: var(--px-gold, #ebc989); box-shadow: inset 0 2px 0 var(--px-gold-deep); }
 
 .hr-rarities { display: grid; grid-template-columns: 0.7fr repeat(4, 1fr); gap: 6px; }
 .hr-rar {
-  --gem: var(--ember-ink-2);
-  min-height: 50px;
+  --gem: var(--px-ink-dim, #c8a98f);
+  min-height: 48px;
   min-width: 0;
   padding: 4px 2px;
   display: flex;
@@ -141,31 +133,30 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 226, 180, 0.14);
-  background: rgba(10, 4, 6, 0.45);
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: var(--ember-ink-2);
+  border: 1px solid var(--px-line-dim);
+  background: var(--px-panel, #16232c);
+  font: 700 10px var(--px-font-label);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--px-ink-dim, #c8a98f);
 }
-.hr-rar.r-common { --gem: #cfc4b6; }
-.hr-rar.r-rare { --gem: #8fc0ef; }
-.hr-rar.r-epic { --gem: #c79cf2; }
-.hr-rar.r-legendary { --gem: var(--ember-gold-light); }
-.hr-rar-gem { width: 13px; height: 13px; transform: rotate(45deg); border-radius: 2.5px; background: var(--gem); box-shadow: 0 0 8px var(--gem); }
+.hr-rar.r-common { --gem: var(--rarity-common); }
+.hr-rar.r-rare { --gem: var(--rarity-rare); }
+.hr-rar.r-epic { --gem: var(--rarity-epic); }
+.hr-rar.r-legendary { --gem: var(--rarity-legendary); }
+.hr-rar-gem { width: 10px; height: 10px; background: var(--gem); box-shadow: 0 0 0 1px var(--px-bg-deep); }
 .hr-rar-any { font-size: 0.85rem; }
-.hr-rar.on { border-color: var(--gem); background: rgba(255, 226, 180, 0.08); color: var(--ember-ink); box-shadow: 0 0 0 1px var(--gem), 0 0 14px -2px var(--gem); }
+.hr-rar.on { border-color: var(--gem); background: var(--px-panel-raised); color: var(--px-ink, #fff6e6); box-shadow: inset 0 2px 0 var(--gem); }
 .hr-rar-name { max-width: 100%; letter-spacing: 0; }
 
 /* ---- Card grid ---- */
 
-/* 3 columns - the same browsing density as Decks. The tile is art-first: frame + rarity + state marks + a two-line name.
-   Role / faction wording and rules text live in the detail sheet, not here. */
+/* 3 columns - art-first: frame + rarity + state marks + a two-line name. Role / faction wording and
+   rules text live in the detail sheet, not here. */
 .hr-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 8px; padding-top: 6px; }
 
 .hr-card {
-  --frame-a: #7a746c;
-  --frame-b: #3a3733;
+  --frame-a: var(--px-line, #5c6f6c);
   position: relative;
   display: block;
   padding: 0;
@@ -174,49 +165,48 @@
   text-align: left;
   min-width: 0;
 }
-.hr-card.r-rare { --frame-a: #8fb0d4; --frame-b: #3d556e; }
-.hr-card.r-epic { --frame-a: #b08fd8; --frame-b: #4e3672; }
-.hr-card.r-legendary { --frame-a: var(--ember-gold-light); --frame-b: var(--ember-gold-deep); }
-.hr-card:active { transform: scale(0.98); }
+.hr-card.r-rare { --frame-a: var(--rarity-rare); }
+.hr-card.r-epic { --frame-a: var(--rarity-epic); }
+.hr-card.r-legendary { --frame-a: var(--rarity-legendary); }
+.hr-card:active { transform: translateY(1px); }
 
 .hr-card-frame {
   position: relative;
   display: block;
-  padding: 2.5px;
-  border-radius: 11px;
-  background: linear-gradient(180deg, var(--frame-a), var(--frame-b));
-  box-shadow: 0 6px 12px rgba(10, 4, 6, 0.55);
+  padding: 2px;
+  background: var(--px-panel, #16232c);
+  box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 6px 12px rgba(4, 8, 10, 0.55);
 }
-.hr-card.r-rare .hr-card-frame { padding: 3px; }
-.hr-card.r-epic .hr-card-frame { padding: 3px; box-shadow: 0 6px 12px rgba(10, 4, 6, 0.55), 0 0 14px rgba(150, 104, 208, 0.28); }
-.hr-card.r-legendary .hr-card-frame { padding: 3.5px; box-shadow: 0 6px 14px rgba(10, 4, 6, 0.6), 0 0 16px rgba(255, 216, 148, 0.4); }
-.hr-card.missing .hr-card-frame { filter: saturate(0.8) brightness(0.9); box-shadow: 0 6px 12px rgba(10, 4, 6, 0.5); }
+.hr-card.r-epic .hr-card-frame { box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 0 14px rgba(192, 132, 252, 0.3); }
+.hr-card.r-legendary .hr-card-frame { box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 0 16px rgba(217, 165, 75, 0.4); }
+.hr-card.missing .hr-card-frame { filter: saturate(0.8) brightness(0.9); box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 6px 12px rgba(4, 8, 10, 0.5); }
 
 .hr-crown {
   position: absolute;
   z-index: 2;
   left: 50%;
   top: -7px;
-  width: 22px;
-  height: 9px;
-  margin-left: -11px;
-  background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep));
+  width: 20px;
+  height: 8px;
+  margin-left: -10px;
+  background: var(--px-gold, #ebc989);
+  box-shadow: 0 0 0 1px var(--px-bg-deep);
   clip-path: polygon(0 100%, 0 30%, 16% 62%, 34% 0, 50% 52%, 66% 0, 84% 62%, 100% 30%, 100% 100%);
 }
 .hr-card.missing .hr-crown { opacity: 0.6; }
 
-.hr-card-window { position: relative; display: block; border-radius: 8px 8px 0 0; overflow: hidden; }
+.hr-card-window { position: relative; display: block; overflow: hidden; }
 
 /* Art: real image, or the faction-tinted fallback with a large sigil. */
 .hr-art { position: relative; display: block; width: 100%; aspect-ratio: 4 / 4.9; overflow: hidden; }
-.hr-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; }
-.hr-art.fallback.kingdom { background: radial-gradient(circle at 50% 36%, #6a92d0, #1b2a4a 78%); }
-.hr-art.fallback.undead { background: radial-gradient(circle at 50% 36%, #4f9c82, #123028 78%); }
-.hr-art.fallback.infernal { background: radial-gradient(circle at 50% 36%, #b95a3e, #3a1512 78%); }
-.hr-art.fallback.wildborn { background: radial-gradient(circle at 50% 40%, #5c8a3c, #172410 80%); }
-.hr-art.fallback::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 10px); }
-.hr-art-emblem { position: absolute; inset: 0; display: grid; place-items: center; filter: drop-shadow(0 0 14px rgba(255, 226, 180, 0.35)); }
-.hr-art-emblem::before { content: ''; position: absolute; inset: 0; margin: auto; width: 46%; aspect-ratio: 1; border-radius: 50%; border: 2px solid rgba(255, 226, 180, 0.4); background: radial-gradient(circle, rgba(255, 226, 180, 0.2), rgba(10, 4, 6, 0.25) 75%); box-shadow: 0 0 0 5px rgba(255, 226, 180, 0.08), 0 0 26px rgba(255, 226, 180, 0.22); }
+.hr-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; image-rendering: auto; }
+.hr-art.fallback.kingdom { background: var(--px-kingdom-deep, #16283f); }
+.hr-art.fallback.undead { background: var(--px-undead-deep, #12251f); }
+.hr-art.fallback.infernal { background: var(--px-infernal-deep, #331711); }
+.hr-art.fallback.wildborn { background: #172410; }
+.hr-art.fallback::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, rgba(244, 236, 215, 0.03) 0 2px, transparent 2px 10px); }
+.hr-art-emblem { position: absolute; inset: 0; display: grid; place-items: center; }
+.hr-art-emblem::before { content: ''; position: absolute; inset: 0; margin: auto; width: 46%; aspect-ratio: 1; border: 2px solid var(--px-line-dim); background: rgba(235, 201, 137, 0.08); }
 .hr-art-emblem .cp-sigil { position: relative; opacity: 0.95; }
 .hr-art-emblem .cp-sigil-lg { width: 50px; height: 50px; }
 .hr-art-emblem .cp-sigil-lg.kingdom { width: 40px; height: 40px; }
@@ -231,62 +221,61 @@
 .hr-art.veiled .hr-art-emblem { opacity: 0.6; }
 .hr-art.large.veiled img { filter: grayscale(0.5) brightness(1) contrast(1.05); }
 .hr-art.large.veiled.fallback { filter: saturate(0.7) brightness(1); }
-.hr-art-veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(60, 50, 96, 0.12), rgba(28, 22, 56, 0.5)); }
+.hr-art-veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14, 26, 38, 0.12), rgba(10, 20, 30, 0.55)); }
 
-.hr-card-gems { position: absolute; top: 4px; left: 4px; padding: 3px 4px; border-radius: 6px; background: rgba(10, 4, 6, 0.6); line-height: 0; transform: scale(0.82); transform-origin: top left; }
+.hr-card-gems { position: absolute; top: 4px; left: 4px; padding: 3px 4px; background: rgba(6, 10, 14, 0.75); line-height: 0; transform: scale(0.82); transform-origin: top left; }
 .hr-lock {
   position: absolute;
   top: 4px;
   right: 4px;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: rgba(10, 4, 6, 0.7);
-  border: 1px solid rgba(255, 226, 180, 0.35);
-  color: var(--ember-gold);
+  background: rgba(6, 10, 14, 0.8);
+  border: 1px solid var(--px-line-dim);
+  color: var(--px-gold, #ebc989);
 }
-.hr-lock.big { top: 12px; right: 12px; width: 38px; height: 38px; }
+.hr-lock.big { top: 12px; right: 12px; width: 36px; height: 36px; }
 .hr-power {
   position: absolute;
   right: 4px;
   bottom: 4px;
-  min-width: 25px;
-  height: 25px;
-  padding: 0 2px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 3px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #4a2c1f, #1e100a);
-  border: 1.5px solid var(--ember-gold);
-  color: var(--ember-gold-light);
-  font-family: var(--ember-font-display);
-  font-size: 0.84rem;
+  background: var(--px-gold, #ebc989);
+  border: 1px solid var(--px-gold-strong);
+  color: var(--px-gold-ink, #2a2116);
+  font-family: var(--px-font-label);
+  font-weight: 700;
+  font-size: 0.8rem;
   line-height: 1;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 2px 0 var(--px-gold-deep, #6e553c);
 }
-.hr-card.missing .hr-power { border-color: rgba(255, 216, 148, 0.5); color: var(--ember-ink-2); }
-.hr-power.big { min-width: 48px; height: 48px; right: 14px; bottom: 14px; font-size: 1.5rem; border-width: 2.5px; }
+.hr-card.missing .hr-power { background: var(--px-panel-raised); border-color: var(--px-line-dim); color: var(--px-ink-dim); box-shadow: none; }
+.hr-power.big { min-width: 44px; height: 44px; right: 14px; bottom: 14px; font-size: 1.3rem; }
 
 .hr-card-plate {
   display: flex;
   align-items: flex-start;
   gap: 5px;
   padding: 6px 6px 7px;
-  border-radius: 0 0 8px 8px;
-  background: linear-gradient(180deg, #3a2317, #22120c);
-  border-top: 1px solid rgba(255, 226, 180, 0.15);
+  background: var(--px-panel-2, #1b2b35);
+  border-top: 1px solid var(--px-line-soft);
 }
 .hr-card-plate .cp-sigil { flex: none; margin-top: 2px; }
 .hr-card-name {
   flex: 1;
   min-width: 0;
   min-height: 2.3em; /* two lines reserved so every tile is the same height */
-  font-family: var(--ember-font-display);
-  font-size: 0.8rem;
+  font-family: var(--px-font-display);
+  font-weight: 400;
+  font-size: 0.85rem;
   line-height: 1.15;
-  color: var(--ember-ink);
+  color: var(--px-ink, #fff6e6);
   overflow-wrap: break-word;
   word-break: normal;
   hyphens: manual;
@@ -295,48 +284,47 @@
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
-.hr-card.missing .hr-card-name { color: var(--ember-ink-2); }
-.hr-card-role { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: var(--ember-ink-3); min-width: 0; }
+.hr-card.missing .hr-card-name { color: var(--px-ink-dim, #c8a98f); }
+.hr-card-role { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: var(--px-ink-faint, #a98d78); min-width: 0; }
 .hr-card-role span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---- Empty state ---- */
 
 .hr-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 16px; text-align: center; }
-.hr-empty-frame { width: 64px; height: 64px; display: grid; place-items: center; margin-bottom: 6px; border-radius: 50%; color: var(--ember-gold); border: 2px dashed rgba(255, 216, 148, 0.4); background: rgba(255, 226, 180, 0.04); }
-.hr-empty-title { font-family: var(--ember-font-display); font-size: 1.3rem; color: var(--ember-gold-light); }
-.hr-empty-sub { font-size: 0.92rem; font-weight: 700; color: var(--ember-ink-3); }
+.hr-empty-frame { width: 60px; height: 60px; display: grid; place-items: center; margin-bottom: 6px; color: var(--px-gold, #ebc989); border: 2px dashed var(--px-line-soft); background: rgba(235, 201, 137, 0.04); }
+.hr-empty-title { font-family: var(--px-font-display); font-weight: 400; font-size: 1.3rem; color: var(--px-gold-strong, #ffeec4); }
+.hr-empty-sub { font-size: 0.92rem; font-weight: 700; color: var(--px-ink-faint, #a98d78); }
 .hr-empty-actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
-.hr-empty-btn { min-height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid rgba(255, 226, 180, 0.25); background: linear-gradient(180deg, #5b3626, #3b2117); box-shadow: 0 3px 0 rgba(10, 4, 6, 0.5); font-size: 0.9rem; font-weight: 800; }
+.hr-empty-btn { min-height: 42px; padding: 0 18px; border: 1px solid var(--px-line-dim); background: var(--px-panel, #16232c); box-shadow: 0 3px 0 rgba(4, 8, 10, 0.5); font: 700 12px var(--px-font-label); letter-spacing: 0.03em; text-transform: uppercase; }
 
 /* ---- Inspection sheet ---- */
 
-.hr-sheet-backdrop { align-items: flex-end; justify-content: center; padding: 0; background: rgba(8, 3, 6, 0.72); }
+.hr-sheet-backdrop { align-items: flex-end; justify-content: center; padding: 0; background: rgba(4, 8, 10, 0.72); }
 .hr-sheet {
-  --frame-a: #7a746c;
-  --frame-b: #3a3733;
+  --frame-a: var(--px-line, #5c6f6c);
   position: relative;
   width: min(480px, 100%);
   max-height: 94dvh;
   display: flex;
   flex-direction: column;
-  border-radius: 22px 22px 0 0;
-  background: linear-gradient(180deg, #33190f, #1b0d08);
-  border: 1px solid rgba(255, 226, 180, 0.22);
+  background: var(--px-panel, #16232c);
+  border: 1px solid var(--px-line-dim);
+  border-top: 2px solid var(--px-gold-deep, #c69f65);
   border-bottom: 0;
-  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 -12px 40px rgba(4, 8, 10, 0.6);
   overflow: hidden;
 }
-.hr-sheet.r-rare { --frame-a: #8fb0d4; --frame-b: #3d556e; }
-.hr-sheet.r-epic { --frame-a: #b08fd8; --frame-b: #4e3672; }
-.hr-sheet.r-legendary { --frame-a: var(--ember-gold-light); --frame-b: var(--ember-gold-deep); }
+.hr-sheet.r-rare { --frame-a: var(--rarity-rare); }
+.hr-sheet.r-epic { --frame-a: var(--rarity-epic); }
+.hr-sheet.r-legendary { --frame-a: var(--rarity-legendary); }
 .hr-sheet-scroll { overflow-y: auto; overscroll-behavior: contain; padding: 0 0 max(20px, env(safe-area-inset-bottom)); }
 
 .hr-sheet-stage { position: relative; padding: 56px 56px 6px; }
-.hr-sheet-frame { padding: 5px; border-radius: 16px; background: linear-gradient(180deg, var(--frame-a), var(--frame-b)); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.55); }
-.hr-sheet.r-legendary .hr-sheet-frame { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.55), 0 0 28px rgba(255, 216, 148, 0.4); }
-.hr-sheet.r-epic .hr-sheet-frame { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.55), 0 0 22px rgba(150, 104, 208, 0.3); }
+.hr-sheet-frame { padding: 2px; background: var(--px-panel-2, #1b2b35); box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 12px 24px rgba(4, 8, 10, 0.55); }
+.hr-sheet.r-legendary .hr-sheet-frame { box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 0 26px rgba(217, 165, 75, 0.35); }
+.hr-sheet.r-epic .hr-sheet-frame { box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 0 20px rgba(192, 132, 252, 0.3); }
 .hr-sheet.missing .hr-sheet-frame { filter: saturate(0.65) brightness(0.85); }
-.hr-sheet-window { position: relative; display: block; border-radius: 11px; overflow: hidden; }
+.hr-sheet-window { position: relative; display: block; overflow: hidden; }
 .hr-sheet-window .hr-art { aspect-ratio: 4 / 4.4; max-height: 42dvh; width: 100%; }
 
 .hr-sheet-close {
@@ -344,56 +332,56 @@
   top: 10px;
   right: 10px;
   z-index: 3;
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 226, 180, 0.3);
-  background: rgba(10, 4, 6, 0.7);
+  border: 1px solid var(--px-line-dim);
+  background: var(--px-panel, #16232c);
+  color: var(--px-gold, #ebc989);
 }
-.hr-sheet-nav { position: absolute; top: 50%; margin-top: -22px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(255, 226, 180, 0.28); background: linear-gradient(180deg, #5b3626, #3b2117); }
+.hr-sheet-nav { position: absolute; top: 50%; margin-top: -21px; width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--px-line-dim); background: var(--px-panel, #16232c); }
 .hr-sheet-nav.prev { left: 5px; }
 .hr-sheet-nav.next { right: 5px; }
 .hr-sheet-nav.next svg { transform: rotate(180deg); }
 
 .hr-sheet-body { display: flex; flex-direction: column; gap: 12px; padding: 14px 18px 4px; }
-.hr-sheet-name { margin: 0; font-family: var(--ember-font-display); font-weight: 400; font-size: 1.7rem; line-height: 1.12; color: var(--ember-gold-light); overflow-wrap: break-word; }
+.hr-sheet-name { margin: 0; font-family: var(--px-font-display); font-weight: 400; font-size: 1.7rem; line-height: 1.12; color: var(--px-gold-strong, #ffeec4); overflow-wrap: break-word; }
 .hr-sheet-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.hr-sheet-line.faction { justify-content: flex-start; gap: 9px; font-size: 0.95rem; font-weight: 800; color: var(--ember-ink-2); }
-.hr-rarity-tag { --gem: #cfc4b6; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 800; color: var(--gem); }
-.hr-rarity-tag.r-rare { --gem: #8fc0ef; }
-.hr-rarity-tag.r-epic { --gem: #c79cf2; }
-.hr-rarity-tag.r-legendary { --gem: var(--ember-gold-light); }
-.hr-owned-seal { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 12px; border-radius: 15px; font-size: 0.8rem; font-weight: 800; color: var(--ember-ink-2); background: rgba(10, 4, 6, 0.5); border: 1px dashed rgba(255, 226, 180, 0.3); }
-.hr-owned-seal.owned { color: var(--ember-gold); border-style: solid; border-color: rgba(255, 216, 148, 0.5); background: rgba(255, 216, 148, 0.08); }
+.hr-sheet-line.faction { justify-content: flex-start; gap: 9px; font-size: 0.95rem; font-weight: 800; color: var(--px-ink-dim, #c8a98f); }
+.hr-rarity-tag { --gem: var(--rarity-common); display: inline-flex; align-items: center; gap: 8px; font: 700 12px var(--px-font-label); letter-spacing: 0.03em; text-transform: uppercase; color: var(--gem); }
+.hr-rarity-tag.r-rare { --gem: var(--rarity-rare); }
+.hr-rarity-tag.r-epic { --gem: var(--rarity-epic); }
+.hr-rarity-tag.r-legendary { --gem: var(--rarity-legendary); }
+.hr-owned-seal { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; font: 700 11px var(--px-font-label); letter-spacing: 0.03em; text-transform: uppercase; color: var(--px-ink-dim, #c8a98f); background: rgba(6, 10, 14, 0.5); border: 1px dashed var(--px-line-soft); }
+.hr-owned-seal.owned { color: var(--px-gold, #ebc989); border-style: solid; border-color: var(--px-gold-deep); background: rgba(235, 201, 137, 0.08); }
 
 .hr-tags { display: flex; flex-wrap: wrap; gap: 8px; }
-.hr-tag { padding: 6px 12px; border-radius: 8px; background: linear-gradient(180deg, #4a2b1e, #2e180f); border: 1px solid rgba(255, 226, 180, 0.22); box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.12); font-size: 0.85rem; font-weight: 800; color: var(--ember-ink-2); overflow-wrap: anywhere; }
+.hr-tag { padding: 5px 10px; background: var(--px-panel-2, #1b2b35); border: 1px solid var(--px-line-dim); font: 700 10px var(--px-font-label); letter-spacing: 0.03em; text-transform: uppercase; color: var(--px-ink-dim, #c8a98f); overflow-wrap: anywhere; }
 
-/* Rules on a parchment-toned panel: trigger as a small heading, text large enough to read. */
-.hr-rules { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-radius: 14px; background: linear-gradient(180deg, #e9d8b8, #d4bd94); color: #3a2414; box-shadow: inset 0 0 0 1px rgba(90, 60, 30, 0.35), inset 0 2px 10px rgba(90, 60, 30, 0.25); }
+/* Rules panel: dark, on-theme, trigger as a small gold label, text large enough to read. */
+.hr-rules { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; background: var(--px-panel-2, #1b2b35); border: 1px solid var(--px-line-dim); color: var(--px-ink, #f4ecd7); }
 .hr-rule { display: flex; flex-direction: column; gap: 3px; }
-.hr-rule + .hr-rule { padding-top: 12px; border-top: 1px solid rgba(90, 60, 30, 0.25); }
-.hr-rule-trigger { font-family: var(--ember-font-display); font-size: 0.98rem; color: #8a4a1c; }
-.hr-rule-text { font-size: 1rem; font-weight: 700; line-height: 1.4; overflow-wrap: break-word; }
-.hr-rules-none { margin: 0; font-size: 0.95rem; font-weight: 700; font-style: italic; color: #6b4a2a; }
+.hr-rule + .hr-rule { padding-top: 12px; border-top: 1px solid var(--px-line-soft); }
+.hr-rule-trigger { font: 700 11px var(--px-font-label); letter-spacing: 0.04em; text-transform: uppercase; color: var(--px-gold, #ebc989); }
+.hr-rule-text { font-family: var(--px-font-display); font-size: 1rem; line-height: 1.4; overflow-wrap: break-word; }
+.hr-rules-none { margin: 0; font-family: var(--px-font-display); font-size: 0.95rem; font-style: italic; color: var(--px-ink-faint, #a98d78); }
 
-.hr-deck-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 8px 14px; border-radius: 14px; border: 1px solid rgba(255, 226, 180, 0.22); background: rgba(10, 4, 6, 0.4); text-align: left; }
-.hr-deck-link-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 0.78rem; font-weight: 700; color: var(--ember-ink-3); }
-.hr-deck-link-text strong { font-size: 0.95rem; color: var(--ember-ink); overflow-wrap: break-word; }
-.hr-deck-link-go { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 800; color: var(--ember-gold); }
+.hr-deck-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 54px; padding: 8px 14px; border: 1px solid var(--px-line-dim); background: rgba(6, 10, 14, 0.4); text-align: left; }
+.hr-deck-link-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font: 700 10px var(--px-font-label); letter-spacing: 0.03em; text-transform: uppercase; color: var(--px-ink-faint, #a98d78); }
+.hr-deck-link-text strong { font-family: var(--px-font-display); font-weight: 400; font-size: 1rem; color: var(--px-ink, #fff6e6); overflow-wrap: break-word; text-transform: none; letter-spacing: 0; }
+.hr-deck-link-go { flex: none; display: inline-flex; align-items: center; gap: 6px; font: 700 11px var(--px-font-label); letter-spacing: 0.03em; text-transform: uppercase; color: var(--px-gold, #ebc989); }
 
 @media (prefers-reduced-motion: reduce) {
   .hr-crest-coin, .hr-ledger-bar span { transition: none; }
 }
 
 /* Duplicate copies: a quiet corner count, only when you own more than one. */
-.hr-copies { position: absolute; top: 4px; right: 4px; min-width: 22px; height: 19px; padding: 0 5px; display: grid; place-items: center; border-radius: 10px; background: rgba(10, 4, 6, 0.7); border: 1px solid rgba(255, 226, 180, 0.3); font-size: 0.68rem; font-weight: 800; color: var(--ember-ink-2); }
+.hr-copies { position: absolute; top: 4px; right: 4px; min-width: 20px; height: 18px; padding: 0 4px; display: grid; place-items: center; background: rgba(6, 10, 14, 0.8); border: 1px solid var(--px-line-dim); font: 700 10px var(--px-font-label); color: var(--px-ink-dim, #c8a98f); }
 .hr-card .hr-lock + .hr-copies { top: 28px; }
 .hr-card .asc-mark { left: 4px; bottom: 4px; min-width: 18px; height: 17px; padding: 0 4px; font-size: 0.62rem; }
 
 /* Where the card comes from - one quiet line, more useful on missing cards. */
-.hr-source { display: flex; align-items: center; gap: 7px; font-size: 0.85rem; font-weight: 700; color: var(--ember-ink-3); }
+.hr-source { display: flex; align-items: center; gap: 7px; font-size: 0.85rem; font-weight: 700; color: var(--px-ink-faint, #a98d78); }
 .hr-source svg { flex: none; }
-.hr-source.missing { color: var(--ember-ink-2); }
+.hr-source.missing { color: var(--px-ink-dim, #c8a98f); }

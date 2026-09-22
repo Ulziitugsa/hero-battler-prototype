@@ -108,7 +108,7 @@ export function computeStepVisuals(step: AnimationStep | null, state: GameState)
 function applyEventVisual(v: StepVisuals, e: GameEvent, state: GameState): void {
   switch (e.type) {
     case 'COMBAT': {
-      if (e.outcome === 'EMPTY') return;
+      if (e.outcome === 'EMPTY' || e.outcome === 'STALLED') return; // STALLED: no clash happens - the COMBAT_STALLED beat already showed why
       const pHero = state.player.heroZones[e.lane];
       const eHero = state.enemy.heroZones[e.lane];
       const playerInvolved = e.outcome === 'PLAYER_DIRECT' || e.outcome === 'PLAYER_WINS' || e.outcome === 'ENEMY_WINS' || e.outcome === 'TIE';
@@ -123,28 +123,16 @@ function applyEventVisual(v: StepVisuals, e: GameEvent, state: GameState): void 
       }
       return;
     }
-    case 'DIRECT_DAMAGE': {
+    case 'DIRECT_DAMAGE':
+      // The damage lands on the PLAYER (`e.side`), so the number and flash belong on that side's HP bar - never on
+      // the attacking Hero, which takes no damage and would otherwise read as if it had lost Power.
       v.hpFx.push({ side: e.side, kind: 'damage', amount: e.amount });
-      // Source is the attacking Hero, on the OPPOSITE side of whoever took the damage.
-      const attackerSide: Side = e.side === 'player' ? 'enemy' : 'player';
-      for (const id of findHeroInstanceByName(state, attackerSide, e.sourceName)) {
-        addHeroClass(v, id, 'chit-hit-flash');
-        addHeroFloater(v, id, { key: `dd-${id}`, kind: 'direct', text: `-${e.amount}` });
-      }
       return;
-    }
-    case 'OVERFLOW_DAMAGE': {
+    case 'OVERFLOW_DAMAGE':
+      // Combat overflow is damage to the LOSER'S PLAYER (`e.side`), not to either Hero: the winner survives at
+      // full Power. The HP bar carries the flash and the "-N"; deliberately nothing is drawn on the winner's chit.
       v.hpFx.push({ side: e.side, kind: 'damage', amount: e.amount });
-      // By the time this step plays, the loser's own destruction step has already committed (see
-      // buildAnimationSteps's combat-pairing comment) - the number travels from the winner's chit,
-      // the only one of the pair still on the board to anchor it to.
-      const winnerSide: Side = e.side === 'player' ? 'enemy' : 'player';
-      for (const id of findHeroInstanceByName(state, winnerSide, e.winnerName)) {
-        addHeroClass(v, id, 'chit-hit-flash');
-        addHeroFloater(v, id, { key: `ov-${id}`, kind: 'overflow', text: `-${e.amount}` });
-      }
       return;
-    }
     case 'HEAL': {
       v.hpFx.push({ side: e.side, kind: 'heal', amount: e.amount });
       for (const id of findHeroInstanceByName(state, e.side, e.sourceName)) {
@@ -182,9 +170,12 @@ function applyEventVisual(v: StepVisuals, e: GameEvent, state: GameState): void 
       addSpellClass(v, e.instanceId, 'chit-shatter');
       v.graveyardPulse = e.side;
       return;
+    case 'TOKEN_SUMMONED':
+      addHeroClass(v, e.instanceId, 'chit-enter');
+      return;
     case 'HERO_DESTROYED':
       addHeroClass(v, e.instanceId, 'chit-shatter');
-      v.graveyardPulse = e.side;
+      if (!e.token) v.graveyardPulse = e.side; // a token vanishes - it never reaches the Graveyard
       v.stageShake = true;
       return;
     case 'SHIELD_GRANTED':

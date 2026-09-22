@@ -4,6 +4,7 @@ import { UNDEAD_CARDS } from './undead';
 import { KINGDOM_CARDS } from './kingdom';
 import { WILDBORN_CARDS } from './wildborn';
 import { INSTANT_SPELL_CARDS, PERSISTENT_SPELL_CARDS } from './spells';
+import { getTokenCard } from './tokens';
 
 export const ALL_CARDS: CardDefinition[] = [
   ...INFERNAL_CARDS,
@@ -17,7 +18,7 @@ export const ALL_CARDS: CardDefinition[] = [
 const CARD_BY_ID = new Map(ALL_CARDS.map((c) => [c.id, c]));
 
 export function getCard(cardId: string): CardDefinition {
-  const card = CARD_BY_ID.get(cardId);
+  const card = CARD_BY_ID.get(cardId) ?? getTokenCard(cardId);
   if (!card) throw new Error(`Unknown card id: ${cardId}`);
   return card;
 }

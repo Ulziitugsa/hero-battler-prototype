@@ -24,13 +24,14 @@ Card data model, factions, rarity and deck rules are in [CARD-SYSTEM.md](CARD-SY
 
 - **15-card deck** (`DEFAULT_DECK_SIZE` / `DECK_SIZE`). `SUPPORTED_DECK_SIZES` also defines 18 and 21
   for future use; 15 is what the deckbuilder enforces.
-- **Starting hand: 3.** Round 1 only, each side draws `INITIAL_HAND_SIZE` (3) cards to form its
-  opening hand.
-- **Every round after that, draw exactly 1 card.** From round 2 onward each side draws exactly
-  `DRAW_PER_ROUND` (1) card at the start of the round (`beginRound`) - never a refill-to-target. A
-  hand of 3 going into a new round becomes 4; playing all 3 starting cards leaves a hand of 0, which
-  becomes 1 next round. **Hand size is unbounded** - nothing clamps or discards down to a cap. Playing
-  many cards costs tempo (fewer options next round); holding cards banks flexibility instead.
+- **Starting hand: 3.** Round 1, each side draws to `HAND_REFILL_TARGET` (3) from an empty hand.
+- **Draw back up to 3.** At the start of every round each side draws until its hand holds 3 cards
+  (`beginRound`): a hand of 0 draws 3, 1 draws 2, 2 draws 1, and a hand of 3, 4 or 6 draws nothing.
+  **3 is a refill floor, not a cap** - nothing is ever discarded. Extra-draw effects (`DRAW_CARDS`) and
+  Graveyard returns can push a hand to 5; it then draws 0 next round. Playing cards is what earns
+  next round's draws; hoarding above 3 delays them.
+- **Round-start order (fixed, deterministic):** reset per-round flags -> `ROUND_START` triggers -> refill
+  each hand (player, then enemy) -> Masteries -> Deploy. Masteries therefore act on an already-refilled hand.
 - Drawing from an empty deck emits a fizzled `DRAW` event. **There is no deck-out loss condition** -
   a side with an empty deck simply stops drawing.
 - Deck order is a plain array; draws take index 0, and return-to-deck pushes to the end.
@@ -160,8 +161,7 @@ As implemented in `resolveRound()`:
 
 1. **Round start** (in `beginRound`, before the deploy UI) - reset every Spell zone's and every
    Hero's `usedThisRound` (backs `oncePerRound` gating) and `silenced` flag, dispatch `ROUND_START`
-   for all zones, then each side draws (round 1: `INITIAL_HAND_SIZE`; every round after: exactly
-   `DRAW_PER_ROUND`).
+   for all zones, then each side refills its hand up to `HAND_REFILL_TARGET` (3), then Masteries fire.
 2. **Deploy** - the player places cards; the AI picks its action.
 3. **FIGHT** - both actions are validated, then:
 4. **Reveal** - every played hand card leaves the hand; every Hero and Continuous Spell enters its
@@ -183,7 +183,9 @@ As implemented in `resolveRound()`:
    `REDUCE_OVERFLOW_DAMAGE` on the loser is read right here, before the winner deals overflow. A
    winning Hero deals overflow damage (`OVERFLOW_DAMAGE`) to the loser's controller equal to the Power
    difference (minus any live overflow reduction, floored at 0); unopposed Heroes deal full-Power
-   direct damage (`DIRECT_DAMAGE`) here instead.
+   direct damage (`DIRECT_DAMAGE`) here instead. Two lane-level exceptions: a **stalled** lane
+   (`STALL_COMBAT`) has no combat at all (outcome `STALLED`), and a **bypassing** Hero (`GRANT_BYPASS`)
+   skips the clash and deals reduced direct damage (outcome `PLAYER_DIRECT`/`ENEMY_DIRECT` with `bypass`).
 9. **Deaths and death-trigger chains** - `ON_DEATH`, `ON_ALLY_DEATH`, `ON_ENEMY_DEATH`, resolved as a
    draining queue so chain reactions sweep in correctly. Both Heroes **and** Spell zones react to
    deaths. Before a Hero is actually removed here (from a combat loss, a `DESTROY`, or this sweep), an
@@ -191,7 +193,8 @@ As implemented in `resolveRound()`:
    of 64 iterations, which emits a loud `SAFEGUARD_TRIPPED` event if ever hit.
 10. **After Combat** - all zones.
 11. **Round End** abilities - all zones. These fire **before** temporary-Power cleanup.
-12. **Temporary effect cleanup** - `UNTIL_ROUND_END` deltas expire. Then a final Power <= 0 sweep,
+12. **Temporary effect cleanup** - `UNTIL_ROUND_END` deltas expire, unspent damage barriers
+    (`PREVENT_NEXT_DAMAGE`) and stalled Heroes clear. Then a final Power <= 0 sweep,
     which catches round-end drain effects finishing off a weak Hero.
 13. **Win check** - both at 0 HP is a draw; otherwise the side at 0 HP loses.
 

@@ -1,1 +1,4 @@
+@import './styles/pixel/tokens.css';
+@import './styles/pixel/motion.css';
+@import './styles/pixel/base.css';
 @import './styles/global.css';

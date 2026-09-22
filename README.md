@@ -1,4 +1,26 @@
-# Hero Battler - Phase 0.5 Prototype: Card Set v0.1
+# Embervale — playable prototype
+
+## Deploy a private playtest
+
+Home now includes **Friendly battle**, with invite links, ready states, and server-resolved duels through Supabase and Vercel. Follow [the deployment guide](docs/VERCEL-DEPLOYMENT.md), including all four database migrations and the two-player acceptance test. Run `npm run check` for lint, tests, and frontend/API builds.
+
+## Moonwater game redesign
+
+Moonwater is now integrated into the actual Home, collection, decks, profile, campaign, practice selection, battle cards, and summon screens. All 31 collectible heroes and 21 roster spells have pixel artwork; Flame Imp, Paladin, and Grave Knight use eight-frame idle loops. Portraits render on a 160-pixel grid to balance visible pixels with readable faces. Offscreen, hidden-tab, and reduced-motion animations pause. The summon presentation combines a Moonwater film with varied shooting stars and a light-wash character reveal, with rarity-specific lighting, while keeping the existing reward/guarantee logic.
+
+In development only, Home’s **Character studies**, or `/?pixelPreview=1`, opens the design study. Expansion artwork and exact generation prompts are recorded in [PIXEL-EXPANSION-PROMPTS.md](docs/design/PIXEL-EXPANSION-PROMPTS.md). The original study is documented in [PIXEL-PROTOTYPE.md](docs/design/PIXEL-PROTOTYPE.md). Friendly Battle adds private online duels; permanent accounts are not implemented. Expansion portraits are currently static; three original companion identities are animated.
+
+## September 2026 production pass
+
+The earlier phase history below is retained, but several historical “not built” statements are outdated. The current game has local summons, collection ownership, progression, ascension, and a campaign. It now also includes three new legendary illustrations, collectible summon/inspection cards, an Ember Archive reveal with opt-in sound, character lore, eight campaign opponent decks, and **Lanterns of the Lost**, a permanent three-battle story adventure accessible from Home.
+
+Read [the production plan](docs/PRODUCTION-PLAN.md) for the implemented scope, narrative, art direction, engineering briefs, multiplayer/account architecture, and remaining work. Art prompts and generated-asset provenance are in [the art record](docs/design/ANCHOR-ART-PROMPTS.md).
+
+Run `npm run dev`. On Home, choose **Lanterns of the Lost** for the story or **Summon** for the new presentation. In development, expand **Dev · Summon testing** and choose **Featured Legendary** or **10x multi** to preview without spending Gems or granting cards. Sound defaults off. Skip and Escape go directly to results.
+
+Collection, currency, and progression remain local. Private multiplayer is available once Supabase and Vercel are configured; checkout and permanent accounts are not implemented. Existing saves and previous art files are retained.
+
+## Historical phase notes
 
 A throwaway browser prototype. Phase 0.4 froze the core combat rules (`CORE PLAYTEST RULESET v0.1`
 below, unchanged since). This pass is the first real content/playtest phase built on top of it: a

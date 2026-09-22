@@ -10,6 +10,8 @@ import { PREVIEW_SCENARIOS, buildPreviewOutcome } from '../game/summon/preview';
 import { loadSelectedBanner, saveSelectedBanner } from '../game/summon/selectedBanner';
 import { performSummon, type SummonKind } from '../game/summon/summon';
 import { RARITY_LABEL, affordabilityNote, pityDisplay, summonOptions } from '../game/summon/view';
+import { ArchiveAudio } from '../game/summon/audio';
+import { onSummonSound } from '../game/summon/sound';
 import { setUnlimitedGems } from '../game/economy/economy';
 import { useEconomy, useUnlimitedGems } from '../game/economy/useEconomy';
 import type { Rarity } from '../game/types';
@@ -19,6 +21,7 @@ import { RitualStage } from './summon/RitualStage';
 import { useSummonSequence } from './summon/useSummonSequence';
 import '../styles/summon.css';
 import '../styles/summonRitual.css';
+import '../styles/archiveRitual.css';
 
 /**
  * Summon: browse archetype banners, spend Gems, receive real cards. This screen only presents -
@@ -33,7 +36,13 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
   const [showPool, setShowPool] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [preview, setPreview] = useState(false);
-  const { outcome, view, start, skip, end } = useSummonSequence();
+  const [audio] = useState(() => new ArchiveAudio());
+  const [soundOn, setSoundOn] = useState(false);
+  useEffect(() => {
+    const unsubscribe = onSummonSound(event => audio.play(event));
+    return () => { unsubscribe(); audio.close(); };
+  }, [audio]);
+  const { outcome, view, start, skip, end, finishIntro } = useSummonSequence();
   const railRef = useRef<HTMLDivElement>(null);
 
   const banner = getBanner(bannerId) ?? SUMMON_BANNERS[0];
@@ -192,6 +201,10 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
       </section>
 
       <div className="summon-links">
+        <button type="button" aria-pressed={soundOn} onClick={async () => {
+          if (soundOn) { audio.disable(); setSoundOn(false); }
+          else setSoundOn(await audio.enable());
+        }}>Sound {soundOn ? 'on' : 'off'}</button>
         <button type="button" onClick={() => setShowPool(true)}>
           View pool &amp; rates
         </button>
@@ -202,7 +215,7 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
 
       {import.meta.env.DEV && <DevPanel bannerId={banner.id} unlimited={unlimited} onPreview={(s) => { setPreview(true); start(buildPreviewOutcome(banner.id, s)); }} />}
 
-      {outcome && view && <RitualStage outcome={outcome} view={view} faction={getPool(outcome.bannerId).banner.faction} onSkip={skip} onDone={end} preview={preview} />}
+      {outcome && view && <RitualStage outcome={outcome} view={view} faction={getPool(outcome.bannerId).banner.faction} onSkip={skip} onDone={end} onIntroFinished={finishIntro} preview={preview} />}
 
       {showPool && <PoolSheet pool={pool} onClose={() => setShowPool(false)} />}
 

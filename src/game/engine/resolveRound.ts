@@ -1,7 +1,7 @@
 import type { CardDefinition, DeployPlay, GameState, LaneId, Placement, PlayerAction, ResolveResult, Side } from '../types';
 import { LANES } from '../types';
 import { getCard } from '../cards';
-import { DRAW_PER_ROUND, INITIAL_HAND_SIZE, directDamageAmount } from './constants';
+import { HAND_REFILL_TARGET, directDamageAmount } from './constants';
 import { makeDrawnHandCard } from './deck';
 import { type Ctx, getHero, getSpellZone, opposite, playerOf, push, setHero, setSpellZone } from './board';
 import { effectivePower } from './power';
@@ -16,6 +16,7 @@ import {
   dispatchTriggerForSpellZone,
   destroyAndChain,
   ascensionRank,
+  bypassReductionFor,
   makeHeroInstance,
   makeSpellZoneInstance,
   overflowReductionFor,
@@ -44,6 +45,10 @@ export function spellHasAValidTarget(state: GameState, side: Side, card: CardDef
         const hero = (targetSide === 'player' ? state.player : state.enemy).heroZones[lane];
         if (!hero) return false;
         if (action.maxPower !== undefined && hero.power > action.maxPower) return false;
+      }
+      if (action.type === 'STALL_COMBAT' && action.target === 'ENEMY_SAME_LANE') {
+        const hero = (opposite(side) === 'player' ? state.player : state.enemy).heroZones[lane];
+        if (!hero) return false;
       }
       if (action.type === 'DESTROY_SPELL_ZONE' && (action.target === 'ENEMY_SAME_LANE' || action.target === 'ALLY_SAME_LANE')) {
         const targetSide = action.target === 'ENEMY_SAME_LANE' ? opposite(side) : side;
@@ -99,7 +104,10 @@ export function validateDeployment(state: GameState, side: Side, action: PlayerA
   return { legal: true, plays: action.plays };
 }
 
-/** Grants this round's start-of-round effects, resets once-per-round Spell reactions, and draws exactly DRAW_PER_ROUND cards for each side. Call once before showing the Deploy UI. */
+/**
+ * Start-of-round sequence, in this fixed order: reset once-per-round flags -> ROUND_START triggers -> refill
+ * each hand up to HAND_REFILL_TARGET -> Masteries. Call once before showing the Deploy UI.
+ */
 export function beginRound(state: GameState): ResolveResult {
   const ctx: Ctx = { state: structuredClone(state), events: [], rngState: state.rngState };
   push(ctx, { type: 'ROUND_START', round: ctx.state.round });
@@ -119,14 +127,14 @@ export function beginRound(state: GameState): ResolveResult {
 
   dispatchTriggerForAllZones(ctx, 'ROUND_START');
 
-  // Round 1 draws INITIAL_HAND_SIZE to form the opening hand; every round after that draws exactly
-  // DRAW_PER_ROUND, regardless of current hand size - never a refill/clamp back up to a target. A
-  // round-2+ hand of 0 draws to 1; a hand of 5 draws to 6. An empty Deck fizzles the draw (logged, not
-  // a loss condition) rather than crashing or inventing a fatigue mechanic.
-  const drawCount = ctx.state.round === 1 ? INITIAL_HAND_SIZE : DRAW_PER_ROUND;
+  // Refill: each side draws until its hand holds HAND_REFILL_TARGET cards - a hand already at or above the
+  // target draws nothing, and nothing is ever discarded (extra-draw and Graveyard-return effects can push a
+  // hand past 3; it simply stays there and draws 0 next round). Round 1 is the same rule applied to an empty
+  // hand, i.e. the opening 3. An empty Deck fizzles the missing draws (logged, not a loss condition).
   for (const side of ['player', 'enemy'] as Side[]) {
     const p = playerOf(ctx, side);
-    for (let seq = 0; seq < drawCount; seq++) {
+    const missing = Math.max(0, HAND_REFILL_TARGET - p.hand.length);
+    for (let seq = 0; seq < missing; seq++) {
       if (p.deck.length === 0) {
         push(ctx, { type: 'DRAW', side, fizzled: true });
         continue;
@@ -246,18 +254,33 @@ export function resolveRound(state: GameState, playerAction: PlayerAction, enemy
     const eHero = getHero(ctx, 'enemy', lane);
     const pPower = pHero ? effectivePower(ctx.state, 'player', lane) : 0;
     const ePower = eHero ? effectivePower(ctx.state, 'enemy', lane) : 0;
+    const pBypass = pHero && eHero ? bypassReductionFor(ctx, 'player', lane) : null;
+    const eBypass = pHero && eHero ? bypassReductionFor(ctx, 'enemy', lane) : null;
 
-    if (pHero && eHero) {
+    if (pHero && eHero && (pHero.stalled || eHero.stalled)) {
+      // STALL_COMBAT: nobody fights in this lane - no destruction, no overflow, no damage from either side.
+      push(ctx, { type: 'COMBAT', lane, outcome: 'STALLED', player: { name: pHero.name, power: pPower }, enemy: { name: eHero.name, power: ePower } });
+    } else if (pHero && eHero && (pBypass !== null || eBypass !== null)) {
+      // Bypass: each bypassing Hero skips the clash and hits the enemy player for reduced damage. If only one
+      // side bypasses, the other Hero is simply not fought - it deals nothing through this lane.
+      const attackers: { side: Side; name: string; power: number; reduction: number }[] = [];
+      if (pBypass !== null) attackers.push({ side: 'player', name: pHero.name, power: pPower, reduction: pBypass });
+      if (eBypass !== null) attackers.push({ side: 'enemy', name: eHero.name, power: ePower, reduction: eBypass });
+      for (const a of attackers) {
+        push(ctx, { type: 'COMBAT', lane, outcome: a.side === 'player' ? 'PLAYER_DIRECT' : 'ENEMY_DIRECT', player: { name: pHero.name, power: pPower }, enemy: { name: eHero.name, power: ePower }, bypass: true });
+        dealDirectDamageAndTrigger(ctx, a.side, lane, directDamageAmount(Math.max(0, a.power - a.reduction)), a.name);
+      }
+    } else if (pHero && eHero) {
       if (pPower > ePower) {
         push(ctx, { type: 'COMBAT', lane, outcome: 'PLAYER_WINS', player: { name: pHero.name, power: pPower }, enemy: { name: eHero.name, power: ePower } });
         combatLosers.push({ side: 'enemy', lane });
         const overflow = Math.max(0, pPower - ePower - overflowReductionFor(ctx, 'enemy', lane));
-        dealOverflowDamage(ctx, 'player', lane, overflow, pHero.name, eHero.name);
+        dealOverflowDamage(ctx, 'player', lane, overflow, { name: pHero.name, instanceId: pHero.instanceId }, { name: eHero.name, instanceId: eHero.instanceId });
       } else if (ePower > pPower) {
         push(ctx, { type: 'COMBAT', lane, outcome: 'ENEMY_WINS', player: { name: pHero.name, power: pPower }, enemy: { name: eHero.name, power: ePower } });
         combatLosers.push({ side: 'player', lane });
         const overflow = Math.max(0, ePower - pPower - overflowReductionFor(ctx, 'player', lane));
-        dealOverflowDamage(ctx, 'enemy', lane, overflow, eHero.name, pHero.name);
+        dealOverflowDamage(ctx, 'enemy', lane, overflow, { name: eHero.name, instanceId: eHero.instanceId }, { name: pHero.name, instanceId: pHero.instanceId });
       } else {
         push(ctx, { type: 'COMBAT', lane, outcome: 'TIE', player: { name: pHero.name, power: pPower }, enemy: { name: eHero.name, power: ePower } });
         combatLosers.push({ side: 'player', lane }, { side: 'enemy', lane });
@@ -295,6 +318,15 @@ export function resolveRound(state: GameState, playerAction: PlayerAction, enemy
         push(ctx, { type: 'POWER_CHANGED', side, instanceId: hero.instanceId, name: hero.name, from, to: hero.power, reason: 'Round End', permanent: false });
         hero.tempPower = 0;
       }
+    }
+  }
+  // Round-scoped effects expire: unspent damage barriers and stalled Heroes.
+  for (const side of ['player', 'enemy'] as Side[]) {
+    const p = playerOf(ctx, side);
+    delete p.barrier;
+    for (const lane of LANES) {
+      const hero = p.heroZones[lane];
+      if (hero?.stalled) delete hero.stalled;
     }
   }
   sweepPowerZero(ctx); // catches Burning Ground-style Round End debuffs finishing off a weak Hero

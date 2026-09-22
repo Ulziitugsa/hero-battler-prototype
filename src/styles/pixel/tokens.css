@@ -1,0 +1,58 @@
+/* Embervale pixel-art design system - tokens.
+   Source of truth: the "Moonwater" concept (src/pages/PixelPreviewPage.tsx, reachable from Home via
+   "Visit Moonwater"). Palette, border language and typography relationships below are read directly
+   off that page, not invented separately - see docs/design/PIXEL-PROTOTYPE.md for the write-up.
+
+   Rarity colors are the one deliberate exception: the concept used per-companion flavor colors, but the
+   game already has a rarity color contract used everywhere (CardParts, Gems, CardDetail) and the brief
+   asks for blue/violet/gold specifically for Rare/Epic/Legendary - so rarity keeps the existing
+   --rarity-* tokens from global.css and pixel screens read those, not a second competing scale. */
+
+:root {
+  /* ---- World: deep night, warm lantern-light, cool moon ---- */
+  --px-bg: #0e1a26;
+  --px-bg-deep: #0a141e;
+  --px-panel: #16232c;
+  --px-panel-2: #1b2b35;
+  --px-panel-raised: #223139;
+
+  /* ---- Borders: crisp, no blur, no radius - a bezel is drawn with stacked hard edges ---- */
+  --px-line: #5c6f6c;
+  --px-line-soft: rgba(228, 211, 165, 0.16);
+  --px-line-dim: rgba(148, 181, 199, 0.28);
+
+  /* ---- Ink ---- */
+  --px-ink: #f4ecd7;
+  --px-ink-dim: #c7d2cb;
+  --px-ink-faint: #93a6a3;
+
+  /* ---- Gold: the one warm accent, reserved for calls to action and brand ---- */
+  --px-gold: #ebc989;
+  --px-gold-strong: #ffdc99;
+  --px-gold-deep: #c69f65;
+  --px-gold-ink: #2a2116;
+
+  /* ---- Faction tints (chrome only - rarity keeps the global scale above) ---- */
+  --px-kingdom: #7fa7d9;
+  --px-kingdom-deep: #16283f;
+  --px-undead: #6fbfa0;
+  --px-undead-deep: #12251f;
+  --px-infernal: #d9704a;
+  --px-infernal-deep: #331711;
+
+  /* ---- Typography: editorial serif for voice, tracked mono for labels - never a blocky pixel font ---- */
+  --px-font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  --px-font-label: var(--mono, 'Consolas', 'SFMono-Regular', monospace);
+
+  /* ---- Shadow: one hard drop, no soft glow blur except gold "magic" accents ---- */
+  --px-shadow-panel: 0 10px 22px rgba(4, 8, 10, 0.55);
+  --px-shadow-button: 0 4px 0 #6e553c;
+
+  /* ---- Motion cadence: named per the brief (PIXEL_AMBIENT_SLOW / PIXEL_AMBIENT / PIXEL_CHARACTER / PIXEL_IMPACT).
+     Each pairs with steps(N) in motion.css so playback stays visibly stepped, never smoothed.
+     Target ~5-6fps for ambient/character loops (old concept prototype ran ~2-3fps and read as laggy). */
+  --px-t-ambient-slow: 3200ms; /* clouds, mist drift, distant water - 16 steps ~ 5fps */
+  --px-t-ambient: 1000ms; /* banners, foliage, lantern flicker, water shimmer - 6 steps ~ 6fps */
+  --px-t-character: 1000ms; /* idle portrait/sprite loops - 6 steps ~ 6fps */
+  --px-t-impact: 260ms; /* hit bursts, reveal flares - 3 steps, snappier but still stepped */
+}

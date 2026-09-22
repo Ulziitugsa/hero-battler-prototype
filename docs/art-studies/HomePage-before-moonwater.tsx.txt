@@ -1,0 +1,102 @@
+import { useMemo, useState } from 'react';
+import { CardDetail } from '../components/CardDetail';
+import { HowToPlaySheet } from '../components/HowToPlaySheet';
+import { Icon } from '../components/Icon';
+import { getCard } from '../game/cards';
+import { ROSTER_BY_FACTION } from '../game/cards/roster';
+import { getActiveDeck } from '../game/engine/activeDeck';
+import { loadRecentMatches } from '../game/engine/localMatchHistory';
+import { useCollection } from '../game/collection/useCollection';
+import { useHubState } from '../game/home/useHubState';
+import { useEconomy } from '../game/economy/useEconomy';
+import { useAccount } from '../game/progression/useAccount';
+import { SUMMON_BANNERS, getBanner } from '../game/summon/banners';
+import { loadSelectedBanner } from '../game/summon/selectedBanner';
+import { HomeWorld } from './home/HomeWorld';
+import { ActiveDeck, ContinueCampaign, EventSlot, FeaturedSummon, GemPlate, HeroAnchor, HubNoteLine, PlayerIdentity, QuickBattlePlate } from './home/HomeSections';
+import '../styles/home.css';
+
+/**
+ * The Home hub. Reads top to bottom as the answer to four questions - who am I (identity, Gems), what should I do
+ * next (Continue Campaign), what am I taking into battle (active deck), where can I go (Summon, Quick Battle, the
+ * reserved Event slot, and the bottom nav for Heroes / Decks / Profile). Each section is its own component; this file
+ * only arranges them and wires their single intent to navigation.
+ *
+ * Future systems have a home already: Events fill <EventSlot event={...}/> beside Quick Battle; a Shop entry goes in
+ * <GemPlate trailing={...}/> next to the balance. Neither needs the layout to change.
+ */
+export function HomePage({
+  onOpenBattleSetup,
+  onOpenCampaign,
+  onOpenDecks,
+  onOpenHeroes,
+  onOpenProfile,
+  onOpenSummon,
+  onOpenLanterns,
+  onOpenPixelPreview,
+}: {
+  onOpenBattleSetup: () => void;
+  onOpenCampaign: () => void;
+  onOpenDecks: () => void;
+  onOpenHeroes: () => void;
+  onOpenProfile: () => void;
+  onOpenSummon: () => void;
+  onOpenLanterns: () => void;
+  onOpenPixelPreview: () => void;
+}) {
+  const hub = useHubState();
+  const owned = useCollection();
+  const account = useAccount();
+  const { summon } = useEconomy();
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the active deck can only become unplayable when ownership changes
+  const deck = useMemo(() => getActiveDeck(), [owned]);
+  const banner = useMemo(() => getBanner(loadSelectedBanner()) ?? SUMMON_BANNERS[0], []);
+  const heroId = ROSTER_BY_FACTION[deck.faction].find((id) => getCard(id).rarity === 'legendary') ?? null;
+
+  const last = useMemo(() => loadRecentMatches()[0], []);
+  const lastLine = last ? `Last: ${last.winner === 'player' ? 'Won' : last.winner === 'enemy' ? 'Lost' : 'Draw'} vs ${last.enemyDeckLabel}` : null;
+
+  const [inspectCardId, setInspectCardId] = useState<string | null>(null);
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
+
+  return (
+    <div className="hh pixel-scope">
+      <HomeWorld />
+      <div className="hh-scene">
+        <div className="hh-topbar">
+          <PlayerIdentity account={account} onOpen={onOpenProfile} />
+          <div className="hh-topright">
+            <GemPlate />
+            <button type="button" className="hh-help" onClick={() => setShowHowToPlay(true)} aria-label="How to play">
+              <Icon name="help" size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="hh-world-title"><span>Where every oath lives on</span><h1>Embervale</h1><p>A kingdom of borrowed fire.<br />A hundred unfinished stories.</p></div>
+        <HeroAnchor cardId={heroId} faction={deck.faction} onInspect={setInspectCardId} />
+      </div>
+
+      <div className="home-terrace hh-terrace">
+        <button type="button" className="pixel-preview-entry" onClick={onOpenPixelPreview}>✦ Visit Moonwater · animated pixel-art preview →</button>
+        <ContinueCampaign hub={hub.campaign} energy={hub.energy} onOpen={onOpenCampaign} />
+
+        <div className="hh-duo">
+          <FeaturedSummon banner={banner} pity={summon.pity[banner.id] ?? 0} canSummon={hub.attention.canSummon} onOpen={onOpenSummon} />
+          <div className="hh-stack">
+            <QuickBattlePlate last={lastLine} onOpen={onOpenBattleSetup} />
+            <EventSlot event={{ id: 'lanterns', name: 'Lanterns of the Lost', sub: 'Story adventure · 3 battles', onOpen: onOpenLanterns }} />
+          </div>
+        </div>
+
+        <ActiveDeck deck={deck} onOpen={onOpenDecks} />
+
+        {hub.note && <HubNoteLine note={hub.note} onOpenProfile={onOpenProfile} onOpenDecks={onOpenDecks} onOpenHeroes={onOpenHeroes} />}
+      </div>
+
+      {showHowToPlay && <HowToPlaySheet onClose={() => setShowHowToPlay(false)} />}
+      {inspectCardId && <CardDetail cardId={inspectCardId} onClose={() => setInspectCardId(null)} />}
+    </div>
+  );
+}

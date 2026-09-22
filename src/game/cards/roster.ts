@@ -20,6 +20,14 @@ export const KINGDOM_ROSTER: string[] = [
   'spl-dispel',
   'spl-battle-banner',
   'spl-fortify',
+  // Expansion (appended - the pixel-art atlas maps the FIRST six ids of each roster, see pixelArt.ts)
+  'kng-apprentice-mage',
+  'kng-archmage-vael',
+  'kng-spellbreaker',
+  'kng-null-templar',
+  'spl-aegis-ward',
+  'spl-ward-circle',
+  'spl-giants-bane',
 ];
 
 export const UNDEAD_ROSTER: string[] = [
@@ -33,6 +41,12 @@ export const UNDEAD_ROSTER: string[] = [
   'spl-raise-fallen',
   'spl-grave-totem',
   'spl-cursed-ground',
+  'und-grave-sage',
+  'und-shade-thief',
+  'und-wraith-prince',
+  'und-crypt-warden',
+  'spl-hush',
+  'spl-stasis-field',
 ];
 
 export const INFERNAL_ROSTER: string[] = [
@@ -47,6 +61,13 @@ export const INFERNAL_ROSTER: string[] = [
   'spl-soul-burn',
   'spl-burning-ground',
   'spl-siege-fire',
+  'inf-runebreaker',
+  'inf-ash-jackal',
+  'inf-packhound',
+  'inf-alpha-hound',
+  'inf-mirage-imp',
+  'spl-arcane-bolt',
+  'spl-blood-pact',
 ];
 
 export const ROSTER_BY_FACTION: Record<'kingdom' | 'undead' | 'infernal', string[]> = {

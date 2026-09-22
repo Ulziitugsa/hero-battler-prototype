@@ -40,6 +40,24 @@ export const FUTURE_REGION_CARDS: Readonly<Record<string, string>> = {
   'spl-soul-burn': 'region-3',
   'spl-burning-ground': 'region-3',
   'spl-siege-fire': 'region-3',
+  // Card-pool expansion: not in any current banner or Campaign reward. Each group is parked for the banner
+  // that will carry its archetype (dev "unlock all" still grants them for playtesting).
+  'kng-apprentice-mage': 'banner-arcane',
+  'kng-archmage-vael': 'banner-arcane',
+  'und-grave-sage': 'banner-arcane',
+  'spl-aegis-ward': 'banner-arcane',
+  'spl-ward-circle': 'banner-arcane',
+  'spl-stasis-field': 'banner-arcane',
+  'spl-arcane-bolt': 'banner-arcane',
+  'kng-null-templar': 'banner-mage-slayer',
+  'inf-runebreaker': 'banner-mage-slayer',
+  'inf-packhound': 'banner-beast',
+  'inf-alpha-hound': 'banner-beast',
+  'und-shade-thief': 'banner-trickster',
+  'und-wraith-prince': 'banner-trickster',
+  'inf-mirage-imp': 'banner-trickster',
+  'spl-giants-bane': 'banner-general',
+  'spl-blood-pact': 'banner-general',
 };
 
 /** Every Campaign card reward: which stage gives which card, and how many copies. */

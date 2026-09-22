@@ -2,7 +2,27 @@ import type { MatchStats } from '../game/engine/stats';
 import type { XpGrantResult } from '../game/progression/types';
 import { XpSummary } from './XpSummary';
 
-export function MatchSummary({ stats, xp, onPlayAgain, onExit }: { stats: MatchStats; xp?: XpGrantResult | null; onPlayAgain: () => void; onExit: () => void }) {
+export interface FriendlyRematchActions {
+  onRematch: () => void;
+  onLeave: () => void;
+  /** True once this side has requested a rematch and is waiting for the other side to also request one. */
+  waitingForOpponent: boolean;
+}
+
+export function MatchSummary({
+  stats,
+  xp,
+  onPlayAgain,
+  onExit,
+  friendlyRematch,
+}: {
+  stats: MatchStats;
+  xp?: XpGrantResult | null;
+  onPlayAgain: () => void;
+  onExit: () => void;
+  /** Present only for a Friendly Battle match - swaps "Play again"/"Back to menu" for room-aware Rematch/Leave, per "no silent restart, both players must agree". */
+  friendlyRematch?: FriendlyRematchActions;
+}) {
   const title = stats.winner === 'player' ? 'You win' : stats.winner === 'enemy' ? 'You lose' : 'Draw';
   return (
     <div className="summary-overlay">
@@ -49,12 +69,25 @@ export function MatchSummary({ stats, xp, onPlayAgain, onExit }: { stats: MatchS
           <span className="v">{stats.fullBoardStates}</span>
         </div>
         <div className="summary-actions">
-          <button type="button" onClick={onPlayAgain}>
-            Play again
-          </button>
-          <button type="button" onClick={onExit}>
-            Back to menu
-          </button>
+          {friendlyRematch ? (
+            <>
+              <button type="button" onClick={friendlyRematch.onRematch} disabled={friendlyRematch.waitingForOpponent}>
+                {friendlyRematch.waitingForOpponent ? 'Waiting for opponent…' : 'Rematch'}
+              </button>
+              <button type="button" onClick={friendlyRematch.onLeave}>
+                Leave
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={onPlayAgain}>
+                Play again
+              </button>
+              <button type="button" onClick={onExit}>
+                Back to menu
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

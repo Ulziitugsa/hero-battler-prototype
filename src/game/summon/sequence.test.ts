@@ -16,14 +16,14 @@ describe('single timeline', () => {
     expect(t('epic')).toBeLessThan(t('legendary'));
     for (const s of buildTimeline(one('epic'))) expect(s.tier).toBe('epic');
   });
-  it('Common is fast (under 1.6s); Legendary is a 3-5s showpiece; a featured Legendary holds a beat longer but stays under 5.5s', () => {
-    expect(totalMs(buildTimeline(one('common')))).toBeLessThan(1600);
+  it('Common stays under 3.5s; Legendary builds for 8-9s; featured holds stay under 9.5s', () => {
+    expect(totalMs(buildTimeline(one('common')))).toBeLessThan(3500);
     const leg = totalMs(buildTimeline(one('legendary')));
-    expect(leg).toBeGreaterThanOrEqual(3000);
-    expect(leg).toBeLessThanOrEqual(5000);
+    expect(leg).toBeGreaterThanOrEqual(8000);
+    expect(leg).toBeLessThanOrEqual(9000);
     const feat = totalMs(buildTimeline(one('legendary', true)));
     expect(feat - leg).toBe(FEATURED_EXTRA_MS);
-    expect(feat).toBeLessThanOrEqual(5500);
+    expect(feat).toBeLessThanOrEqual(9500);
   });
   it('the rarity telegraph is longer for higher rarity - the anticipation beat', () => {
     const tele = (r: Rarity) => buildTimeline(one(r)).find((s) => s.phase === 'telegraph')!.ms;
@@ -60,10 +60,10 @@ describe('10x timeline', () => {
     expect(slots).toEqual([...slots].sort((a, b) => a - b));
     expect(t[t.length - 1].phase).toBe('result');
   });
-  it('a batch with no Epic+ is quick: about 2-3 seconds to the grid', () => {
+  it('a batch with no Epic+ is quick: under five seconds to the grid', () => {
     const ms = totalMs(buildTimeline(ten({ 3: 'rare', 7: 'rare' })));
     expect(ms).toBeGreaterThan(1200);
-    expect(ms).toBeLessThanOrEqual(3000);
+    expect(ms).toBeLessThanOrEqual(5000);
     expect(ms).toBe(TEN_OPENING.rare.charge + TEN_OPENING.rare.telegraph + TEN_OPENING.rare.open + 2 * TEN_SLOT_MS.rare + 8 * TEN_SLOT_MS.common);
   });
   it('Epic adds a short pause and Legendary a full stage; neither is required for the rest to stay fast', () => {
@@ -72,8 +72,8 @@ describe('10x timeline', () => {
     const leg = totalMs(buildTimeline(ten({ 5: 'legendary' })));
     expect(epic).toBeGreaterThan(low);
     expect(leg).toBeGreaterThan(epic);
-    expect(epic).toBeLessThan(4000);
-    expect(leg).toBeLessThan(6500);
+    expect(epic).toBeLessThan(6500);
+    expect(leg).toBeLessThan(9500);
   });
   it('Epic/Legendary slots get their own staged telegraph -> opening -> reveal; commons do not', () => {
     const t = buildTimeline(ten({ 4: 'epic', 8: 'legendary' }, [8]));
@@ -133,5 +133,19 @@ describe('skipping', () => {
     expect(skipTarget(t, at(8, 'reveal'))).toBe(t.length - 1);
     const plain = buildTimeline(ten());
     expect(skipTarget(plain, 2)).toBe(plain.length - 1);
+  });
+});
+
+// The full-film version must not reintroduce a second coded travel sequence.
+describe('film handoff', () => {
+  it('retains every reward and ends at the same result without sky phases', async () => {
+    const { buildFilmTimeline } = await import('./sequence');
+    for (const pulls of [one('legendary', true),ten({2:'epic',7:'legendary'})]) {
+      const t=buildFilmTimeline(pulls);
+      expect(t[0].phase).toBe('charging');
+      expect(t.some(s=>s.phase==='telegraph'||s.phase==='opening')).toBe(false);
+      expect(viewAt(t,t.length-1,pulls.length)).toMatchObject({isResult:true,revealed:pulls.length});
+      if(pulls.length===10) expect([...new Set(t.filter(s=>s.slot!==null).map(s=>s.slot))]).toEqual([0,1,2,3,4,5,6,7,8,9]);
+    }
   });
 });

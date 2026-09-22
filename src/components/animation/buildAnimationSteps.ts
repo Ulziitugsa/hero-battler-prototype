@@ -114,7 +114,7 @@ export function buildAnimationSteps(events: GameEvent[]): AnimationStep[] {
     clash.maxEventIndex = combatIndex;
     out.push(clash);
 
-    if (combat.outcome === 'EMPTY') return out;
+    if (combat.outcome === 'EMPTY' || combat.outcome === 'STALLED') return out;
 
     if (combat.outcome === 'PLAYER_DIRECT' || combat.outcome === 'ENEMY_DIRECT') {
       const ddIdx = findNext(combatIndex, (e) => e.type === 'DIRECT_DAMAGE');

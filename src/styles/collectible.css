@@ -1,0 +1,28 @@
+/* The collectible card face - shared by the Summon reveal and the card detail sheet (CardDetail.tsx).
+   Pixel-art migration: hard rectangular corners, a stacked-outline bezel (see .pixel-frame in
+   src/styles/pixel/base.css) instead of a rounded foil border, flat faction colour fields instead of a
+   radial-gradient "glow" behind the art. Rarity keeps the game's existing --rarity-* colours. */
+.collectible { --foil: var(--px-line-dim, #94b5c7); position: relative; display: block; width: 100%; aspect-ratio: 2 / 3; isolation: isolate; overflow: hidden; border: 2px solid var(--px-line, #5c6f6c); box-shadow: 0 0 0 3px var(--px-bg-deep, #0a141e), 0 0 0 4px var(--foil), 0 14px 26px rgba(4, 8, 10, 0.6); background: var(--px-panel, #16232c); color: var(--px-ink, #fff3d5); text-align: left; font-family: var(--px-font-display, serif); border-radius: 0; }
+.collectible.r-rare { --foil: var(--rarity-rare, #7fb0d9); }
+.collectible.r-epic { --foil: var(--rarity-epic, #c084fc); }
+.collectible.r-legendary { --foil: var(--rarity-legendary, #d9a54b); border-color: var(--rarity-legendary, #d9a54b); box-shadow: 0 0 0 3px var(--px-bg-deep, #0a141e), 0 0 0 4px var(--foil), 0 0 20px rgba(217, 165, 75, 0.35), 0 14px 26px rgba(4, 8, 10, 0.6); }
+.collectible-art { position: absolute; inset: 7px 7px 26%; overflow: hidden; background: var(--px-kingdom-deep, #16283f); }
+.collectible.undead .collectible-art { background: var(--px-undead-deep, #12251f); }
+.collectible.infernal .collectible-art { background: var(--px-infernal-deep, #331711); }
+.collectible-art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; image-rendering: auto; }
+.collectible-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(#0a141e40, transparent 22%, transparent 65%, var(--px-panel, #16232c)); }
+.collectible-emblem { display: grid; place-items: center; height: 100%; background: repeating-linear-gradient(45deg, transparent 0 16px, rgba(228, 211, 165, 0.05) 17px 18px); }
+.collectible-emblem .cp-sigil { transform: scale(1.9); }
+.collectible-edging { position: absolute; z-index: 2; inset: 5px; border: 1px solid var(--foil); pointer-events: none; }
+.collectible-header { position: absolute; top: 12px; left: 13px; right: 13px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font: 700 10px var(--px-font-label, monospace); letter-spacing: 0.05em; text-transform: uppercase; text-shadow: 0 1px 4px #000; }
+.collectible-base { position: absolute; left: 14px; right: 14px; top: 69%; display: flex; flex-direction: column; gap: 6px; }
+.collectible-name { font-family: var(--px-font-display, serif); font-weight: 400; font-size: clamp(16px, 4.5vw, 22px); line-height: 1.1; padding-right: 18px; color: var(--px-gold-strong, #ffeac0); }
+.collectible-kind { display: flex; align-items: center; gap: 5px; font: 700 10px var(--px-font-label, monospace); text-transform: uppercase; letter-spacing: 0.03em; color: var(--px-ink-dim, #d6c5ab); }
+.collectible-rule { font: 12px/1.4 var(--px-font-display, serif); color: var(--px-ink-dim, #e5d9c5); padding-top: 7px; border-top: 1px solid var(--px-line-soft); }
+.collectible-power { position: absolute; right: 10px; top: 57%; min-width: 32px; height: 32px; padding: 0 4px; display: grid; place-items: center; font: 700 19px var(--px-font-label, monospace); color: var(--px-gold-ink, #302012); background: var(--px-gold, #e4c080); border: 1px solid var(--px-gold-strong, #fff0bd); box-shadow: 0 3px 0 var(--px-gold-deep, #6e553c); }
+.collectible-number { position: absolute; bottom: 10px; left: 14px; right: 14px; font: 8px var(--px-font-label, monospace); color: var(--px-ink-faint, #bbaa8d); text-transform: uppercase; letter-spacing: 0.09em; }
+.collectible.compact .collectible-base { left: 8px; right: 8px; gap: 3px; } .collectible.compact .collectible-name { font-size: 12px; padding: 0; } .collectible.compact .collectible-kind, .collectible.compact .collectible-number { display: none; } .collectible.compact .collectible-header { left: 8px; right: 8px; top: 8px; } .collectible.compact .collectible-header > span:last-child { display: none; } .collectible.compact .collectible-power { min-width: 22px; height: 22px; font-size: 13px; right: 8px; }
+
+.archive-detail { background: var(--px-bg, #0e1a26) !important; max-height: 90dvh; overflow-y: auto; }
+.archive-detail-card { position: relative; width: 220px; margin: 25px auto 15px; } .archive-detail-card .card-detail-close { position: absolute; right: -40px; top: -12px; min-width: 44px; min-height: 44px; background: var(--px-panel, #16232c); color: var(--px-gold, #ebc989); border: 1px solid var(--px-line-dim); }
+.archive-detail .body { padding: 18px 25px 25px; } .archive-lore { border-top: 1px solid var(--px-line-soft); margin-top: 20px; padding-top: 18px; } .archive-lore > span { font: 400 18px var(--px-font-display, serif); color: var(--px-gold, #e0c28a); } .archive-lore blockquote { font: italic 15px/1.6 var(--px-font-display, serif); margin: 12px 0; color: var(--px-ink, #eee0c4); } .archive-lore p { font-size: 12px; line-height: 1.75; color: var(--px-ink-dim, #c4b69b); }

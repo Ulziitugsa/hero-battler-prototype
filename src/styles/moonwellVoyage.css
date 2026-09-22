@@ -1,0 +1,125 @@
+/* Moonwater skyfall: distant spark -> travelling comet -> near-camera burst -> character. */
+.voyage { --light:#c5deeb; --deep:#607d9c; position:absolute; width:100vw; height:115dvh; left:calc(150px - 50vw); top:calc(150px - 57.5dvh); overflow:hidden; pointer-events:none; isolation:isolate; }
+.voyage.v-rare { --light:#95deff; --deep:#327ecc; }.voyage.v-epic { --light:#e4b5ff; --deep:#9151cf; }.voyage.v-legendary { --light:#ffe5a0; --deep:#d79531; }
+.sky-depth { position:absolute; inset:0; background:linear-gradient(165deg,#020814 3%,#122746 45%,#31566e 78%,#7d8d9b); opacity:.98; transition:opacity 1s; }
+.sky-stars { position:absolute; inset:0; }.sky-stars i { position:absolute; width:3px; height:3px; background:#d8ecff; opacity:.5; box-shadow:0 0 8px #afdfff; }
+.sky-cloud { position:absolute; width:150%; height:32%; left:-25%; background:linear-gradient(160deg,transparent,#557b9733 45%,#243e6277); clip-path:polygon(0 60%,9% 52%,16% 60%,25% 26%,36% 40%,43% 15%,56% 32%,62% 20%,73% 47%,83% 24%,91% 40%,100% 20%,100% 100%,0 100%); }
+.cloud-far { top:8%; opacity:.5; animation:sky-cloud-drift 5s linear both; }.cloud-near { bottom:-5%; opacity:.8; animation:sky-cloud-drift 3s linear both; }
+.sky-comet { position:absolute; left:50%; top:46%; width:28px; height:28px; transform:rotate(-32deg); z-index:2; }
+.comet-core { position:absolute; inset:0; background:#fff9dc; clip-path:polygon(30% 0,70% 0,70% 25%,100% 25%,100% 75%,70% 75%,70% 100%,30% 100%,30% 75%,0 75%,0 25%,30% 25%); box-shadow:0 0 35px var(--light); }
+.comet-tail,.comet-wake { position:absolute; left:12px; top:0; width:min(75vw,900px); height:28px; transform-origin:0 50%; background:linear-gradient(90deg,#fff6d7,var(--light) 10%,var(--deep) 42%,transparent); clip-path:polygon(0 20%,100% 43%,100% 55%,0 100%); }
+.comet-wake { top:-36px; height:100px; opacity:.35; filter:blur(12px); }.comet-cross { position:absolute; inset:-24px; background:var(--light); clip-path:polygon(48% 0,54% 43%,100% 48%,57% 55%,51% 100%,44% 57%,0 51%,43% 45%); filter:drop-shadow(0 0 15px var(--light)); }
+.v-charging .sky-comet { animation:sky-distant var(--beat) ease-out both; }.v-charging .comet-tail,.v-charging .comet-wake { opacity:0; }
+.v-telegraph .sky-comet { animation:sky-travel var(--beat) cubic-bezier(.1,.25,.7,1) both; }.v-telegraph .comet-tail { animation:sky-tail var(--beat) ease-out both; }
+.v-opening .sky-comet { animation:sky-approach var(--beat) cubic-bezier(.5,0,.85,.5) both; }
+.sky-streams { position:absolute; inset:0; transform:rotate(-32deg); opacity:0; }.sky-streams i { position:absolute; width:35%; height:2px; background:linear-gradient(90deg,transparent,#b8ddff88,transparent); animation:sky-speed .55s linear infinite; animation-delay:calc(var(--n)*-.073s); }
+.v-telegraph .sky-streams { opacity:.6; }.v-opening .sky-streams { opacity:1; }.v-opening .sky-streams i { animation-duration:.25s; }
+.sky-escort { position:absolute; inset:0; opacity:0; }.sky-escort i { position:absolute; left:calc(54% + var(--n)*4%); top:calc(16% + var(--n)*8%); width:22%; height:4px; background:linear-gradient(90deg,var(--light),var(--deep),transparent); transform:rotate(-32deg); box-shadow:0 0 12px var(--deep); animation:sky-escort .8s ease-in both; animation-delay:calc(var(--n)*.06s); }
+.v-telegraph .sky-escort,.v-opening .sky-escort { opacity:.85; }
+.sky-impact { position:absolute; inset:0; background:linear-gradient(115deg,var(--deep),var(--light) 45%,#fff9e9 52%,var(--light) 60%,var(--deep)); opacity:0; z-index:4; }
+.v-opening .sky-impact { animation:sky-impact var(--beat) ease-in both; }
+.sky-shards { position:absolute; inset:0; opacity:0; }.sky-shards i { position:absolute; left:50%; top:50%; width:4px; height:60px; background:linear-gradient(var(--light),transparent); transform-origin:50% 0; }
+.v-released .sky-shards { opacity:1; }.v-released .sky-shards i { animation:sky-shard 1.4s ease-out both; }
+.sky-afterglow { position:absolute; inset:0; background:linear-gradient(100deg,transparent 20%,var(--deep) 48%,var(--light) 50%,var(--deep) 52%,transparent 80%); opacity:0; transform:skewX(-18deg); }
+.v-released .sky-afterglow { animation:sky-afterglow 1.8s ease-out both; }.v-released .sky-comet,.v-released .sky-cloud { display:none; }.v-released .sky-depth { opacity:.65; }.v-result .sky-depth { opacity:.35; }
+.moon-game .ritual { background:#071422; }.moon-game .ritual::before { content:''; position:absolute; inset:0; background:linear-gradient(#07162466,#071624bb),url('/art/pixel/moonwater.png') center/cover; image-rendering:pixelated; }.moon-game .ritual .ritual-canvas { z-index:1; }
+.moon-game .ritual-heading { z-index:5; position:relative; }.moon-game .ritual .rc-emerge .rc-inner { transform:none; }.moon-game .ritual .rc-emerge { animation:sky-card var(--step-ms) cubic-bezier(.1,.7,.2,1) both; }.moon-game .ritual .rc-reveal .rc-inner { animation:none; }
+.moon-game .ritual.ten[data-grid='1']:not([data-stage='1']) .voyage { display:none; }
+.px-voyage-stage { position:absolute; width:300px; height:300px; left:calc(50% - 150px); top:calc(45% - 150px); pointer-events:none; }.px-voyage-space { height:340px; width:240px; flex-shrink:0; }.px-summon-heading,.px-summon-bottom,.px-reveal-card { z-index:5; position:relative; }
+@keyframes sky-distant { from { opacity:0; transform:translate(30vw,-28vh) rotate(-32deg) scale(.04); } to { opacity:1; transform:translate(24vw,-20vh) rotate(-32deg) scale(.35); } }
+@keyframes sky-travel { from { transform:translate(24vw,-20vh) rotate(-32deg) scale(.35); } to { transform:translate(-12vw,10vh) rotate(-32deg) scale(1.2); } }
+@keyframes sky-tail { from { scale:.2 1; } to { scale:1 1; } }
+@keyframes sky-approach { from { transform:translate(-12vw,10vh) rotate(-32deg) scale(1.2); } 55% { transform:translate(-3vw,3vh) rotate(-40deg) scale(2); } to { transform:translate(0,0) rotate(-50deg) scale(16); } }
+@keyframes sky-speed { from { transform:translateX(110vw); } to { transform:translateX(-100vw); } }
+@keyframes sky-escort { from { opacity:0; translate:30vw -20vh; } to { opacity:.8; translate:-35vw 25vh; } }
+@keyframes sky-cloud-drift { to { transform:translate(-12%,18%) scale(1.25); } }
+@keyframes sky-impact { 0%,65% { opacity:0; } 88% { opacity:.9; } 100% { opacity:.2; } }
+@keyframes sky-shard { from { opacity:.8; transform:rotate(var(--angle)) translateY(30px) scaleY(2); } to { opacity:0; transform:rotate(var(--angle)) translateY(var(--distance)) scaleY(.1); } }
+@keyframes sky-afterglow { from { opacity:.65; scale:.2 1; } to { opacity:0; scale:2 1; } }
+@keyframes sky-card { from { opacity:0; transform:scale(1.6); filter:brightness(2); } 35% { opacity:1; } to { opacity:1; transform:none; filter:none; } }
+@media(prefers-reduced-motion:reduce) { .voyage *,.moon-game .ritual .rc-emerge { animation:none!important; transition:none!important; }.sky-comet,.sky-streams,.sky-escort,.sky-impact,.sky-shards,.sky-cloud { display:none; } }
+.px-still .voyage * { animation:none!important; }.px-still .sky-comet,.px-still .sky-streams,.px-still .sky-escort,.px-still .sky-impact,.px-still .sky-shards { display:none; }
+
+.moon-game .ritual .ritual-canvas { width:100%; }
+
+/* Longer choreography: gathering light, layered wake, suspended anticipation, acceleration. */
+.sky-gather { position:absolute; left:74%; top:calc(46% - 20vh); width:28px; height:28px; opacity:0; }
+.sky-gather i { position:absolute; left:50%; top:50%; width:4px; height:4px; background:#d6eeff; box-shadow:0 0 8px #bce4ff; }
+.v-charging .sky-gather { opacity:1; }.v-charging .sky-gather i { animation:sky-gather var(--beat) cubic-bezier(.5,0,.3,1) both; }
+.sky-stars i { animation:sky-twinkle 3s ease-in-out infinite alternate; animation-delay:calc(var(--n)*-.17s); }
+.comet-filaments { position:absolute; left:15px; top:5px; width:min(65vw,800px); height:20px; }
+.comet-filaments i { position:absolute; left:0; width:100%; height:3px; background:linear-gradient(90deg,#fffde7,var(--light) 25%,transparent); transform-origin:0 50%; }
+.comet-filaments i:nth-child(1) { top:-8px; rotate:-2deg; }.comet-filaments i:nth-child(2) { top:10px; rotate:1deg; width:85%; }.comet-filaments i:nth-child(3) { top:24px; rotate:3deg; width:70%; }
+.comet-dust { position:absolute; left:20px; top:0; }.comet-dust i { position:absolute; left:calc(var(--n)*27px); top:calc(mod(var(--n),3)*14px - 14px); width:4px; height:4px; background:var(--light); animation:sky-tail-dust 1.1s linear infinite; animation-delay:calc(var(--n)*-.09s); }
+.v-charging .comet-filaments,.v-charging .comet-dust { display:none; }
+.v-charging .comet-cross { animation:sky-star-wake var(--beat) ease-in both; }
+.v-telegraph .comet-wake { animation:sky-wake-colour var(--beat) ease-in both; }
+.sky-escort i { animation:none; opacity:0; }.v-telegraph .sky-escort i { animation:sky-escort var(--beat) ease-in-out both; animation-delay:calc(var(--n)*.08s); }.v-opening .sky-escort i { animation:sky-escort var(--beat) ease-in both; animation-delay:calc(var(--n)*.03s); }
+.v-opening .sky-streams { animation:sky-hold-speed var(--beat) ease-in both; }
+.sky-cloud { mask-image:linear-gradient(transparent,#000 20% 65%,transparent); }
+@keyframes sky-distant { 0% { opacity:0; transform:translate(24vw,-20vh) rotate(-32deg) scale(.02); } 45% { opacity:.7; transform:translate(24vw,-20vh) rotate(-32deg) scale(.12); } 80% { opacity:1; transform:translate(24vw,-20vh) rotate(-32deg) scale(.42); } 100% { opacity:1; transform:translate(24vw,-20vh) rotate(-32deg) scale(.35); } }
+@keyframes sky-approach { 0%,32% { transform:translate(-12vw,10vh) rotate(-32deg) scale(1.2); } 50% { transform:translate(-11vw,9vh) rotate(-34deg) scale(.95); } 76% { transform:translate(-3vw,3vh) rotate(-40deg) scale(2); } 100% { transform:translate(0,0) rotate(-50deg) scale(16); } }
+@keyframes sky-impact { 0%,80% { opacity:0; } 95% { opacity:.85; } 100% { opacity:.2; } }
+@keyframes sky-gather { 0% { opacity:0; transform:rotate(var(--angle)) translateY(var(--reach)); } 25% { opacity:.8; } 85%,100% { opacity:0; transform:rotate(var(--angle)) translateY(0); } }
+@keyframes sky-twinkle { to { opacity:.15; } }
+@keyframes sky-star-wake { from { scale:.25; rotate:0deg; } to { scale:1.4; rotate:90deg; } }
+@keyframes sky-wake-colour { from { opacity:.1; scale:1 .5; } to { opacity:.65; scale:1 1.4; } }
+@keyframes sky-tail-dust { from { opacity:.8; translate:0 0; } to { opacity:0; translate:65px 10px; } }
+@keyframes sky-hold-speed { 0%,35% { opacity:.12; } 80%,100% { opacity:1; } }
+@media(prefers-reduced-motion:reduce) { .sky-gather,.comet-dust { display:none; } }
+.px-still .sky-gather,.px-still .comet-dust { display:none; }
+/* Local cinematic plate, then deterministic one-per-pull lights. */
+.summon-film { position:absolute; inset:0; background:#0c1d35 url('/art/pixel/moonwater.png') center/cover; pointer-events:none; }
+.summon-film video { width:100%; height:100%; object-fit:cover; }
+.summon-film.film-finished { opacity:.65; transition:opacity 1s; }
+.moon-game .ritual[data-phase='charging'] .voyage { visibility:hidden; }
+.moon-game .ritual[data-phase='telegraph'] .sky-depth,.moon-game .ritual[data-phase='opening'] .sky-depth { opacity:.22; }
+.moon-game .ritual:is([data-phase='telegraph'],[data-phase='opening']) .sky-cloud { display:none; }
+.summon-star { position:absolute; inset:0; }
+.star-common { --light:#d6e5ec; --deep:#768d9f; }.star-rare { --light:#a6e6ff; --deep:#387bd0; }.star-epic { --light:#e2b6ff; --deep:#9251cb; }.star-legendary { --light:#ffe8a4; --deep:#d49332; }
+.summon-constellation,.summon-solitary { position:absolute; inset:0; }
+.summon-constellation .summon-star { translate:var(--star-x) var(--star-y); }
+.summon-constellation .sky-comet { width:18px; height:18px; }
+.summon-constellation .comet-tail,.summon-constellation .comet-wake { width:24vw; }
+.summon-constellation .comet-filaments { width:22vw; }
+.summon-constellation .comet-cross { inset:-12px; }
+.summon-constellation .sky-comet { left:50%; }
+.v-telegraph .summon-constellation .sky-comet { animation:constellation-flight var(--beat) ease-out both; }
+.v-opening .summon-constellation .sky-comet { animation:constellation-arrive var(--beat) ease-in both; }
+@keyframes constellation-flight { from { opacity:0; transform:translate(15vw,-22vh) rotate(-32deg) scale(.2); } 20% { opacity:1; } to { opacity:1; transform:rotate(-32deg) scale(1); } }
+@keyframes constellation-arrive { 0%,35% { transform:rotate(-32deg); } to { transform:translate(-5vw,12vh) rotate(-40deg) scale(2); opacity:0; } }
+@media(prefers-reduced-motion:reduce) { .summon-film video { display:none; }.summon-constellation .sky-comet { animation:none!important; } }
+.moon-game .ritual .summon-film { z-index:0; }
+.moon-game .ritual .ritual-ten { position:relative; z-index:2; }
+.moon-game .ritual.is-result .summon-film { opacity:.18; }
+.moon-game .ritual .ritual-skip { z-index:10; }
+/* Full-opacity film avoids ghosting the village through the final cloud frame. */
+.moon-game .ritual .summon-film,.moon-game .ritual .summon-film.film-finished { opacity:1; }
+.moon-game .ritual .summon-film.film-playing { animation:film-enter .7s ease-out both; }
+.moon-game .ritual .summon-film.film-finished video { animation:film-drift 12s linear both; }
+.moon-game .ritual .summon-film { overflow:hidden; }
+.moon-game .ritual .sky-depth { display:none; }
+.moon-game .ritual.is-result .summon-film { opacity:0; transition:opacity .9s ease-out; }
+.meteor-field { position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; }
+@keyframes film-enter { from { opacity:0; } to { opacity:1; } }
+@keyframes film-drift { from { transform:scale(1); } to { transform:scale(1.045) translateY(-.5%); } }
+@media(prefers-reduced-motion:reduce) { .moon-game .ritual .summon-film,.moon-game .ritual .summon-film video { animation:none!important; transition:none!important; } }
+/* The film now carries the journey; its light resolves directly into the rewards. */
+.moon-game .ritual .summon-film.film-finished { opacity:0; transition:opacity .85s ease-out; }
+.doorway-reveal-light { position:absolute; inset:0; z-index:5; pointer-events:none; background:#fff4d9; animation:doorway-light-out .85s ease-out both; }
+@keyframes doorway-light-out { from { opacity:.92; } to { opacity:0; } }
+.moon-game .ritual .rc-emerge { animation:doorway-card-in var(--step-ms) cubic-bezier(.16,.75,.2,1) both; }
+@keyframes doorway-card-in { from { opacity:0; transform:translateY(24px) scale(.88); filter:brightness(1.6); } to { opacity:1; transform:none; filter:none; } }
+@media(prefers-reduced-motion:reduce) { .doorway-reveal-light { display:none; }.moon-game .ritual .rc-emerge { animation:none; } }
+.px-summon .summon-film.film-finished { opacity:0; transition:opacity .85s; }
+.px-summon .summon-film.film-playing { animation:film-enter .7s ease-out both; }
+.summon-film .film-segment { position:absolute; inset:0; opacity:0; }
+.summon-film .film-segment.is-shown { opacity:1; }
+/* Stars travel past the camera. One light wash bridges flight and the card reveal. */
+.moon-game .ritual:not(.is-result) .summon-film.film-finished,.px-summon.px-charging .summon-film.film-finished { opacity:1; }
+.v-emerge .sky-afterglow,.v-reveal .sky-afterglow { animation:shooting-star-reveal .65s ease-out both; background:#fff2d5; transform:none; }
+.v-opening .sky-impact { animation:shooting-star-impact var(--beat) ease-in both; }
+@keyframes shooting-star-impact { 0%,78% { opacity:0; } 94%,100% { opacity:.88; } }
+@keyframes shooting-star-reveal { from { opacity:.88; } to { opacity:0; } }
+.px-summon .sky-depth { display:none; }
+@media(prefers-reduced-motion:reduce) { .sky-afterglow,.sky-impact { display:none; } }

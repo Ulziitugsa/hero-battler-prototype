@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '../components/Icon';
+import { CardArtwork } from '../components/CardArtwork';
 import { STARTER_DECKS, STARTER_DECK_NAMES, type StarterFaction } from '../game/cards/starterDecks';
 import { listDeckOptions } from '../game/engine/deckOptions';
 import { loadPreferences, savePreferences } from '../game/engine/preferences';
@@ -82,9 +83,7 @@ export function BattleSetupPage({ onStartBattle, onBack }: { onStartBattle: (pla
                 onClick={() => updateOpponent(f)}
               >
                 <span className="skirmish-pennant-cloth">
-                  <span className="skirmish-pennant-sigil">
-                    <span className="home-sigil" data-faction={f} />
-                  </span>
+                  <span className="skirmish-rival-art"><CardArtwork cardId={f === 'kingdom' ? 'kng-paladin' : f === 'undead' ? 'und-mira' : 'inf-flame-imp'} /></span>
                   <span className="skirmish-pennant-name">{FACTION_LABEL[f]}</span>
                 </span>
               </button>

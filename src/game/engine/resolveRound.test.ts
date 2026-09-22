@@ -384,73 +384,101 @@ describe('Starting hand - round 1 draws exactly 3', () => {
   });
 });
 
-describe('Draw exactly 1 per round (round 2 onward)', () => {
-  it('an empty hand draws to 1', () => {
-    const s = state({ round: 2, player: player({ deck: ['kng-common-knight', 'kng-common-knight'] }) });
+const KNIGHTS = (n: number) => Array.from({ length: n }, () => 'kng-common-knight');
+const handOf = (n: number) => Array.from({ length: n }, (_, i) => ({ handId: `h${i}`, cardId: 'kng-common-knight' }));
+
+describe('Draw back up to 3 (refill-to-3)', () => {
+  it('round 1 opens with exactly 3 cards each', () => {
+    const s = state({ round: 1, player: player({ deck: KNIGHTS(10) }), enemy: { ...player({ deck: KNIGHTS(10) }), side: 'enemy' } });
     const { nextState } = beginRound(s);
-    expect(nextState.player.hand.length).toBe(1);
-    expect(nextState.player.deck.length).toBe(1);
+    expect(nextState.player.hand.length).toBe(3);
+    expect(nextState.enemy.hand.length).toBe(3);
+    expect(nextState.player.deck.length).toBe(7);
   });
 
-  it('a 1-card hand draws to 2', () => {
-    const s = state({
-      round: 2,
-      player: player({
-        deck: ['kng-common-knight', 'kng-common-knight'],
-        hand: [{ handId: 'a', cardId: 'kng-common-knight' }],
-      }),
-    });
-    const { nextState } = beginRound(s);
-    expect(nextState.player.hand.length).toBe(2);
+  it.each([
+    [0, 3],
+    [1, 2],
+    [2, 1],
+    [3, 0],
+    [4, 0],
+    [6, 0],
+  ])('a %i-card hand draws %i card(s) at round start', (handSize, expectedDraws) => {
+    const s = state({ round: 2, player: player({ deck: KNIGHTS(10), hand: handOf(handSize) }) });
+    const { nextState, events } = beginRound(s);
+    expect(nextState.player.hand.length).toBe(handSize + expectedDraws);
+    expect(nextState.player.deck.length).toBe(10 - expectedDraws);
+    expect(events.filter((e) => e.type === 'DRAW' && e.side === 'player' && !e.fizzled).length).toBe(expectedDraws);
   });
 
-  it('a 3-card hand draws to 4 - no clamp/refill back down to 3', () => {
-    const s = state({
-      round: 2,
-      player: player({
-        deck: ['kng-common-knight'],
-        hand: [
-          { handId: 'a', cardId: 'kng-common-knight' },
-          { handId: 'b', cardId: 'kng-common-knight' },
-          { handId: 'c', cardId: 'kng-common-knight' },
-        ],
-      }),
-    });
-    const { nextState } = beginRound(s);
-    expect(nextState.player.hand.length).toBe(4);
-    expect(nextState.player.deck.length).toBe(0);
-  });
-
-  it('a 5-card hand draws to 6 - the hand can grow unbounded', () => {
-    const s = state({
-      round: 2,
-      player: player({
-        deck: ['kng-common-knight'],
-        hand: Array.from({ length: 5 }, (_, i) => ({ handId: `h${i}`, cardId: 'kng-common-knight' })),
-      }),
-    });
+  it('a hand above 3 is never discarded down - it just draws nothing', () => {
+    const s = state({ round: 3, player: player({ deck: KNIGHTS(5), hand: handOf(6) }) });
     const { nextState } = beginRound(s);
     expect(nextState.player.hand.length).toBe(6);
+    expect(nextState.player.deck.length).toBe(5);
   });
 
-  it('an empty Deck fizzles the draw instead of crashing - not a loss condition', () => {
+  it('an extra-draw effect can push the hand past 3, and the next round draws 0', () => {
+    // Grave Sage: "On Play: if your hand holds 3+ cards, draw a card". Holding sage + 3 others, playing the sage leaves 3 -> draws 1 -> 4.
+    const s = state({
+      round: 2,
+      player: player({ deck: KNIGHTS(6), hand: [...handOf(3), { handId: 'sg', cardId: 'und-grave-sage' }] }),
+    });
+    const resolved = resolveRound(s, { plays: [{ handId: 'sg', cardId: 'und-grave-sage', lane: 'left' }] }, NO_PLAYS, 1);
+    expect(resolved.nextState.player.hand.length).toBe(4);
+    expect(resolved.events).toContainEqual(expect.objectContaining({ type: 'CARD_DRAWN', side: 'player' }));
+    const next = beginRound(resolved.nextState);
+    expect(next.nextState.player.hand.length).toBe(4);
+    expect(next.events.filter((e) => e.type === 'DRAW' && e.side === 'player')).toEqual([]);
+  });
+
+  it('a Graveyard return can push the hand past 3, and the next round draws 0', () => {
+    // Second Chance returns a Hero to a hand that already holds 3 others: 3 kept + 1 returned = 4.
+    const s2 = state({
+      round: 2,
+      player: player({ deck: KNIGHTS(6), graveyard: ['kng-common-knight'], hand: [...handOf(3), { handId: 'sc', cardId: 'spl-second-chance' }] }),
+    });
+    const resolved = resolveRound(s2, { plays: [{ handId: 'sc', cardId: 'spl-second-chance', lane: 'left' }] }, NO_PLAYS, 1);
+    expect(resolved.nextState.player.hand.length).toBe(4);
+    expect(beginRound(resolved.nextState).nextState.player.hand.length).toBe(4);
+  });
+
+  it('playing cards is what earns the refill: play 2 of 3, draw 2 next round', () => {
+    const s = state({ round: 2, player: player({ deck: KNIGHTS(6), hand: handOf(3) }) });
+    const resolved = resolveRound(
+      s,
+      { plays: [{ handId: 'h0', cardId: 'kng-common-knight', lane: 'left' }, { handId: 'h1', cardId: 'kng-common-knight', lane: 'center' }] },
+      NO_PLAYS,
+      1,
+    );
+    expect(resolved.nextState.player.hand.length).toBe(1);
+    expect(beginRound(resolved.nextState).nextState.player.hand.length).toBe(3);
+  });
+
+  it('an empty Deck fizzles each missing draw instead of crashing - not a loss condition', () => {
     const s = state({ round: 2, player: player({ deck: [] }) });
     const { nextState, events } = beginRound(s);
     expect(nextState.player.hand.length).toBe(0);
     expect(nextState.status).toBe('IN_PROGRESS');
-    expect(events).toContainEqual(expect.objectContaining({ type: 'DRAW', side: 'player', fizzled: true }));
+    expect(events.filter((e) => e.type === 'DRAW' && e.side === 'player' && e.fizzled).length).toBe(3);
   });
 
-  it('both sides draw independently in the same round', () => {
+  it('a short Deck draws what it has and fizzles the rest', () => {
+    const s = state({ round: 2, player: player({ deck: KNIGHTS(2) }) });
+    const { nextState, events } = beginRound(s);
+    expect(nextState.player.hand.length).toBe(2);
+    expect(events.filter((e) => e.type === 'DRAW' && e.side === 'player' && e.fizzled).length).toBe(1);
+  });
+
+  it('both sides refill independently in the same round', () => {
     const s = state({
       round: 2,
-      player: player({ deck: ['kng-common-knight'] }),
-      enemy: { ...player({ deck: ['und-bone-soldier', 'und-bone-soldier'] }), side: 'enemy' },
+      player: player({ deck: KNIGHTS(5), hand: handOf(2) }),
+      enemy: { ...player({ deck: KNIGHTS(5), hand: handOf(0) }), side: 'enemy' },
     });
     const { nextState } = beginRound(s);
-    expect(nextState.player.hand.length).toBe(1);
-    expect(nextState.enemy.hand.length).toBe(1);
-    expect(nextState.enemy.deck.length).toBe(1);
+    expect(nextState.player.hand.length).toBe(3);
+    expect(nextState.enemy.hand.length).toBe(3);
   });
 });
 

@@ -34,12 +34,12 @@ export interface SeqPull {
 
 type Beats = { charge: number; telegraph: number; open: number; emerge: number; reveal: number };
 
-/** Single-summon pacing (ms). Common stays fast; Legendary is the ~4-5s showpiece. */
+/** Single-summon pacing (ms). Common stays concise; Legendary has an eight-second cinematic build-up. */
 export const SINGLE_BEATS: Record<Rarity, Beats> = {
-  common: { charge: 280, telegraph: 260, open: 260, emerge: 320, reveal: 260 },
-  rare: { charge: 320, telegraph: 520, open: 360, emerge: 420, reveal: 320 },
-  epic: { charge: 420, telegraph: 900, open: 520, emerge: 760, reveal: 420 },
-  legendary: { charge: 600, telegraph: 1300, open: 820, emerge: 1100, reveal: 600 },
+  common: { charge: 700, telegraph: 1100, open: 650, emerge: 500, reveal: 350 },
+  rare: { charge: 900, telegraph: 1600, open: 1000, emerge: 750, reveal: 550 },
+  epic: { charge: 1300, telegraph: 2400, open: 1400, emerge: 1000, reveal: 700 },
+  legendary: { charge: 1700, telegraph: 3000, open: 1800, emerge: 1200, reveal: 900 },
 };
 
 /** Extra hold on the final frame when the pull is the banner's main featured card. */
@@ -47,10 +47,10 @@ export const FEATURED_EXTRA_MS = 500;
 
 /** 10x: the shared opening (its telegraph reflects the best rarity in the batch). */
 export const TEN_OPENING: Record<Rarity, { charge: number; telegraph: number; open: number }> = {
-  common: { charge: 300, telegraph: 250, open: 250 },
-  rare: { charge: 320, telegraph: 420, open: 320 },
-  epic: { charge: 360, telegraph: 650, open: 380 },
-  legendary: { charge: 420, telegraph: 950, open: 500 },
+  common: { charge: 700, telegraph: 1000, open: 600 },
+  rare: { charge: 850, telegraph: 1400, open: 800 },
+  epic: { charge: 1100, telegraph: 1900, open: 1100 },
+  legendary: { charge: 1500, telegraph: 2600, open: 1500 },
 };
 
 /** 10x: how long each slot dwells. Epic/Legendary use the stage beats below instead. */
@@ -147,4 +147,9 @@ export function skipTarget(timeline: readonly SeqStep[], index: number): number 
   if (cur.stage && cur.phase !== 'reveal') return timeline.findIndex((s, i) => i > index && s.phase === 'reveal' && s.slot === cur.slot);
   const next = timeline.findIndex((s, i) => i > index && s.stage && s.phase === 'telegraph');
   return next === -1 ? last : next;
+}
+
+/** The film owns travel/anticipation. Continue directly into real cards, never replay sky effects. */
+export function buildFilmTimeline(pulls: readonly SeqPull[], reduced = false): SeqStep[] {
+  return buildTimeline(pulls, reduced).filter(s => s.phase !== 'telegraph' && s.phase !== 'opening');
 }

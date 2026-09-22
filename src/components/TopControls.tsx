@@ -13,12 +13,15 @@ export function TopControls({
   animationSpeed,
   onNewMatch,
   onSetAnimationSpeed,
+  hideNewMatch,
 }: {
   seed: number;
   animationSpeed: AnimationSpeed;
   onNewMatch: () => void;
   onReplaySameSeed: () => void;
   onSetAnimationSpeed: (s: AnimationSpeed) => void;
+  /** A live Friendly Battle match has no "new match with a fresh seed" concept - rematch is a room-level action instead. */
+  hideNewMatch?: boolean;
 }) {
   const [helpOpen, setHelpOpen] = useState(false);
 
@@ -29,9 +32,11 @@ export function TopControls({
         <option value="2x">Speed 2x</option>
         <option value="instant">Instant</option>
       </select>
-      <button type="button" className="btn btn-icon btn-sm" onClick={onNewMatch} aria-label="New match">
-        <Icon name="plus" size={16} />
-      </button>
+      {!hideNewMatch && (
+        <button type="button" className="btn btn-icon btn-sm" onClick={onNewMatch} aria-label="New match">
+          <Icon name="plus" size={16} />
+        </button>
+      )}
       <button type="button" className="btn btn-icon btn-sm" onClick={() => setHelpOpen(true)} aria-label="How to play">
         <Icon name="help" size={16} />
       </button>

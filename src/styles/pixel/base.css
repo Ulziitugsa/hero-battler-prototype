@@ -1,0 +1,134 @@
+/* Embervale pixel-art design system - shared primitives.
+   Screens migrating to the pixel direction (Home, Summon, Heroes, Campaign, Battle) compose these
+   instead of writing their own border/panel/button recipes - see tokens.css for the values and
+   PIXEL-PROTOTYPE.md / the Moonwater concept page for the reference. Hard rectangular corners, stacked
+   1-2px borders instead of soft shadows, and a single warm-gold accent are the load-bearing rules. */
+
+.pixel-scope {
+  font-family: var(--px-font-label);
+}
+.pixel-scope button { font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.pixel-scope button:focus-visible { outline: 2px solid var(--px-gold-strong); outline-offset: 3px; }
+.pixel-scope * { box-sizing: border-box; }
+.pixel-scope img { image-rendering: pixelated; }
+
+/* Small tracked uppercase label - eyebrows, section titles, footers */
+.pixel-eyebrow {
+  font: 11px var(--px-font-label);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--px-gold);
+}
+.pixel-label {
+  font: 10px var(--px-font-label);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--px-ink-dim);
+}
+
+/* Editorial display type - never bold, generous line-height, matches the concept's restraint */
+.pixel-heading {
+  font: 400 clamp(28px, 5vw, 46px) / 1.1 var(--px-font-display);
+  color: var(--px-ink);
+  margin: 0;
+}
+.pixel-heading em { color: var(--px-gold-strong); font-style: normal; }
+.pixel-subheading {
+  font: 400 clamp(18px, 2.4vw, 24px) / 1.25 var(--px-font-display);
+  color: var(--px-ink);
+  margin: 0;
+}
+.pixel-body {
+  font: 14px/1.6 var(--px-font-display);
+  color: var(--px-ink-dim);
+}
+
+/* Panel: flat dark surface, one crisp border, hard drop shadow - no radius, no blur */
+.pixel-panel {
+  position: relative;
+  background: var(--px-panel);
+  border: 1px solid var(--px-line);
+  box-shadow: var(--px-shadow-panel);
+  border-radius: 0;
+}
+
+/* Frame: the stacked-outline bezel used for card/portrait art (see .px-card in the concept) */
+.pixel-frame {
+  position: relative;
+  border: 2px solid var(--px-line);
+  box-shadow:
+    0 0 0 3px var(--px-bg-deep),
+    0 0 0 4px var(--px-line-dim),
+    0 12px 20px rgba(4, 8, 10, 0.6);
+  border-radius: 0;
+}
+.pixel-frame.is-rare { border-color: var(--rarity-rare); box-shadow: 0 0 0 3px var(--px-bg-deep), 0 0 0 4px var(--rarity-rare), 0 14px 24px rgba(4, 8, 10, 0.6); }
+.pixel-frame.is-epic { border-color: var(--rarity-epic); box-shadow: 0 0 0 3px var(--px-bg-deep), 0 0 0 4px var(--rarity-epic), 0 14px 24px rgba(4, 8, 10, 0.6); }
+.pixel-frame.is-legendary { border-color: var(--rarity-legendary); box-shadow: 0 0 0 3px var(--px-bg-deep), 0 0 0 4px var(--rarity-legendary), 0 0 22px rgba(217, 165, 75, 0.4), 0 14px 24px rgba(4, 8, 10, 0.6); }
+
+/* Buttons: chunky, flat, hard offset shadow instead of blur - press flattens the offset */
+.pixel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--px-line-dim);
+  background: var(--px-panel-raised);
+  color: var(--px-ink);
+  font: 700 12px var(--px-font-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 0;
+  transition: transform 80ms ease;
+}
+.pixel-btn:active { transform: translateY(2px); }
+.pixel-btn:disabled { opacity: 0.45; cursor: default; }
+
+.pixel-btn-primary {
+  border: 1px solid var(--px-gold-strong);
+  background: var(--px-gold-deep);
+  color: var(--px-gold-ink);
+  box-shadow: inset 0 0 0 2px var(--px-gold), var(--px-shadow-button);
+}
+.pixel-btn-primary:active:not(:disabled) { box-shadow: inset 0 0 0 2px var(--px-gold); transform: translateY(4px); }
+.pixel-btn-primary:not(:disabled):hover { background: var(--px-gold); }
+
+.pixel-btn-ghost {
+  border: 1px solid var(--px-line-soft);
+  background: rgba(14, 26, 38, 0.75);
+  color: var(--px-ink-dim);
+}
+
+/* Chip: small tracked stat/count pill, square corners */
+.pixel-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font: 700 10px var(--px-font-label);
+  letter-spacing: 0.04em;
+  color: var(--px-ink);
+  background: rgba(6, 12, 18, 0.65);
+  border: 1px solid var(--px-line-dim);
+}
+
+.pixel-divider {
+  height: 1px;
+  background: var(--px-line-soft);
+  border: none;
+  margin: 0;
+}
+
+/* A dashed "waiting for real art" placeholder frame - so temporary fallback art reads as intentional,
+   never as a bug. Used wherever a screen still leans on pre-migration raster art (see PRODUCTION-PLAN.md). */
+.pixel-art-pending {
+  display: grid;
+  place-items: center;
+  background: repeating-linear-gradient(45deg, rgba(228, 211, 165, 0.05) 0 10px, transparent 10px 20px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-scope * { animation-duration: 0.001ms !important; }
+}

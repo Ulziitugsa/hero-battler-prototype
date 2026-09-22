@@ -1,4 +1,5 @@
 import type { HeroInstance, Side } from '../game/types';
+import { CardArtwork } from './CardArtwork';
 import { getCard } from '../game/cards';
 import { cardArtUrl } from '../game/cards/art';
 import { RARITY_GEMS } from './cardVisuals';
@@ -28,7 +29,7 @@ export function BoardChit({ hero, side, anim, disabled, onClick }: { hero: HeroI
     >
       <span className={`zone-card-art ${hero.faction}`}>
         {artUrl ? (
-          <img className="zone-card-art-image" src={artUrl} alt="" draggable={false} />
+          <CardArtwork cardId={hero.cardId} className="zone-card-art-image" />
         ) : (
           <>
             <span className="zone-card-figure-head" />

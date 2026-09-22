@@ -6,10 +6,8 @@ import type { CampaignChapterDef } from './types';
 // mechanic per node" progression (placement, spells, continuous spells, overflow, conditional
 // effects, graveyard synergy, then the boss combines them).
 //
-// Every battle node's enemy deck is the real, validated Undead starter deck (STARTER_DECKS.undead) -
-// deliberately not a bespoke deck per node. That keeps every encounter a genuine, engine-played match
-// rather than a hand-tuned puzzle, and the boss node is guaranteed to field Vharos since the starter
-// already runs one copy of him.
+// encounterDecks.ts supplies a distinct legal deck for each tactical lesson. Only the boss uses the
+// full Undead starter. Vharos is in its deck; drawing him is subject to normal shuffle/draw rules.
 
 const UNDEAD_ENCOUNTER = (overrides: Partial<import('./types').CampaignEncounterDef> & Pick<import('./types').CampaignEncounterDef, 'foeName' | 'foeCardId' | 'threat' | 'energyCost' | 'objectives' | 'firstClearReward' | 'repeatReward'>): import('./types').CampaignEncounterDef => ({
   foeFaction: 'undead',
@@ -242,7 +240,7 @@ export const CHAPTER_1: CampaignChapterDef = {
       requires: ['battle-barrow-steps'],
       encounter: UNDEAD_ENCOUNTER({
         foeName: 'Vharos, the Grave Tyrant',
-        foeCardId: 'und-mira',
+        foeCardId: 'und-vharos',
         threat: 5,
         energyCost: 10,
         modifier: { title: 'Encounter rule', text: 'The full Undead starter deck, Vharos included - every mechanic Chapter 1 taught, at once.' },

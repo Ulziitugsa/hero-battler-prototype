@@ -26,9 +26,11 @@ import { Icon } from '../components/Icon';
 import { useAnimationController } from '../components/animation/useAnimationController';
 import { resolveDuration } from '../components/animation/timing';
 import type { AnimationSpeed } from '../components/animation/types';
+import type { FriendlyRematchActions } from '../components/MatchSummary';
+import type { RemoteOpponentController } from '../net/friendlyTypes';
 
 export type { AnimationSpeed };
-type Phase = 'DEPLOY' | 'REVEALING' | 'MATCH_END';
+type Phase = 'DEPLOY' | 'REVEALING' | 'WAITING_FOR_OPPONENT' | 'MATCH_END';
 
 export interface GamePageProps {
   playerDeck: string[];
@@ -46,6 +48,19 @@ export interface GamePageProps {
    * screen. Campaign uses this to record node progress independent of how/when the player exits;
    * Quick Battle never passes it, so it never touches Campaign state. */
   onMatchEnd?: (status: GameState['status'], stats: MatchStats, events: GameEvent[]) => void;
+  /**
+   * Friendly Battle only (src/net/useFriendlyRoom.ts). When set, replaces the local AI opponent with a
+   * real remote player: handleFight submits to and awaits this controller instead of calling
+   * chooseAiAction+resolveRound locally, and initialState/initialEvents (below) are required alongside it
+   * so this component never builds its own AI match. GamePage never knows or cares whether it's rendering
+   * for the room's host or guest - that's handled entirely by the net layer before anything reaches here.
+   */
+  remoteOpponent?: RemoteOpponentController;
+  /** Required together with remoteOpponent - the match's starting state, already built server-side (api/create-match.ts) and oriented for this viewer. */
+  initialState?: GameState;
+  initialEvents?: GameEvent[];
+  /** Friendly Battle only - swaps MatchSummary's "Play again"/"Back to menu" for room-aware Rematch/Leave. */
+  friendlyRematch?: FriendlyRematchActions;
 }
 
 /** Overlays this round's not-yet-locked plays onto the real board, Deploy-phase display only. A
@@ -89,16 +104,18 @@ function buildPreviewZones(
   return { heroZones: previewHero, spellZones: previewSpell };
 }
 
-export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, startingHp, onMatchEnd }: GamePageProps) {
+export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch }: GamePageProps) {
   function buildMatch(matchSeed: number) {
     return createMatch({ seed: matchSeed, playerDeck, enemyDeck, startingHp, masteries: playerMastery ? { player: playerMastery } : undefined, ascensions: playerAscensions && Object.keys(playerAscensions).length > 0 ? { player: playerAscensions } : undefined });
   }
 
   const [seed, setSeed] = useState(() => makeSeed());
-  const [gameState, setGameState] = useState<GameState>(() => buildMatch(seed).state);
-  const [fullLog, setFullLog] = useState<GameEvent[]>(() => buildMatch(seed).events);
-  const [phase, setPhase] = useState<Phase>('DEPLOY');
+  const [gameState, setGameState] = useState<GameState>(() => initialState ?? buildMatch(seed).state);
+  const [fullLog, setFullLog] = useState<GameEvent[]>(() => initialEvents ?? buildMatch(seed).events);
+  const [phase, setPhase] = useState<Phase>(() => initialState && initialState.status !== 'IN_PROGRESS' ? 'MATCH_END' : 'DEPLOY');
   const [animationSpeed, setAnimationSpeed] = useState<AnimationSpeed>('1x');
+  const [opponentLeft, setOpponentLeft] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [pendingPlays, setPendingPlays] = useState<DeployPlay[]>([]);
   const [selectedHand, setSelectedHand] = useState<HandCardModel | null>(null);
@@ -108,7 +125,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const [baseStateForReveal, setBaseStateForReveal] = useState<GameState | null>(null);
   const [pendingNextState, setPendingNextState] = useState<GameState | null>(null);
   const [lastAiAction, setLastAiAction] = useState<PlayerAction | null>(null);
-  const [matchStats, setMatchStats] = useState<MatchStats | null>(null);
+  const [matchStats, setMatchStats] = useState<MatchStats | null>(() => initialState && initialState.status !== 'IN_PROGRESS' ? computeMatchStats(initialEvents ?? [], initialState.player.hp, initialState.enemy.hp, { player: initialState.player.graveyard.length, enemy: initialState.enemy.graveyard.length }, { player: playerDeckLabel ?? 'You', enemy: enemyDeckLabel ?? 'Friend' }) : null);
   const [mobileDebugOpen, setMobileDebugOpen] = useState(false);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
   // Presentation-only: the last Mastery trigger (label shown briefly) and the Quick Battle XP result.
@@ -160,13 +177,15 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
         { player: next.player.graveyard.length, enemy: next.enemy.graveyard.length },
         { player: playerDeckLabel, enemy: enemyDeckLabel },
       );
-      saveRecentMatch(seed, stats);
+      // Friendly Battle grants 0 XP/rewards and isn't tracked in local match history - it's an isolated
+      // networking experiment, not a progression-affecting mode (see docs/FRIENDLY-BATTLE.md).
+      if (!remoteOpponent) saveRecentMatch(seed, stats);
       setFullLog(merged);
       setMatchStats(stats);
       setGameState(next);
       setPhase('MATCH_END');
       // Quick Battle grants its small XP here; a Campaign battle grants its own inside recordBattleResult.
-      if (!onMatchEnd) setXpResult(grantQuickBattleXp(next.status));
+      if (!onMatchEnd && !remoteOpponent) setXpResult(grantQuickBattleXp(next.status));
       if (onMatchEnd) {
         // A Campaign battle owns its own post-match moment - the carved StageResultSheet back on
         // the map, which already covers win/loss/rewards. Hand off straight to it instead of
@@ -190,19 +209,46 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
 
   function handleFight() {
     if (phase !== 'DEPLOY') return;
-    const validation = validateDeployment(gameState, 'player', { plays: pendingPlays });
+    const localAction = { plays: pendingPlays };
+    const validation = validateDeployment(gameState, 'player', localAction);
     if (!validation.legal) {
       console.warn('Blocked an illegal deployment:', validation.reason);
       return;
     }
+    setPendingPlays([]);
+    setSelectedHand(null);
+    setSubmitError(null);
+
+    if (remoteOpponent) {
+      setPhase('WAITING_FOR_OPPONENT');
+      remoteOpponent
+        .submitAndAwaitRound(localAction)
+        .then((outcome) => {
+          if (outcome.kind === 'opponent-left') {
+            setOpponentLeft(true);
+            return;
+          }
+          setLastAiAction(null);
+          setBaseStateForReveal(gameState);
+          setRevealEvents(outcome.result.events);
+          setPendingNextState(outcome.result.nextState);
+          setPhase('REVEALING');
+        })
+        .catch((err) => {
+          // Never leave the player stranded on "Waiting for opponent" - surface it and let them retry.
+          console.error('Friendly Battle round submission failed:', err);
+          setSubmitError(err instanceof Error ? err.message : 'Something went wrong submitting your action.');
+          setPhase('DEPLOY');
+        });
+      return;
+    }
+
     const ai = chooseAiAction(gameState, 'enemy', gameState.rngState);
-    const result = resolveRound(gameState, { plays: pendingPlays }, ai.action, ai.nextRngState);
+    const result = resolveRound(gameState, localAction, ai.action, ai.nextRngState);
     setLastAiAction(ai.action);
     setBaseStateForReveal(gameState);
     setRevealEvents(result.events);
     setPendingNextState(result.nextState);
-    setPendingPlays([]);
-    setSelectedHand(null);
     setPhase('REVEALING');
   }
 
@@ -306,7 +352,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   // Status band above the hand (Battle Screen v8 / design source of truth section 9): during
   // resolution it's a static "Resolving", never a scrolling play-by-play of each event.
   let hint: string;
-  if (isRevealing) hint = 'Resolving';
+  if (phase === 'WAITING_FOR_OPPONENT') hint = 'Waiting for opponent';
+  else if (isRevealing) hint = 'Resolving';
   else if (pendingPlays.length > 0 && !selectedHand) hint = 'Ready to fight';
   else if (selectedCard) hint = selectedCard.type === 'hero' ? 'Tap a hero slot' : 'Tap a spell slot';
   else hint = 'Tap a card';
@@ -326,7 +373,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
           <div className="battle-glow right" aria-hidden="true" />
           <div className="battle-band" aria-hidden="true" />
 
-          <TopControls seed={seed} animationSpeed={animationSpeed} onNewMatch={() => restartWithSeed(makeSeed())} onReplaySameSeed={() => restartWithSeed(seed)} onSetAnimationSpeed={setAnimationSpeed} />
+          <TopControls seed={seed} animationSpeed={animationSpeed} onNewMatch={() => restartWithSeed(makeSeed())} onReplaySameSeed={() => restartWithSeed(seed)} onSetAnimationSpeed={setAnimationSpeed} hideNewMatch={!!remoteOpponent} />
           <button type="button" className="mobile-debug-toggle" onClick={() => setMobileDebugOpen(true)} aria-label="Open developer panel">
             <Icon name="bug" size={14} />
           </button>
@@ -373,6 +420,14 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
 
           <div className="hand-apron">
             <div className="battle-hint">{hint}</div>
+            {submitError && phase === 'DEPLOY' && (
+              <div style={{ color: '#e66', textAlign: 'center', fontSize: 13 }}>
+                {submitError}{' '}
+                <button type="button" onClick={() => setSubmitError(null)}>
+                  Dismiss
+                </button>
+              </div>
+            )}
             {phase === 'DEPLOY' ? (
               <Hand hand={gameState.player.hand} selectedHandId={selectedHand?.handId ?? null} usedHandIds={usedHandIds} onSelect={selectForPlacement} onInspect={setInspectCardId} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
             ) : (
@@ -401,7 +456,27 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
           )}
 
           {inspectCardId && <CardDetail cardId={inspectCardId} onClose={() => setInspectCardId(null)} />}
-          {phase === 'MATCH_END' && matchStats && <MatchSummary stats={matchStats} xp={xpResult} onPlayAgain={() => restartWithSeed(makeSeed())} onExit={onExit} />}
+          {phase === 'MATCH_END' && matchStats && <MatchSummary stats={matchStats} xp={xpResult} onPlayAgain={() => restartWithSeed(makeSeed())} onExit={onExit} friendlyRematch={friendlyRematch} />}
+
+          {/* Friendly Battle only - deliberately minimal/unstyled (see docs/FRIENDLY-BATTLE.md: "keep
+              styling minimal, reuse existing components" - Codex owns the visual pass). */}
+          {phase === 'WAITING_FOR_OPPONENT' && !opponentLeft && (
+            <div className="overlay-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ background: 'rgba(20,20,30,0.9)', color: '#fff', padding: '24px 32px', borderRadius: 12, textAlign: 'center' }}>
+                <p>Waiting for opponent…</p>
+              </div>
+            </div>
+          )}
+          {opponentLeft && (
+            <div className="overlay-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ background: 'rgba(20,20,30,0.9)', color: '#fff', padding: '24px 32px', borderRadius: 12, textAlign: 'center' }}>
+                <p>The other player left the match.</p>
+                <button type="button" onClick={onExit}>
+                  Back to menu
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

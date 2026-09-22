@@ -1,0 +1,170 @@
+/* Home hub (Embervale) - pixel-art direction. Visual reference: src/pages/PixelPreviewPage.tsx ("Visit
+   Moonwater"), pixel tokens/primitives in src/styles/pixel/*. Structure is unchanged from the previous
+   pass (identity/Gems on a night scene, a terrace of plates below in weight order) - only the surface
+   language moved from painted-sunset/carved-wood to flat night panels with crisp pixel borders.
+
+     Continue Campaign      - the one big plate; the obvious next action
+     Summon | Quick Battle  - the collect loop (taller, banner-tinted) beside two small plates
+            | Event         - the reserved "coming soon" stone (see EventSlot)
+     Battle deck            - what you are taking into a fight
+     one contextual note    - only when something is waiting
+
+   Heroes / Decks / Profile stay in the bottom nav. Width is always the screen's width (max 480 on
+   desktop); nothing here is derived from viewport height. */
+
+.hh {
+  position: relative;
+  flex: 1;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--px-bg-deep) 0%, var(--px-bg) 55%, var(--px-bg) 100%);
+  color: var(--px-ink);
+  font-family: var(--px-font-display);
+}
+.hh button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
+.hh-world-title { position: absolute; left: 16px; top: 118px; right: 150px; color: var(--px-ink); text-shadow: 0 2px 10px rgba(4, 8, 10, 0.8); }
+.hh-world-title > span { font: 10px var(--px-font-label); letter-spacing: 0.2em; text-transform: uppercase; color: var(--px-gold); }
+.hh-world-title h1 { font: 400 clamp(28px, 7vw, 42px) / 1.05 var(--px-font-display); margin: 8px 0; color: var(--px-gold-strong); }
+.hh-world-title p { font-size: 12px; line-height: 1.6; margin: 0; color: var(--px-ink-dim); }
+.hh .hh-event.live .hh-mini-name { white-space: normal; font-size: 13px; line-height: 1.15; }
+@media (max-width: 380px) { .hh-world-title { left: 14px; right: 140px; top: 110px; } .hh-world-title > span { font-size: 9px; } .hh-world-title p { font-size: 11px; } }
+
+/* ---------- World (pixel-art scene) + readability shades ---------- */
+.hh-world { position: absolute; z-index: 0; inset: 0 0 auto 0; height: 340px; background: url('/art/pixel/moonwater.png') center 30% / cover; image-rendering: pixelated; }
+.hh-world::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10, 18, 26, 0.15) 0%, rgba(10, 18, 26, 0.35) 60%, var(--px-bg) 100%); }
+.hh-world-img { display: none; }
+.hh-shade { position: absolute; z-index: 1; inset: 0; pointer-events: none; height: 340px; background: linear-gradient(180deg, rgba(6, 10, 14, 0.55), rgba(6, 10, 14, 0) 150px) top / 100% 150px no-repeat, radial-gradient(90% 150px at 0% 0%, rgba(6, 10, 14, 0.4), rgba(6, 10, 14, 0) 100%); }
+@media (max-width: 480px) { .hh-world { background-position: 35% 25%; background-size: auto 130%; } }
+
+/* ---------- Scene ---------- */
+.hh-scene { position: relative; z-index: 2; flex: none; height: 296px; overflow: hidden; }
+.hh-topbar { position: absolute; z-index: 5; top: 10px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.hh-topright { display: flex; align-items: center; gap: 8px; }
+
+/* identity */
+.hh-identity { display: flex; align-items: flex-start; gap: 9px; padding: 0; border: none; background: none; color: inherit; text-align: left; cursor: pointer; }
+.hh-avatar { position: relative; flex: none; width: 42px; height: 42px; padding: 2px; background: var(--px-gold-deep); box-shadow: 0 0 0 1px var(--px-bg-deep), 0 3px 8px rgba(4, 8, 10, 0.6); }
+.hh-avatar-face { display: block; width: 100%; height: 100%; background: linear-gradient(170deg, #2b3a3f, #16232c); }
+.hh-level-seal { position: absolute; right: -5px; bottom: -5px; min-width: 20px; height: 20px; padding: 0 3px; box-sizing: border-box; display: grid; place-items: center; font-family: var(--px-font-label); font-weight: 700; font-size: 0.72rem; line-height: 1; color: var(--px-ink); background: #8f2e2c; box-shadow: 0 0 0 1px var(--px-bg-deep), 0 0 0 2px rgba(255, 220, 153, 0.4); }
+.hh-identity-text { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding-top: 1px; text-shadow: 0 2px 5px rgba(4, 8, 10, 0.85); }
+.hh-name { font-family: var(--px-font-display); font-size: 15px; line-height: 1.05; color: var(--px-ink); }
+.hh-xp { display: block; width: 108px; height: 5px; background: rgba(6, 10, 14, 0.75); overflow: hidden; box-shadow: 0 0 0 1px var(--px-line-soft); }
+.hh-xp > span { display: block; height: 100%; background: var(--px-gold); }
+.hh-xp-text { font: 700 10px var(--px-font-label); color: var(--px-ink-dim); }
+.hh-mastery { display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; font: 700 10px var(--px-font-label); color: var(--px-ink); background: rgba(6, 12, 18, 0.65); border: 1px solid var(--px-line-dim); text-shadow: none; }
+
+/* Gems + help */
+.hh-gems { display: inline-flex; align-items: center; gap: 8px; padding: 6px 11px; background: rgba(6, 12, 18, 0.75); box-shadow: 0 0 0 1px var(--px-gold-deep), var(--px-shadow-panel); }
+.hh-gems .gem-balance { padding: 0; border: none; background: none; font-size: 1rem; gap: 6px; }
+.hh-help { width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 1px solid var(--px-line-dim); color: var(--px-gold); cursor: pointer; background: var(--px-panel); box-shadow: var(--px-shadow-panel); }
+
+/* featured Hero */
+.hh-hero { position: absolute; z-index: 4; right: 12px; top: 58px; width: 148px; padding: 0; border: none; background: none; color: inherit; text-align: center; cursor: pointer; }
+.hh-hero.empty { height: 0; }
+.hh-hero-frame { display: block; padding: 2px; background: var(--px-line); box-shadow: 0 0 0 3px var(--px-bg-deep), 0 0 0 4px var(--px-gold-deep), 0 10px 18px rgba(4, 8, 10, 0.6); }
+.hh-hero-art { position: relative; display: grid; place-items: center; height: 168px; overflow: hidden; background: radial-gradient(circle at 50% 36%, var(--px-kingdom), var(--px-kingdom-deep) 78%); }
+.hh-hero.undead .hh-hero-art { background: radial-gradient(circle at 50% 36%, var(--px-undead), var(--px-undead-deep) 78%); }
+.hh-hero.infernal .hh-hero-art { background: radial-gradient(circle at 50% 36%, var(--px-infernal), var(--px-infernal-deep) 78%); }
+.hh-hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 14%; image-rendering: auto; }
+.hh-hero-art .cp-sigil-lg { transform: scale(1.5); opacity: 0.9; }
+.hh-hero-plate { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; margin: -3px 6px 0; padding: 5px 8px 6px; background: var(--px-panel-2); border-top: 1px solid var(--px-gold-deep); box-shadow: 0 5px 10px rgba(4, 8, 10, 0.6); }
+.hh-hero-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--px-font-display); font-size: 0.86rem; line-height: 1.1; color: var(--px-gold-strong); }
+.hh-hero-meta { display: inline-flex; align-items: center; gap: 5px; font: 700 0.66rem var(--px-font-label); color: var(--px-ink-dim); }
+
+/* ---------- Terrace ---------- */
+.hh .hh-terrace { position: relative; z-index: 2; flex: 1; gap: 10px; padding: 16px 12px 18px; margin-top: 0; background: none; }
+
+.hh-plate { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; border: 1px solid var(--px-line-dim); text-align: left; color: var(--px-ink); cursor: pointer; background: var(--px-panel); box-shadow: var(--px-shadow-panel); border-top: 2px solid var(--px-gold-deep); }
+button.hh-plate:active { transform: translateY(1px); }
+.hh-kicker { font: 700 0.62rem var(--px-font-label); letter-spacing: 0.14em; text-transform: uppercase; color: var(--px-gold); }
+
+/* wax dot - the quiet attention marker */
+.hh-dot { display: inline-block; flex: none; width: 8px; height: 8px; background: #e0645a; box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 6px rgba(224, 90, 77, 0.6); }
+
+/* Continue Campaign */
+.hh-campaign { min-height: 128px; padding: 14px 14px 14px 16px; overflow: hidden; border-top-color: var(--px-gold); }
+.hh-campaign-art { position: absolute; inset: 0 0 0 28%; background-size: cover; background-position: 62% 50%; opacity: 0.45; -webkit-mask-image: linear-gradient(90deg, transparent, #000 55%); mask-image: linear-gradient(90deg, transparent, #000 55%); filter: saturate(0.9); }
+.hh-campaign-text { position: relative; z-index: 1; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.hh-campaign-title { font-family: var(--px-font-display); font-size: 1.35rem; line-height: 1.1; color: var(--px-gold-strong); text-shadow: 0 2px 6px rgba(4, 8, 10, 0.8); }
+.hh-campaign-sub { font-size: 0.78rem; font-weight: 700; color: var(--px-ink-dim); text-shadow: 0 1px 4px rgba(4, 8, 10, 0.8); }
+.hh-campaign-progress { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.hh-pips { display: block; flex: 1; max-width: 150px; height: 6px; background: rgba(6, 10, 14, 0.75); overflow: hidden; box-shadow: 0 0 0 1px var(--px-line-soft); }
+.hh-pips > span { display: block; height: 100%; background: var(--px-gold); }
+.hh-campaign-count { font: 700 0.72rem var(--px-font-label); color: var(--px-ink-dim); }
+.hh-play-seal { position: relative; z-index: 1; flex: none; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.hh-play-seal-core { display: grid; place-items: center; width: 54px; height: 54px; color: var(--px-ink); background: radial-gradient(circle at 40% 30%, #d9704a, #7c2222 70%); box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 4px var(--px-gold), 0 6px 12px rgba(4, 8, 10, 0.6); }
+.hh-campaign.progress .hh-play-seal-core, .hh-campaign.fresh .hh-play-seal-core { animation: px-flicker var(--px-t-ambient) steps(6) infinite; }
+.hh-campaign.complete .hh-play-seal-core { background: radial-gradient(circle at 40% 30%, #8a7a54, #524730 70%); }
+.hh-energy { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; font: 700 0.72rem var(--px-font-label); color: var(--px-gold); background: rgba(6, 10, 14, 0.8); border: 1px solid var(--px-line-dim); }
+.hh-energy.low { color: #ffb8a4; border-color: rgba(240, 134, 106, 0.6); }
+
+/* Summon + the small plates */
+.hh-duo { display: flex; gap: 10px; align-items: stretch; }
+.hh-summon { flex: 0 0 54%; min-height: 134px; padding: 14px 10px 10px 72px; align-items: stretch; --sm-a: var(--px-kingdom-deep); --sm-b: var(--px-bg-deep); background: linear-gradient(160deg, var(--sm-a), var(--sm-b)); border-top-color: var(--px-kingdom); }
+.hh-summon.theme-undead { --sm-a: var(--px-undead-deep); border-top-color: var(--px-undead); }
+.hh-summon.theme-infernal { --sm-a: var(--px-infernal-deep); border-top-color: var(--px-infernal); }
+.hh-summon.ready { box-shadow: var(--px-shadow-panel), 0 0 14px rgba(235, 201, 137, 0.3); }
+.hh-summon > .hh-dot { position: absolute; top: 8px; right: 9px; }
+.hh-summon-card { position: absolute; z-index: 2; left: 9px; top: -12px; width: 54px; padding: 2px; background: var(--px-gold-deep); box-shadow: 0 0 0 2px var(--px-bg-deep), 0 8px 14px rgba(4, 8, 10, 0.65); }
+.hh-summon-card-art { position: relative; display: grid; place-items: center; height: 74px; overflow: hidden; background: radial-gradient(circle at 50% 36%, var(--px-kingdom), var(--px-kingdom-deep) 78%); }
+.hh-summon.theme-undead .hh-summon-card-art { background: radial-gradient(circle at 50% 36%, var(--px-undead), var(--px-undead-deep) 78%); }
+.hh-summon.theme-infernal .hh-summon-card-art { background: radial-gradient(circle at 50% 36%, var(--px-infernal), var(--px-infernal-deep) 78%); }
+.hh-summon-card-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 14%; }
+.hh-summon-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hh-summon-name { font-family: var(--px-font-display); font-size: 0.95rem; line-height: 1.1; color: var(--px-gold-strong); }
+.hh-summon-feat { font-size: 0.68rem; font-weight: 700; color: var(--px-ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hh-summon-guar { margin-top: auto; padding-top: 6px; display: flex; justify-content: space-between; font: 800 0.64rem var(--px-font-label); letter-spacing: 0.02em; color: var(--px-ink-dim); }
+.hh-summon-foot { display: flex; align-items: center; gap: 6px; padding-top: 3px; }
+.hh-summon-pity { display: block; flex: 1; min-width: 14px; height: 4px; background: rgba(6, 10, 14, 0.7); overflow: hidden; }
+.hh-summon-pity > span { display: block; height: 100%; background: var(--px-gold); }
+.hh-summon-cost { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; font: 700 0.7rem var(--px-font-label); color: var(--px-ink); background: rgba(6, 10, 14, 0.75); border: 1px solid var(--px-line-dim); }
+
+.hh-stack { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.hh-quick, .hh-event { flex: 1; min-width: 0; min-height: 62px; padding: 8px 6px 8px 8px; gap: 7px; border-top-color: var(--px-line-dim); }
+.hh-mini-text { flex: 1; }
+.hh-medal { flex: none; display: grid; place-items: center; width: 28px; height: 28px; color: var(--px-gold-ink); background: var(--px-gold); box-shadow: 0 0 0 1px var(--px-bg-deep); }
+.hh-medal.stone { color: var(--px-ink-faint); background: #3a4144; }
+.hh-mini-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.hh-mini-name { font-family: var(--px-font-display); font-size: 0.82rem; line-height: 1.1; color: var(--px-gold-strong); white-space: nowrap; }
+.hh-mini-sub { font-size: 0.66rem; font-weight: 700; color: var(--px-ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* the reserved Event stone: present, quiet, clearly not tappable */
+.hh-event.reserved { cursor: default; background: var(--px-panel-2); box-shadow: none; border: 1px dashed var(--px-line-soft); border-top: 1px dashed var(--px-line-soft); }
+.hh-event.reserved .hh-mini-name { color: var(--px-ink-faint); }
+.hh-event.reserved .hh-mini-sub { color: var(--px-ink-faint); }
+
+/* Battle deck */
+.hh-deck { min-height: 72px; padding: 8px 12px 8px 12px; border-top-color: var(--px-line-dim); }
+.hh-fan { position: relative; flex: none; width: 50px; height: 44px; }
+.hh-fan-card { position: absolute; bottom: 0; left: 50%; width: 24px; height: 34px; margin-left: -12px; border: 1px solid var(--px-line-dim); background: linear-gradient(180deg, var(--px-kingdom), var(--px-kingdom-deep)); box-shadow: 0 3px 6px rgba(4, 8, 10, 0.55); transform-origin: 50% 100%; }
+.hh-fan.undead .hh-fan-card { background: linear-gradient(180deg, var(--px-undead), var(--px-undead-deep)); }
+.hh-fan.infernal .hh-fan-card { background: linear-gradient(180deg, var(--px-infernal), var(--px-infernal-deep)); }
+.hh-fan-card.c0 { transform: rotate(-16deg) translateX(-9px); }
+.hh-fan-card.c1 { transform: translateY(-3px); }
+.hh-fan-card.c2 { transform: rotate(16deg) translateX(9px); }
+.hh-deck-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hh-deck-name { font-family: var(--px-font-display); font-size: 1.05rem; line-height: 1.1; color: var(--px-gold-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hh-deck-meta { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 700; color: var(--px-ink-dim); }
+.hh-edit { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 8px 12px; font: 800 0.8rem var(--px-font-label); color: var(--px-gold-ink); background: var(--px-gold); box-shadow: 0 3px 0 var(--px-gold-deep); }
+
+/* the one note */
+.hh-note { display: flex; align-items: center; gap: 9px; width: 100%; box-sizing: border-box; padding: 9px 14px; border: 1px dashed var(--px-line-soft); background: rgba(6, 10, 14, 0.5); color: var(--px-ink-dim); font-size: 0.82rem; line-height: 1.25; text-align: left; cursor: pointer; }
+.hh-note strong { color: var(--px-gold); }
+
+/* pixel-art concept entry - kept visible (dev reference) until the migration is signed off; styled as a
+   quiet ghost bar now that Home itself speaks the same visual language. */
+.pixel-preview-entry { width: 100%; padding: 12px; border: 1px dashed var(--px-line-soft); background: rgba(6, 10, 14, 0.5); color: var(--px-gold); text-align: left; font: 700 11px var(--px-font-label); letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; margin-bottom: 12px; }
+
+/* bottom-nav wax dot (see AppShell) */
+.hud-medallion-chip { position: relative; }
+.hud-medallion-chip > .hh-dot { position: absolute; top: -3px; right: -3px; }
+
+@media (min-width: 900px) {
+  /* In row mode `flex: 1` would override the 480px cap (see the shared rule in global.css). */
+  body .hh { flex: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hh-campaign .hh-play-seal-core { animation: none !important; }
+}

@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { CardArtwork } from './CardArtwork';
 import type { HandCard as HandCardModel } from '../game/types';
 import { getCard } from '../game/cards';
 import { cardArtUrl } from '../game/cards/art';
@@ -30,7 +31,7 @@ export function HandCard({
   const isSpell = card.type === 'spell';
   const continuous = card.spellKind === 'CONTINUOUS';
   const gemCount = RARITY_GEMS[card.rarity];
-  const artUrl = !isSpell ? cardArtUrl(card.id) : null;
+  const artUrl = cardArtUrl(card.id);
 
   return (
     <button
@@ -47,14 +48,14 @@ export function HandCard({
       onDragEnd={onDragEnd}
     >
       <span className={`hand-card-art ${card.faction} ${isSpell ? 'spell' : 'hero'}`}>
-        {artUrl && <img className="hand-card-art-image" src={artUrl} alt="" draggable={false} />}
+        {artUrl && <CardArtwork cardId={card.id} className="hand-card-art-image" animated={false} />}
         {!isSpell && !artUrl && (
           <>
             <span className="hand-card-figure-head" />
             <span className="hand-card-figure-body" />
           </>
         )}
-        {isSpell && <span className={`hand-card-sigil ${continuous ? 'cont' : 'once'}`} />}
+        {isSpell && !artUrl && <span className={`hand-card-sigil ${continuous ? 'cont' : 'once'}`} />}
         <span className="hand-card-gems">
           {Array.from({ length: 4 }, (_, i) => (
             <span key={i} className={`gem ${i < gemCount ? 'on' : ''}`} />

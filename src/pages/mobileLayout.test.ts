@@ -78,7 +78,7 @@ describe('10x result layout', () => {
   const outcome = buildPreviewOutcome('gravebound', 'ten-multi');
   const timeline = buildTimeline(outcome.pulls.map((p) => ({ rarity: p.rarity, mainFeatured: p.featured === 'main' })));
   const result = viewAt(timeline, timeline.length - 1, outcome.pulls.length);
-  const html = renderToStaticMarkup(createElement(RitualStage, { outcome, view: result, faction: 'undead', onSkip: () => {}, onDone: () => {} }));
+  const html = renderToStaticMarkup(createElement(RitualStage, { outcome, view: result, faction: 'undead', onSkip: () => {}, onDone: () => {}, onIntroFinished: () => {} }));
 
   it('renders all ten results as tiles, inside the canvas, in one grid', () => {
     expect(outcome.pulls).toHaveLength(10);
@@ -101,7 +101,7 @@ describe('10x result layout', () => {
   });
   it('mid-sequence, un-revealed slots stay as sealed placeholders (count is stable at ten)', () => {
     const mid = viewAt(timeline, timeline.findIndex((s) => s.slot === 4), 10);
-    const partial = renderToStaticMarkup(createElement(RitualStage, { outcome, view: mid, faction: 'undead', onSkip: () => {}, onDone: () => {} }));
+    const partial = renderToStaticMarkup(createElement(RitualStage, { outcome, view: mid, faction: 'undead', onSkip: () => {}, onDone: () => {}, onIntroFinished: () => {} }));
     const open = (partial.match(/class="tile tile-open/g) ?? []).length;
     const sealed = (partial.match(/class="tile tile-sealed/g) ?? []).length;
     expect(open + sealed).toBe(10);

@@ -117,7 +117,19 @@ export type ConditionDef =
   /** True if `side` (default SELF) has played at least one Spell (one-time or Continuous) so far this round. */
   | { type: 'SPELL_PLAYED_THIS_ROUND'; side?: ConditionSide }
   /** True if a Continuous Spell belonging to `side` (default SELF) has been destroyed so far this round. */
-  | { type: 'CONTINUOUS_SPELL_DESTROYED_THIS_ROUND'; side?: ConditionSide };
+  | { type: 'CONTINUOUS_SPELL_DESTROYED_THIS_ROUND'; side?: ConditionSide }
+  /** True if `side` (default SELF) has played at least `count` Spells so far this round. Counts every Spell played, fizzled or not; a Spell's own play is counted only once it has finished resolving (so during its own effect it reads "other Spells"). */
+  | { type: 'SPELLS_PLAYED_THIS_ROUND_AT_LEAST'; count: number; side?: ConditionSide }
+  /** True if `side` (default SELF) has at least `count` Continuous Spells active, in any lane. */
+  | { type: 'SPELL_ZONES_OCCUPIED_AT_LEAST'; count: number; side?: ConditionSide }
+  /** True if `side` (default SELF) has at most `count` Continuous Spells active, in any lane. */
+  | { type: 'SPELL_ZONES_OCCUPIED_AT_MOST'; count: number; side?: ConditionSide }
+  /** True if the enemy controls strictly more living Heroes than the ability owner's side. */
+  | { type: 'ENEMY_HERO_COUNT_HIGHER' }
+  /** True if this Hero entered play in an EARLIER round than the current one (i.e. it was not played/revived/summoned this round). */
+  | { type: 'SELF_ENTERED_EARLIER' }
+  /** True only when dispatched as a reaction to a Hero's death, and that Hero's card carries `tag`. */
+  | { type: 'DEAD_HERO_HAS_TAG'; tag: string };
 
 /** Where an effect applies. Always resolved automatically from the ability-owner's own lane/side - never chosen by the player. */
 export type TargetScope =
@@ -137,7 +149,9 @@ export type CountBasis =
   | 'ALLY_HERO_COUNT' // every living allied Hero, owner included
   | 'ALLY_FACTION_HERO_COUNT' // living allied Heroes of `faction`
   | 'GRAVEYARD_COUNT' // cards in the owner's own Graveyard
-  | 'GRAVEYARD_FACTION_COUNT'; // cards of `faction` in the owner's own Graveyard
+  | 'GRAVEYARD_FACTION_COUNT' // cards of `faction` in the owner's own Graveyard
+  | 'OTHER_ALLY_TAG_COUNT' // OTHER living allied Heroes carrying `tag`
+  | 'ADJACENT_ALLY_TAG_COUNT'; // living allied Heroes carrying `tag` in a lane adjacent to the owner
 
 /** Which kind of hostile source an immunity blocks. SPELL covers both one-time and Continuous Spell actions; HERO_EFFECT covers actions dispatched from another Hero's ability (including a Hero's own ON_DEATH). Combat itself is never blocked by either - immunity only ever gates a targeted ability effect. */
 export type ImmunityKind = 'SPELL' | 'HERO_EFFECT';
@@ -147,7 +161,7 @@ export type ActionDef =
   /** Sets Power to an absolute value rather than adding a delta - e.g. "set this Hero's Power to 1". Reuses the same PERMANENT/UNTIL_ROUND_END duration semantics as CHANGE_POWER. */
   | { type: 'SET_POWER'; value: number; duration: 'PERMANENT' | 'UNTIL_ROUND_END'; target: TargetScope }
   /** Power delta scaled by a live board/Graveyard count - e.g. "+1 Power for each Undead Hero in your Graveyard". `perCount` may be negative for a cost/drain effect. */
-  | { type: 'CHANGE_POWER_BY_COUNT'; basis: CountBasis; faction?: Faction; perCount: number; duration: 'PERMANENT' | 'UNTIL_ROUND_END'; target: TargetScope }
+  | { type: 'CHANGE_POWER_BY_COUNT'; basis: CountBasis; faction?: Faction; tag?: string; perCount: number; duration: 'PERMANENT' | 'UNTIL_ROUND_END'; target: TargetScope }
   | { type: 'DESTROY'; target: TargetScope; maxPower?: number }
   /** Destroys the Continuous Spell (not the Hero) occupying the resolved lane - e.g. Dispel. */
   | { type: 'DESTROY_SPELL_ZONE'; target: TargetScope }
@@ -172,7 +186,8 @@ export type ActionDef =
    * affect whether the Hero itself survives the loss - that's GRANT_SHIELD's job.
    */
   | { type: 'REDUCE_OVERFLOW_DAMAGE'; amount: number; target: TargetScope }
-  | { type: 'RETURN_TO_HAND'; maxPower: number; pick: GraveyardPick; faction?: Faction }
+  /** `cardType` defaults to 'hero' - a Graveyard return only ever picks Heroes unless a card explicitly asks for a Spell. */
+  | { type: 'RETURN_TO_HAND'; maxPower: number; pick: GraveyardPick; faction?: Faction; cardType?: 'hero' | 'spell' }
   | { type: 'RETURN_TO_DECK' }
   /** Always revives into the ability-owner's own lane (a Spell's placement lane, or a Hero's own lane). */
   | { type: 'REVIVE_TO_LANE'; maxPower: number; pick: GraveyardPick; faction?: Faction }
@@ -187,7 +202,38 @@ export type ActionDef =
    * Permanently removes a Hero from the ENEMY's Graveyard - not returned, not revivable, gone for
    * the rest of the match. The anti-revival/Graveyard-hate primitive (see "Exile" in the rules glossary).
    */
-  | { type: 'EXILE_FROM_GRAVEYARD'; pick: GraveyardPick };
+  | { type: 'EXILE_FROM_GRAVEYARD'; pick: GraveyardPick }
+  /** Draws `count` cards from the top of the owner's Deck into the hand now (an empty Deck just stops drawing). The hand may exceed 3 - refill-to-3 only ever draws, never discards. */
+  | { type: 'DRAW_CARDS'; count: number }
+  /**
+   * The owner's player ignores the next `count` damage instances (direct, overflow or PLAYER_DAMAGE) it
+   * would take this round. Expires at Round End whether or not it was used.
+   */
+  | { type: 'PREVENT_NEXT_DAMAGE'; count: number }
+  /**
+   * The targeted Hero cannot fight this round: any lane it stands in has no combat at all (nobody is
+   * destroyed, no overflow, no direct damage from either side). Hostile when aimed at the enemy, so
+   * Spell immunity blocks it. Expires at Round End.
+   */
+  | { type: 'STALL_COMBAT'; target: TargetScope }
+  /**
+   * Summons up to `count` engine-defined token Heroes (see cards/tokens.ts) into the owner's EMPTY Hero
+   * lanes, Left -> Right. Tokens are battle-only: they never enter a deck/hand/Graveyard, vanish when
+   * destroyed, and never trigger death effects - which is also what makes token recursion impossible.
+   */
+  | { type: 'SUMMON_TOKEN'; tokenId: string; count: number }
+  /**
+   * PASSIVE-trigger only - never dispatched. While its conditions hold, this Hero does not fight the Hero
+   * opposing it: instead it deals max(0, Power - reduction) direct damage to the enemy player, and the
+   * lane's combat does not happen (the opposing Hero deals no damage through it either). With no opposing
+   * Hero it deals normal unopposed damage. The "bypass" attack archetype's whole rule.
+   */
+  | { type: 'GRANT_BYPASS'; reduction: number }
+  /**
+   * PASSIVE-trigger only - never dispatched. While this Hero is live and its conditions hold, the first
+   * one-time Spell its side plays each round resolves twice.
+   */
+  | { type: 'SPELL_ECHO' };
 
 export interface AbilityDefinition {
   trigger: Trigger;
@@ -244,6 +290,12 @@ export interface HeroInstance {
   silenced: boolean;
   /** Backs `oncePerRound` ability gating (see AbilityDefinition) - reset to false at every ROUND_START, same as SpellZoneInstance's usedThisRound. */
   usedThisRound: boolean;
+  /** Round this Hero entered play in (placed, revived or summoned). Optional so hand-built test fixtures stay valid; read by SELF_ENTERED_EARLIER. */
+  enteredRound?: number;
+  /** True for a summoned token (cards/tokens.ts): battle-only, vanishes instead of going to the Graveyard, triggers no death effects. */
+  token?: boolean;
+  /** Set by STALL_COMBAT; cleared at Round End. While true, no combat happens in this Hero's lane. */
+  stalled?: boolean;
   /** Ascension rank this Hero entered play with (display only - the engine resolves abilities from GameState.ascensions). Absent = Base. */
   ascension?: number;
 }
@@ -271,6 +323,8 @@ export interface PlayerState {
   graveyard: string[]; // cardIds, destruction order
   heroZones: Record<LaneId, HeroInstance | null>;
   spellZones: Record<LaneId, SpellZoneInstance | null>;
+  /** Damage instances this player will ignore (PREVENT_NEXT_DAMAGE). Only ever present mid-round; cleared at Round End. */
+  barrier?: number;
 }
 
 /** The equipped Mastery a side brought into this match (see game/mastery). Fixed for the whole match; never persisted from here. */
@@ -323,7 +377,8 @@ export interface Placement {
   cardId: string;
 }
 
-export type CombatOutcome = 'PLAYER_WINS' | 'ENEMY_WINS' | 'TIE' | 'PLAYER_DIRECT' | 'ENEMY_DIRECT' | 'EMPTY';
+/** PLAYER_DIRECT/ENEMY_DIRECT: an unopposed hit, or (with `bypass` set on the COMBAT event) a bypass attack past an opposing Hero. STALLED: combat in this lane was negated (STALL_COMBAT). */
+export type CombatOutcome = 'PLAYER_WINS' | 'ENEMY_WINS' | 'TIE' | 'PLAYER_DIRECT' | 'ENEMY_DIRECT' | 'EMPTY' | 'STALLED';
 
 export type GameEvent =
   | { type: 'ROUND_START'; round: number }
@@ -339,6 +394,8 @@ export type GameEvent =
       outcome: CombatOutcome;
       player: { name: string; power: number } | null;
       enemy: { name: string; power: number } | null;
+      /** Set on a PLAYER_DIRECT/ENEMY_DIRECT event when the attacker slipped past an opposing Hero (GRANT_BYPASS) rather than hitting an empty lane. */
+      bypass?: boolean;
     }
   | { type: 'DIRECT_DAMAGE'; side: Side; amount: number; from: number; to: number; sourceName: string }
   /**
@@ -347,9 +404,23 @@ export type GameEvent =
    * unopposed Hero (empty enemy lane) or an explicit PLAYER_DAMAGE effect. `side` is the side whose
    * HP changed (the lane's loser), matching DIRECT_DAMAGE's convention.
    */
-  | { type: 'OVERFLOW_DAMAGE'; side: Side; lane: LaneId; amount: number; from: number; to: number; winnerName: string; loserName: string }
+  | {
+      type: 'OVERFLOW_DAMAGE';
+      /** The side whose HP dropped - the owner of the Hero that LOST the lane. */
+      side: Side;
+      lane: LaneId;
+      amount: number;
+      from: number;
+      to: number;
+      winnerName: string;
+      loserName: string;
+      /** The lane's winner: it survives unchanged. Overflow is player damage, never damage to this Hero. */
+      winnerInstanceId: string;
+      loserInstanceId: string;
+    }
   | { type: 'HEAL'; side: Side; amount: number; from: number; to: number; sourceName: string }
-  | { type: 'HERO_DESTROYED'; side: Side; instanceId: string; cardId: string; name: string; lane: LaneId }
+  /** `token` is set for a summoned token: it vanishes instead of entering the Graveyard. */
+  | { type: 'HERO_DESTROYED'; side: Side; instanceId: string; cardId: string; name: string; lane: LaneId; token?: boolean }
   | { type: 'SPELL_ZONE_DESTROYED'; side: Side; instanceId: string; cardId: string; name: string; lane: LaneId }
   /** `usedSpellZoneLane`, when present, is the Spell zone whose once-per-round reaction just fired (e.g. Grave Totem). */
   | { type: 'RETURNED_TO_HAND'; side: Side; cardId: string; name: string; graveyardIndex: number; handId: string; usedSpellZoneLane?: LaneId }
@@ -377,6 +448,14 @@ export type GameEvent =
    * fired but had nothing to act on (empty Graveyard, no eligible Hero, ...), in which case nothing else changed.
    */
   | { type: 'MASTERY_TRIGGERED'; side: Side; masteryId: string; name: string; rank: number; outcome: 'applied' | 'no-target'; detail: string }
+  /** A token Hero entered `lane` (SUMMON_TOKEN). `power` is the Power it entered with. */
+  | { type: 'TOKEN_SUMMONED'; side: Side; instanceId: string; cardId: string; name: string; lane: LaneId; power: number }
+  /** A card was drawn into the hand mid-round by an effect (DRAW_CARDS). Start-of-round draws use DRAW instead. */
+  | { type: 'CARD_DRAWN'; side: Side; cardId: string; cardName: string; handId: string }
+  /** PREVENT_NEXT_DAMAGE absorbed `amount` damage that would have hit `side`'s player. */
+  | { type: 'DAMAGE_PREVENTED'; side: Side; amount: number; sourceName: string }
+  /** STALL_COMBAT froze this Hero: no combat will happen in its lane this round. */
+  | { type: 'COMBAT_STALLED'; side: Side; instanceId: string; name: string; lane: LaneId }
   | { type: 'ROUND_END'; round: number }
   | { type: 'MATCH_END'; winner: Side | 'draw'; reason: string };
 

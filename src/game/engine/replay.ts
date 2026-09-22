@@ -73,7 +73,23 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
     case 'HERO_DESTROYED': {
       const side = event.side === 'player' ? p : e;
       side.heroZones[event.lane] = null;
-      side.graveyard.push(event.cardId);
+      if (!event.token) side.graveyard.push(event.cardId); // a token vanishes instead of entering the Graveyard
+      return next;
+    }
+    case 'TOKEN_SUMMONED': {
+      const side = event.side === 'player' ? p : e;
+      const token = makeHeroInstance(event.side, event.lane, next.round, event.cardId);
+      token.instanceId = event.instanceId;
+      token.token = true;
+      token.power = event.power;
+      side.heroZones[event.lane] = token;
+      return next;
+    }
+    case 'CARD_DRAWN': {
+      const side = event.side === 'player' ? p : e;
+      const idx = side.deck.indexOf(event.cardId);
+      if (idx >= 0) side.deck.splice(idx, 1);
+      side.hand.push({ handId: event.handId, cardId: event.cardId });
       return next;
     }
     case 'RETURNED_TO_HAND': {

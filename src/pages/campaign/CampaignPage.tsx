@@ -7,6 +7,7 @@ import { loadEnergy, spendEnergy, formatCountdown, type EnergyState } from '../.
 import { chapterWorldArtUrl } from '../../game/campaign/art';
 import { getActiveDeck } from '../../game/engine/activeDeck';
 import { STARTER_DECKS, STARTER_DECK_NAMES } from '../../game/cards/starterDecks';
+import { campaignEnemyDeck } from '../../game/campaign/encounterDecks';
 import type { CampaignNodeDef, CampaignNodeType } from '../../game/campaign/types';
 import { Icon, type IconName } from '../../components/Icon';
 import { StagePreviewSheet } from './StagePreviewSheet';
@@ -33,11 +34,13 @@ export interface CampaignPageProps {
   /** The last completed Campaign battle's outcome, or null between battles. Set by App.tsx from
    * GamePage's onMatchEnd; consumed (cleared) once this page has shown/dismissed its result sheet. */
   pendingResult: BattleResultOutcome | null;
+  /** Open straight on the chapter map (Home's Continue Campaign) instead of region select. */
+  openOnMap?: boolean;
   onConsumedResult: () => void;
 }
 
-export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedResult }: CampaignPageProps) {
-  const [view, setView] = useState<'regions' | 'map'>(pendingResult ? 'map' : 'regions');
+export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedResult, openOnMap = false }: CampaignPageProps) {
+  const [view, setView] = useState<'regions' | 'map'>(pendingResult || openOnMap ? 'map' : 'regions');
   const [, setProgressTick] = useState(0);
   const [openNodeId, setOpenNodeId] = useState<string | null>(null);
   const [energy, setEnergy] = useState<EnergyState>(() => loadEnergy());
@@ -158,7 +161,7 @@ export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedRes
     setEnergy(spendEnergy(encounter.energyCost));
     const activeDeck = getActiveDeck();
     const playerChoice: DeckChoice = { label: activeDeck.label, cardIds: activeDeck.cardIds };
-    const enemyChoice: DeckChoice = { label: STARTER_DECK_NAMES[encounter.enemyDeckFaction], cardIds: STARTER_DECKS[encounter.enemyDeckFaction] };
+    const enemyChoice: DeckChoice = { label: encounter.foeName || STARTER_DECK_NAMES[encounter.enemyDeckFaction], cardIds: campaignEnemyDeck(openNode_.id) ?? STARTER_DECKS[encounter.enemyDeckFaction] };
     setOpenNodeId(null);
     onFightNode(openNode_.id, playerChoice, enemyChoice, encounter.startingHp);
   }

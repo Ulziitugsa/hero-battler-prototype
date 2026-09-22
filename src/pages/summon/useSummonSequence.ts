@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useReducedMotion } from '../../components/animation/timing';
-import { buildTimeline, skipTarget, viewAt, type SeqStep, type SeqView } from '../../game/summon/sequence';
+import { buildTimeline, viewAt, type SeqStep, type SeqView } from '../../game/summon/sequence';
 import { emitSummonSound } from '../../game/summon/sound';
 import type { SummonSuccess } from '../../game/summon/summon';
 
@@ -15,7 +15,7 @@ interface Run {
   index: number;
 }
 
-export function useSummonSequence(): { outcome: SummonSuccess | null; view: SeqView | null; start: (outcome: SummonSuccess) => void; skip: () => void; end: () => void } {
+export function useSummonSequence(): { outcome: SummonSuccess | null; view: SeqView | null; start: (outcome: SummonSuccess) => void; skip: () => void; end: () => void; finishIntro: () => void } {
   const reduced = useReducedMotion();
   const [run, setRun] = useState<Run | null>(null);
 
@@ -28,7 +28,11 @@ export function useSummonSequence(): { outcome: SummonSuccess | null; view: SeqV
   );
 
   const skip = useCallback(() => {
-    setRun((r) => (r ? { ...r, index: skipTarget(r.timeline, r.index) } : r));
+    setRun((r) => (r ? { ...r, index: r.timeline.length - 1 } : r));
+  }, []);
+
+  const finishIntro = useCallback(() => {
+    setRun(r => r && r.index === 0 ? { ...r, index: 1 } : r);
   }, []);
 
   const end = useCallback(() => setRun(null), []);
@@ -41,11 +45,13 @@ export function useSummonSequence(): { outcome: SummonSuccess | null; view: SeqV
     const step = run.timeline[run.index];
     for (const s of step.sounds) emitSummonSound(s);
     if (run.index >= run.timeline.length - 1) return;
+    // Video completion owns the intro; reduced motion uses the ordinary short timer.
+    if (run.index === 0 && !reduced) return;
     const t = window.setTimeout(() => setRun((r) => (r && r.outcome === run.outcome && r.index === run.index ? { ...r, index: r.index + 1 } : r)), step.ms);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the step, not the whole run object
-  }, [runId, index]);
+  }, [runId, index, reduced]);
 
   const view = useMemo(() => (run ? viewAt(run.timeline, run.index, run.outcome.pulls.length) : null), [run]);
-  return { outcome: run?.outcome ?? null, view, start, skip, end };
+  return { outcome: run?.outcome ?? null, view, start, skip, end, finishIntro };
 }

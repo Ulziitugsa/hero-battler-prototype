@@ -1,15 +1,11 @@
 export const STARTING_HP = 20;
 /**
- * Round 1 only: each side draws this many cards to form its opening hand, instead of DRAW_PER_ROUND.
- * (Rich-effects pass - see docs/game/CORE-RULES.md "Deck and hand".)
+ * Hand refill target. Every round (round 1 included - it starts from an empty hand) each side draws
+ * until its hand holds this many cards. A hand at or above the target draws nothing; the target is a
+ * FLOOR for drawing, never a hand-size cap, and nothing is ever discarded down to it. So playing cards
+ * is what earns next round's draws, and hoarding above the target delays them.
  */
-export const INITIAL_HAND_SIZE = 3;
-/**
- * Every round AFTER round 1, each side draws exactly this many cards from their Deck, regardless of
- * current hand size - never a refill/clamp back up to a target. Playing many cards leaves fewer
- * options next round; holding cards banks flexibility instead.
- */
-export const DRAW_PER_ROUND = 1;
+export const HAND_REFILL_TARGET = 3;
 export const DEFAULT_DECK_SIZE = 15;
 export const SUPPORTED_DECK_SIZES = [15, 18, 21] as const;
 

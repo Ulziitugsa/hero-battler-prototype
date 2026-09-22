@@ -133,3 +133,44 @@ describe('HpFx carries the raw amount for the floating number near the HP bar', 
     expect(visuals.hpFx).toEqual([{ side: 'player', kind: 'heal', amount: 3 }]);
   });
 });
+
+describe('Overflow / direct damage land on the PLAYER, never on a Hero chit (the "-2 on my 7-Power Hero" bug)', () => {
+  it('7 vs 5: the overflow step flashes the defending player\'s HP and puts no number or hit-flash on either Hero', () => {
+    const s = state({
+      player: player({ heroZones: { left: hero('kng-common-knight', 7, 'p1'), center: null, right: null } }),
+      enemy: { ...player({ heroZones: { left: hero('kng-common-knight', 5, 'e1'), center: null, right: null } }), side: 'enemy' },
+    });
+    const { events } = resolveRound(s, NO_PLAYS, NO_PLAYS, 1);
+    const steps = buildAnimationSteps(events);
+    // Playback commits the loser's destruction before the overflow beat, so the board shown is the winner alone.
+    const shown = state({ player: s.player, enemy: { ...player(), side: 'enemy' } });
+    const overflow = steps.find((st) => st.visualType === 'overflow-damage' && st.lane === 'left')!;
+    const visuals = computeStepVisuals(overflow, shown);
+    expect(visuals.hpFx).toEqual([{ side: 'enemy', kind: 'damage', amount: 2 }]);
+    expect(visuals.heroChit.size).toBe(0);
+    for (const chit of visuals.heroChit.values()) expect(chit.floaters).toEqual([]);
+  });
+
+  it('an unopposed hit reports its damage on the HP bar only - the attacker shows no "-N"', () => {
+    const s = state({ player: player({ heroZones: { left: hero('kng-common-knight', 7, 'p1'), center: null, right: null } }) });
+    const { events } = resolveRound(s, NO_PLAYS, NO_PLAYS, 1);
+    const direct = buildAnimationSteps(events).find((st) => st.visualType === 'direct-damage')!;
+    const visuals = computeStepVisuals(direct, s);
+    expect(visuals.hpFx).toEqual([{ side: 'enemy', kind: 'damage', amount: 7 }]);
+    for (const chit of visuals.heroChit.values()) expect(chit.floaters.filter((f) => f.kind === 'direct' || f.kind === 'overflow')).toEqual([]);
+  });
+
+  it('a stalled lane shows no clash, and a token dying does not pulse the Graveyard', () => {
+    const s = state({
+      player: player({ hand: [{ handId: 'st', cardId: 'spl-stasis-field' }], heroZones: { left: hero('kng-common-knight', 2, 'p1'), center: null, right: null } }),
+      enemy: { ...player({ heroZones: { left: hero('kng-common-knight', 9, 'e1'), center: null, right: null } }), side: 'enemy' },
+    });
+    const { events } = resolveRound(s, { plays: [{ handId: 'st', cardId: 'spl-stasis-field', lane: 'left' }] }, NO_PLAYS, 1);
+    const clash = buildAnimationSteps(events).find((st) => st.visualType === 'combat-clash' && st.lane === 'left')!;
+    const visuals = computeStepVisuals(clash, s);
+    expect(visuals.clashLane).toBeNull();
+    expect(visuals.vfx).toEqual([]);
+    const tokenDeath = computeStepVisuals({ ...clash, events: [{ type: 'HERO_DESTROYED', side: 'player', instanceId: 't1', cardId: 'tok-ward', name: 'Ward', lane: 'left', token: true }] }, s);
+    expect(tokenDeath.graveyardPulse).toBeNull();
+  });
+});

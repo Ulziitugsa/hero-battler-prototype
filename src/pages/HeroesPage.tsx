@@ -1,3 +1,4 @@
+import { CardArtwork } from '../components/CardArtwork';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CardDefinition, Faction, Rarity } from '../game/types';
 import { TRIGGER_LABEL } from '../game/types';
@@ -63,7 +64,7 @@ function HeroArt({ card, owned, large }: { card: CardDefinition; owned: boolean;
   return (
     <span className={`hr-art ${card.faction} ${large ? 'large' : ''} ${owned ? '' : 'veiled'} ${url ? 'has-img' : 'fallback'}`}>
       {url ? (
-        <img src={url} alt="" draggable={false} />
+        <CardArtwork cardId={card.id} />
       ) : (
         <span className="hr-art-emblem" aria-hidden="true">
           <Sigil faction={card.faction} size="lg" />

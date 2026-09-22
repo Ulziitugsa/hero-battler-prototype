@@ -1,0 +1,53 @@
+/* The Ember Archive room dressing on top of summonRitual.css's phase-driven reveal - pixel-art
+   migration: a flat night room instead of a gilded gallery, dust motes stepped instead of eased,
+   pixel-frame bezels instead of rounded gold borders. Imported after summonRitual.css/collectible.css so
+   these overrides win; the phase/tier/data-attribute logic they react to is untouched. */
+.ritual-canvas { background: radial-gradient(ellipse at 50% 35%, var(--px-panel-2, #1b2b35) 0%, var(--px-bg, #0e1a26) 45%, var(--px-bg-deep, #0a141e) 75%); }
+.ritual-architecture { position: absolute; inset: 0; overflow: hidden; opacity: 0.4; pointer-events: none; }
+.ritual-architecture::before { content: ''; position: absolute; width: 76%; height: 82%; left: 12%; top: 9%; border: 1px solid var(--px-line-soft); box-shadow: 0 0 0 18px rgba(10, 20, 30, 0.5), 0 0 0 19px var(--px-line-soft), 0 0 0 42px rgba(10, 20, 30, 0.5), 0 0 0 43px var(--px-line-soft); }
+.ritual-architecture::after { content: ''; position: absolute; left: -50%; right: -50%; bottom: -35%; height: 65%; background: repeating-linear-gradient(90deg, transparent 0 79px, var(--px-line-soft) 80px 81px), repeating-linear-gradient(transparent 0 59px, var(--px-line-soft) 60px 61px); transform: perspective(350px) rotateX(55deg); transform-origin: 50% 0; }
+.ritual-architecture span { position: absolute; width: 3px; height: 3px; background: var(--px-gold, #ebc989); left: 22%; top: 68%; opacity: 0; animation: archive-dust 9s steps(14) infinite; }
+.ritual-architecture span:nth-child(2) { left: 74%; animation-delay: -3s; } .ritual-architecture span:nth-child(3) { left: 43%; animation-delay: -6s; }
+@keyframes archive-dust { 0% { transform: translateY(0); opacity: 0; } 25%, 70% { opacity: 0.5; } 100% { transform: translate(20px, -350px); opacity: 0; } }
+.ritual-heading { left: 20px; right: 20px; top: max(35px, env(safe-area-inset-top)); display: flex; flex-direction: column; gap: 9px; pointer-events: none; }
+.ritual-heading > span { color: var(--px-gold, #ebc989); }
+.ritual-heading strong { font-family: var(--px-font-display, serif); font-size: 24px; font-weight: 400; color: var(--px-ink, #f8e4bb); }
+.ritual .rc { width: 224px; margin: -168px 0 0 -112px; } .ritual .rc-inner { width: 224px; height: 336px; }
+.ritual .rc-name { margin-top: 25px; font-family: var(--px-font-display, serif); font-size: 14px; font-style: italic; color: var(--px-ink-dim, #dccaa7); }
+.ritual .rc-back-art { border: 2px solid var(--px-line, #5c6f6c); box-shadow: 0 0 0 3px var(--px-bg-deep), 0 0 0 4px var(--px-gold-deep, #ba9a54), 0 18px 40px rgba(0, 0, 0, 0.55); background: var(--px-panel, #16232c); }
+.ritual .rc-back-art::after { content: none; }
+.ritual .rc-back-art::before { content: '✦'; font-family: var(--px-font-display, serif); position: absolute; top: 35px; color: var(--px-gold, #ebc989); font-size: 25px; }
+.ritual .rc-reveal .rc-inner { animation-duration: min(560ms, var(--step-ms)); }
+.ritual .rc-reveal { animation: archive-settle min(700ms, var(--step-ms)) steps(8) both; }
+@keyframes archive-settle { from { transform: translateY(-12px) scale(1.1) rotate(-2deg); } to { transform: none; } }
+.ritual .ritual-skip { inset: auto 20px max(22px, env(safe-area-inset-bottom)) auto; min-height: 44px; padding: 8px 15px; border: 1px solid var(--px-line-dim); background: var(--px-panel, #16232c); color: var(--px-ink-dim, #e1d2b6); font: 700 11px var(--px-font-label, monospace); letter-spacing: 0.06em; text-transform: uppercase; }
+.ritual-skip span { margin-left: 10px; }
+.ritual .ritual-continue { min-height: 48px; border: 1px solid var(--px-gold-strong); background: var(--px-gold-deep, #c69f65); color: var(--px-gold-ink); box-shadow: inset 0 0 0 2px var(--px-gold), var(--px-shadow-button); }
+.ritual .chip { border-style: dashed; border-color: var(--px-line-soft); font: 700 10px var(--px-font-label, monospace); letter-spacing: 0.03em; }
+.ritual.ten .ritual-heading { display: none; } .ritual.ten .ritual-center { z-index: 3; pointer-events: none; } .ritual.ten[data-stage='1'] .ritual-ten { opacity: 0.12; }
+.ritual.ten .ritual-ten { padding-top: 30px; } .ritual .ritual-ten-title { text-transform: uppercase; letter-spacing: 0.2em; font: 10px var(--px-font-label, monospace); color: var(--px-gold, #ebc989); margin-bottom: 12px; }
+.ritual .tile-name { white-space: normal; font-size: 12px; min-height: 29px; line-height: 1.2; } .ritual .cf, .ritual .cf-art, .ritual .tile-sealed-art { border-radius: 0; }
+.ritual.single.is-result .ritual-canvas { overflow-y: auto; } .ritual.single.is-result .ritual-info { position: relative; margin-top: max(530px, 66dvh); bottom: auto; padding-bottom: 25px; }
+.ritual.single.is-result .ritual-center { top: 315px; }
+.ritual .ritual-skip:focus-visible, .ritual .ritual-continue:focus-visible { outline: 2px solid var(--px-gold-strong, #fff3ca); outline-offset: 3px; }
+@media (max-height: 720px) { .ritual-heading { top: 18px; } .ritual-heading strong { font-size: 20px; } .ritual .rc { width: 200px; margin: -150px 0 0 -100px; } .ritual .rc-inner { width: 200px; height: 300px; } .ritual.single.is-result .ritual-center { top: 255px; } .ritual.single.is-result .ritual-info { margin-top: 452px; } .ritual .collectible-rule { font-size: 10px; padding-top: 4px; } .ritual .collectible-base { gap: 4px; top: 66%; } .ritual .collectible-name { padding-right: 0; font-size: 16px; } .ritual .collectible-number { display: none; } }
+/* card frames + badges: flat faction fields, hard pixel-frame bezel, square badges instead of wax/gems */
+.ritual .cf { --frame-a: var(--px-line, #5c6f6c); --frame-b: var(--px-bg-deep, #0a141e); padding: 2px; box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 12px 24px rgba(4, 8, 10, 0.6); }
+.ritual .cf.r-rare { --frame-a: var(--rarity-rare, #7fb0d9); box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 0 16px rgba(127, 176, 217, 0.4); }
+.ritual .cf.r-epic { --frame-a: var(--rarity-epic, #c084fc); box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 0 20px rgba(192, 132, 252, 0.5); }
+.ritual .cf.r-legendary { --frame-a: var(--rarity-legendary, #d9a54b); box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 0 28px rgba(217, 165, 75, 0.65); }
+.ritual .cf-art { background: var(--px-kingdom-deep, #16283f); }
+.ritual .cf-art.undead { background: var(--px-undead-deep, #12251f); }
+.ritual .cf-art.infernal { background: var(--px-infernal-deep, #331711); }
+.ritual .cf-art.wildborn { background: #1f3316; }
+.ritual .cf.r-legendary .cf-art::after { animation: sheen 3.2s steps(10) 0.6s infinite; }
+.ritual .rc-name { color: var(--px-gold-strong, #ffeec4); }
+.ritual .wax-new { border-radius: 0; background: #8f2e2c; box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--px-gold-strong, rgba(255, 190, 170, 0.35)); transform: none; animation: px-rise-in 0.3s steps(6) 0.45s both; }
+.ritual .wax-new span { color: var(--px-ink, #ffe6d6); }
+.ritual .rc-featured { border-radius: 0; clip-path: none; background: var(--px-gold-deep, #d9a54b); border: 1px solid var(--px-gold-strong); color: var(--px-gold-ink); }
+.ritual .tile-dup { border-radius: 0; background: rgba(10, 20, 30, 0.85); border: 1px solid var(--px-line-dim); }
+.ritual .tile-asc { border-radius: 0; background: var(--px-gold, #ebc989); box-shadow: 0 0 0 1px var(--px-bg-deep); }
+.ritual .tile-feat { border-radius: 0; transform: none; width: 8px; height: 8px; background: var(--px-gold, #ebc989); box-shadow: 0 0 0 1px var(--px-bg-deep); }
+.ritual .tile-feat.secondary { background: var(--px-ink-faint, rgba(255, 226, 180, 0.7)); }
+
+@media (prefers-reduced-motion: reduce) { .ritual-architecture span { animation: none; } .ritual .rc-reveal { animation: none; } .ritual .rc-reveal .rc-inner { animation: none; transform: none; } }

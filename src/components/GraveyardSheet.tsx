@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Side } from '../game/types';
 import { getCard } from '../game/cards';
 import { cardArtUrl } from '../game/cards/art';
+import { CardArtwork } from './CardArtwork';
 import { Icon } from './Icon';
 
 /**
@@ -60,7 +61,7 @@ export function GraveyardSheet({
               return (
                 <button type="button" className="graveyard-card-row" key={`${cardId}-${i}`} onClick={() => onInspect(cardId)}>
                   <span className="graveyard-card-art">
-                    <span className={`zone-card-art ${card.faction}`}>{artUrl && <img className="zone-card-art-image" src={artUrl} alt="" draggable={false} />}</span>
+                    <span className={`zone-card-art ${card.faction}`}>{artUrl && <CardArtwork cardId={cardId} className="zone-card-art-image" animated={false} />}</span>
                   </span>
                   <span className="graveyard-card-info">
                     <span className="graveyard-card-name">{card.name}</span>

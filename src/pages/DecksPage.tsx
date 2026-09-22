@@ -1,3 +1,4 @@
+import { CardArtwork } from '../components/CardArtwork';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CardDefinition, Faction, Rarity } from '../game/types';
 import { getCard } from '../game/cards';
@@ -48,7 +49,7 @@ function CardArt({ card, sigil }: { card: CardDefinition; sigil: 'lg' | 'md' }) 
   const url = cardArtUrl(card.id);
   return (
     <span className={`dk-art ${isHero ? card.faction : 'spell'}`}>
-      {url && <img src={url} alt="" draggable={false} />}
+      {url && <CardArtwork cardId={card.id} />}
       {!url && isHero && <Sigil faction={card.faction} size={sigil} />}
       {!url && !isHero && <span className={`dk-rune ${card.spellKind === 'CONTINUOUS' ? 'continuous' : ''}`} aria-hidden="true" />}
     </span>

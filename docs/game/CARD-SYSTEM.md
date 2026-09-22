@@ -267,7 +267,12 @@ matchup win - that is what the playtest phase exists to test, not assert.
 `src/game/cards/roster.ts` is the single source of truth for "the playtest set". The Collection
 screen, the Deck Builder pool and deck validation all read from `PLAYTEST_ROSTER`.
 
-**32 cards**: 11 Kingdom, 10 Undead, 11 Infernal.
+> **Update:** the roster is now **52 cards** (18 Kingdom, 16 Undead, 18 Infernal; 31 Heroes, 21
+> Spells) after the card-pool expansion - new archetypes (Mage, Mage Slayer, Beast, Trickster), general
+> cards, tokens and the new effect primitives are documented in [ARCHETYPES.md](ARCHETYPES.md). The
+> original 32 are listed below; the expansion cards are appended to each faction's roster list.
+
+**32 cards** (original set): 11 Kingdom, 10 Undead, 11 Infernal.
 
 | Split | Count |
 | --- | --- |

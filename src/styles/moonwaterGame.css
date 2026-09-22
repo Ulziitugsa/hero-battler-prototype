@@ -1,0 +1,228 @@
+/* Moonwater is the actual game shell. Keep rules scoped so the art-study page
+   remains a reference and engine/animation geometry is not affected by chrome. */
+.moon-game {
+  --ember-bg:#101e2a; --ember-ink:#f4ecd7; --ember-gold:#ebc989;
+  --ember-gold-light:#ffdc99; --ember-gold-deep:#ad8650; --ember-gold-ink:#272115;
+  --ember-font-display:Georgia,serif; --ember-font-body:Georgia,serif;
+  --panel:#162731; --panel-2:#22343d; --line:#536763; --ink:#f4ecd7;
+  --ink-dim:#bdcdc7; --gold:#ebc989; --bg:#0b1925;
+  position:relative; isolation:isolate; min-height:100dvh; color:var(--ink);
+  font-family:Georgia,serif;
+}
+.moon-game * { box-sizing:border-box; }
+.moon-game button { cursor:pointer; }
+.moon-game button:disabled { cursor:default; }
+.moon-game button:focus-visible,.moon-game input:focus-visible,.moon-game select:focus-visible { outline:2px solid #ffdc99; outline-offset:4px; }
+.moon-world { position:fixed; inset:0; z-index:-1; pointer-events:none; background:#101e2a; }
+.moon-world-image,.moon-world-shade,.moon-world-fireflies { position:absolute; inset:0; }
+.moon-world-image { background:url('/art/pixel/moonwater.png') center/cover; image-rendering:pixelated; }
+.moon-world-shade { background:linear-gradient(0deg,#081522f0,transparent 85%),linear-gradient(90deg,#08152255,#08152211 50%,#08152255); }
+.moon-world-fireflies i { position:absolute; width:3px; height:3px; background:#ffe0a0; box-shadow:0 0 8px #ffdd8899; animation:moon-firefly 6s ease-in-out infinite; animation-delay:calc(var(--i)*-.47s); }
+@keyframes moon-firefly { 0%,100% { opacity:.1; transform:translateY(0); } 50% { opacity:.8; transform:translate(8px,-20px); } }
+.moon-game .app-frame { width:100%; max-width:none; margin:0; background:none; }
+.moon-game .app-frame-content { width:100%; max-width:none; margin:auto; }
+.moon-game .hud-arc { background:#0a1823f5; height:70px; padding:9px max(16px,calc((100vw - 720px)/2)); border-top:1px solid #aabfad40; gap:8px; backdrop-filter:blur(10px); }
+.moon-game .hud-medallion { border:0; border-radius:0; color:#b5c6c0; gap:5px; }
+.moon-game .hud-medallion.active { color:#ffdc99; background:#26362e88; border-bottom:2px solid #e5c183; }
+.moon-game .hud-medallion-chip { background:none; border:0; border-radius:0; box-shadow:none; width:24px; height:24px; }
+.moon-game .hud-medallion-label { font:10px var(--mono); letter-spacing:1px; }
+.moon-art { display:block; width:100%; height:100%; object-fit:cover; image-rendering:pixelated; }
+.moon-rune { display:grid; place-items:center; background:repeating-linear-gradient(45deg,#c8d1ad08 0 4px,transparent 4px 12px),#152934; }
+.moon-rune .cp-sigil { transform:scale(1.4); }
+.px-portrait-live { animation:none; }
+.moon-eyebrow,.moon-section-line { font:10px var(--mono); letter-spacing:2px; color:#ead5a3; }
+.moon-brand { font:bold 20px Georgia,serif; letter-spacing:5px; }
+.moon-brand>span { color:#ffdc99; }
+.moon-quiet { background:#102330b0; border:1px solid #afc2ac40; color:#e1e8d9; padding:10px 14px; font:12px var(--mono); }
+.moon-primary { display:inline-flex; justify-content:center; align-items:center; gap:18px; min-height:48px; border:1px solid #f5dba1; background:#e4c080; color:#28251c; padding:14px 24px; font:700 12px var(--mono); box-shadow:inset 0 0 0 3px #c69f65,0 4px 0 #6e553c; }
+.moon-primary:hover { background:#ffe0a0; }
+.moon-primary:active { transform:translateY(2px); }
+.moon-home { width:100%; max-width:1500px; margin:auto; padding:0 4%; }
+.moon-game .app-frame-content>.moon-home { width:100%; max-width:1500px; }
+.moon-game .hud-arc { width:100%; max-width:none; margin:0; }
+.moon-home-header { min-height:86px; display:flex; align-items:center; justify-content:space-between; gap:20px; border-bottom:1px solid #c5cba52b; }
+.moon-home-tools { display:flex; align-items:center; gap:15px; }
+.moon-home-main { display:grid; grid-template-columns:.85fr 1.4fr; align-items:center; gap:64px; padding:64px 0 45px; }
+.moon-welcome { text-shadow:0 2px 8px #0a1726; }
+.moon-welcome h1 { font:400 clamp(44px,4.6vw,74px)/1.06 Georgia,serif; margin:25px 0; }
+.moon-welcome h1 em { font-style:normal; color:#ffdc99; }
+.moon-welcome p { font:18px/1.7 Georgia,serif; color:#e4e3d3; }
+.moon-location { display:block; font:10px var(--mono); letter-spacing:1.5px; margin:30px 0; color:#f2d99e; }
+.moon-location>span { color:#bbcfc8; }
+.moon-adventure { display:flex; width:fit-content; margin-top:25px; text-shadow:none; }
+.moon-welcome small,.moon-spotlight>small { display:block; color:#c5d4ca; font:10px/1.6 var(--mono); margin-top:15px; }
+.moon-spotlight { min-width:0; text-align:center; }
+.moon-section-line { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:25px; text-align:left; }
+.moon-section-line button { border:0; padding:0; background:none; color:#f1d8a1; font:10px var(--mono); }
+.moon-home-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; align-items:center; }
+.moon-inspect-card { border:0; background:none; padding:0; color:inherit; text-align:left; min-width:0; transition:transform .2s; }
+.moon-inspect-card:nth-child(2) { transform:translateY(-10px); }
+.moon-inspect-card:hover { transform:translateY(-15px); }
+.moon-home-quote { margin:26px 0 21px; font:italic 15px/1.6 Georgia,serif; color:#d5dfd2; }
+.moon-destinations { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; padding:10px 0 28px; }
+.moon-destinations button { display:flex; align-items:center; gap:15px; padding:20px; text-align:left; background:#132732e6; border:1px solid #a0b5a84a; box-shadow:0 4px 0 #07131a88; color:#e4e6d6; }
+.moon-destinations button:hover { border-color:#ebc989; background:#203740; }
+.moon-destination-icon { color:#ebc989; font-size:27px; }
+.moon-destinations small { font:8px var(--mono); letter-spacing:1.6px; color:#a9bdb6; }
+.moon-destinations strong { display:block; font:20px Georgia,serif; margin:7px 0; }
+.moon-destinations em { font:12px/1.5 Georgia,serif; color:#bfcfc4; }
+.moon-destinations b { margin-left:auto; color:#ebc989; font-size:18px; }
+.moon-home-footer { display:flex; justify-content:space-between; gap:12px; border-top:1px solid #acb79d2a; padding:20px 0; font:10px var(--mono); color:#aabeb5; }
+.moon-home-footer button { color:inherit; border:0; background:none; font:inherit; }
+
+/* Physical cards share the approved portrait / title / rule hierarchy. */
+.moon-game .collectible { aspect-ratio:2/3.25; background:#172a34; border:2px solid #728a83; box-shadow:0 0 0 3px #0a1722,0 0 0 4px var(--foil),0 15px 25px #0005; }
+.moon-game .collectible-art { inset:30px 0 auto; width:100%; aspect-ratio:1; border-block:1px solid #879d7e44; }
+.moon-game .collectible-art::after,.moon-game .collectible-edging { display:none; }
+.moon-game .collectible-header { top:10px; left:9px; right:9px; font:8px var(--mono); color:var(--foil); text-shadow:none; }
+.moon-game .collectible-base { top:calc(30px + (100% - 0px)*.615); left:10px; right:10px; gap:6px; }
+.moon-game .collectible-name { font:400 clamp(13px,1.6vw,22px)/1.15 Georgia,serif; color:#f4ecd7; padding:0; }
+.moon-game .collectible-kind { font:8px var(--mono); color:#a8c2b7; letter-spacing:0; }
+.moon-game .collectible-rule { font:10px/1.4 Georgia,serif; padding-top:6px; }
+.moon-game .collectible-power { top:auto; bottom:8px; right:8px; height:auto; min-width:0; border:0; background:none; box-shadow:none; color:#efd394; font:12px var(--mono); }
+.moon-game .collectible-number { display:none; }
+.moon-home .collectible-kind .cp-sigil { display:none; }
+.moon-home .collectible-rule { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.moon-game .collectible.compact .collectible-base { top:72%; }
+.moon-game .archive-detail { border:1px solid #99ac9270; box-shadow:0 20px 90px #0009; border-radius:0; }
+.moon-game .archive-detail-card { width:240px; }
+
+/* Roomy desktop collection with a compact, readable mobile layout. */
+.moon-game .heroes-screen,.moon-game .decks-screen,.moon-game .profile-screen { width:100%; max-width:1120px; margin:30px auto; padding:30px; min-height:calc(100dvh - 160px); background:#0e202be8; border:1px solid #a1b8a53a; box-shadow:0 16px 50px #05111b88; }
+.moon-game .hr-title,.moon-game .dk-title,.moon-game .pf-title { font:400 38px Georgia,serif; color:#f6dfad; }
+.moon-game .hr-grid { grid-template-columns:repeat(6,minmax(0,1fr)); gap:24px 18px; }
+.moon-game .hr-card-frame,.moon-game .dk-card-frame { border-radius:0; background:#182c36; border:1px solid #718c81; box-shadow:0 0 0 3px #081923,0 0 0 4px #758b7455; }
+.moon-game .hr-card-window { aspect-ratio:1; border-radius:0; }
+.moon-game .hr-art::after { display:none; }
+.moon-game .hr-art canvas { position:absolute; inset:0; }
+.moon-game .hr-card-plate,.moon-game .dk-card-plate { background:#1b2f39; border-radius:0; border-top:1px solid #87967b55; min-height:40px; }
+.moon-game .hr-card-name { font:14px/1.2 Georgia,serif; color:#f1e7cc; }
+.moon-game .hr-crown { display:none; }
+.moon-game .hr-sheet,.moon-game .dk-dock,.moon-game .pf-account,.moon-game .pf-detail { background:#122833; border:1px solid #758f8155; border-radius:0; }
+.moon-game .dk-plaque,.moon-game .pf-plaque { background:#19313c; border:1px solid #748e7866; border-radius:0; }
+.moon-game .pf-mastery { border-radius:0; background:#18333e; border:1px solid #829a8266; box-shadow:none; }
+.moon-game .pf-mastery.selected,.moon-game .pf-mastery.equipped { background:#29453f; border-color:#d8bf85; }
+.moon-game .pf-effect { border-radius:0; background:#d8c79f; }
+.moon-game .dk-banner,.moon-game .dk-shelf,.moon-game .dk-pool { background:#122632; border-radius:0; }
+.moon-game .dk-banner::before,.moon-game .dk-banner::after { display:none; }
+.moon-game .dk-plate-btn,.moon-game .dk-round-btn,.moon-game .pf-btn,.moon-game .pf-level-medal { background:#243d44; border:1px solid #93a98a60; border-radius:0; box-shadow:none; }
+.moon-game .dk-plate-btn.gold,.moon-game .dk-plate-btn.gold.ready { color:#2a251b; background:#e4c080; border-color:#f4dba4; box-shadow:0 3px 0 #876a42; }
+.moon-game .dk-art { overflow:hidden; }
+.moon-game .dk-art canvas { position:absolute; inset:0; }
+.moon-game .hr-search,.moon-game .hr-sort,.moon-game .dk-name-input { border-radius:0; background:#10232e; color:#eadfc6; border-color:#819a8466; }
+.moon-game .hr-sheet .moon-art { object-fit:contain; background:#0b1925; }
+
+/* The moonwell uses real banner pools, guarantees, and the existing resolved outcome. */
+.moon-game .summon-screen { max-width:1050px; background:#0b1e29d9; padding:28px 0; border-inline:1px solid #a8b69730; }
+.moon-game .summon-title { font:32px Georgia,serif; }
+.moon-game .summon-slide { flex-basis:calc(100% - 30px); }
+.moon-game .moon-banner { padding:24px; min-height:430px; background:linear-gradient(0deg,#10232cf0,#10232c99),url('/art/pixel/moonwater.png') center/cover; border:1px solid #c4be8c55; overflow:hidden; }
+.moon-banner-heading { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+.moon-banner-heading>span { font:10px var(--mono); text-transform:uppercase; letter-spacing:3px; color:#e8cb8e; }
+.moon-banner-body { display:grid; grid-template-columns:.8fr 1.2fr; gap:32px; align-items:center; }
+.moon-banner-copy h2 { font:400 37px/1.1 Georgia,serif; margin:0 0 18px; color:#f8dfaa; }
+.moon-banner-copy p { font:15px/1.7 Georgia,serif; color:#cfdbc9; }
+.moon-banner-copy small { display:block; font:10px/1.8 var(--mono); color:#aebfb4; }
+.moon-banner-cards { display:grid; grid-template-columns:1fr 1.15fr 1fr; gap:12px; align-items:center; }
+.moon-banner-cards>div:nth-child(2) { transform:translateY(-8px); }
+.moon-banner-cards .collectible-name { font-size:14px; }
+.moon-banner-cards .collectible-rule,.moon-banner-cards .collectible-kind { display:none; }
+.moon-game .summon-dock { background:#0e2530; border-top:1px solid #aeb98c40; }
+.moon-game .ritual { background:linear-gradient(#071723c9,#071723ed),url('/art/pixel/moonwater.png') center/cover; }
+.moon-game .ritual-canvas { width:min(100%,900px); background:none; box-shadow:none; }
+.moon-game .ritual-architecture,.moon-game .ritual-env,.moon-game .ritual-vignette { display:none; }
+.moon-game .ritual-heading { top:5%; }
+.moon-game .ritual-heading strong { font:400 24px Georgia,serif; }
+.moon-game .rc { width:240px; height:390px; }
+.moon-game .rc .collectible { height:100%; }
+.moon-game .ritual-info { background:#10242df0; border:1px solid #94aa7950; padding:18px; }
+.moon-game .ritual-grid { gap:16px; }
+.moon-game .ritual-grid .moon-art { object-fit:cover; }
+.moon-game .ritual-continue,.moon-game .summon-btn { border-radius:0; }
+
+/* Keep tactical geometry, but use the same world and card materials in battle. */
+.moon-game .app-shell { background:none; }
+.moon-game .battle-scene { background:linear-gradient(#10243266,#102432cc),url('/art/pixel/moonwater.png') center/cover; image-rendering:pixelated; }
+.moon-game .battle-sky,.moon-game .battle-terrace,.moon-game .battle-glow { display:none; }
+.moon-game .battle-zone,.moon-game .zone-card,.moon-game .hand-card { border-radius:2px; }
+.moon-game .lane-rail-edge { width:3px; border-radius:0; background:#8ea99c60; box-shadow:0 0 0 2px #09202b88; }
+.moon-game .lane-channel-fill { background:#102a3577; border-radius:0; border-block:1px solid #a5b78b44; }
+.moon-game .opp-card-back-inner { border-radius:1px; background:#1a3440; border-color:#9aad8a; }
+.moon-game .opp-card-back-gem { background:#dbc185; box-shadow:none; }
+.moon-game .hand-apron::before { background:#102a36; border-top:1px solid #9eb49377; border-radius:0; box-shadow:none; }
+.moon-game .hand-apron::after { background:none; }
+.moon-game .fight-seal-core { background:#e4c080; color:#292618; border-radius:3px; box-shadow:inset 0 0 0 2px #a5824e; }
+.moon-game .fight-seal-label { color:#292618; text-shadow:none; }
+.moon-game .zone-card-power,.moon-game .hand-card-power { border-radius:2px; background:#203c3d; border-color:#c3c49a; box-shadow:0 2px 0 #061722; }
+.moon-game .zone-card { border:1px solid #a0ac83; background:#17313a; box-shadow:0 0 0 2px #0c1922,0 4px 9px #0007; }
+.moon-game .zone-card-art canvas { position:absolute; inset:0; }
+.moon-game .zone-card-footer,.moon-game .hand-card-plate { background:#102a34; border-top:1px solid #a4b38750; }
+.moon-game .hand-card { background:#18303c; border-color:#7a9082; }
+.moon-game .hand-card-art canvas { position:absolute; inset:0; }
+.moon-game .hand-card-art::after { background:linear-gradient(0deg,#0e2432aa,transparent 50%); }
+.moon-game .skirmish { background:#102430df; color:#f3e7cc; }
+.moon-game .skirmish-world { background:linear-gradient(#0d233566,#0d2335aa),url('/art/pixel/moonwater.png') center/cover; }
+.moon-game .skirmish-world>* { display:none; }
+.moon-game .skirmish-back,.moon-game .skirmish-card,.moon-game .skirmish-deck { border-radius:0; background:#173440; border-color:#8ba086; }
+.moon-game .campaign-screen { background:#10232deb; margin:auto; }
+.moon-game .campaign-world-stage { border-inline:1px solid #9aab7850; }
+.moon-game .campaign-node-disc { border-radius:3px; background:#18343d; border-color:#bac88b; }
+.moon-game .campaign-back-medallion,.moon-game .campaign-region-card { border-radius:0; }
+.moon-game .lantern-page { background:#102630e8; border-inline:1px solid #a4b38440; }
+.moon-game .lantern-cover { background:linear-gradient(90deg,#102630ef,#10263033),url('/art/pixel/moonwater.png') center/cover; }
+.moon-game .lantern-nav button { border-radius:0; background:#18343d; }
+.moon-game .lantern-portrait { transform:none; }
+.moon-game .skirmish { width:100%; max-width:850px; margin:auto; min-height:100dvh; padding:28px; }
+.moon-game .skirmish-yard { padding:30px 0; flex:0 0 auto; }
+.moon-game .skirmish-hanging { padding-top:0; }
+.moon-game .skirmish-header { padding:0; }
+.moon-game .skirmish-step { border-radius:0; background:#25404a; border:1px solid #9bad8755; box-shadow:none; }
+.moon-game .skirmish-beam,.moon-game .skirmish-pennant::before,.moon-game .skirmish-pennant-cloth::before { display:none; }
+.moon-game .skirmish-pennants { gap:18px; align-items:stretch; }
+.moon-game .skirmish-pennant { flex:1; width:auto; height:auto; padding:0; transform:none; opacity:.7; filter:none; }
+.moon-game .skirmish-pennant.active { opacity:1; transform:translateY(-6px); }
+.moon-game .skirmish-pennant-cloth { position:relative; inset:auto; clip-path:none; background:#18323d; border:1px solid #819683; padding:0 0 15px; display:flex; flex-direction:column; gap:15px; height:auto; }
+.moon-game .skirmish-pennant.active .skirmish-pennant-cloth { background:#29453f; border-color:#e4c080; box-shadow:0 0 0 3px #e4c08040; }
+.skirmish-rival-art { display:block; width:100%; aspect-ratio:1; }
+.moon-game .skirmish-pennant-name { font:16px Georgia,serif; }
+.moon-game .skirmish-terrace { background:#112732; border:1px solid #81968360; border-radius:0; padding:24px; }
+.moon-game .skirmish-terrace::before,.moon-game .skirmish-terrace::after,.moon-game .skirmish-socket>div { display:none; }
+.moon-game .skirmish .home-deck-rail { background:none; border:0; box-shadow:none; }
+.moon-game .skirmish-socket { width:100%; height:64px; margin:25px auto 0; }
+.moon-game .skirmish .home-fight-seal { position:relative; inset:auto; width:100%; height:56px; border-radius:0; background:#e4c080; color:#28251c; border:1px solid #ffe0a0; box-shadow:inset 0 0 0 3px #b89057; transform:none; }
+.moon-game .skirmish .home-fight-seal::before,.moon-game .skirmish .home-fight-seal::after { display:none; }
+.moon-game .skirmish .home-fight-seal-core { flex-direction:row; gap:12px; background:none; border:0; box-shadow:none; color:#28251c; }
+.moon-game .dk-grid { grid-template-columns:repeat(6,minmax(0,1fr)); gap:14px; }
+.moon-game .dk-shelf-board { background:#6b8778; box-shadow:0 3px 0 #0a1b24; }
+.moon-game .dk-count-seal,.moon-game .dk-card-power,.moon-game .dk-wax,.moon-game .pf-eq-seal { border-radius:2px; background:#25433f; color:#f3d78c; border-color:#a8b984; box-shadow:none; }
+.moon-game .dk-plaque.selected,.moon-game .dk-card-count.full { background:#294943; }
+@media(max-width:1000px) {
+  .moon-game .dk-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .moon-home-main { gap:30px; }.moon-home-cards { gap:12px; }
+  .moon-destinations { gap:10px; }.moon-destinations button { padding:15px; gap:10px; }
+  .moon-destinations strong { font-size:17px; }.moon-game .hr-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+}
+@media(max-width:700px) {
+  .moon-game .dk-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+  .moon-home { padding:0 20px; }.moon-home-header { min-height:70px; gap:8px; }.moon-brand { font-size:14px; letter-spacing:2px; }
+  .moon-home-header>.moon-quiet { font-size:10px; padding:8px; }.moon-home-header>.moon-quiet span { display:block; margin-top:4px; }.moon-home-tools { gap:7px; }
+  .moon-home-main { grid-template-columns:1fr; padding:38px 0 25px; gap:40px; }.moon-welcome h1 { font-size:52px; margin:20px 0; }
+  .moon-welcome p { font-size:16px; }.moon-location { margin:22px 0; font-size:9px; }.moon-adventure { margin-top:20px; }
+  .moon-home-cards { gap:10px; }.moon-section-line { font-size:8px; letter-spacing:1px; }.moon-section-line button { font-size:9px; }
+  .moon-game .collectible-name { font-size:16px; }.moon-home .collectible { aspect-ratio:1/1.85; }
+  .moon-home .collectible-base { top:calc(30px + 54%); left:7px; right:7px; }.moon-home .collectible-name { font-size:14px; }
+  .moon-home .collectible-header { font-size:7px; left:5px; right:5px; }.moon-home .collectible-header .cp-gems { display:none; }
+  .moon-home .collectible-kind,.moon-home .collectible-rule { display:none; }.moon-home .collectible-power { font-size:10px; }
+  .moon-home-quote { font-size:13px; }.moon-destinations { grid-template-columns:1fr; gap:12px; }
+  .moon-destinations button { padding:18px; }.moon-destinations strong { font-size:21px; }.moon-home-footer { font-size:8px; }
+  .moon-game .heroes-screen,.moon-game .decks-screen,.moon-game .profile-screen { margin:0; padding:22px 16px; border:0; min-height:calc(100dvh - 70px); }
+  .moon-game .hr-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px 11px; }.moon-game .hr-card-name { font-size:12px; }
+  .moon-game .hr-title,.moon-game .dk-title,.moon-game .pf-title { font-size:30px; }
+  .moon-game .summon-screen { padding-top:16px; }.moon-game .moon-banner { padding:18px 12px; min-height:420px; }
+  .moon-banner-body { grid-template-columns:1fr; gap:20px; }.moon-banner-copy h2 { font-size:28px; margin:0 0 8px; }.moon-banner-copy p { font-size:13px; margin:6px 0; }.moon-banner-copy small { display:none; }
+  .moon-banner-cards { width:100%; max-width:400px; margin:auto; gap:10px; }.moon-banner-cards .collectible { aspect-ratio:1/1.85; }.moon-banner-cards .collectible-base { top:calc(30px + 54%); left:5px; right:5px; }.moon-banner-cards .collectible-name { font-size:12px; }.moon-banner-cards .collectible-header { font-size:6px; }.moon-banner-cards .collectible-header .cp-gems { display:none; }
+  .moon-game .ritual-canvas { width:100%; }.moon-game .ritual-info { padding:12px; }.moon-game .rc { width:210px; height:342px; }
+}
+@media(max-height:720px) { .moon-game .rc { width:185px; height:300px; }.moon-game .ritual-heading strong { font-size:18px; }.moon-game .ritual-heading { top:3%; } }
+@media(prefers-reduced-motion:reduce) { .moon-world-fireflies i { animation:none; }.moon-inspect-card { transition:none; } }
+

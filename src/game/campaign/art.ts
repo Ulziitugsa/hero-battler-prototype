@@ -11,10 +11,12 @@
 // interactive elements baked in - those are always drawn by React/CSS on top. Authored at the same
 // 1200x844 reference aspect ratio CampaignPage's node coordinates and road SVG already use (see
 // TRACK_W/TRACK_H there), so it drops in without any coordinate rework.
+// Chapter one uses the Moonwater pixel-art environment.
 const CHAPTER_WORLD_ART: Record<string, string> = {
-  'chapter-1': '/art/campaign/ashen-road/chapter-1-world.webp',
+  'chapter-1': '/art/pixel/ashen-road.png',
 };
 
 export function chapterWorldArtUrl(chapterId: string): string | null {
   return CHAPTER_WORLD_ART[chapterId] ?? null;
 }
+

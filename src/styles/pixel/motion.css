@@ -1,0 +1,74 @@
+/* Embervale pixel-art design system - motion.
+   Every ambient/decorative animation in the pixel screens should reuse one of these keyframes (or add a
+   new one here) rather than inventing bespoke timing per component - see tokens.css for the cadence
+   variables these are built on. Interactive UI transitions (opening a sheet, a button press) stay normal
+   smooth CSS - only pixel-art *content* (sprites, environment, reveal effects) plays stepped. */
+
+@keyframes px-flicker {
+  0%, 100% { opacity: 1; }
+  16% { opacity: 0.82; }
+  33% { opacity: 1; }
+  50% { opacity: 0.88; }
+  66% { opacity: 1; }
+  83% { opacity: 0.9; }
+}
+@keyframes px-shimmer {
+  0%, 100% { background-position: 0 0; }
+  50% { background-position: 100% 0; }
+}
+@keyframes px-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-8%); }
+}
+@keyframes px-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes px-sprite-4 {
+  0%, 100% { background-position: 0 0; }
+  25% { background-position: 100% 0; }
+  50% { background-position: 0 100%; }
+  75% { background-position: 100% 100%; }
+}
+@keyframes px-impact-flash {
+  0% { opacity: 0; transform: scale(0.6); }
+  40% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+@keyframes px-impact-shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-2px, 1px); }
+  50% { transform: translate(2px, -1px); }
+  75% { transform: translate(-1px, -1px); }
+}
+@keyframes px-rise-in {
+  from { opacity: 0; transform: translateY(14px); filter: brightness(1.8); }
+  to { opacity: 1; transform: none; filter: brightness(1); }
+}
+
+/* ---- PIXEL_AMBIENT_SLOW: clouds, mist, distant water - slowest, largest shapes ---- */
+.px-anim-ambient-slow { animation: px-drift var(--px-t-ambient-slow) steps(16) infinite alternate; }
+
+/* ---- PIXEL_AMBIENT: banners, foliage, lantern flicker, water shimmer ---- */
+.px-anim-ambient { animation: px-flicker var(--px-t-ambient) steps(6) infinite; }
+.px-anim-ambient-bob { animation: px-bob var(--px-t-ambient) steps(6) infinite; }
+
+/* ---- PIXEL_CHARACTER: idle portrait / sprite-sheet loops ---- */
+.px-anim-character { animation: px-sprite-4 var(--px-t-character) steps(1) infinite; }
+
+/* ---- PIXEL_IMPACT: hit bursts, reveal flares - quick, still visibly stepped ---- */
+.px-anim-impact { animation: px-impact-flash var(--px-t-impact) steps(3) both; }
+.px-anim-impact-shake { animation: px-impact-shake var(--px-t-impact) steps(4) both; }
+.px-anim-rise { animation: px-rise-in 420ms steps(8) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .px-anim-ambient-slow,
+  .px-anim-ambient,
+  .px-anim-ambient-bob,
+  .px-anim-character,
+  .px-anim-impact,
+  .px-anim-impact-shake,
+  .px-anim-rise {
+    animation: none !important;
+  }
+}

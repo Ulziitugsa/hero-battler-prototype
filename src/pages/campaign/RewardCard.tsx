@@ -1,3 +1,4 @@
+import { CardArtwork } from '../../components/CardArtwork';
 import { getCard } from '../../game/cards';
 import { cardArtUrl } from '../../game/cards/art';
 import type { GrantResult } from '../../game/collection/types';
@@ -13,7 +14,7 @@ export function RewardCard({ cardId, grant, copies = 1 }: { cardId: string; gran
     <div className={`reward-card r-${card.rarity}`}>
       <span className="reward-card-frame">
         <span className={`reward-card-art ${card.faction}`}>
-          {url ? <img src={url} alt="" draggable={false} /> : <Sigil faction={card.faction} size="lg" />}
+          {url ? <CardArtwork cardId={cardId} /> : <Sigil faction={card.faction} size="lg" />}
         </span>
       </span>
       <span className="reward-card-name">

@@ -1,3 +1,4 @@
+import { CardArtwork } from '../../components/CardArtwork';
 import { Gems, Sigil } from '../../components/CardParts';
 import { getCard } from '../../game/cards';
 import { cardArtUrl } from '../../game/cards/art';
@@ -15,7 +16,7 @@ export function SummonCard({ cardId, grant, size, delay = 0, onClick }: { cardId
     <Tag type={onClick ? 'button' : undefined} className={`summon-card ${size} r-${card.rarity}`} style={{ animationDelay: `${delay}ms` }} onClick={onClick} aria-label={onClick ? `Inspect ${card.name}` : undefined}>
       <span className="summon-card-frame">
         <span className={`summon-card-art ${card.faction}`}>
-          {url ? <img src={url} alt="" draggable={false} /> : <Sigil faction={card.type !== 'hero' ? 'spell' : card.faction} size={size === 'lg' ? 'lg' : 'md'} />}
+          {url ? <CardArtwork cardId={cardId} /> : <Sigil faction={card.type !== 'hero' ? 'spell' : card.faction} size={size === 'lg' ? 'lg' : 'md'} />}
         </span>
       </span>
       <span className="summon-card-name">{card.name}</span>
