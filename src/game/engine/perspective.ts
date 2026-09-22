@@ -1,6 +1,6 @@
-import type { CombatOutcome, GameEvent, GameState, PlayerAction, Side } from '../types';
-import { opposite } from './board';
-import { redactEventsForViewer, redactStateForViewer } from './redact';
+import type { CombatOutcome, GameEvent, GameState, PlayerAction, Side } from '../types/index.js';
+import { opposite } from './board.js';
+import { redactEventsForViewer, redactStateForViewer } from './redact.js';
 
 /**
  * The engine is hard-wired around canonical `player`/`enemy` - in Friendly Battle the host is always

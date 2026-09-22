@@ -1,8 +1,8 @@
-import type { ApiRequest, ApiResponse } from './_lib/http';
-import { HttpError, withErrorHandling } from './_lib/http';
-import { authenticateCaller, canonicalSideFromRoom } from './_lib/auth';
-import { loadRoomForMatch } from './_lib/matchAccess';
-import { supabaseAdmin } from './_lib/supabaseAdmin';
+import type { ApiRequest, ApiResponse } from './_lib/http.js';
+import { HttpError, withErrorHandling } from './_lib/http.js';
+import { authenticateCaller, canonicalSideFromRoom } from './_lib/auth.js';
+import { loadRoomForMatch } from './_lib/matchAccess.js';
+import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 
 /**
  * Used for: picking up the OTHER client's result after a realtime ping, and reconnect-after-refresh.

@@ -1,6 +1,6 @@
-import { getCard } from '../cards';
-import { PLAYTEST_ROSTER } from '../cards/roster';
-import { DEFAULT_DECK_SIZE } from './constants';
+import { getCard } from '../cards/index.js';
+import { PLAYTEST_ROSTER } from '../cards/roster.js';
+import { DEFAULT_DECK_SIZE } from './constants.js';
 
 // Simple deckbuilding rules for Card Set v0.1 (see README "Deck Rules"). Kept as plain configurable
 // constants rather than hardcoded literals scattered through the UI, per the brief's "keep these

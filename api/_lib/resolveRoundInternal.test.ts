@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GameState, PlayerState } from '../../src/game/types';
+import type { GameState, PlayerState } from '../../src/game/types/index.js';
 
 // A small purpose-built fake of just enough of the supabase-js query-builder surface that
 // resolveRoundInternal.ts actually calls, so its claim/validate/resolve/persist logic is testable without
@@ -122,12 +122,12 @@ function makeFakeClient(matches: MatchRow[], pings: { match_id: string; event_se
 let fakeMatches: MatchRow[] = [];
 let fakePings: { match_id: string; event_seq: number }[] = [];
 
-vi.mock('./supabaseAdmin', () => ({
+vi.mock('./supabaseAdmin.js', () => ({
   supabaseAdmin: () => makeFakeClient(fakeMatches, fakePings),
 }));
 
 // Imported AFTER the mock is registered.
-const { resolveRoundInternal } = await import('./resolveRoundInternal');
+const { resolveRoundInternal } = await import('./resolveRoundInternal.js');
 
 function player(overrides: Partial<PlayerState> = {}): PlayerState {
   return {

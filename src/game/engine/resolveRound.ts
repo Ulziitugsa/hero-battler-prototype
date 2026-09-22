@@ -1,11 +1,11 @@
-import type { CardDefinition, DeployPlay, GameState, LaneId, Placement, PlayerAction, ResolveResult, Side } from '../types';
-import { LANES } from '../types';
-import { getCard } from '../cards';
-import { HAND_REFILL_TARGET, directDamageAmount } from './constants';
-import { makeDrawnHandCard } from './deck';
-import { type Ctx, getHero, getSpellZone, opposite, playerOf, push, setHero, setSpellZone } from './board';
-import { effectivePower } from './power';
-import { applyMasteries } from './mastery';
+import type { CardDefinition, DeployPlay, GameState, LaneId, Placement, PlayerAction, ResolveResult, Side } from '../types/index.js';
+import { LANES } from '../types/index.js';
+import { getCard } from '../cards/index.js';
+import { HAND_REFILL_TARGET, directDamageAmount } from './constants.js';
+import { makeDrawnHandCard } from './deck.js';
+import { type Ctx, getHero, getSpellZone, opposite, playerOf, push, setHero, setSpellZone } from './board.js';
+import { effectivePower } from './power.js';
+import { applyMasteries } from './mastery.js';
 import {
   dealDirectDamageAndTrigger,
   dealOverflowDamage,
@@ -21,7 +21,7 @@ import {
   makeSpellZoneInstance,
   overflowReductionFor,
   sweepPowerZero,
-} from './abilities';
+} from './abilities.js';
 
 export interface ValidationResult {
   legal: boolean;

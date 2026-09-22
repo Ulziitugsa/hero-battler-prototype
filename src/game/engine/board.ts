@@ -1,5 +1,5 @@
-import type { GameEvent, GameState, HeroInstance, LaneId, Side, SpellZoneInstance } from '../types';
-import { LANES } from '../types';
+import type { GameEvent, GameState, HeroInstance, LaneId, Side, SpellZoneInstance } from '../types/index.js';
+import { LANES } from '../types/index.js';
 
 /** Mutable working copy of a GameState used only inside a single resolveRound() call. Never shared/aliased with the caller's state. */
 export interface Ctx {

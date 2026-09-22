@@ -1,4 +1,4 @@
-import type { CardDefinition } from '../types';
+import type { CardDefinition } from '../types/index.js';
 
 // Undead - skeletons, wraiths and necromancers. Death triggers, Graveyard, revival, sacrifice.
 

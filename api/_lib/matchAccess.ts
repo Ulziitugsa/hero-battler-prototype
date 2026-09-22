@@ -1,5 +1,5 @@
-import { HttpError } from './http';
-import { supabaseAdmin } from './supabaseAdmin';
+import { HttpError } from './http.js';
+import { supabaseAdmin } from './supabaseAdmin.js';
 
 export interface RoomMembership {
   roomId: string;

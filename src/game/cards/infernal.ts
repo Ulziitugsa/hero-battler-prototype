@@ -1,4 +1,4 @@
-import type { CardDefinition } from '../types';
+import type { CardDefinition } from '../types/index.js';
 
 // Infernal - demons and fire creatures. Aggression, direct damage, risky Power swings.
 

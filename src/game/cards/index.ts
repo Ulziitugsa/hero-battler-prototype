@@ -1,10 +1,10 @@
-import type { CardDefinition } from '../types';
-import { INFERNAL_CARDS } from './infernal';
-import { UNDEAD_CARDS } from './undead';
-import { KINGDOM_CARDS } from './kingdom';
-import { WILDBORN_CARDS } from './wildborn';
-import { INSTANT_SPELL_CARDS, PERSISTENT_SPELL_CARDS } from './spells';
-import { getTokenCard } from './tokens';
+import type { CardDefinition } from '../types/index.js';
+import { INFERNAL_CARDS } from './infernal.js';
+import { UNDEAD_CARDS } from './undead.js';
+import { KINGDOM_CARDS } from './kingdom.js';
+import { WILDBORN_CARDS } from './wildborn.js';
+import { INSTANT_SPELL_CARDS, PERSISTENT_SPELL_CARDS } from './spells.js';
+import { getTokenCard } from './tokens.js';
 
 export const ALL_CARDS: CardDefinition[] = [
   ...INFERNAL_CARDS,

@@ -1,4 +1,4 @@
-import type { PlayerAction } from '../../src/game/types';
+import type { PlayerAction } from '../../src/game/types/index.js';
 
 /** RPCs are callable directly, so validate stored JSON as well as HTTP input. */
 export function isActionShape(value: unknown): value is PlayerAction {

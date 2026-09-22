@@ -1,7 +1,7 @@
-import type { GameState, MasteryLoadout, Side } from '../types';
-import { STARTING_HP } from './constants';
-import { createPlayerState } from './deck';
-import { beginRound } from './resolveRound';
+import type { GameState, MasteryLoadout, Side } from '../types/index.js';
+import { STARTING_HP } from './constants.js';
+import { createPlayerState } from './deck.js';
+import { beginRound } from './resolveRound.js';
 
 export interface MatchSetup {
   seed: number;

@@ -1,7 +1,7 @@
-import type { Side } from '../../src/game/types';
-import { HttpError, bearerToken, type ApiRequest } from './http';
-import { supabaseAdmin } from './supabaseAdmin';
-import type { RoomMembership } from './matchAccess';
+import type { Side } from '../../src/game/types/index.js';
+import { HttpError, bearerToken, type ApiRequest } from './http.js';
+import { supabaseAdmin } from './supabaseAdmin.js';
+import type { RoomMembership } from './matchAccess.js';
 
 /** Verifies the caller's Supabase session token (bearer token from the request) and returns their auth uid. Never trusts a client-supplied id. */
 export async function authenticateCaller(req: ApiRequest): Promise<{ uid: string; token: string }> {

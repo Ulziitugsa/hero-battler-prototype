@@ -1,4 +1,4 @@
-import type { Faction } from '../types';
+import type { Faction } from '../types/index.js';
 
 // Mastery: the player's one equipped strategic passive. Pure data - the battle engine reads the
 // per-rank parameters (engine/mastery.ts), the progression layer reads unlock levels and rank caps, the

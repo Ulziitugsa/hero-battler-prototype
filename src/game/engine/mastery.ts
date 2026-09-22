@@ -1,9 +1,9 @@
-import type { LaneId, Side } from '../types';
-import { getCard } from '../cards';
-import { MASTERIES, getMasteryRankParams, isMasteryId } from '../mastery/definitions';
-import { livingHeroes, playerOf, push, type Ctx } from './board';
-import { grantShield } from './abilities';
-import { nextRandom } from './rng';
+import type { LaneId, Side } from '../types/index.js';
+import { getCard } from '../cards/index.js';
+import { MASTERIES, getMasteryRankParams, isMasteryId } from '../mastery/definitions.js';
+import { livingHeroes, playerOf, push, type Ctx } from './board.js';
+import { grantShield } from './abilities.js';
+import { nextRandom } from './rng.js';
 
 // Mastery resolution - inside the deterministic engine, never in React, never on a timer.
 //

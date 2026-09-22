@@ -1,4 +1,4 @@
-import type { AbilityDefinition } from '../types';
+import type { AbilityDefinition } from '../types/index.js';
 
 // Ascension paths, as data. A rank is a list of modifiers applied ON TOP of the card's base abilities
 // (never mutating the base definition): ADD_ABILITY appends an ability built from existing engine

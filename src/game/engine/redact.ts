@@ -1,5 +1,5 @@
-import type { GameEvent, GameState, HandCard, PlayerState, Side } from '../types';
-import { opposite } from './board';
+import type { GameEvent, GameState, HandCard, PlayerState, Side } from '../types/index.js';
+import { opposite } from './board.js';
 
 /** Placeholder cardId for a hidden hand/deck entry - never a real card id, so nothing can accidentally look it up. */
 const HIDDEN_CARD_ID = '__hidden__';

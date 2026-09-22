@@ -1,4 +1,4 @@
-import type { CardDefinition } from '../types';
+import type { CardDefinition } from '../types/index.js';
 
 // Wild - beasts and nature spirits. Growth, big Power, lane movement.
 

@@ -1,9 +1,9 @@
-import type { ApiRequest, ApiResponse } from './_lib/http';
-import { HttpError, withErrorHandling } from './_lib/http';
-import { authenticateCaller, canonicalSideFromRoom } from './_lib/auth';
-import { loadRoomForMatch } from './_lib/matchAccess';
-import { resolveRoundInternal } from './_lib/resolveRoundInternal';
-import { supabaseAdmin } from './_lib/supabaseAdmin';
+import type { ApiRequest, ApiResponse } from './_lib/http.js';
+import { HttpError, withErrorHandling } from './_lib/http.js';
+import { authenticateCaller, canonicalSideFromRoom } from './_lib/auth.js';
+import { loadRoomForMatch } from './_lib/matchAccess.js';
+import { resolveRoundInternal } from './_lib/resolveRoundInternal.js';
+import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 
 /**
  * Idempotent recovery/retry endpoint - NOT part of the normal submit flow (see api/submit-action.ts,

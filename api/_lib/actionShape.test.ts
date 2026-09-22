@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isActionShape } from './actionShape';
+import { isActionShape } from './actionShape.js';
 
 describe('untrusted friendly battle actions', () => {
   it.each([null, {}, { plays: null }, { plays: [null] }, { plays: [3] }, { plays: [{ handId: 'h1', cardId: 'kng-squire', lane: '__proto__' }] }, { plays: Array(7).fill({ handId: 'h', cardId: 'c', lane: 'left' }) }])('rejects malformed or oversized stored actions: %j', action => {

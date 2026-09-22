@@ -1,6 +1,6 @@
-import type { AbilityDefinition, CardDefinition } from '../types';
-import { getCard } from '../cards';
-import { getCardAscension } from './definitions';
+import type { AbilityDefinition, CardDefinition } from '../types/index.js';
+import { getCard } from '../cards/index.js';
+import { getCardAscension } from './definitions.js';
 
 // Base card + resolved Ascension modifiers = the card's effective behaviour. The base definition is
 // never mutated; results are memoised per (card, rank). Rank 0 (or an unsupported card) returns the base

@@ -1,12 +1,12 @@
-import type { ApiRequest, ApiResponse } from './_lib/http';
-import { HttpError, withErrorHandling } from './_lib/http';
-import { authenticateCaller, canonicalSideFromRoom } from './_lib/auth';
-import { supabaseAdmin } from './_lib/supabaseAdmin';
-import { createMatch } from '../src/game/engine/match';
-import { validateDeck } from '../src/game/engine/deckRules';
-import { makeSeed } from '../src/game/engine/rng';
-import { orientEventsForViewer, orientStateForViewer } from '../src/game/engine/perspective';
-import type { Side } from '../src/game/types';
+import type { ApiRequest, ApiResponse } from './_lib/http.js';
+import { HttpError, withErrorHandling } from './_lib/http.js';
+import { authenticateCaller, canonicalSideFromRoom } from './_lib/auth.js';
+import { supabaseAdmin } from './_lib/supabaseAdmin.js';
+import { createMatch } from '../src/game/engine/match.js';
+import { validateDeck } from '../src/game/engine/deckRules.js';
+import { makeSeed } from '../src/game/engine/rng.js';
+import { orientEventsForViewer, orientStateForViewer } from '../src/game/engine/perspective.js';
+import type { Side } from '../src/game/types/index.js';
 
 interface DeckSnapshot {
   cardIds: string[];

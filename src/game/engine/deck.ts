@@ -1,5 +1,5 @@
-import type { HandCard, LaneId, PlayerState, Side } from '../types';
-import { nextRandom } from './rng';
+import type { HandCard, LaneId, PlayerState, Side } from '../types/index.js';
+import { nextRandom } from './rng.js';
 
 // Hand-card ids are derived deterministically from (side, a local sequence number) rather than a
 // module-global counter, so that two independent matches built from the same seed produce byte-for-byte

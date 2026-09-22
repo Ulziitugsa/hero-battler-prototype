@@ -1,11 +1,11 @@
-import type { AbilityDefinition, ActionDef, CountBasis, ConditionDef, ConditionSide, Faction, GraveyardPick, GameState, HeroInstance, ImmunityKind, LaneId, Side, TargetScope, Trigger } from '../types';
-import { LANES, TRIGGER_LABEL, adjacentLanes } from '../types';
-import { getCard } from '../cards';
-import { effectiveAbilities } from '../ascension/effective';
-import { nextRandom } from './rng';
-import { STARTING_HP } from './constants';
-import { effectivePower } from './power';
-import { type Ctx, getHero, getSpellZone, livingHeroes, makeInstanceId, occupiedSpellZones, opposite, playerOf, push, setHero, setSpellZone } from './board';
+import type { AbilityDefinition, ActionDef, CountBasis, ConditionDef, ConditionSide, Faction, GraveyardPick, GameState, HeroInstance, ImmunityKind, LaneId, Side, TargetScope, Trigger } from '../types/index.js';
+import { LANES, TRIGGER_LABEL, adjacentLanes } from '../types/index.js';
+import { getCard } from '../cards/index.js';
+import { effectiveAbilities } from '../ascension/effective.js';
+import { nextRandom } from './rng.js';
+import { STARTING_HP } from './constants.js';
+import { effectivePower } from './power.js';
+import { type Ctx, getHero, getSpellZone, livingHeroes, makeInstanceId, occupiedSpellZones, opposite, playerOf, push, setHero, setSpellZone } from './board.js';
 
 /** Everything an ability's actions need to know about who/what triggered it. Fully determines every automatic target. */
 export interface AbilityContext {

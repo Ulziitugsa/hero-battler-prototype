@@ -1,5 +1,5 @@
-import type { GameState, LaneId, PlayerState, Side } from '../types';
-import { getCard } from '../cards';
+import type { GameState, LaneId, PlayerState, Side } from '../types/index.js';
+import { getCard } from '../cards/index.js';
 
 // Pure, engine-agnostic Power math - usable by resolveRound (for Combat/direct-damage/death checks)
 // AND by the UI (for board display) without either one needing to duplicate the rule. A Hero's

@@ -1,9 +1,9 @@
-import type { GameEvent, GameState, PlayerAction, Side } from '../../src/game/types';
-import { beginRound, resolveRound, validateDeployment } from '../../src/game/engine/resolveRound';
-import { orientEventsForViewer, orientStateForViewer } from '../../src/game/engine/perspective';
-import { HttpError } from './http';
-import { supabaseAdmin } from './supabaseAdmin';
-import { isActionShape } from './actionShape';
+import type { GameEvent, GameState, PlayerAction, Side } from '../../src/game/types/index.js';
+import { beginRound, resolveRound, validateDeployment } from '../../src/game/engine/resolveRound.js';
+import { orientEventsForViewer, orientStateForViewer } from '../../src/game/engine/perspective.js';
+import { HttpError } from './http.js';
+import { supabaseAdmin } from './supabaseAdmin.js';
+import { isActionShape } from './actionShape.js';
 
 /** A claimed-but-unfinished resolve older than this is assumed crashed and safe to reclaim (see plan: "Recoverable resolving-claim"). */
 const RESOLVING_RECOVERY_TIMEOUT_MS = 20_000;

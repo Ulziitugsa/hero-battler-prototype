@@ -1,4 +1,4 @@
-import type { CardDefinition } from '../types';
+import type { CardDefinition } from '../types/index.js';
 
 // Spells are faction-neutral - any deck can include any of them. Faction here is flavor only.
 //

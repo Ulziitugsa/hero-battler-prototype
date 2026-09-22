@@ -1,10 +1,10 @@
-import type { ApiRequest, ApiResponse } from './_lib/http';
-import { HttpError, withErrorHandling } from './_lib/http';
-import { authenticateCaller } from './_lib/auth';
-import { supabaseAsUser } from './_lib/supabaseAdmin';
-import { resolveRoundInternal } from './_lib/resolveRoundInternal';
-import type { Side } from '../src/game/types';
-import { isActionShape } from './_lib/actionShape';
+import type { ApiRequest, ApiResponse } from './_lib/http.js';
+import { HttpError, withErrorHandling } from './_lib/http.js';
+import { authenticateCaller } from './_lib/auth.js';
+import { supabaseAsUser } from './_lib/supabaseAdmin.js';
+import { resolveRoundInternal } from './_lib/resolveRoundInternal.js';
+import type { Side } from '../src/game/types/index.js';
+import { isActionShape } from './_lib/actionShape.js';
 
 /**
  * The only endpoint clients call to act each round. Storage and resolution happen in ONE request so

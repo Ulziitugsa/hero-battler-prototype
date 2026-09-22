@@ -1,4 +1,4 @@
-import type { CardDefinition } from '../types';
+import type { CardDefinition } from '../types/index.js';
 
 // Kingdom - knights, priests and archers. Buffs, board control, balance.
 

@@ -1,5 +1,5 @@
-import type { Faction } from '../types';
-import { getCard } from './index';
+import type { Faction } from '../types/index.js';
+import { getCard } from './index.js';
 
 // Card Set v0.1 - the curated playtest roster (see README "Card Set v0.1"). This is the set the
 // deckbuilder, Collection screen and starter/AI decks all draw from. Older prototype cards that

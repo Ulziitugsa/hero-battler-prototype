@@ -1,4 +1,4 @@
-import type { CardDefinition } from '../types';
+import type { CardDefinition } from '../types/index.js';
 
 // Token Heroes - created by SUMMON_TOKEN during a battle, never by a player. They are deliberately NOT
 // part of ALL_CARDS or any roster: they can't be collected, summoned, deck-built or shown in the Heroes
