@@ -25,4 +25,9 @@
 
 /* Rank marks */
 .asc-mark { position: absolute; left: 6px; bottom: 6px; min-width: 22px; height: 20px; padding: 0 6px; display: grid; place-items: center; border-radius: 10px; font-family: var(--ember-font-display); font-size: 0.72rem; line-height: 1; color: var(--ember-gold-ink); background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep)); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); }
+
+.asc-next-stars { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 0.72rem; opacity: 0.85; }
+.star-strip { display: inline-flex; gap: 1px; align-items: center; }
+.star-strip svg { fill: rgba(255, 255, 255, 0.18); }
+.star-strip svg.on { fill: var(--ember-gold-light, #ebc989); }
 .zone-card-asc { position: absolute; left: 3px; top: 3px; z-index: 3; min-width: 13px; height: 13px; padding: 0 3px; display: grid; place-items: center; border-radius: 7px; font-size: 0.5rem; font-weight: 800; line-height: 1; color: #3d2210; background: linear-gradient(180deg, #ffe6ad, #d9a54b); }

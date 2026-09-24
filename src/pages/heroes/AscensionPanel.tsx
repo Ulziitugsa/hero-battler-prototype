@@ -5,6 +5,8 @@ import { useCollection } from '../../game/collection/useCollection';
 import { useAscension } from '../../game/ascension/useAscension';
 import { ascendCard, ascensionLabel, getAscensionStatus } from '../../game/ascension/ascend';
 import { getCardAscension } from '../../game/ascension/definitions';
+import { starsForNextRank } from '../../game/ascension/stars';
+import { StarStrip } from './StarStrip';
 import '../../styles/ascension.css';
 
 /** Three carved marks showing how far a card has Ascended. */
@@ -55,6 +57,14 @@ export function AscensionPanel({ card }: { card: CardDefinition }) {
               {ascensionLabel(nextDef.rank)} · {nextDef.name}
             </strong>
             <span>{nextDef.summary}</span>
+            {(() => {
+              const nextStars = starsForNextRank(card.id);
+              return nextStars !== null ? (
+                <span className="asc-next-stars">
+                  <StarStrip stars={nextStars} size={11} /> at {ascensionLabel(nextDef.rank)}
+                </span>
+              ) : null;
+            })()}
           </p>
 
           {confirming ? (

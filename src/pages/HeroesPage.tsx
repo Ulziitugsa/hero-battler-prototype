@@ -19,6 +19,8 @@ import { AscensionPanel } from './heroes/AscensionPanel';
 import { HeroLevelPanel } from './heroes/HeroLevelPanel';
 import { useHeroLevel } from '../game/heroLevel/useHeroLevel';
 import { getHeroLevel } from '../game/heroLevel/store';
+import { StarStrip } from './heroes/StarStrip';
+import { starsForCard } from '../game/ascension/stars';
 import { displayRole, emptyCopy, FACTION_LABEL, FACTION_ORDER, filterHeroes, isFiltered, scopeOf, SORT_LABEL, tally, type HeroFilters, type OwnedFilter, type SortMode } from './heroes/collection';
 import '../styles/heroes.css';
 
@@ -185,6 +187,7 @@ function HeroDetail({
                 <Icon name={owned ? 'check' : 'lock'} size={12} />
                 {owned ? (count > 1 ? `Owned ×${count}` : 'In your collection') : 'Not yet collected'}
               </span>
+              {owned && <StarStrip stars={starsForCard(card.id)} />}
             </div>
 
             <div className="hr-sheet-line faction">

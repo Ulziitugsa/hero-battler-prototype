@@ -115,6 +115,7 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
   track('summon_performed', { kind, bannerId: pool.id, cost, count: pulls.length, highestRarity });
   for (const pull of pulls) {
     if (pull.rarity === 'legendary') track('legendary_pulled', { bannerId: pool.id, cardId: pull.cardId, wasNew: pull.grant.isNew, pityAfter });
+    if (!pull.grant.isNew) track('duplicate_acquired', { cardId: pull.cardId, rarity: pull.rarity, source: 'summon', copiesOwned: pull.grant.owned, ascensionAvailable: pull.ascensionAvailable });
   }
 
   return {

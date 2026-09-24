@@ -143,15 +143,19 @@ no resource at all — it is a pure ownership readout, exactly like the existing
 This resolves the gate's concern directly: there is exactly **one** duplicate sink in the whole game
 (Ascension), and exactly **one** place duplicates go. Stars never spend anything a second time.
 
-- `src/game/ascension/stars.ts` — `starsForCard(cardId, owned, ascensionState)`, pure, derived, no
-  persistence of its own (nothing to migrate, nothing that can desync from Ascension).
-- UI: a 5-star strip replaces/augments the existing `×N` badge on `HeroTile`/`HeroDetail` for cards with
-  duplicates, and the `AscensionPips` component on `AscensionPanel` gets a "☆ Stars" caption showing what
-  the *next* Ascension step is worth in star terms, so the two readouts visibly agree.
-- Analytics: `duplicate_acquired`, `duplicate_progress_applied` (fired from the existing `grantCard`/
-  `ascendCard` call sites — no new spend path to instrument).
+- `src/game/ascension/stars.ts` — `starsForCard(cardId, owned, ascensionState)` and `starsForNextRank`,
+  pure, derived, no persistence of its own (nothing to migrate, nothing that can desync from Ascension).
+- UI: a 5-star `StarStrip` (new, `pages/heroes/StarStrip.tsx`) on the Hero Detail sheet's owned line, and
+  an "★ at Ascension N" caption on `AscensionPanel`'s next-rank preview so the two readouts visibly agree
+  before the player spends anything. Deliberately **not** added to the grid tile (`HeroTile`) alongside
+  the existing `×N`/Ascension-rank marks — three stacked badges per tile read as clutter; the detail sheet
+  is where a player actually evaluates a card.
+- Analytics: `duplicate_acquired` (Summon pulls only — the primary duplicate-generating flow),
+  `duplicate_progress_applied` (fired from the existing `grantCard`/`ascendCard` call sites — no new
+  spend path to instrument).
 - Tests: `ascension/stars.test.ts`.
-- Deviation: none from the chosen model; Options A/C/D were prototyped only on paper, not in code.
+- Deviation: UI scope narrowed from "replaces/augments the badge on HeroTile/HeroDetail" (first draft) to
+  HeroDetail only, for the clutter reason above. Options A/C/D were compared only on paper, not in code.
 
 ### Phase 3 — Campaign power curve — Status: ✅ done
 

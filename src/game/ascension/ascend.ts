@@ -5,6 +5,7 @@ import { listDeckOptions, type DeckOption } from '../engine/deckOptions';
 import { ascensionCost, MIN_COPIES_KEPT } from './config';
 import { getCardAscension, maxRankFor } from './definitions';
 import { getAscensionRank, getAscensionState, recordAscension, type AscensionState } from './store';
+import { track } from '../../analytics/track';
 
 // Ascension rules, in one place. Ascending spends spare duplicates of the same card:
 //   - the collection quantity IS the number of copies available, so spending lowers it directly (decks,
@@ -94,6 +95,7 @@ export function ascendCard(cardId: string): AscendResult {
   }
   removeCard(cardId, status.cost);
   recordAscension(cardId, status.nextRank, status.cost);
+  track('duplicate_progress_applied', { cardId, system: 'ascension', rankBefore: status.rank, rankAfter: status.nextRank, duplicatesSpent: status.cost });
   return { ok: true, cardId, newRank: status.nextRank, spent: status.cost, reason: null };
 }
 
