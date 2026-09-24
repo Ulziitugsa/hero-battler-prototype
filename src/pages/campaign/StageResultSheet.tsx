@@ -11,7 +11,7 @@ const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', e
  * switched on, matching the design's "seal" screens. A loss gets its own much quieter variant - the
  * design has no defeat screen to port, so this is the minimal honest equivalent. */
 export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResultOutcome; onContinue: () => void }) {
-  const { node, won, reward, objectivesMet, chapterComplete, cardGrant, starterProgress, xp, gems } = outcome;
+  const { node, won, reward, objectivesMet, chapterComplete, cardGrant, starterProgress, xp, gems, gold } = outcome;
   const isCardReward = !!(reward?.firstClear && reward.def.cardId);
 
   if (!won) {
@@ -43,7 +43,7 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
           <span className="campaign-result-kicker">The Ashen Road · Chapter 1</span>
           <span className="campaign-result-title">Watch on the dust road</span>
           <span className="campaign-result-blurb">Thirteen nodes walked. The Grave Tyrant is put back in the ground.</span>
-          <XpSummary xp={null} gems={gems} />
+          <XpSummary xp={null} gems={gems} gold={gold} />
           <div className="campaign-result-rows">
             <div className="campaign-result-row">
               <span className="campaign-result-row-icon gold">
@@ -90,7 +90,7 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
         <span className="campaign-result-kicker">{node.name}</span>
         <span className="campaign-result-title">{node.encounter ? 'Stage cleared' : 'Reward claimed'}</span>
         <span className="campaign-result-blurb">{node.encounter ? `${node.teach} - held.` : node.reward?.sub}</span>
-        <XpSummary xp={xp} gems={gems} />
+        <XpSummary xp={xp} gems={gems} gold={gold} />
 
         {objectivesMet.length > 0 && (
           <div className="campaign-result-marks">

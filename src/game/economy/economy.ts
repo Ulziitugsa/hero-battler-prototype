@@ -1,6 +1,6 @@
-import { MAX_GEMS, type GemSource } from './config';
+import { MAX_GEMS, MAX_GOLD, type GemSource, type GoldSource } from './config';
 import { clearStoredEconomy, defaultEconomy, readStoredEconomy, sanitizeEconomy, writeStoredEconomy } from './persistence';
-import type { GemGrantResult, PlayerEconomy, SummonHistoryEntry } from './types';
+import type { GemGrantResult, GoldGrantResult, PlayerEconomy, SummonHistoryEntry } from './types';
 import { SUMMON_CONFIG } from '../summon/config';
 
 // The single source of truth for Gems and the Summon counters. Same shape as the collection/account
@@ -112,6 +112,41 @@ export function spendGems(amount: number): boolean {
   if (!canAfford(amount, economy.gems)) return false;
   if (amount > 0 && !isUnlimitedGems()) commit({ ...economy, gems: economy.gems - amount });
   return true;
+}
+
+// ---- Gold ---------------------------------------------------------------------------------------
+// Same shape as Gems, deliberately: a second earn/spend pair rather than a variant of grantGems/spendGems,
+// so Gold and Gems can never accidentally share a code path that assumes "the one currency".
+
+export function getGold(): number {
+  return getEconomy().gold;
+}
+
+export function canAffordGold(amount: number, gold: number = getGold()): boolean {
+  if (!Number.isInteger(amount) || amount < 0) return false;
+  return isUnlimitedGems() || gold >= amount;
+}
+
+/** Adds Gold (whole, positive; balance is capped at MAX_GOLD). Returns what was actually added. */
+export function grantGold(amount: number, source: GoldSource): GoldGrantResult {
+  const economy = getEconomy();
+  const want = Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
+  const balance = Math.min(MAX_GOLD, economy.gold + want);
+  const gained = balance - economy.gold;
+  if (gained > 0) commit({ ...economy, gold: balance });
+  return { gained, balance, source };
+}
+
+/** Removes Gold. Returns false - changing nothing - for a non-whole/negative amount or one the player can't afford. */
+export function spendGold(amount: number): boolean {
+  const economy = getEconomy();
+  if (!canAffordGold(amount, economy.gold)) return false;
+  if (amount > 0 && !isUnlimitedGems()) commit({ ...economy, gold: economy.gold - amount });
+  return true;
+}
+
+export function setGold(amount: number): void {
+  commit(sanitizeEconomy({ ...getEconomy(), gold: amount }));
 }
 
 // ---- Summon state -----------------------------------------------------------------------------

@@ -298,6 +298,8 @@ export interface HeroInstance {
   stalled?: boolean;
   /** Ascension rank this Hero entered play with (display only - the engine resolves abilities from GameState.ascensions). Absent = Base. */
   ascension?: number;
+  /** Hero Level this Hero entered play with (display only - its Battle Power bonus is already baked into `power`, see makeHeroInstance). Absent = Level 1. */
+  level?: number;
 }
 
 export interface SpellZoneInstance {
@@ -347,6 +349,15 @@ export interface GameState {
    * also how a mode would normalise Ascension away.
    */
   ascensions?: Partial<Record<Side, Record<string, number>>>;
+  /**
+   * Hero Level per card id, per side, for THIS match (cardId -> level; missing/1 = base). Read once, at
+   * placement (engine/abilities.ts's makeHeroInstance), to add a small capped Battle Power bonus
+   * (game/heroLevel/config.ts's battlePowerBonusForLevel) - never re-read afterwards, so a Hero's stored
+   * `power` already includes it exactly like Ascension is baked into abilities at placement time. Omit
+   * for none - which is also how Friendly Battle normalises Level away (see api/create-match.ts, which
+   * never sets this field, the same way it never sets `ascensions`/`masteries`).
+   */
+  heroLevels?: Partial<Record<Side, Record<string, number>>>;
 }
 
 /**

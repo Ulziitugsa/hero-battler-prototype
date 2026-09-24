@@ -1,7 +1,7 @@
 import type { Rarity } from '../types';
 
-/** v2: pity is per banner (a Record keyed by banner id); history entries carry their banner. v1's single pity counter is not carried over. */
-export const ECONOMY_VERSION = 2;
+/** v2: pity is per banner (a Record keyed by banner id); history entries carry their banner. v1's single pity counter is not carried over. v3: adds Gold (Commercial Prototype Phase 1) - a save with no `gold` field is treated as 0, never backfilled retroactively. */
+export const ECONOMY_VERSION = 3;
 
 export const RARITIES: readonly Rarity[] = ['common', 'rare', 'epic', 'legendary'];
 
@@ -23,6 +23,8 @@ export interface SummonHistoryEntry {
 export interface PlayerEconomy {
   version: number;
   gems: number;
+  /** Soft currency - Campaign wins and idle rewards. Spent on Hero Level (see game/heroLevel). */
+  gold: number;
   summon: {
     /** Pulls since the last Legendary, per banner id (0 .. pityThreshold - 1). A missing banner is 0. */
     pity: Record<string, number>;
@@ -32,6 +34,12 @@ export interface PlayerEconomy {
 }
 
 export interface GemGrantResult {
+  gained: number;
+  balance: number;
+  source: string;
+}
+
+export interface GoldGrantResult {
   gained: number;
   balance: number;
   source: string;

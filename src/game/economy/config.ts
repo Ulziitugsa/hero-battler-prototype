@@ -23,3 +23,21 @@ export const GEM_REWARDS = {
 
 /** Where a grant came from (for the record returned to callers / future analytics; not persisted). */
 export type GemSource = 'campaign' | 'chapter' | 'level' | 'starting' | 'dev';
+
+// ---- Gold (Commercial Prototype Phase 1) --------------------------------------------------------
+// Gold is the everyday soft currency: it funds Hero Level (game/heroLevel) and nothing else yet. Unlike
+// Gems, Gold is earned on EVERY win, not just a node's first clear - the point is a currency the player
+// always has a reason to keep playing for, even on a fully-cleared Campaign. PROTOTYPE values.
+
+export const STARTING_GOLD = 0;
+
+export const MAX_GOLD = 99_999_999;
+
+export const GOLD_REWARDS = {
+  /** Every Campaign win, cleared or not - replays are Gold's main source once a chapter is cleared. */
+  campaignWin: { battle: 30, challenge: 40, elite: 55, boss: 90, story: 0, reward: 0 } satisfies Record<CampaignNodeType, number>,
+  quickBattleWin: 20,
+  quickBattleDraw: 8,
+} as const;
+
+export type GoldSource = 'campaign' | 'quickBattle' | 'idle' | 'mission' | 'journey' | 'dev';

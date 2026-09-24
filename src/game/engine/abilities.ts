@@ -2,6 +2,7 @@ import type { AbilityDefinition, ActionDef, CountBasis, ConditionDef, ConditionS
 import { LANES, TRIGGER_LABEL, adjacentLanes } from '../types/index.js';
 import { getCard } from '../cards/index.js';
 import { effectiveAbilities } from '../ascension/effective.js';
+import { battlePowerBonusForLevel } from '../heroLevel/config.js';
 import { nextRandom } from './rng.js';
 import { STARTING_HP } from './constants.js';
 import { effectivePower } from './power.js';
@@ -41,6 +42,11 @@ interface DeadHero {
 /** The Ascension rank `side` brought for this card into the match (0 = Base). */
 export function ascensionRank(state: GameState, side: Side, cardId: string): number {
   return state.ascensions?.[side]?.[cardId] ?? 0;
+}
+
+/** The Hero Level `side` brought for this card into the match (1 = base, no bonus). */
+export function heroLevelOf(state: GameState, side: Side, cardId: string): number {
+  return state.heroLevels?.[side]?.[cardId] ?? 1;
 }
 
 /** A Hero's live abilities: base card + that side's Ascension modifiers. The one place the engine asks "what does this Hero do". */
@@ -800,16 +806,19 @@ export function sweepPowerZero(ctx: Ctx): void {
   destroyAndChain(ctx, findPowerZero(ctx));
 }
 
-export function makeHeroInstance(side: Side, lane: LaneId, round: number, cardId: string, ascension = 0): HeroInstance {
+export function makeHeroInstance(side: Side, lane: LaneId, round: number, cardId: string, ascension = 0, level = 1): HeroInstance {
   const card = getCard(cardId);
   return {
     ...(ascension > 0 ? { ascension } : {}),
+    ...(level > 1 ? { level } : {}),
     instanceId: makeInstanceId('h', side, lane, round),
     cardId,
     faction: card.faction,
     name: card.name,
     shortName: card.shortName,
-    power: card.power ?? 0,
+    // Hero Level's ONLY effect on real combat: a small, hard-capped Battle Power bonus baked in once,
+    // here, at placement - see game/heroLevel/config.ts's header note on why this must stay small.
+    power: (card.power ?? 0) + battlePowerBonusForLevel(level),
     enteredRound: round,
     tempPower: 0,
     shielded: false,

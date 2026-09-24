@@ -14,6 +14,7 @@ import { ArchiveAudio } from '../game/summon/audio';
 import { onSummonSound } from '../game/summon/sound';
 import { setUnlimitedGems } from '../game/economy/economy';
 import { useEconomy, useUnlimitedGems } from '../game/economy/useEconomy';
+import { track } from '../analytics/track';
 import type { Rarity } from '../game/types';
 import { BannerShowcase } from './summon/BannerShowcase';
 import { PoolSheet } from './summon/PoolSheet';
@@ -42,6 +43,8 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
     const unsubscribe = onSummonSound(event => audio.play(event));
     return () => { unsubscribe(); audio.close(); };
   }, [audio]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per screen visit, not per banner swipe
+  useEffect(() => { track('summon_opened'); }, []);
   const { outcome, view, start, skip, end, finishIntro } = useSummonSequence();
   const railRef = useRef<HTMLDivElement>(null);
 

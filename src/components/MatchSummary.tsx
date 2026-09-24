@@ -12,12 +12,14 @@ export interface FriendlyRematchActions {
 export function MatchSummary({
   stats,
   xp,
+  gold = 0,
   onPlayAgain,
   onExit,
   friendlyRematch,
 }: {
   stats: MatchStats;
   xp?: XpGrantResult | null;
+  gold?: number;
   onPlayAgain: () => void;
   onExit: () => void;
   /** Present only for a Friendly Battle match - swaps "Play again"/"Back to menu" for room-aware Rematch/Leave, per "no silent restart, both players must agree". */
@@ -31,7 +33,7 @@ export function MatchSummary({
         <div className="subtitle">
           {stats.playerDeckLabel} vs {stats.enemyDeckLabel} - {stats.roundsPlayed} rounds - final HP {stats.finalPlayerHp} / {stats.finalEnemyHp}
         </div>
-        <XpSummary xp={xp ?? null} />
+        <XpSummary xp={xp ?? null} gold={gold} />
         <div className="summary-stats">
           <span className="k">Rounds played</span>
           <span className="v">{stats.roundsPlayed}</span>

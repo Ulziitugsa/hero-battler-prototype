@@ -88,6 +88,7 @@ export function orientStateForViewer(state: GameState, viewerCanonicalSide: Side
     enemy: redacted.player,
     masteries: flipSideKeyedRecord(redacted.masteries),
     ascensions: flipSideKeyedRecord(redacted.ascensions),
+    heroLevels: flipSideKeyedRecord(redacted.heroLevels),
   };
 }
 

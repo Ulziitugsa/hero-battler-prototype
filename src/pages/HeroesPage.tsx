@@ -16,6 +16,9 @@ import { getAscensionRank } from '../game/ascension/store';
 import { ascensionNumeral } from '../game/ascension/ascend';
 import { ascensionAddedAbilities, effectiveAbilities } from '../game/ascension/effective';
 import { AscensionPanel } from './heroes/AscensionPanel';
+import { HeroLevelPanel } from './heroes/HeroLevelPanel';
+import { useHeroLevel } from '../game/heroLevel/useHeroLevel';
+import { getHeroLevel } from '../game/heroLevel/store';
 import { displayRole, emptyCopy, FACTION_LABEL, FACTION_ORDER, filterHeroes, isFiltered, scopeOf, SORT_LABEL, tally, type HeroFilters, type OwnedFilter, type SortMode } from './heroes/collection';
 import '../styles/heroes.css';
 
@@ -75,7 +78,7 @@ function HeroArt({ card, owned, large }: { card: CardDefinition; owned: boolean;
   );
 }
 
-function HeroTile({ card, owned, count, rank, onClick }: { card: CardDefinition; owned: boolean; count: number; rank: number; onClick: () => void }) {
+function HeroTile({ card, owned, count, rank, level, onClick }: { card: CardDefinition; owned: boolean; count: number; rank: number; level: number; onClick: () => void }) {
   return (
     <button type="button" className={`hr-card r-${card.rarity} ${owned ? '' : 'missing'}`} onClick={onClick} aria-label={`${card.name}, ${RARITY_LABEL[card.rarity]}, ${owned ? 'owned' : 'not collected'}`}>
       {card.rarity === 'legendary' && <span className="hr-crown" aria-hidden="true" />}
@@ -92,6 +95,7 @@ function HeroTile({ card, owned, count, rank, onClick }: { card: CardDefinition;
           )}
           {count > 1 && <span className="hr-copies">×{count}</span>}
           {owned && rank > 0 && <span className="asc-mark" title="Ascended">{ascensionNumeral(rank)}</span>}
+          {owned && level > 1 && <span className="hr-level-mark" title={`Level ${level}`}>Lv{level}</span>}
           <span className="hr-power">{card.power}</span>
         </span>
         <span className="hr-card-plate">
@@ -218,6 +222,7 @@ function HeroDetail({
               ))}
             </div>
 
+            {owned && <HeroLevelPanel card={card} />}
             {owned && <AscensionPanel card={card} />}
 
             {deckLabel && (
@@ -246,6 +251,7 @@ function HeroDetail({
 export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
   const collection = useCollection();
   const ascensionState = useAscension();
+  const heroLevelState = useHeroLevel();
   const owned = useMemo(() => new Set(HERO_IDS.filter((id) => (collection[id] ?? 0) > 0)), [collection]);
   const [ownedFilter, setOwnedFilter] = useState<OwnedFilter>('all');
   const [factionFilter, setFactionFilter] = useState<Faction | 'all'>('all');
@@ -411,7 +417,7 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
       ) : (
         <div className="hr-grid">
           {list.map((card) => (
-            <HeroTile key={card.id} card={card} owned={owned.has(card.id)} count={collection[card.id] ?? 0} rank={getAscensionRank(card.id, ascensionState)} onClick={() => setInspectId(card.id)} />
+            <HeroTile key={card.id} card={card} owned={owned.has(card.id)} count={collection[card.id] ?? 0} rank={getAscensionRank(card.id, ascensionState)} level={getHeroLevel(card.id, heroLevelState)} onClick={() => setInspectId(card.id)} />
           ))}
         </div>
       )}

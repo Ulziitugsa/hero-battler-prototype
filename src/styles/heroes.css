@@ -380,6 +380,7 @@
 .hr-copies { position: absolute; top: 4px; right: 4px; min-width: 20px; height: 18px; padding: 0 4px; display: grid; place-items: center; background: rgba(6, 10, 14, 0.8); border: 1px solid var(--px-line-dim); font: 700 10px var(--px-font-label); color: var(--px-ink-dim, #c8a98f); }
 .hr-card .hr-lock + .hr-copies { top: 28px; }
 .hr-card .asc-mark { left: 4px; bottom: 4px; min-width: 18px; height: 17px; padding: 0 4px; font-size: 0.62rem; }
+.hr-level-mark { position: absolute; left: 4px; bottom: 24px; min-width: 22px; height: 17px; padding: 0 4px; display: grid; place-items: center; border-radius: 10px; font: 700 0.62rem var(--px-font-label, sans-serif); color: #0d2b30; background: linear-gradient(180deg, #8fd8e8, #4f9cb0); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); }
 
 /* Where the card comes from - one quiet line, more useful on missing cards. */
 .hr-source { display: flex; align-items: center; gap: 7px; font-size: 0.85rem; font-weight: 700; color: var(--px-ink-faint, #a98d78); }

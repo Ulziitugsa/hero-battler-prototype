@@ -8,8 +8,9 @@ import type { GrantResult } from '../collection/types';
 import { getStarterProgressUpdate, type StarterProgressUpdate } from '../collection/starterUnlock';
 import { grantCampaignXp } from '../progression/rewards';
 import type { XpGrantResult } from '../progression/types';
-import { grantGems } from '../economy/economy';
-import { campaignFirstClearGems, chapterCompleteGems } from '../economy/rewards';
+import { grantGems, grantGold } from '../economy/economy';
+import { campaignFirstClearGems, campaignWinGold, chapterCompleteGems } from '../economy/rewards';
+import { track } from '../../analytics/track';
 
 // Campaign node-clearing progress. localStorage-only, following the same convention as
 // localDecks.ts/preferences.ts (try/catch-wrapped, sane defaults, never throws).
@@ -117,6 +118,8 @@ export interface BattleResultOutcome {
   xp: XpGrantResult | null;
   /** Gems this result granted: the node's first-clear Gems plus the chapter bonus when this clear completed the chapter. 0 for replays and losses. */
   gems: number;
+  /** Gold this result granted - unlike Gems, every win pays Gold, not just the first clear. 0 for a loss. */
+  gold: number;
   chapterComplete: boolean;
 }
 
@@ -158,6 +161,7 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
   const isFirstClear = won && !wasCleared;
   let granted: ReturnType<typeof grantReward> = { cardGrant: null, starterProgress: null };
   let gems = 0;
+  let gold = 0;
 
   if (won) {
     progress.objectivesMet[nodeId] = [...alreadyMet];
@@ -169,7 +173,13 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
     saveProgress(progress);
     if (claimNew) granted = grantReward(node.encounter.firstClearReward);
     gems = grantCampaignGems(node, claimNew, chapterWasComplete, isChapterComplete(progress));
+    // Unlike Gems, Gold pays out on EVERY win, cleared or not - it's the always-available reason to
+    // keep replaying a finished chapter (see docs/COMMERCIAL-PROTOTYPE-PLAN.md Phase 1).
+    const goldAmount = campaignWinGold(node.type);
+    gold = goldAmount > 0 ? grantGold(goldAmount, 'campaign').gained : 0;
   }
+
+  track(won ? 'campaign_won' : 'campaign_lost', { nodeId, nodeType: node.type, isFirstClear, roundsPlayed: stats.roundsPlayed, finalPlayerHp: stats.finalPlayerHp });
 
   return {
     node,
@@ -181,6 +191,7 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
     starterProgress: granted.starterProgress,
     xp: grantCampaignXp(node.type, { won, isFirstClear }),
     gems,
+    gold,
     chapterComplete: won && isChapterComplete(loadProgress()),
   };
 }

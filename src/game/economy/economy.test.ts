@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { GEM_REWARDS, MAX_GEMS, STARTING_GEMS } from './config';
-import { canAfford, commitSummon, getEconomy, getGems, getPity, grantGems, isUnlimitedGems, reloadEconomy, resetEconomy, resetSummonState, setGems, setPity, setUnlimitedGems, spendGems, subscribeEconomy } from './economy';
+import { GEM_REWARDS, GOLD_REWARDS, MAX_GEMS, MAX_GOLD, STARTING_GEMS, STARTING_GOLD } from './config';
+import { canAfford, canAffordGold, commitSummon, getEconomy, getGems, getGold, getPity, grantGems, grantGold, isUnlimitedGems, reloadEconomy, resetEconomy, resetSummonState, setGems, setGold, setPity, setUnlimitedGems, spendGems, spendGold, subscribeEconomy } from './economy';
 import { ECONOMY_STORAGE_KEY, sanitizeEconomy } from './persistence';
-import { campaignFirstClearGems, chapterCompleteGems, levelGems } from './rewards';
+import { campaignFirstClearGems, campaignWinGold, chapterCompleteGems, levelGems, quickBattleGold } from './rewards';
 
 function installLocalStoragePolyfill() {
   const store = new Map<string, string>();
@@ -26,9 +26,64 @@ beforeEach(() => {
 const stored = () => JSON.parse(localStorage.getItem(ECONOMY_STORAGE_KEY)!);
 
 describe('fresh economy', () => {
-  it('starts with the configured starting Gems, pity 0 and no history, and persists that on first read', () => {
-    expect(getEconomy()).toEqual({ version: 2, gems: STARTING_GEMS, summon: { pity: {}, history: [] } });
+  it('starts with the configured starting Gems, starting Gold, pity 0 and no history, and persists that on first read', () => {
+    expect(getEconomy()).toEqual({ version: 3, gems: STARTING_GEMS, gold: STARTING_GOLD, summon: { pity: {}, history: [] } });
     expect(stored().gems).toBe(STARTING_GEMS);
+    expect(stored().gold).toBe(STARTING_GOLD);
+  });
+});
+
+describe('Gold', () => {
+  it('grants, notifies subscribers and persists', () => {
+    let calls = 0;
+    const off = subscribeEconomy(() => calls++);
+    const r = grantGold(50, 'dev');
+    expect(r).toEqual({ gained: 50, balance: STARTING_GOLD + 50, source: 'dev' });
+    expect(getGold()).toBe(STARTING_GOLD + 50);
+    expect(stored().gold).toBe(STARTING_GOLD + 50);
+    expect(calls).toBe(1);
+    off();
+  });
+  it('ignores zero, negative and non-finite grants', () => {
+    for (const bad of [0, -5, NaN, Infinity]) expect(grantGold(bad, 'dev').gained).toBe(0);
+    expect(getGold()).toBe(STARTING_GOLD);
+  });
+  it('floors fractional grants and caps at MAX_GOLD', () => {
+    setGold(0);
+    expect(grantGold(10.9, 'dev').gained).toBe(10);
+    setGold(MAX_GOLD - 5);
+    expect(grantGold(100, 'dev')).toMatchObject({ gained: 5, balance: MAX_GOLD });
+  });
+  it('spends when affordable and refuses an unaffordable/negative/fractional spend', () => {
+    setGold(420);
+    expect(canAffordGold(100)).toBe(true);
+    expect(spendGold(100)).toBe(true);
+    expect(getGold()).toBe(320);
+    expect(spendGold(-1)).toBe(false);
+    expect(spendGold(1.5)).toBe(false);
+    setGold(60);
+    expect(canAffordGold(100)).toBe(false);
+    expect(spendGold(100)).toBe(false);
+    expect(getGold()).toBe(60);
+  });
+  it('survives a reload from storage independently of Gems', () => {
+    setGems(1);
+    setGold(777);
+    reloadEconomy();
+    expect(getGems()).toBe(1);
+    expect(getGold()).toBe(777);
+  });
+});
+
+describe('Gold reward config', () => {
+  it('every Campaign win pays Gold, not just first clears', () => {
+    expect(campaignWinGold('battle')).toBe(GOLD_REWARDS.campaignWin.battle);
+    expect(campaignWinGold('story')).toBe(0);
+  });
+  it('Quick Battle pays Gold on win/draw, nothing on loss', () => {
+    expect(quickBattleGold('win')).toBe(GOLD_REWARDS.quickBattleWin);
+    expect(quickBattleGold('draw')).toBe(GOLD_REWARDS.quickBattleDraw);
+    expect(quickBattleGold('loss')).toBe(0);
   });
 });
 
@@ -113,6 +168,12 @@ describe('schema migration', () => {
     expect(getGems()).toBe(640);
     expect(getEconomy().summon.pity).toEqual({});
     expect(getEconomy().summon.history).toEqual([{ cardId: 'kng-archer', rarity: 'common', at: 9, wasNew: true, bannerId: '' }]);
+  });
+  it('a v2 save (no gold field at all) treats Gold as 0, never backfilling retroactively', () => {
+    localStorage.setItem(ECONOMY_STORAGE_KEY, JSON.stringify({ version: 2, gems: 500, summon: { pity: {}, history: [] } }));
+    reloadEconomy();
+    expect(getGems()).toBe(500);
+    expect(getGold()).toBe(0);
   });
 });
 

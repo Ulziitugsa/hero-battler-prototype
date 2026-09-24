@@ -8,11 +8,14 @@ import type { MasteryId } from '../mastery/definitions';
 import { ascendCard, getAscensionStatus } from '../ascension/ascend';
 import { CARD_ASCENSIONS } from '../ascension/definitions';
 import { getAscensionState, resetAscension, setAscensionRank } from '../ascension/store';
-import { getEconomy, grantGems, isUnlimitedGems, resetEconomy, resetSummonState, setGems, setPity, setUnlimitedGems } from '../economy/economy';
+import { getEconomy, grantGems, grantGold, isUnlimitedGems, resetEconomy, resetSummonState, setGems, setGold, setPity, setUnlimitedGems } from '../economy/economy';
 import { performSummon } from '../summon/summon';
 import { SUMMON_BANNERS } from '../summon/banners';
 import { forceNextRarity } from '../summon/devControls';
 import type { Rarity } from '../types';
+import { getHeroLevelStatus, levelUpHero } from '../heroLevel/levelUp';
+import { getHeroLevelState, resetHeroLevels, setHeroLevel } from '../heroLevel/store';
+import { rosterPowerForDeck } from '../heroLevel/rosterPower';
 
 // DEV ONLY - attached to window.skyloomDev by main.tsx behind import.meta.env.DEV, so it never ships.
 // e.g. skyloomDev.grant('und-mira'), skyloomDev.setAllOwned(), skyloomDev.reset().
@@ -39,6 +42,14 @@ export const devTools = {
   economy: () => getEconomy(),
   addGems: (amount: number) => grantGems(amount, 'dev'),
   setGems: (amount: number) => setGems(amount),
+  addGold: (amount: number) => grantGold(amount, 'dev'),
+  setGold: (amount: number) => setGold(amount),
+  // ---- Hero Level / Roster Power ----
+  heroLevel: (cardId: string) => getHeroLevelStatus(cardId),
+  setHeroLevel: (cardId: string, level: number) => setHeroLevel(cardId, level),
+  levelUpHero: (cardId: string) => levelUpHero(cardId),
+  resetHeroLevels: () => resetHeroLevels(),
+  rosterPower: (cardIds: string[], accountLevel: number) => rosterPowerForDeck(cardIds, accountLevel, getHeroLevelState(), getAscensionState()),
   banners: () => SUMMON_BANNERS.map((b) => b.id),
   /** Pity is per banner: skyloomDev.setPity('gravebound', 39). */
   setPity: (bannerId: string, count: number) => setPity(bannerId, count),

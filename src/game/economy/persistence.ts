@@ -1,7 +1,7 @@
 import { ALL_CARDS } from '../cards';
 import { isBannerId } from '../summon/banners';
 import { SUMMON_CONFIG } from '../summon/config';
-import { MAX_GEMS, STARTING_GEMS } from './config';
+import { MAX_GEMS, MAX_GOLD, STARTING_GEMS, STARTING_GOLD } from './config';
 import { ECONOMY_VERSION, RARITIES, type PlayerEconomy, type SummonHistoryEntry } from './types';
 
 // Centralised localStorage access for the economy - UI never touches storage directly. Same convention
@@ -11,7 +11,7 @@ export const ECONOMY_STORAGE_KEY = 'skyloom:economy';
 const KNOWN_IDS = new Set(ALL_CARDS.map((c) => c.id));
 
 export function defaultEconomy(): PlayerEconomy {
-  return { version: ECONOMY_VERSION, gems: STARTING_GEMS, summon: { pity: {}, history: [] } };
+  return { version: ECONOMY_VERSION, gems: STARTING_GEMS, gold: STARTING_GOLD, summon: { pity: {}, history: [] } };
 }
 
 const whole = (n: unknown, fallback: number): number => (typeof n === 'number' && Number.isFinite(n) ? Math.floor(n) : fallback);
@@ -50,6 +50,8 @@ export function sanitizeEconomy(raw: unknown): PlayerEconomy {
   return {
     version: ECONOMY_VERSION,
     gems: Math.max(0, Math.min(MAX_GEMS, whole(r.gems, 0))),
+    // A pre-v3 save has no `gold` field at all - that is 0, not an error, and is never backfilled.
+    gold: Math.max(0, Math.min(MAX_GOLD, whole(r.gold, 0))),
     summon: { pity: sanitizePity(summon.pity), history: sanitizeHistory(summon.history) },
   };
 }

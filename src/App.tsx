@@ -17,8 +17,10 @@ import { recordBattleResult, type BattleResultOutcome } from './game/campaign/pr
 import { getActiveDeck } from './game/engine/activeDeck';
 import { getEquippedLoadout } from './game/progression/account';
 import { ascensionRanksFor } from './game/ascension/store';
+import { heroLevelsFor } from './game/heroLevel/store';
 import type { MasteryLoadout } from './game/types';
 import { WorldBackdrop } from './components/WorldBackdrop';
+import { track } from './analytics/track';
 import './styles/moonwaterGame.css';
 
 export default function App() {
@@ -40,7 +42,7 @@ function GameApp() {
   const [storySaveFailed, setStorySaveFailed] = useState(false);
   const [storyResult, setStoryResult] = useState<string | null>(null);
   const [lastStoryTrial, setLastStoryTrial] = useState<string | null>(null);
-  const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; startingHp?: number; mastery: MasteryLoadout | null; ascensions: Record<string, number> } | null>(null);
+  const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; startingHp?: number; mastery: MasteryLoadout | null; ascensions: Record<string, number>; heroLevels: Record<string, number> } | null>(null);
   // Which Campaign node the in-progress battle belongs to, if any - set only by startCampaignBattle,
   // never by Quick Battle, so Quick Battle can never touch Campaign state (see progress.ts's own note).
   const [campaignNodeId, setCampaignNodeId] = useState<string | null>(null);
@@ -66,6 +68,7 @@ function GameApp() {
         startingHp={battleSetup.startingHp}
         playerMastery={battleSetup.mastery}
         playerAscensions={battleSetup.ascensions}
+        playerHeroLevels={battleSetup.heroLevels}
         onMatchEnd={
           campaignNodeId
             ? (status, stats, events) => {
@@ -129,14 +132,15 @@ function GameApp() {
   function startBattle(player: DeckChoice, enemy: DeckChoice) {
     battleCounter.current += 1;
     setShowBattleSetup(false);
-    setBattleSetup({ player, enemy, id: battleCounter.current, mastery: getEquippedLoadout(), ascensions: ascensionRanksFor(player.cardIds) });
+    setBattleSetup({ player, enemy, id: battleCounter.current, mastery: getEquippedLoadout(), ascensions: ascensionRanksFor(player.cardIds), heroLevels: heroLevelsFor(player.cardIds) });
   }
 
   function startCampaignBattle(nodeId: string, player: DeckChoice, enemy: DeckChoice, startingHp?: number) {
     battleCounter.current += 1;
     setShowCampaign(false);
     setCampaignNodeId(nodeId);
-    setBattleSetup({ player, enemy, id: battleCounter.current, startingHp, mastery: getEquippedLoadout(), ascensions: ascensionRanksFor(player.cardIds) });
+    track('campaign_node_started', { nodeId });
+    setBattleSetup({ player, enemy, id: battleCounter.current, startingHp, mastery: getEquippedLoadout(), ascensions: ascensionRanksFor(player.cardIds), heroLevels: heroLevelsFor(player.cardIds) });
   }
 
   let screen;

@@ -11,6 +11,7 @@ import { SUMMON_CONFIG, SUMMON_RARITY_ORDER } from './config';
 import { takeForcedRarity } from './devControls';
 import { getPool, type SummonPool } from './pool';
 import { resolveSummons, type SummonPullResult } from './resolve';
+import { track } from '../../analytics/track';
 
 // The Summon flow, in one place: check affordability -> resolve (pure) -> spend + pity + history (one
 // economy write) -> grant every card through the collection store. Everything is decided and persisted
@@ -110,6 +111,12 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
     pulls.push({ ...r, grant, ascensionAvailable: !grant.isNew && getAscensionStatus(r.cardId, after).canAscend });
   });
 
+  const highestRarity = highestRarityOf(pulls.map((p) => p.rarity));
+  track('summon_performed', { kind, bannerId: pool.id, cost, count: pulls.length, highestRarity });
+  for (const pull of pulls) {
+    if (pull.rarity === 'legendary') track('legendary_pulled', { bannerId: pool.id, cardId: pull.cardId, wasNew: pull.grant.isNew, pityAfter });
+  }
+
   return {
     ok: true,
     kind,
@@ -119,7 +126,7 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
     pulls,
     pityBefore,
     pityAfter,
-    highestRarity: highestRarityOf(pulls.map((p) => p.rarity)),
+    highestRarity,
     starterProgress: starterProgressBetween(before, after),
   };
 }

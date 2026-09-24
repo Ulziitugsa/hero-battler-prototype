@@ -22,6 +22,9 @@ import { MasteryBadge } from '../components/MasteryBadge';
 import { masteryToastFrom, type MasteryToast } from '../components/masteryToast';
 import { grantQuickBattleXp } from '../game/progression/rewards';
 import type { XpGrantResult } from '../game/progression/types';
+import { grantGold } from '../game/economy/economy';
+import { quickBattleGold } from '../game/economy/rewards';
+import { battlePowerBonusForLevel } from '../game/heroLevel/config';
 import { Icon } from '../components/Icon';
 import { useAnimationController } from '../components/animation/useAnimationController';
 import { resolveDuration } from '../components/animation/timing';
@@ -42,6 +45,8 @@ export interface GamePageProps {
   playerMastery?: MasteryLoadout | null;
   /** The player's Ascension ranks for the cards in their deck (cardId -> rank), captured at setup. Omit for all Base. */
   playerAscensions?: Record<string, number>;
+  /** The player's Hero Levels for the cards in their deck (cardId -> level), captured at setup. Omit for all Level 1. */
+  playerHeroLevels?: Record<string, number>;
   /** Overrides the match's starting HP (both sides) - used by Campaign's challenge nodes. Omit for the default STARTING_HP. */
   startingHp?: number;
   /** Fires once, the instant this match reaches MATCH_END - before the player dismisses the summary
@@ -70,6 +75,7 @@ function buildPreviewZones(
   heroZones: GameState['player']['heroZones'],
   spellZones: GameState['player']['spellZones'],
   pendingPlays: DeployPlay[],
+  heroLevels: Record<string, number> = {},
 ): { heroZones: GameState['player']['heroZones']; spellZones: GameState['player']['spellZones'] } {
   const previewHero = { ...heroZones };
   const previewSpell = { ...spellZones };
@@ -82,7 +88,9 @@ function buildPreviewZones(
         faction: card.faction,
         name: card.name,
         shortName: card.shortName,
-        power: card.power ?? 0,
+        // Matches makeHeroInstance's own Battle Power calculation, so the Deploy-phase preview never
+        // shows a number Reveal is about to contradict for a levelled Hero.
+        power: (card.power ?? 0) + battlePowerBonusForLevel(heroLevels[play.cardId] ?? 1),
         tempPower: 0,
         shielded: false,
         silenced: false,
@@ -104,9 +112,17 @@ function buildPreviewZones(
   return { heroZones: previewHero, spellZones: previewSpell };
 }
 
-export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch }: GamePageProps) {
+export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, playerHeroLevels, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch }: GamePageProps) {
   function buildMatch(matchSeed: number) {
-    return createMatch({ seed: matchSeed, playerDeck, enemyDeck, startingHp, masteries: playerMastery ? { player: playerMastery } : undefined, ascensions: playerAscensions && Object.keys(playerAscensions).length > 0 ? { player: playerAscensions } : undefined });
+    return createMatch({
+      seed: matchSeed,
+      playerDeck,
+      enemyDeck,
+      startingHp,
+      masteries: playerMastery ? { player: playerMastery } : undefined,
+      ascensions: playerAscensions && Object.keys(playerAscensions).length > 0 ? { player: playerAscensions } : undefined,
+      heroLevels: playerHeroLevels && Object.keys(playerHeroLevels).length > 0 ? { player: playerHeroLevels } : undefined,
+    });
   }
 
   const [seed, setSeed] = useState(() => makeSeed());
@@ -131,6 +147,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   // Presentation-only: the last Mastery trigger (label shown briefly) and the Quick Battle XP result.
   const [masteryToast, setMasteryToast] = useState<MasteryToast | null>(null);
   const [xpResult, setXpResult] = useState<XpGrantResult | null>(null);
+  const [goldResult, setGoldResult] = useState(0);
 
   useEffect(() => {
     if (!masteryToast) return;
@@ -159,6 +176,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     setMatchStats(null);
     setMasteryToast(null);
     setXpResult(null);
+    setGoldResult(0);
   }
 
   // Once the animation queue finishes playing revealEvents, hand off to the next round - using the
@@ -184,8 +202,12 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
       setMatchStats(stats);
       setGameState(next);
       setPhase('MATCH_END');
-      // Quick Battle grants its small XP here; a Campaign battle grants its own inside recordBattleResult.
-      if (!onMatchEnd && !remoteOpponent) setXpResult(grantQuickBattleXp(next.status));
+      // Quick Battle grants its small XP/Gold here; a Campaign battle grants its own inside recordBattleResult.
+      if (!onMatchEnd && !remoteOpponent) {
+        setXpResult(grantQuickBattleXp(next.status));
+        const goldAmount = quickBattleGold(next.status === 'PLAYER_WIN' ? 'win' : next.status === 'DRAW' ? 'draw' : 'loss');
+        setGoldResult(goldAmount > 0 ? grantGold(goldAmount, 'quickBattle').gained : 0);
+      }
       if (onMatchEnd) {
         // A Campaign battle owns its own post-match moment - the carved StageResultSheet back on
         // the map, which already covers win/loss/rewards. Hand off straight to it instead of
@@ -312,7 +334,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const displayState = isRevealing ? anim.displayState : gameState;
   const hpFxFor = (side: 'player' | 'enemy') => anim.visuals.hpFx.find((fx) => fx.side === side) ?? null;
 
-  const preview = phase === 'DEPLOY' ? buildPreviewZones(displayState.player.heroZones, displayState.player.spellZones, pendingPlays) : null;
+  const preview = phase === 'DEPLOY' ? buildPreviewZones(displayState.player.heroZones, displayState.player.spellZones, pendingPlays, playerHeroLevels) : null;
 
   // Tapping a chit to inspect it - like every other board interaction - is locked out while the round
   // is resolving, so a mid-animation tap can never race the animation queue or open stale card data.
@@ -456,7 +478,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
           )}
 
           {inspectCardId && <CardDetail cardId={inspectCardId} onClose={() => setInspectCardId(null)} />}
-          {phase === 'MATCH_END' && matchStats && <MatchSummary stats={matchStats} xp={xpResult} onPlayAgain={() => restartWithSeed(makeSeed())} onExit={onExit} friendlyRematch={friendlyRematch} />}
+          {phase === 'MATCH_END' && matchStats && <MatchSummary stats={matchStats} xp={xpResult} gold={goldResult} onPlayAgain={() => restartWithSeed(makeSeed())} onExit={onExit} friendlyRematch={friendlyRematch} />}
 
           {/* Friendly Battle only - deliberately minimal/unstyled (see docs/FRIENDLY-BATTLE.md: "keep
               styling minimal, reuse existing components" - Codex owns the visual pass). */}
