@@ -18,6 +18,7 @@ import { getHeroLevelState, resetHeroLevels, setHeroLevel } from '../heroLevel/s
 import { rosterPowerForDeck } from '../heroLevel/rosterPower';
 import { claimIdleReward, loadIdleReward, resetIdleRewards } from '../campaign/idleRewards';
 import { claimMission, getMissionsState, resetMissions, setMissionProgress } from '../missions/store';
+import { claimJourneyDay, getJourneyState, resetJourney } from '../journey/store';
 
 // DEV ONLY - attached to window.skyloomDev by main.tsx behind import.meta.env.DEV, so it never ships.
 // e.g. skyloomDev.grant('und-mira'), skyloomDev.setAllOwned(), skyloomDev.reset().
@@ -61,6 +62,10 @@ export const devTools = {
   setMissionProgress: (id: string, count: number) => setMissionProgress(id, count),
   claimMission: (id: string) => claimMission(id),
   resetMissions: () => resetMissions(),
+  // ---- 7-day journey ----
+  journey: () => getJourneyState(),
+  claimJourneyDay: (day: number) => claimJourneyDay(day),
+  resetJourney: () => resetJourney(),
   banners: () => SUMMON_BANNERS.map((b) => b.id),
   /** Pity is per banner: skyloomDev.setPity('gravebound', 39). */
   setPity: (bannerId: string, count: number) => setPity(bannerId, count),

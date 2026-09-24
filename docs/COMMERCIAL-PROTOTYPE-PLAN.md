@@ -232,15 +232,30 @@ This resolves the gate's concern directly: there is exactly **one** duplicate si
 
 ### Phase 6 — Seven-day new player journey — Status: ✅ done
 
-- `src/game/journey/` — `definitions.ts` (7 rewards, Day 7 a meaningful hero/material grant, none gated
-  behind spend or ads), `store.ts` (first-launch timestamp captured once, day index derived from elapsed
-  real time, immune to being reset by ordinary local changes — it does not live in a key any other reset
-  tool touches).
-- UI: a compact 7-day strip, reachable from Home, in the same footprint discipline as Missions.
-- Analytics: `journey_day_claimed`, `journey_completed`, `journey_dropped_off` (day of last claim before a
-  gap longer than 48h, computed, not tracked live).
+- `src/game/journey/definitions.ts` — 7 days, Day 7 a Legendary hero grant (`inf-infernal-lord`), none
+  gated behind spend or ads. `src/game/journey/store.ts` — day index derived from elapsed real time
+  against `analytics/context.ts`'s `getFirstSeenAt()` (the SAME first-launch timestamp Phase 0 already
+  established, not a second install clock that could drift from it), with its own dedicated storage key
+  (`skyloom:journey`) that no other module's reset helper touches — satisfying "cannot be accidentally
+  reset by ordinary local changes" by construction, verified in `store.test.ts`.
+- Days may be claimed **out of order**, and a missed day is never lost — a design decision beyond the
+  brief's literal text, made in service of its own "generous, not manipulative" instruction: punishing a
+  missed day by permanently forfeiting that reward would be the manipulative pattern the brief explicitly
+  rejects elsewhere (Section 14's "no dark patterns"). Every day just checks "is it unlocked and unclaimed
+  yet", nothing more.
+- UI: a compact `JourneySheet` (7-day strip), reachable from Home's footer next to Missions, sharing its
+  sheet chrome. Hides itself once complete rather than permanently occupying footer space.
+- Analytics: `journey_day_claimed`, `journey_completed` (fires once, on the 7th distinct claim, whatever
+  order they came in), `journey_dropped_off` (the day of the last claim, reported at most once per gap,
+  computed lazily on read — not a running timer).
 - Tests: `journey/store.test.ts`.
-- Deviation: none.
+- Deviation: the brief's own Section 9 day-list named a Relic (Day 3), Summon Tickets (Day 2) and a
+  Cosmetic (Day 6) — none of which exist in this codebase (equipment/relics and cosmetics are out of
+  scope entirely for this workstream per the repo audit's own recommendation; Summon Tickets are a Phase 7
+  concern, not yet introduced). Substituted: Day 2 → Gems, Day 3 → a second copy of the Day-1 hero (ties
+  directly into Phase 2's Stars, so a new player's first duplicate-value moment happens inside the
+  journey itself), Day 6 → a larger Gems grant. No new economy surface was introduced to hit the brief's
+  specific example nouns.
 
 ## 9. Decision gate after Phase 10
 
@@ -254,6 +269,19 @@ Unchanged from the docx Section 10 (Phases 11–15+: server-authoritative econom
 + first live event, Season Pass/rewarded ads, guilds/raids). Not started; not needed to evaluate this
 workstream's core hypothesis.
 
-## 11. Definition of success
+## 11. Definition of success — checked at the end of Phase 6
 
-Unchanged from the docx Section 12. Re-checked at the end of Phase 6 in the final status update below.
+| Criterion (docx Section 12) | Status |
+|---|---|
+| Embervale still feels like the same 3-lane game, not a stat simulator | Held by construction: the only numeric change to real combat across all six phases is `battlePowerBonusForLevel`, capped at +2, proven (not just asserted) to stay smaller than the roster's widest Common-vs-Legendary gap. Everything else (Ascension, Mastery, Stars) was already ability-based or purely virtual before this workstream and stayed that way. |
+| An obvious reason to strengthen heroes, and a place that strength matters | Hero Level (Phase 1) + Stars-over-Ascension (Phase 2) give the reason; the Campaign Roster Power curve (Phase 3) gives the place, with a boss provably out of reach for pure collection alone. |
+| At least three reasons to return tomorrow | Idle accumulation (Phase 4), daily/weekly missions (Phase 5), the 7-day journey (Phase 6) — all three land, all three are analytics-instrumented from day one. |
+| Duplicates have clear value without a confusing double-spend economy | Phase 2's decision gate resolved this explicitly before any Stars code was written — one duplicate sink (Ascension), Stars are a read, never a second spend. |
+| All new loops emit measurable analytics events | Every phase's write-up above lists its events; `track()`'s common context (account level, Gem/Gold balance, days since install) rides on all of them automatically. |
+| No large content/live-ops/backend build undertaken early | Confirmed — no server work, no new regions, no guilds/ranked/events; Summon Tickets and full Ascension-content coverage were both explicitly deferred rather than pulled forward. |
+
+**Open before Phase 7+:** the Roster Power formula and every reward/rate constant introduced in Phases
+1–6 are first-draft, PROTOTYPE-tier numbers (consistent with every existing tuning file in this codebase)
+and have not been played by a real user yet. Phase 9 (closed-playtest polish) and Phase 10 (closed
+playtest itself) are what the brief's own Section 9 decision gate depends on — this plan does not treat
+Phases 0–6 landing as evidence the retention hypothesis is correct, only that it is now testable.

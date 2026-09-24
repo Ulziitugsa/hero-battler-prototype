@@ -1,0 +1,68 @@
+/* 7-day journey strip - reuses missions.css's sheet/row chrome; this file only adds the day-list layout. */
+
+.journey-strip {
+  overflow-y: auto;
+  padding: 0 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.journey-day {
+  display: grid;
+  grid-template-columns: 56px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 214, 140, 0.05);
+  border: 1px solid rgba(255, 214, 140, 0.1);
+}
+
+.journey-day.ready {
+  border-color: rgba(255, 214, 140, 0.4);
+  background: rgba(255, 214, 140, 0.1);
+}
+
+.journey-day.claimed {
+  opacity: 0.55;
+}
+
+.journey-day.locked {
+  opacity: 0.4;
+}
+
+.journey-day-num {
+  font-family: var(--ember-font-display);
+  font-size: 11px;
+  color: var(--ember-gold-light);
+}
+
+.journey-day-title {
+  font-size: 12.5px;
+  color: var(--ember-ink);
+}
+
+.journey-day-reward {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--ember-gold-light);
+}
+
+.journey-day-reward span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.journey-day-lock {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ember-ink-2);
+}
