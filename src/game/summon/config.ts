@@ -21,6 +21,13 @@ export const SUMMON_CONFIG = {
   /** Rate-up: a banner's main / secondary featured card has its in-rarity weight multiplied by this. */
   featuredMainMultiplier: 3,
   featuredSecondaryMultiplier: 2,
+  /**
+   * Summon Tickets (Commercial Prototype Phase 7): one Ticket = one pull, always, on every banner - no
+   * per-banner override like Gem cost has, and deliberately no bulk discount (Tickets are earned, not
+   * bought, so there's no "price" to discount off of). Paying with Tickets pulls from the exact same pool
+   * and pity as paying with Gems (see summon/summon.ts's `paymentMethod`).
+   */
+  ticketCost: { single: 1, ten: 10 },
 } as const;
 
 export const SUMMON_RARITY_ORDER: readonly Rarity[] = ['common', 'rare', 'epic', 'legendary'];

@@ -1,6 +1,6 @@
-import { grantGems, grantGold } from '../economy/economy';
+import { grantGems, grantGold, grantTickets } from '../economy/economy';
 import { subscribeTrack, track, type AnalyticsEvent } from '../../analytics/track';
-import { ALL_MISSIONS, getMissionDef, missionsForMetric, type MissionDef } from './definitions';
+import { ALL_MISSIONS, DAILY_MISSIONS, getMissionDef, missionsForMetric, type MissionDef } from './definitions';
 
 // Missions store - same snapshot+listeners+sanitize shape as every other store in the repo (collection,
 // economy, ascension, heroLevel). Reset is "lazy, on read", the same pattern energy.ts uses for regen:
@@ -137,12 +137,18 @@ export function isMissionComplete(id: string, state: MissionsState = getMissions
   return getMissionProgress(id, state).count >= def.target;
 }
 
+/** Every daily mission has reached its target (claimed or not - completing is what counts here, claiming is separate). */
+function allDailyComplete(daily: Record<string, MissionProgress>): boolean {
+  return DAILY_MISSIONS.every((def) => (daily[def.id]?.count ?? 0) >= def.target);
+}
+
 /** Advances every mission whose metric matches this event, capped at target, skipping already-claimed
  * missions (a claimed mission's counter is frozen for the rest of its period - claiming is terminal). */
 function recordMetric(metric: AnalyticsEvent['name']): void {
   const matches = missionsForMetric(metric);
   if (matches.length === 0) return;
   const state = getMissionsState();
+  const wasAllDailyComplete = allDailyComplete(state.daily);
   let dailyChanged = false;
   let weeklyChanged = false;
   const nextDaily = { ...state.daily };
@@ -156,8 +162,15 @@ function recordMetric(metric: AnalyticsEvent['name']): void {
     if (def.period === 'daily') dailyChanged = true;
     else weeklyChanged = true;
     track('mission_progressed', { missionId: def.id, count: nextCount, target: def.target });
-    if (nextCount >= def.target) track('mission_completed', { missionId: def.id });
+    track(def.period === 'daily' ? 'daily_mission_progress' : 'weekly_mission_progress', { missionId: def.id, count: nextCount, target: def.target });
+    if (nextCount >= def.target) {
+      track('mission_completed', { missionId: def.id });
+      track(def.period === 'daily' ? 'daily_mission_completed' : 'weekly_mission_completed', { missionId: def.id });
+    }
   }
+  // Fires once per day, exactly on the transition into "every daily mission complete" - never re-fires
+  // for the rest of that day (there's nothing left to advance), so no separate persisted flag is needed.
+  if (dailyChanged && !wasAllDailyComplete && allDailyComplete(nextDaily)) track('daily_set_completed', {});
   if (dailyChanged || weeklyChanged) commit({ ...state, daily: nextDaily, weekly: nextWeekly });
 }
 
@@ -175,24 +188,26 @@ export interface ClaimResult {
   missionId: string;
   gold: number;
   gems: number;
+  tickets: number;
   reason: string | null;
 }
 
 /** Grants the mission's reward and marks it claimed - only once per period, and only once complete. Re-validates everything itself rather than trusting the caller. */
 export function claimMission(id: string): ClaimResult {
   const def = getMissionDef(id);
-  if (!def) return { ok: false, missionId: id, gold: 0, gems: 0, reason: 'Unknown mission.' };
+  if (!def) return { ok: false, missionId: id, gold: 0, gems: 0, tickets: 0, reason: 'Unknown mission.' };
   const state = getMissionsState();
   const progress = getMissionProgress(id, state);
-  if (progress.claimed) return { ok: false, missionId: id, gold: 0, gems: 0, reason: 'Already claimed.' };
-  if (progress.count < def.target) return { ok: false, missionId: id, gold: 0, gems: 0, reason: 'Not complete yet.' };
+  if (progress.claimed) return { ok: false, missionId: id, gold: 0, gems: 0, tickets: 0, reason: 'Already claimed.' };
+  if (progress.count < def.target) return { ok: false, missionId: id, gold: 0, gems: 0, tickets: 0, reason: 'Not complete yet.' };
   const claimedEntry: MissionProgress = { ...progress, claimed: true };
   if (def.period === 'daily') commit({ ...state, daily: { ...state.daily, [id]: claimedEntry } });
   else commit({ ...state, weekly: { ...state.weekly, [id]: claimedEntry } });
   const gold = def.rewardGold > 0 ? grantGold(def.rewardGold, 'mission').gained : 0;
   const gems = def.rewardGems > 0 ? grantGems(def.rewardGems, 'mission').gained : 0;
-  track('mission_claimed', { missionId: id, gold, gems });
-  return { ok: true, missionId: id, gold, gems, reason: null };
+  const tickets = def.rewardTickets > 0 ? grantTickets(def.rewardTickets, 'mission').gained : 0;
+  track('mission_claimed', { missionId: id, gold, gems, tickets });
+  return { ok: true, missionId: id, gold, gems, tickets, reason: null };
 }
 
 /** Every mission definition paired with its live progress - what the Missions sheet renders. */

@@ -8,7 +8,7 @@ import { acquisitionSummary, getCardAcquisitionSources, getUnavailableCards, pri
 import { getCollection, getOwnedCount, reloadCollection, setCollection } from '../collection/collection';
 import { CAMPAIGN_EXCLUSIVE_CARDS } from '../collection/exclusives';
 import { buildStarterCollection } from '../collection/starterCollection';
-import { getEconomy, getGems, getPity, reloadEconomy, setGems, setPity, setUnlimitedGems } from '../economy/economy';
+import { getEconomy, getGems, getPity, getTickets, reloadEconomy, setGems, setPity, setTickets, setUnlimitedGems } from '../economy/economy';
 import { SUMMON_BANNERS, getBanner } from './banners';
 import { SUMMON_CONFIG } from './config';
 import { forceNextRarity, peekForcedRarity } from './devControls';
@@ -284,7 +284,7 @@ describe('performSummon', () => {
   it('refuses without enough Gems and changes nothing', () => {
     setGems(60);
     const before = getCollection();
-    expect(performSummon('single', 'royal-vanguard', 1)).toEqual({ ok: false, reason: 'insufficient', need: 100, have: 60 });
+    expect(performSummon('single', 'royal-vanguard', 1)).toEqual({ ok: false, reason: 'insufficient', currency: 'gems', need: 100, have: 60 });
     expect(getGems()).toBe(60);
     expect(getCollection()).toBe(before);
     expect(getEconomy().summon).toEqual({ pity: {}, history: [] });
@@ -393,6 +393,71 @@ describe('performSummon', () => {
     let seed = 1;
     for (let i = 0; i < 400 && !getCollection()['inf-infernal-lord']; i++) performSummon('ten', 'infernal-hunt', seed++);
     expect(Object.keys(getCollection()).some((id) => id.startsWith('inf-'))).toBe(true);
+  });
+});
+
+describe('performSummon paid with Tickets (Commercial Prototype Phase 7)', () => {
+  it('spends Tickets, not Gems, and grants a real card through the collection', () => {
+    setGems(0);
+    setTickets(5);
+    const r = performSummon('single', 'royal-vanguard', 4242, 'tickets');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.currency).toBe('tickets');
+    expect(r.cost).toBe(SUMMON_CONFIG.ticketCost.single);
+    expect(getTickets()).toBe(5 - SUMMON_CONFIG.ticketCost.single);
+    expect(getGems()).toBe(0); // untouched
+    expect(getOwnedCount(r.pulls[0].cardId)).toBeGreaterThan(0);
+  });
+  it('a 10x Ticket pull costs SUMMON_CONFIG.ticketCost.ten flat, with no bulk discount (Tickets are earned, not priced)', () => {
+    setTickets(SUMMON_CONFIG.ticketCost.ten);
+    const r = performSummon('ten', 'royal-vanguard', 1, 'tickets');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.cost).toBe(SUMMON_CONFIG.ticketCost.ten);
+    expect(getTickets()).toBe(0);
+  });
+  it('refuses without enough Tickets and changes nothing - Gems are never a silent fallback', () => {
+    setGems(100000);
+    setTickets(0);
+    const before = getCollection();
+    const r = performSummon('single', 'royal-vanguard', 1, 'tickets');
+    expect(r).toMatchObject({ ok: false, reason: 'insufficient', currency: 'tickets', need: SUMMON_CONFIG.ticketCost.single, have: 0 });
+    expect(getTickets()).toBe(0);
+    expect(getGems()).toBe(100000); // completely untouched
+    expect(getCollection()).toBe(before);
+  });
+  it('a Gem pull and a Ticket pull on the same banner share one pity counter and one history, not two pools', () => {
+    setGems(1000);
+    setTickets(20);
+    const gemPull = performSummon('single', 'royal-vanguard', 10);
+    expect(gemPull.ok).toBe(true);
+    const pityAfterGems = getPity('royal-vanguard');
+    const ticketPull = performSummon('single', 'royal-vanguard', 11, 'tickets');
+    expect(ticketPull.ok).toBe(true);
+    expect(getPity('royal-vanguard')).toBe(pityAfterGems + 1); // continued the same counter, not reset
+    expect(getEconomy().summon.history).toHaveLength(2);
+    expect(getEconomy().summon.history.every((h) => h.bannerId === 'royal-vanguard')).toBe(true);
+  });
+  it('dev Unlimited Gems also lets Ticket-paid summons through for free (shared dev bypass)', () => {
+    setTickets(0);
+    setUnlimitedGems(true);
+    const r = performSummon('single', 'royal-vanguard', 1, 'tickets');
+    expect(r.ok).toBe(true);
+    expect(getTickets()).toBe(0);
+    setUnlimitedGems(false);
+  });
+  it('reward persistence: a Ticket-funded grant survives a reload exactly like a Gem-funded one', () => {
+    setTickets(5);
+    const r = performSummon('single', 'royal-vanguard', 4242, 'tickets');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const cardId = r.pulls[0].cardId;
+    const ownedBefore = getOwnedCount(cardId);
+    reloadCollection();
+    reloadEconomy();
+    expect(getOwnedCount(cardId)).toBe(ownedBefore);
+    expect(getTickets()).toBe(5 - SUMMON_CONFIG.ticketCost.single);
   });
 });
 

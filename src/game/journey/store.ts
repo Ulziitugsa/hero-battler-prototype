@@ -1,4 +1,4 @@
-import { grantGems, grantGold } from '../economy/economy';
+import { grantGems, grantGold, grantTickets } from '../economy/economy';
 import { grantCard } from '../collection/collection';
 import { track } from '../../analytics/track';
 import { getFirstSeenAt } from '../../analytics/context';
@@ -115,6 +115,7 @@ export interface JourneyClaimResult {
   day: number;
   gold: number;
   gems: number;
+  tickets: number;
   cardGranted: string | null;
   reason: string | null;
 }
@@ -124,13 +125,14 @@ export interface JourneyClaimResult {
  * free-to-play"). Re-validates everything itself rather than trusting the caller. */
 export function claimJourneyDay(day: number, now: number = Date.now()): JourneyClaimResult {
   const def = getJourneyDayDef(day);
-  if (!def) return { ok: false, day, gold: 0, gems: 0, cardGranted: null, reason: 'Unknown day.' };
+  if (!def) return { ok: false, day, gold: 0, gems: 0, tickets: 0, cardGranted: null, reason: 'Unknown day.' };
   const view = getJourneyState(now);
-  if (day > view.currentDay) return { ok: false, day, gold: 0, gems: 0, cardGranted: null, reason: 'Not unlocked yet.' };
-  if (view.claimedDays.includes(day)) return { ok: false, day, gold: 0, gems: 0, cardGranted: null, reason: 'Already claimed.' };
+  if (day > view.currentDay) return { ok: false, day, gold: 0, gems: 0, tickets: 0, cardGranted: null, reason: 'Not unlocked yet.' };
+  if (view.claimedDays.includes(day)) return { ok: false, day, gold: 0, gems: 0, tickets: 0, cardGranted: null, reason: 'Already claimed.' };
 
   const gold = def.rewardGold > 0 ? grantGold(def.rewardGold, 'journey').gained : 0;
   const gems = def.rewardGems > 0 ? grantGems(def.rewardGems, 'journey').gained : 0;
+  const tickets = def.rewardTickets > 0 ? grantTickets(def.rewardTickets, 'journey').gained : 0;
   let cardGranted: string | null = null;
   if (def.rewardCardId) {
     grantCard(def.rewardCardId, def.rewardCardCount ?? 1);
@@ -141,10 +143,11 @@ export function claimJourneyDay(day: number, now: number = Date.now()): JourneyC
   const claimedDays = [...state.claimedDays, day].sort((a, b) => a - b);
   commit({ ...state, claimedDays, lastClaimAt: now, dropOffReported: false });
 
-  track('journey_day_claimed', { day, gold, gems, cardGranted });
+  track('journey_day_claimed', { day, gold, gems, tickets, cardGranted });
+  track('journey_reward_claimed', { day, gold, gems, tickets, cardGranted });
   if (claimedDays.length >= JOURNEY_LENGTH_DAYS) track('journey_completed', { days: claimedDays.length });
 
-  return { ok: true, day, gold, gems, cardGranted, reason: null };
+  return { ok: true, day, gold, gems, tickets, cardGranted, reason: null };
 }
 
 // ---- Dev / test helpers -------------------------------------------------------------------------

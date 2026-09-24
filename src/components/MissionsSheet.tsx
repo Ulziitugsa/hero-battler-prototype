@@ -4,6 +4,7 @@ import { claimMission, listMissions } from '../game/missions/store';
 import { useMissions } from '../game/missions/useMissions';
 import { GoldIcon } from './GoldIcon';
 import { GemIcon } from './GemIcon';
+import { TicketIcon } from './TicketIcon';
 import { Icon } from './Icon';
 import '../styles/missions.css';
 
@@ -58,6 +59,12 @@ export function MissionsSheet({ onClose }: { onClose: () => void }) {
                     <span>
                       <GemIcon size={13} />
                       {def.rewardGems}
+                    </span>
+                  )}
+                  {def.rewardTickets > 0 && (
+                    <span>
+                      <TicketIcon size={13} />
+                      {def.rewardTickets}
                     </span>
                   )}
                 </div>

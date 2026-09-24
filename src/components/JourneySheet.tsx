@@ -3,6 +3,7 @@ import { claimJourneyDay } from '../game/journey/store';
 import { useJourney } from '../game/journey/useJourney';
 import { GoldIcon } from './GoldIcon';
 import { GemIcon } from './GemIcon';
+import { TicketIcon } from './TicketIcon';
 import { Icon } from './Icon';
 import '../styles/missions.css';
 import '../styles/journey.css';
@@ -42,6 +43,12 @@ export function JourneySheet({ onClose }: { onClose: () => void }) {
                     <span>
                       <GemIcon size={12} />
                       {def.rewardGems}
+                    </span>
+                  )}
+                  {def.rewardTickets > 0 && (
+                    <span>
+                      <TicketIcon size={12} />
+                      {def.rewardTickets}
                     </span>
                   )}
                   {def.rewardCardId && <span>1 Hero</span>}

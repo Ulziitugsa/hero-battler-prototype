@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { GemBalance, GemIcon } from '../components/GemIcon';
+import { TicketBalance, TicketIcon } from '../components/TicketIcon';
 import { Icon } from '../components/Icon';
 import { Gems } from '../components/CardParts';
 import { getCard } from '../game/cards';
@@ -8,11 +9,11 @@ import { forceNextRarity, peekForcedRarity } from '../game/summon/devControls';
 import { getPool } from '../game/summon/pool';
 import { PREVIEW_SCENARIOS, buildPreviewOutcome } from '../game/summon/preview';
 import { loadSelectedBanner, saveSelectedBanner } from '../game/summon/selectedBanner';
-import { performSummon, type SummonKind } from '../game/summon/summon';
+import { performSummon, type SummonCurrency, type SummonKind } from '../game/summon/summon';
 import { RARITY_LABEL, affordabilityNote, pityDisplay, summonOptions } from '../game/summon/view';
 import { ArchiveAudio } from '../game/summon/audio';
 import { onSummonSound } from '../game/summon/sound';
-import { setUnlimitedGems } from '../game/economy/economy';
+import { getTickets, setUnlimitedGems } from '../game/economy/economy';
 import { useEconomy, useUnlimitedGems } from '../game/economy/useEconomy';
 import { track } from '../analytics/track';
 import type { Rarity } from '../game/types';
@@ -31,9 +32,12 @@ import '../styles/archiveRitual.css';
  * the same stores, so they are already up to date the moment the cards appear.
  */
 export function SummonPage({ onBack }: { onBack: () => void }) {
-  const { gems, summon } = useEconomy();
+  const { gems, tickets, summon } = useEconomy();
   const unlimited = useUnlimitedGems();
   const [bannerId, setBannerId] = useState(loadSelectedBanner);
+  // Tickets default to preferred once the player has any - spending the earn-only currency first is
+  // always at least as good as spending Gems, and the toggle stays available to switch back.
+  const [currency, setCurrency] = useState<SummonCurrency>(() => (getTickets() > 0 ? 'tickets' : 'gems'));
   const [showPool, setShowPool] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [preview, setPreview] = useState(false);
@@ -50,8 +54,9 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
 
   const banner = getBanner(bannerId) ?? SUMMON_BANNERS[0];
   const pool = getPool(banner.id);
-  const options = summonOptions(gems, pool, unlimited);
-  const note = affordabilityNote(gems, pool, unlimited);
+  const balance = currency === 'gems' ? gems : tickets;
+  const options = summonOptions(balance, pool, unlimited, currency);
+  const note = affordabilityNote(balance, pool, unlimited, currency);
   const pity = pityDisplay(summon.pity[banner.id] ?? 0);
   const busy = !!outcome;
 
@@ -131,7 +136,7 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
 
   function summonNow(kind: SummonKind) {
     if (busy) return;
-    const result = performSummon(kind, banner.id); // resolved + persisted here, before any animation
+    const result = performSummon(kind, banner.id, undefined, currency); // resolved + persisted here, before any animation
     if (!result.ok) return; // buttons are disabled when unaffordable; nothing was spent
     setPreview(false);
     start(result);
@@ -146,7 +151,10 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
           <Icon name="back" size={20} />
         </button>
         <span className="summon-title">Summon</span>
-        <GemBalance />
+        <span className="summon-balances">
+          <TicketBalance />
+          <GemBalance />
+        </span>
       </div>
 
       <div className="summon-rail-wrap">
@@ -185,12 +193,23 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
         <span className="summon-pity-text">{pity.label}</span>
       </section>
 
+      {tickets > 0 && (
+        <div className="summon-currency-toggle" role="group" aria-label="Pay with">
+          <button type="button" className={currency === 'tickets' ? 'on' : ''} aria-pressed={currency === 'tickets'} onClick={() => setCurrency('tickets')}>
+            <TicketIcon size={13} /> Tickets
+          </button>
+          <button type="button" className={currency === 'gems' ? 'on' : ''} aria-pressed={currency === 'gems'} onClick={() => setCurrency('gems')}>
+            <GemIcon size={13} /> Gems
+          </button>
+        </div>
+      )}
+
       <section className="summon-actions">
         {options.map((o) => (
           <button key={o.kind} type="button" className={`summon-btn ${o.kind}`} disabled={!o.affordable || busy} onClick={() => summonNow(o.kind)}>
             <span className="summon-btn-label">{o.count === 1 ? 'Summon' : `Summon ×${o.count}`}</span>
             <span className="summon-btn-cost">
-              <GemIcon size={14} />
+              {currency === 'gems' ? <GemIcon size={14} /> : <TicketIcon size={14} />}
               {o.cost}
             </span>
           </button>
@@ -198,7 +217,7 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
         {note && (
           <p className="summon-need" role="status">
             <strong>{note}</strong>
-            <span>Earn Gems in Campaign.</span>
+            <span>{currency === 'gems' ? 'Earn Gems in Campaign.' : 'Earn Tickets from missions and your 7-day journey.'}</span>
           </p>
         )}
       </section>

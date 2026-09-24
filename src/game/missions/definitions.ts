@@ -20,20 +20,24 @@ export interface MissionDef {
   target: number;
   rewardGold: number;
   rewardGems: number;
+  /** Summon Tickets (Commercial Prototype Phase 7) - deliberately weekly-only, so Tickets stay a
+   * weekly-commitment reward rather than a daily trickle (the 7-day journey already covers "a free
+   * ticket early on"; see game/journey/definitions.ts Day 2). */
+  rewardTickets: number;
 }
 
 export const DAILY_MISSIONS: MissionDef[] = [
-  { id: 'daily-campaign-wins', period: 'daily', title: 'Win 2 Campaign battles', metric: 'campaign_won', target: 2, rewardGold: 40, rewardGems: 0 },
-  { id: 'daily-hero-level', period: 'daily', title: 'Level up a Hero', metric: 'hero_levelled', target: 1, rewardGold: 30, rewardGems: 0 },
-  { id: 'daily-summon', period: 'daily', title: 'Perform a Summon', metric: 'summon_performed', target: 1, rewardGold: 0, rewardGems: 20 },
-  { id: 'daily-idle-claim', period: 'daily', title: 'Claim your idle reward', metric: 'idle_reward_claimed', target: 1, rewardGold: 20, rewardGems: 0 },
-  { id: 'daily-ascension', period: 'daily', title: 'Advance a Hero with a duplicate', metric: 'duplicate_progress_applied', target: 1, rewardGold: 0, rewardGems: 15 },
+  { id: 'daily-campaign-wins', period: 'daily', title: 'Win 2 Campaign battles', metric: 'campaign_won', target: 2, rewardGold: 40, rewardGems: 0, rewardTickets: 0 },
+  { id: 'daily-hero-level', period: 'daily', title: 'Level up a Hero', metric: 'hero_levelled', target: 1, rewardGold: 30, rewardGems: 0, rewardTickets: 0 },
+  { id: 'daily-summon', period: 'daily', title: 'Perform a Summon', metric: 'summon_performed', target: 1, rewardGold: 0, rewardGems: 20, rewardTickets: 0 },
+  { id: 'daily-idle-claim', period: 'daily', title: 'Claim your idle reward', metric: 'idle_reward_claimed', target: 1, rewardGold: 20, rewardGems: 0, rewardTickets: 0 },
+  { id: 'daily-ascension', period: 'daily', title: 'Advance a Hero with a duplicate', metric: 'duplicate_progress_applied', target: 1, rewardGold: 0, rewardGems: 15, rewardTickets: 0 },
 ];
 
 export const WEEKLY_MISSIONS: MissionDef[] = [
-  { id: 'weekly-campaign-wins', period: 'weekly', title: 'Win 10 Campaign battles', metric: 'campaign_won', target: 10, rewardGold: 200, rewardGems: 0 },
-  { id: 'weekly-summons', period: 'weekly', title: 'Perform 5 Summons', metric: 'summon_performed', target: 5, rewardGold: 0, rewardGems: 100 },
-  { id: 'weekly-hero-levels', period: 'weekly', title: 'Level up Heroes 5 times', metric: 'hero_levelled', target: 5, rewardGold: 150, rewardGems: 0 },
+  { id: 'weekly-campaign-wins', period: 'weekly', title: 'Win 10 Campaign battles', metric: 'campaign_won', target: 10, rewardGold: 200, rewardGems: 0, rewardTickets: 1 },
+  { id: 'weekly-summons', period: 'weekly', title: 'Perform 5 Summons', metric: 'summon_performed', target: 5, rewardGold: 0, rewardGems: 100, rewardTickets: 2 },
+  { id: 'weekly-hero-levels', period: 'weekly', title: 'Level up Heroes 5 times', metric: 'hero_levelled', target: 5, rewardGold: 150, rewardGems: 0, rewardTickets: 1 },
 ];
 
 export const ALL_MISSIONS: MissionDef[] = [...DAILY_MISSIONS, ...WEEKLY_MISSIONS];

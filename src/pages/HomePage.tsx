@@ -3,6 +3,8 @@ import { CardDetail } from '../components/CardDetail';
 import { CollectibleCard } from '../components/CollectibleCard';
 import { GemBalance } from '../components/GemIcon';
 import { GoldBalance } from '../components/GoldIcon';
+import { TicketBalance } from '../components/TicketIcon';
+import { useEconomy } from '../game/economy/useEconomy';
 import { HowToPlaySheet } from '../components/HowToPlaySheet';
 import { getCard } from '../game/cards';
 import { getActiveDeck } from '../game/engine/activeDeck';
@@ -35,12 +37,13 @@ export function HomePage(props: HomeProps) {
   const missions = useMissions();
   const missionsReady = anyMissionClaimable(missions);
   const journey = useJourney();
+  const { tickets } = useEconomy();
   useEffect(() => {
     if (hub.note?.kind === 'idle') track('idle_reward_available', { gold: hub.note.gold, atCap: hub.note.atCap });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per distinct note, not on every render
   }, [hub.note?.kind === 'idle' ? hub.note.gold : null]);
   return <main className="moon-home">
-    <header className="moon-home-header"><button className="moon-quiet" onClick={props.onOpenProfile}>Wanderer <span>· Level {account.level}</span></button><span className="moon-brand">EMBER<span>VALE</span></span><div className="moon-home-tools"><GoldBalance /><GemBalance /><button className="moon-quiet" onClick={() => setHelp(true)} aria-label="How to play">?</button></div></header>
+    <header className="moon-home-header"><button className="moon-quiet" onClick={props.onOpenProfile}>Wanderer <span>· Level {account.level}</span></button><span className="moon-brand">EMBER<span>VALE</span></span><div className="moon-home-tools">{tickets > 0 && <TicketBalance />}<GoldBalance /><GemBalance /><button className="moon-quiet" onClick={() => setHelp(true)} aria-label="How to play">?</button></div></header>
     <div className="moon-home-main">
       <section className="moon-welcome"><span className="moon-eyebrow">A PLACE BETWEEN ADVENTURES</span><h1>Meet me at<br /><em>Moonwater.</em></h1><p>Leave a light on for the ones<br />who haven’t found their way home.</p><span className="moon-location">✦ THE LANTERN COAST <span>· BLUE HOUR</span></span>
         <button className="moon-primary moon-adventure" onClick={props.onOpenCampaign}>{hub.campaign.status === 'fresh' ? 'Begin your adventure' : hub.campaign.status === 'complete' ? 'Revisit the Ashen Road' : 'Continue your adventure'} <span>→</span></button><small>{hub.campaign.nextName ?? hub.campaign.region} · {hub.campaign.cleared}/{hub.campaign.total} stages</small>

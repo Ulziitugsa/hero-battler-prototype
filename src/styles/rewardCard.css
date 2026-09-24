@@ -59,3 +59,13 @@
 .gem-icon { flex: none; filter: drop-shadow(0 1px 1px rgba(10, 4, 6, 0.5)); }
 .gem-gain { color: #bfeaf4; }
 .gem-balance { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 7px; border-radius: 14px; font-family: var(--ember-font-display); font-size: 0.95rem; color: #e8f8fc; background: rgba(10, 4, 6, 0.55); border: 1px solid rgba(143, 216, 232, 0.4); }
+
+/* Gold (Commercial Prototype Phase 1) - same pill shape as Gems, warm instead of cool. */
+.gold-icon { flex: none; filter: drop-shadow(0 1px 1px rgba(10, 4, 6, 0.5)); }
+.gold-gain { color: #f0dcae; }
+.gold-balance { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 7px; border-radius: 14px; font-family: var(--ember-font-display); font-size: 0.95rem; color: #fff3d9; background: rgba(10, 4, 6, 0.55); border: 1px solid rgba(232, 193, 90, 0.4); }
+
+/* Summon Tickets (Commercial Prototype Phase 7) - same pill shape again, violet to read as distinct from both. */
+.ticket-icon { flex: none; filter: drop-shadow(0 1px 1px rgba(10, 4, 6, 0.5)); }
+.ticket-gain { color: #e0b8f0; }
+.ticket-balance { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 7px; border-radius: 14px; font-family: var(--ember-font-display); font-size: 0.95rem; color: #f5e6fa; background: rgba(10, 4, 6, 0.55); border: 1px solid rgba(224, 184, 240, 0.4); }

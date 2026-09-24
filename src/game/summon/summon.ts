@@ -3,7 +3,7 @@ import { getCollection, grantCard } from '../collection/collection';
 import { getStarterDeckUnlockProgress, starterDeckId } from '../collection/starterUnlock';
 import type { GrantResult, OwnedMap } from '../collection/types';
 import { STARTER_DECK_NAMES, type StarterFaction } from '../cards/starterDecks';
-import { canAfford, commitSummon, getGems, getPity } from '../economy/economy';
+import { canAfford, canAffordTickets, commitSummon, getGems, getPity, getTickets } from '../economy/economy';
 import type { SummonHistoryEntry } from '../economy/types';
 import { makeSeed } from '../engine/rng';
 import type { Rarity } from '../types';
@@ -19,10 +19,13 @@ import { track } from '../../analytics/track';
 // change what was pulled. The UI only calls performSummon and renders what it returns.
 
 export type SummonKind = 'single' | 'ten';
+export type SummonCurrency = 'gems' | 'tickets';
 
 export const SUMMON_COUNTS: Record<SummonKind, number> = { single: 1, ten: SUMMON_CONFIG.tenCount };
 
-export function summonCost(pool: SummonPool, kind: SummonKind): number {
+/** Gem cost is per-banner (SummonPool.cost); Ticket cost is flat and banner-independent - see summon/config.ts. */
+export function summonCost(pool: SummonPool, kind: SummonKind, currency: SummonCurrency = 'gems'): number {
+  if (currency === 'tickets') return kind === 'single' ? SUMMON_CONFIG.ticketCost.single : SUMMON_CONFIG.ticketCost.ten;
   return kind === 'single' ? pool.cost.single : pool.cost.ten;
 }
 
@@ -45,6 +48,7 @@ export interface SummonSuccess {
   kind: SummonKind;
   bannerId: string;
   seed: number;
+  currency: SummonCurrency;
   cost: number;
   pulls: SummonPull[];
   pityBefore: number;
@@ -55,7 +59,7 @@ export interface SummonSuccess {
   starterProgress: StarterProgressNote[];
 }
 
-export type SummonOutcome = { ok: false; reason: 'insufficient'; need: number; have: number } | SummonSuccess;
+export type SummonOutcome = { ok: false; reason: 'insufficient'; currency: SummonCurrency; need: number; have: number } | SummonSuccess;
 
 const FACTIONS = Object.keys(STARTER_DECK_NAMES) as StarterFaction[];
 
@@ -76,12 +80,17 @@ function starterProgressBetween(before: OwnedMap, after: OwnedMap): StarterProgr
   return notes;
 }
 
-/** `seed` is injectable so tests and dev tools are deterministic; the UI omits it and gets a fresh one. */
-export function performSummon(kind: SummonKind, bannerId: string, seed: number = makeSeed()): SummonOutcome {
+/** `seed` is injectable so tests and dev tools are deterministic; the UI omits it and gets a fresh one.
+ * `currency` picks what pays for it - Gems or Tickets - but never changes what gets pulled: both go
+ * through the exact same resolveSummons/pity/history path below (see commitSummon's own note). Kept as
+ * the LAST parameter, after `seed`, so every existing `performSummon(kind, bannerId, seed)` call site
+ * keeps working unchanged and defaults to Gems. */
+export function performSummon(kind: SummonKind, bannerId: string, seed: number = makeSeed(), currency: SummonCurrency = 'gems'): SummonOutcome {
   const pool = getPool(bannerId);
   const count = SUMMON_COUNTS[kind];
-  const cost = summonCost(pool, kind);
-  if (!canAfford(cost)) return { ok: false, reason: 'insufficient', need: cost, have: getGems() };
+  const cost = summonCost(pool, kind, currency);
+  const afford = currency === 'gems' ? canAfford(cost) : canAffordTickets(cost);
+  if (!afford) return { ok: false, reason: 'insufficient', currency, need: cost, have: currency === 'gems' ? getGems() : getTickets() };
 
   const before = getCollection();
   const pityBefore = getPity(pool.id);
@@ -100,7 +109,7 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
     return { cardId: r.cardId, rarity: r.rarity, at: now, wasNew, bannerId: pool.id };
   });
 
-  if (!commitSummon(cost, pool.id, pityAfter, history)) return { ok: false, reason: 'insufficient', need: cost, have: getGems() };
+  if (!commitSummon(cost, pool.id, pityAfter, history, currency)) return { ok: false, reason: 'insufficient', currency, need: cost, have: currency === 'gems' ? getGems() : getTickets() };
 
   const grants = results.map((r) => grantCard(r.cardId, 1));
   const after = getCollection();
@@ -112,7 +121,8 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
   });
 
   const highestRarity = highestRarityOf(pulls.map((p) => p.rarity));
-  track('summon_performed', { kind, bannerId: pool.id, cost, count: pulls.length, highestRarity });
+  track('summon_performed', { kind, bannerId: pool.id, currency, cost, count: pulls.length, highestRarity });
+  if (currency === 'tickets') track('summon_ticket_used', { bannerId: pool.id, count: cost });
   for (const pull of pulls) {
     if (pull.rarity === 'legendary') track('legendary_pulled', { bannerId: pool.id, cardId: pull.cardId, wasNew: pull.grant.isNew, pityAfter });
     if (!pull.grant.isNew) track('duplicate_acquired', { cardId: pull.cardId, rarity: pull.rarity, source: 'summon', copiesOwned: pull.grant.owned, ascensionAvailable: pull.ascensionAvailable });
@@ -123,6 +133,7 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
     kind,
     bannerId: pool.id,
     seed,
+    currency,
     cost,
     pulls,
     pityBefore,

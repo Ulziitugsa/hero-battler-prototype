@@ -8,7 +8,7 @@ import type { MasteryId } from '../mastery/definitions';
 import { ascendCard, getAscensionStatus } from '../ascension/ascend';
 import { CARD_ASCENSIONS } from '../ascension/definitions';
 import { getAscensionState, resetAscension, setAscensionRank } from '../ascension/store';
-import { getEconomy, grantGems, grantGold, isUnlimitedGems, resetEconomy, resetSummonState, setGems, setGold, setPity, setUnlimitedGems } from '../economy/economy';
+import { getEconomy, grantGems, grantGold, grantTickets, isUnlimitedGems, resetEconomy, resetSummonState, setGems, setGold, setPity, setTickets, setUnlimitedGems } from '../economy/economy';
 import { performSummon } from '../summon/summon';
 import { SUMMON_BANNERS } from '../summon/banners';
 import { forceNextRarity } from '../summon/devControls';
@@ -47,6 +47,8 @@ export const devTools = {
   setGems: (amount: number) => setGems(amount),
   addGold: (amount: number) => grantGold(amount, 'dev'),
   setGold: (amount: number) => setGold(amount),
+  addTickets: (amount: number) => grantTickets(amount, 'dev'),
+  setTickets: (amount: number) => setTickets(amount),
   // ---- Hero Level / Roster Power ----
   heroLevel: (cardId: string) => getHeroLevelStatus(cardId),
   setHeroLevel: (cardId: string, level: number) => setHeroLevel(cardId, level),
@@ -72,6 +74,9 @@ export const devTools = {
   /** Real summons (spend Gems unless Unlimited Gems is on). Pass a seed for a reproducible pull. */
   summonOnce: (bannerId = SUMMON_BANNERS[0].id, seed?: number) => performSummon('single', bannerId, seed),
   summonTen: (bannerId = SUMMON_BANNERS[0].id, seed?: number) => performSummon('ten', bannerId, seed),
+  /** Same, paid with Tickets instead of Gems - shares the same pity/history (see economy/economy.ts's commitSummon). */
+  summonOnceWithTickets: (bannerId = SUMMON_BANNERS[0].id, seed?: number) => performSummon('single', bannerId, seed, 'tickets'),
+  summonTenWithTickets: (bannerId = SUMMON_BANNERS[0].id, seed?: number) => performSummon('ten', bannerId, seed, 'tickets'),
   /** Dev only: summons are free while on (production builds ignore this). */
   setUnlimitedGems: (on: boolean) => setUnlimitedGems(on),
   unlimitedGems: () => isUnlimitedGems(),

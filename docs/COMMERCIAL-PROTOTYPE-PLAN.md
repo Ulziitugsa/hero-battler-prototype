@@ -249,25 +249,142 @@ This resolves the gate's concern directly: there is exactly **one** duplicate si
   order they came in), `journey_dropped_off` (the day of the last claim, reported at most once per gap,
   computed lazily on read — not a running timer).
 - Tests: `journey/store.test.ts`.
-- Deviation: the brief's own Section 9 day-list named a Relic (Day 3), Summon Tickets (Day 2) and a
-  Cosmetic (Day 6) — none of which exist in this codebase (equipment/relics and cosmetics are out of
-  scope entirely for this workstream per the repo audit's own recommendation; Summon Tickets are a Phase 7
-  concern, not yet introduced). Substituted: Day 2 → Gems, Day 3 → a second copy of the Day-1 hero (ties
-  directly into Phase 2's Stars, so a new player's first duplicate-value moment happens inside the
-  journey itself), Day 6 → a larger Gems grant. No new economy surface was introduced to hit the brief's
-  specific example nouns.
+- Deviation (at the time): the brief's own Section 9 day-list named a Relic (Day 3), Summon Tickets
+  (Day 2) and a Cosmetic (Day 6) — Tickets did not exist yet at Phase 6 time, so Day 2 was substituted
+  with Gems. **Corrected in Phase 7** once Tickets landed: Day 2 now grants 3 Tickets, restoring the
+  brief's original intent. The Relic (Day 3) and Cosmetic (Day 6) substitutions stand — neither system
+  exists in this codebase and neither is in scope for this workstream.
 
-## 9. Decision gate after Phase 10
+### Phase 7 — Economy cleanup: Summon Tickets — Status: ✅ done
 
-Unchanged from the docx — not re-litigated here. Review measured behaviour (tutorial completion, D1/D3/D7,
-sessions per retained player, Campaign power-wall return rate, summon engagement, hero-upgrade engagement,
-first-week journey completion) before any Phase 11+ work begins.
+**Audit (task 1) — sources/sinks as they stood entering Phase 7:**
 
-## 10. Later phases
+| Currency | Sources (as of Phase 6) | Sinks (as of Phase 6) |
+|---|---|---|
+| Gold | Campaign win (every win), Quick Battle win/draw, idle rewards, daily/weekly missions, journey Days 4/5 | Hero Level only |
+| Gems | Starting grant, Campaign first-clear, chapter complete, Account Level milestones, daily/weekly missions, journey Day 6 | Summon only |
+| Duplicate copies | Summon duplicates, Campaign multi-copy rewards, journey Day 3 | Ascension only |
 
-Unchanged from the docx Section 10 (Phases 11–15+: server-authoritative economy, test monetisation, ranked
-+ first live event, Season Pass/rewarded ads, guilds/raids). Not started; not needed to evaluate this
-workstream's core hypothesis.
+No dead currency, no dead sink — both Gold and Gems already had at least one source and one sink before
+Phase 7 started. The only real gap was the missing third currency the brief's Phase 5/6 text assumed.
+
+**What landed:**
+
+- `economy/types.ts` (v3→v4) — `PlayerEconomy.tickets: number`. Pre-v4 saves get `tickets: 0`, never
+  backfilled retroactively (same treatment as v2→v3's `gold`).
+- `economy/economy.ts` — `getTickets`/`canAffordTickets`/`grantTickets`/`spendTickets`/`setTickets`,
+  structurally identical to Gold's pair, deliberately not a generic "third currency" abstraction (same
+  reasoning as Gold's own header comment: keeps Gold/Gems/Tickets from ever sharing a code path that
+  assumes "the one currency").
+- **`commitSummon` now takes a `currency: 'gems' | 'tickets'` parameter** (defaults to `'gems'`, so every
+  existing call site keeps working unchanged) and writes to the SAME `summon.pity`/`summon.history` either
+  way — there was never a second pity object to create; both currencies just pick which balance field the
+  one write path debits. Verified directly: a Gem pull followed by a Ticket pull on the same banner
+  continues the same pity counter and appends to the same history array (`economy.test.ts`,
+  `summon.test.ts`).
+- `summon/config.ts` — `SUMMON_CONFIG.ticketCost = { single: 1, ten: 10 }`, flat and banner-independent
+  (Gem cost varies per banner; Ticket cost deliberately does not - there's no "price" to discount since
+  Tickets are earned, not bought).
+- `summon/summon.ts` — `performSummon(kind, bannerId, seed?, currency?)`. `currency` was added as the
+  LAST parameter, after the pre-existing `seed`, specifically so every one of the ~17 existing
+  `performSummon(kind, bannerId, seed)` call sites (mostly in `summon.test.ts`) kept working unchanged
+  rather than requiring a mechanical rewrite of a parameter that has nothing to do with what changed.
+- `SummonPage.tsx` — a Gems/Tickets toggle, shown only once the player owns at least 1 Ticket (matches
+  the "don't clutter for players who have none" pattern already used for the Journey/Missions footer
+  entries). Defaults to Tickets when the player has any, since spending the earn-only currency first is
+  always at least as good as spending Gems.
+- New `TicketIcon`/`TicketAmount`/`TicketBalance` components, matching Gem/Gold's shape exactly. **Found
+  and fixed a real Phase 1 gap while building these**: `GoldBalance` had never actually been given CSS
+  (unlike `GemBalance`) — it was rendering unstyled since Phase 1 landed. Added `.gold-balance`/
+  `.gold-gain` alongside the new `.ticket-balance`/`.ticket-gain` rules.
+- Journey Day 2 restored to Summon Tickets (see Phase 6's entry above). Missions: Tickets added to the 3
+  weekly missions only (1/2/1), deliberately NOT to any daily mission - keeps Tickets a weekly-commitment
+  reward, with the journey covering "a free Ticket early on" instead of a daily trickle.
+- While already touching `missions/store.ts` for Tickets, also wired the Phase-9-shaped period-specific
+  events (`daily_mission_progress`/`daily_mission_completed`/`weekly_mission_progress`/
+  `weekly_mission_completed`/`daily_set_completed`) alongside the existing generic `mission_progressed`/
+  `mission_completed` - see Phase 9's entry for why both naming schemes coexist rather than a rename.
+
+**Final source/sink table (post-Phase 7):**
+
+| Currency | Sources | Sinks |
+|---|---|---|
+| **Gold** | Campaign win (every win, not just first clear): 30/40/55/90 by node type · Quick Battle win/draw: 20/8 · Idle rewards: `goldPerHour(clearedNodes)`, capped 12h · Daily missions: 3 of 5 (40/30/20) · Weekly missions: 2 of 3 (200/150) · Journey Days 4/5: 150/200 | Hero Level-up (`goldCostForLevelUp`, rising curve) |
+| **Gems** | Starting grant: 100 · Campaign first-clear: 20/30/40/60 by node type · Chapter complete: 100 · Account Level milestones: 100/100/100/150 at 5/10/15/20 · Daily missions: 2 of 5 (20/15) · Weekly missions: 1 of 3 (100) · Journey Day 6: 200 · (future: IAP, Phase 10 surfaces only - no real purchase path exists) | Summon (single/ten, per-banner cost) |
+| **Summon Tickets** | Weekly missions: all 3 (1/2/1) · Journey Day 2: 3 · (future: offer bundles, Phase 10 surfaces only) | Summon (single/ten, flat 1/10 - shares pity/history with Gems) |
+| **Duplicate copies** *(resource, not a currency)* | Summon duplicates · Campaign multi-copy rewards · Journey Day 3 | Ascension (spends copies to raise rank; Stars reads the result, spends nothing itself - Phase 2) |
+
+Every currency has at least one source and one sink; nothing is dead. Not added, per the brief: Hero XP
+items, Ascension stones, equipment/relic currencies, shards - duplicate copies already serve the role a
+shard system would, per the Phase 2 decision gate.
+
+- Tests: `economy/economy.test.ts` (Ticket earn/spend, insufficient Tickets, pity/history sharing across
+  Gems and Tickets, v3→v4 migration), `summon/summon.test.ts` (`performSummon` end-to-end with Tickets:
+  cost, insufficient-Tickets refusal, shared pity across currencies, reward persistence through a reload,
+  Unlimited-Gems dev bypass also covering Tickets).
+- Deviation: none from the task list; the missions period-specific-event and `daily_set_completed` work
+  (Phase 9-shaped) landed early, alongside Tickets, because it touched the same file - documented under
+  Phase 9 below rather than re-described there.
+
+## 9. Sequencing update (2026-09-24 follow-up) — the Commercial Validation Gate
+
+Supersedes this document's original Section 9. The docx's "Decision gate after Phase 10" is replaced by a
+renumbered Phases 7–11 (below) followed by a named gate:
+
+```
+Phases 0–11 → Closed Playtest → Commercial Validation Gate → only then decide on
+server authority / monetisation / soft launch
+```
+
+Phases 7–10 were re-scoped in this follow-up (Phase 9 is now Analytics completion, not "focused
+progression polish"; Phase 10 is now monetisation *surfaces*, not closed-playtest readiness; the old
+Phase 10 became Phase 11). The reasoning and content for each renumbered phase live in its own entry in
+Section 8 (the phase log) as it lands, not duplicated here.
+
+**Server-authoritative economy, real IAP, ranked PvP, live events, guilds, equipment and other expensive
+production/live-service systems do not begin automatically after Phase 11.** They begin only after a
+closed external playtest and a review of the metrics below.
+
+**The Commercial Validation Gate evaluates at least:**
+
+- tutorial completion
+- D1 / D3 / D7 retention
+- sessions per player
+- Campaign progression
+- Campaign power-wall encounter rate
+- return/retry rate after encountering a power wall
+- Hero Level engagement
+- Ascension engagement
+- Star engagement
+- idle reward claim rate
+- daily mission participation/completion
+- weekly mission participation/completion
+- 7-day journey claims
+- Summon engagement
+- resource balance/faucet/sink behaviour
+
+**No success thresholds are defined yet**, deliberately — the first closed cohort will likely be too small
+for statistically meaningful benchmarking. The goal through Phase 11 is to make every one of the above
+measurable, not to decide in advance what a "good" number looks like. Thresholds are a Gate-time decision,
+made with real data in hand, not a Phase 7–11 decision made in the abstract.
+
+## 10. What happens after Phase 11 — explicit stop list
+
+Phase 11 ends implementation for this entire workstream until the Commercial Validation Gate is reviewed.
+Do not begin, even opportunistically or as a "small step toward":
+
+- server-authoritative economy or real authentication migration
+- real IAP (Stripe, App Store, Google Play billing)
+- Ranked PvP
+- Live Events
+- Guilds / Guild Raid
+- Equipment / Relics
+- a large Ascension content pass (covering the remaining ~46 cards)
+- new Campaign regions
+- large roster expansion
+
+This replaces the docx's original "Later phases" list (Phases 11–15+) — same systems, gated behind the
+Commercial Validation Gate explicitly rather than left as "later, not needed yet."
 
 ## 11. Definition of success — checked at the end of Phase 6
 

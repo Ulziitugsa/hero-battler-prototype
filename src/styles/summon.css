@@ -25,6 +25,12 @@
 .summon-screen.theme-infernal { --accent: var(--px-infernal, #d9704a); }
 .summon-header { display: flex; align-items: center; gap: 12px; padding: 0 16px; }
 .summon-title { flex: 1; font-family: var(--px-font-display); font-size: 1.35rem; color: var(--px-gold-strong, #ffeec4); }
+.summon-balances { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ---------- Currency toggle (Commercial Prototype Phase 7) - only shown once the player owns Tickets ---------- */
+.summon-currency-toggle { display: flex; gap: 8px; margin: 4px 16px 10px; }
+.summon-currency-toggle button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 7px 0; border-radius: 9px; border: 1px solid rgba(255, 214, 140, 0.16); background: rgba(255, 214, 140, 0.06); color: var(--px-ink-dim, #cdae86); font: 700 12px var(--px-font-label); cursor: pointer; }
+.summon-currency-toggle button.on { background: linear-gradient(180deg, var(--px-gold-light, #ebc989), var(--px-gold-deep, #c69f65)); color: var(--px-gold-ink, #2a2116); border-color: transparent; }
 
 /* ---------- Banner rail ---------- */
 .summon-rail { display: flex; gap: 12px; padding: 4px 35px 10px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }

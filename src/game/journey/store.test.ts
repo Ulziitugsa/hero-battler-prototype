@@ -98,11 +98,11 @@ describe('claimJourneyDay', () => {
   });
   it('refuses a double-claim and does not double-grant', () => {
     setFirstSeen(DAY_MS); // Day 2 unlocked
-    const goldBefore = getEconomy().gems;
-    claimJourneyDay(2); // Gems-only day
+    const ticketsBefore = getEconomy().tickets;
+    claimJourneyDay(2); // Tickets-only day (Phase 7)
     const again = claimJourneyDay(2);
     expect(again).toMatchObject({ ok: false, reason: 'Already claimed.' });
-    expect(getEconomy().gems).toBe(goldBefore + JOURNEY_DAYS[1].rewardGems);
+    expect(getEconomy().tickets).toBe(ticketsBefore + JOURNEY_DAYS[1].rewardTickets);
   });
   it('grants Gold/Gems/cards exactly as defined', () => {
     setFirstSeen(3 * DAY_MS); // Day 4 unlocked

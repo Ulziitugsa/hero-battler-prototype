@@ -41,3 +41,13 @@ export const GOLD_REWARDS = {
 } as const;
 
 export type GoldSource = 'campaign' | 'quickBattle' | 'idle' | 'mission' | 'journey' | 'dev';
+
+// ---- Summon Tickets (Commercial Prototype Phase 7) -----------------------------------------------
+// Tickets perform a Summon exactly like Gems (see summon/summon.ts) but are earn-only, sourced from
+// missions and the 7-day journey - never purchasable, never a second pity pool. PROTOTYPE values.
+
+export const STARTING_TICKETS = 0;
+
+export const MAX_TICKETS = 9_999;
+
+export type TicketSource = 'mission' | 'journey' | 'offer' | 'dev';

@@ -46,5 +46,5 @@ export function buildPreviewOutcome(bannerId: string, scenario: PreviewScenario)
     const grant: GrantResult = { cardId: entry.cardId, granted: 1, previous: owned - 1, owned, isNew: owned === 1 };
     return { cardId: entry.cardId, rarity: entry.rarity, featured: entry.featured, pityBefore: 0, pityAfter: 0, pityTriggered: false, grant, ascensionAvailable: !grant.isNew && i % 2 === 0 };
   });
-  return { ok: true, kind: pulls.length === 1 ? 'single' : 'ten', bannerId, seed: 0, cost: 0, pulls, pityBefore: 0, pityAfter: 0, highestRarity: highestRarityOf(pulls.map((p) => p.rarity)), starterProgress: [] };
+  return { ok: true, kind: pulls.length === 1 ? 'single' : 'ten', bannerId, seed: 0, currency: 'gems', cost: 0, pulls, pityBefore: 0, pityAfter: 0, highestRarity: highestRarityOf(pulls.map((p) => p.rarity)), starterProgress: [] };
 }

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { GEM_REWARDS, GOLD_REWARDS, MAX_GEMS, MAX_GOLD, STARTING_GEMS, STARTING_GOLD } from './config';
-import { canAfford, canAffordGold, commitSummon, getEconomy, getGems, getGold, getPity, grantGems, grantGold, isUnlimitedGems, reloadEconomy, resetEconomy, resetSummonState, setGems, setGold, setPity, setUnlimitedGems, spendGems, spendGold, subscribeEconomy } from './economy';
+import { GEM_REWARDS, GOLD_REWARDS, MAX_GEMS, MAX_GOLD, MAX_TICKETS, STARTING_GEMS, STARTING_GOLD, STARTING_TICKETS } from './config';
+import { canAfford, canAffordGold, canAffordTickets, commitSummon, getEconomy, getGems, getGold, getPity, getTickets, grantGems, grantGold, grantTickets, isUnlimitedGems, reloadEconomy, resetEconomy, resetSummonState, setGems, setGold, setPity, setTickets, setUnlimitedGems, spendGems, spendGold, spendTickets, subscribeEconomy } from './economy';
 import { ECONOMY_STORAGE_KEY, sanitizeEconomy } from './persistence';
 import { campaignFirstClearGems, campaignWinGold, chapterCompleteGems, levelGems, quickBattleGold } from './rewards';
 
@@ -26,10 +26,11 @@ beforeEach(() => {
 const stored = () => JSON.parse(localStorage.getItem(ECONOMY_STORAGE_KEY)!);
 
 describe('fresh economy', () => {
-  it('starts with the configured starting Gems, starting Gold, pity 0 and no history, and persists that on first read', () => {
-    expect(getEconomy()).toEqual({ version: 3, gems: STARTING_GEMS, gold: STARTING_GOLD, summon: { pity: {}, history: [] } });
+  it('starts with the configured starting Gems/Gold/Tickets, pity 0 and no history, and persists that on first read', () => {
+    expect(getEconomy()).toEqual({ version: 4, gems: STARTING_GEMS, gold: STARTING_GOLD, tickets: STARTING_TICKETS, summon: { pity: {}, history: [] } });
     expect(stored().gems).toBe(STARTING_GEMS);
     expect(stored().gold).toBe(STARTING_GOLD);
+    expect(stored().tickets).toBe(STARTING_TICKETS);
   });
 });
 
@@ -84,6 +85,66 @@ describe('Gold reward config', () => {
     expect(quickBattleGold('win')).toBe(GOLD_REWARDS.quickBattleWin);
     expect(quickBattleGold('draw')).toBe(GOLD_REWARDS.quickBattleDraw);
     expect(quickBattleGold('loss')).toBe(0);
+  });
+});
+
+describe('Summon Tickets (Commercial Prototype Phase 7)', () => {
+  it('grants, notifies subscribers and persists', () => {
+    let calls = 0;
+    const off = subscribeEconomy(() => calls++);
+    const r = grantTickets(5, 'mission');
+    expect(r).toEqual({ gained: 5, balance: STARTING_TICKETS + 5, source: 'mission' });
+    expect(getTickets()).toBe(STARTING_TICKETS + 5);
+    expect(stored().tickets).toBe(STARTING_TICKETS + 5);
+    expect(calls).toBe(1);
+    off();
+  });
+  it('ignores zero, negative and non-finite grants', () => {
+    for (const bad of [0, -5, NaN, Infinity]) expect(grantTickets(bad, 'dev').gained).toBe(0);
+    expect(getTickets()).toBe(STARTING_TICKETS);
+  });
+  it('floors fractional grants and caps at MAX_TICKETS', () => {
+    setTickets(0);
+    expect(grantTickets(3.9, 'dev').gained).toBe(3);
+    setTickets(MAX_TICKETS - 2);
+    expect(grantTickets(10, 'dev')).toMatchObject({ gained: 2, balance: MAX_TICKETS });
+  });
+  it('spends when affordable and refuses an unaffordable/negative/fractional spend', () => {
+    setTickets(10);
+    expect(canAffordTickets(3)).toBe(true);
+    expect(spendTickets(3)).toBe(true);
+    expect(getTickets()).toBe(7);
+    expect(spendTickets(-1)).toBe(false);
+    expect(spendTickets(1.5)).toBe(false);
+    setTickets(1);
+    expect(canAffordTickets(3)).toBe(false);
+    expect(spendTickets(3)).toBe(false);
+    expect(getTickets()).toBe(1);
+  });
+  it('is earn-only: there is no code path that lets a purchase grant Tickets in this codebase', () => {
+    // Structural check, not a runtime one: TicketSource never includes anything IAP-shaped.
+    const validSources: readonly string[] = ['mission', 'journey', 'offer', 'dev'];
+    expect(validSources).not.toContain('purchase');
+    expect(validSources).not.toContain('iap');
+  });
+  it('survives a reload from storage independently of Gems/Gold', () => {
+    setGems(1);
+    setGold(2);
+    setTickets(9);
+    reloadEconomy();
+    expect(getGems()).toBe(1);
+    expect(getGold()).toBe(2);
+    expect(getTickets()).toBe(9);
+  });
+});
+
+describe('schema migration - v3 (no tickets field) treats Tickets as 0, never backfilling retroactively', () => {
+  it('a v3 save loads with 0 Tickets', () => {
+    localStorage.setItem(ECONOMY_STORAGE_KEY, JSON.stringify({ version: 3, gems: 300, gold: 500, summon: { pity: {}, history: [] } }));
+    reloadEconomy();
+    expect(getGems()).toBe(300);
+    expect(getGold()).toBe(500);
+    expect(getTickets()).toBe(0);
   });
 });
 
@@ -242,6 +303,46 @@ describe('commitSummon', () => {
     expect(getEconomy()).toMatchObject({ gems: 500, summon: { pity: {}, history: [] } });
     resetEconomy();
     expect(getGems()).toBe(STARTING_GEMS);
+  });
+
+  describe('paid with Tickets - the exact same pity/history write path as Gems (Commercial Prototype Phase 7)', () => {
+    it('spends Tickets instead of Gems, defaults to Gems when omitted', () => {
+      setGems(1000);
+      setTickets(5);
+      expect(commitSummon(3, 'royal-vanguard', 1, [entry(1)], 'tickets')).toBe(true);
+      expect(getTickets()).toBe(2);
+      expect(getGems()).toBe(1000); // untouched
+      expect(getPity('royal-vanguard')).toBe(1);
+    });
+    it('refuses an unaffordable Ticket cost, changing nothing - Gems are never a fallback', () => {
+      setGems(1000);
+      setTickets(1);
+      expect(commitSummon(3, 'royal-vanguard', 1, [entry(1)], 'tickets')).toBe(false);
+      expect(getTickets()).toBe(1);
+      expect(getGems()).toBe(1000);
+      expect(getPity('royal-vanguard')).toBe(0);
+    });
+    it('a Gem pull and a Ticket pull on the SAME banner advance the SAME pity counter - never two pools', () => {
+      setGems(1000);
+      setTickets(5);
+      commitSummon(100, 'royal-vanguard', 12, [entry(1)]); // Gems (default currency)
+      expect(getPity('royal-vanguard')).toBe(12);
+      commitSummon(1, 'royal-vanguard', 13, [entry(2)], 'tickets');
+      expect(getPity('royal-vanguard')).toBe(13); // continues from the Gem pull's count, not a fresh counter
+    });
+    it('a Gem pull and a Ticket pull write to the SAME shared history, newest first, regardless of which paid for it', () => {
+      setGems(1000);
+      setTickets(5);
+      commitSummon(100, 'royal-vanguard', 1, [entry(1)]);
+      commitSummon(1, 'royal-vanguard', 2, [entry(2)], 'tickets');
+      expect(getEconomy().summon.history.map((h) => h.at)).toEqual([2, 1]);
+    });
+    it('resetSummonState clears pity/history for Ticket-funded pulls exactly like Gem-funded ones, keeping Tickets', () => {
+      setTickets(10);
+      commitSummon(1, 'royal-vanguard', 4, [entry(1)], 'tickets');
+      resetSummonState();
+      expect(getEconomy()).toMatchObject({ tickets: 9, summon: { pity: {}, history: [] } });
+    });
   });
 });
 

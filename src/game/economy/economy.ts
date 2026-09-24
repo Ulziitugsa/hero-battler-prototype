@@ -1,6 +1,6 @@
-import { MAX_GEMS, MAX_GOLD, type GemSource, type GoldSource } from './config';
+import { MAX_GEMS, MAX_GOLD, MAX_TICKETS, type GemSource, type GoldSource, type TicketSource } from './config';
 import { clearStoredEconomy, defaultEconomy, readStoredEconomy, sanitizeEconomy, writeStoredEconomy } from './persistence';
-import type { GemGrantResult, GoldGrantResult, PlayerEconomy, SummonHistoryEntry } from './types';
+import type { GemGrantResult, GoldGrantResult, PlayerEconomy, SummonHistoryEntry, TicketGrantResult } from './types';
 import { SUMMON_CONFIG } from '../summon/config';
 
 // The single source of truth for Gems and the Summon counters. Same shape as the collection/account
@@ -149,27 +149,69 @@ export function setGold(amount: number): void {
   commit(sanitizeEconomy({ ...getEconomy(), gold: amount }));
 }
 
+// ---- Summon Tickets (Commercial Prototype Phase 7) -----------------------------------------------
+// Same shape as Gold/Gems again. Tickets are earn-only (missions, journey) - there is deliberately no
+// "buy Tickets" path anywhere, so unlike Gems there is no future purchase path to keep this shape ready
+// for; it exists purely so a Summon can be paid for without touching Gems at all.
+
+export function getTickets(): number {
+  return getEconomy().tickets;
+}
+
+export function canAffordTickets(amount: number, tickets: number = getTickets()): boolean {
+  if (!Number.isInteger(amount) || amount < 0) return false;
+  return isUnlimitedGems() || tickets >= amount;
+}
+
+/** Adds Tickets (whole, positive; balance is capped at MAX_TICKETS). Returns what was actually added. */
+export function grantTickets(amount: number, source: TicketSource): TicketGrantResult {
+  const economy = getEconomy();
+  const want = Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
+  const balance = Math.min(MAX_TICKETS, economy.tickets + want);
+  const gained = balance - economy.tickets;
+  if (gained > 0) commit({ ...economy, tickets: balance });
+  return { gained, balance, source };
+}
+
+/** Removes Tickets. Returns false - changing nothing - for a non-whole/negative amount or one the player can't afford. */
+export function spendTickets(amount: number): boolean {
+  const economy = getEconomy();
+  if (!canAffordTickets(amount, economy.tickets)) return false;
+  if (amount > 0 && !isUnlimitedGems()) commit({ ...economy, tickets: economy.tickets - amount });
+  return true;
+}
+
+export function setTickets(amount: number): void {
+  commit(sanitizeEconomy({ ...getEconomy(), tickets: amount }));
+}
+
 // ---- Summon state -----------------------------------------------------------------------------
 
 export function getSummonState(): PlayerEconomy['summon'] {
   return getEconomy().summon;
 }
 
-/** Pulls since the last Legendary on this banner. */
+/** Pulls since the last Legendary on this banner - shared by Gem and Ticket pulls alike (never a second pool). */
 export function getPity(bannerId: string): number {
   return getEconomy().summon.pity[bannerId] ?? 0;
 }
 
 /**
- * Spends `cost` Gems and records the banner's pity counter + history in ONE write. Returns false (changing
- * nothing) when the player can't afford it. `entries` are the pulls in order; history keeps the newest first.
+ * Spends `cost` of either Gems or Tickets and records the banner's pity counter + history in ONE write -
+ * both payment methods feed the exact same `summon.pity`/`summon.history`, by construction: this is the
+ * single write path either one goes through, and `bannerId` is the only pity key that exists. Returns
+ * false (changing nothing) when the player can't afford it. `entries` are the pulls in order; history
+ * keeps the newest first.
  */
-export function commitSummon(cost: number, bannerId: string, pityAfter: number, entries: SummonHistoryEntry[]): boolean {
+export function commitSummon(cost: number, bannerId: string, pityAfter: number, entries: SummonHistoryEntry[], currency: 'gems' | 'tickets' = 'gems'): boolean {
   const economy = getEconomy();
-  if (!canAfford(cost, economy.gems)) return false;
+  const balance = currency === 'gems' ? economy.gems : economy.tickets;
+  const afford = currency === 'gems' ? canAfford(cost, balance) : canAffordTickets(cost, balance);
+  if (!afford) return false;
   const history = [...[...entries].reverse(), ...economy.summon.history].slice(0, SUMMON_CONFIG.historyLimit);
   const pity = { ...economy.summon.pity, [bannerId]: pityAfter };
-  commit({ ...economy, gems: isUnlimitedGems() ? economy.gems : economy.gems - cost, summon: { pity, history } });
+  const spend = isUnlimitedGems() ? balance : balance - cost;
+  commit({ ...economy, [currency === 'gems' ? 'gems' : 'tickets']: spend, summon: { pity, history } });
   return true;
 }
 
