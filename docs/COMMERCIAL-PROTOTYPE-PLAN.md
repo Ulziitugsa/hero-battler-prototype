@@ -188,12 +188,24 @@ This resolves the gate's concern directly: there is exactly **one** duplicate si
 
 - `src/game/campaign/idleRewards.ts` — copies `energy.ts`'s elapsed-time-since-timestamp pattern exactly
   (`lastClaimAt` → elapsed → rate → cap → claim), local-only per the brief.
-- Reward: Gold only, at a rate tied to Campaign progress (`goldPerHour(clearedNodeCount)`), capped at a
-  configurable window (default 12h, `IDLE_CAP_HOURS` in config — not a magic number in the UI).
-- Home affordance: one line in the existing footer/destinations area (no new screen, no new nav item).
-- Analytics: `idle_reward_available`, `idle_reward_claimed`.
-- Tests: `campaign/idleRewards.test.ts` (elapsed-time edge cases, cap, repeated-claim safety, clock skew).
-- Deviation: none.
+- Reward: Gold only, at a rate tied to Campaign progress (`goldPerHour(clearedNodeCount)` =
+  `IDLE_GOLD_PER_HOUR_BASE + cleared * IDLE_GOLD_PER_HOUR_PER_NODE`), capped at `IDLE_CAP_HOURS` (12h, a
+  named config constant, not a magic number in the UI). Claiming always resets the clock, even at 0 Gold,
+  so polling can't bank partial minutes.
+- Home affordance: reused the existing "one contextual note" slot (`game/home/hubState.ts`'s
+  `pickHubNote`) rather than adding new screen real estate - a meaningful idle reward (≥
+  `IDLE_NOTE_MIN_GOLD`, 20) now outranks the Mastery-Point note, since it's the only one of the notes
+  that actively decays (caps out and stalls) if ignored; Mastery Points don't expire. Tapping the note
+  claims directly from Home. `useHubState` deliberately does NOT memoize the idle read to mount-time like
+  Campaign/Energy - it recomputes every render and exposes `refreshIdle()`, so the note disappears the
+  instant it's claimed without needing to leave and re-enter Home.
+- Analytics: `idle_reward_available` (fired once per distinct available amount, not per render),
+  `idle_reward_claimed` (only on a genuine >0 grant).
+- Tests: `campaign/idleRewards.test.ts` (elapsed-time edge cases, cap, repeated-claim safety, clock skew,
+  a backwards-moving clock never grants negative Gold).
+- Deviation: none from the brief; the Home-integration choice (reuse the single-note slot vs. a new UI
+  element) was an implementation decision made in favor of the brief's own "without cluttering the
+  screen" instruction.
 
 ### Phase 5 — Daily + weekly missions — Status: ✅ done
 

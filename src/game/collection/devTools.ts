@@ -16,6 +16,7 @@ import type { Rarity } from '../types';
 import { getHeroLevelStatus, levelUpHero } from '../heroLevel/levelUp';
 import { getHeroLevelState, resetHeroLevels, setHeroLevel } from '../heroLevel/store';
 import { rosterPowerForDeck } from '../heroLevel/rosterPower';
+import { claimIdleReward, loadIdleReward, resetIdleRewards } from '../campaign/idleRewards';
 
 // DEV ONLY - attached to window.skyloomDev by main.tsx behind import.meta.env.DEV, so it never ships.
 // e.g. skyloomDev.grant('und-mira'), skyloomDev.setAllOwned(), skyloomDev.reset().
@@ -50,6 +51,10 @@ export const devTools = {
   levelUpHero: (cardId: string) => levelUpHero(cardId),
   resetHeroLevels: () => resetHeroLevels(),
   rosterPower: (cardIds: string[], accountLevel: number) => rosterPowerForDeck(cardIds, accountLevel, getHeroLevelState(), getAscensionState()),
+  // ---- Idle rewards ----
+  idleReward: () => loadIdleReward(),
+  claimIdle: () => claimIdleReward(),
+  resetIdle: () => resetIdleRewards(),
   banners: () => SUMMON_BANNERS.map((b) => b.id),
   /** Pity is per banner: skyloomDev.setPity('gravebound', 39). */
   setPity: (bannerId: string, count: number) => setPity(bannerId, count),

@@ -254,7 +254,16 @@ export function ActiveDeck({ deck, onOpen }: { deck: DeckOption; onOpen: () => v
 
 // ---- The one note -----------------------------------------------------------------------------
 
-export function HubNoteLine({ note, onOpenProfile, onOpenDecks, onOpenHeroes }: { note: HubNote; onOpenProfile: () => void; onOpenDecks: () => void; onOpenHeroes: () => void }) {
+export function HubNoteLine({ note, onOpenProfile, onOpenDecks, onOpenHeroes, onClaimIdle }: { note: HubNote; onOpenProfile: () => void; onOpenDecks: () => void; onOpenHeroes: () => void; onClaimIdle?: () => void }) {
+  if (note.kind === 'idle')
+    return (
+      <button type="button" className="hh-note" onClick={onClaimIdle}>
+        <WaxDot label="Idle reward ready" />
+        <span>
+          <strong>+{note.gold} Gold</strong> earned while you were away{note.atCap ? ' (full)' : ''} — tap to claim
+        </span>
+      </button>
+    );
   if (note.kind === 'mastery')
     return (
       <button type="button" className="hh-note" onClick={onOpenProfile}>

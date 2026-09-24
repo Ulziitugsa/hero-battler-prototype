@@ -9,6 +9,7 @@ import { getStarterDeckUnlockProgress, starterDeckId, type StarterUnlockProgress
 import type { StarterFaction } from '../cards/starterDecks';
 import type { SummonHistoryEntry } from '../economy/types';
 import { SUMMON_CONFIG } from '../summon/config';
+import type { IdleRewardState } from '../campaign/idleRewards';
 
 // Everything the Home hub shows that needs a DECISION (what is the next step, which single note is worth
 // surfacing, which nav destinations deserve an attention dot) lives here as pure functions over real state,
@@ -54,6 +55,7 @@ export function campaignHub(progress: CampaignProgress): CampaignHub {
 // ---- The one contextual note ------------------------------------------------------------------
 
 export type HubNote =
+  | { kind: 'idle'; gold: number; atCap: boolean }
   | { kind: 'mastery'; points: number }
   | { kind: 'starter'; deckId: string; name: string; collected: number; total: number }
   | { kind: 'recent'; cardId: string };
@@ -62,6 +64,8 @@ export type HubNote =
 export const STARTER_CLOSE_FRACTION = 0.4;
 /** A first copy from Summon is "recent" for a day. */
 export const RECENT_CARD_MS = 24 * 60 * 60 * 1000;
+/** Below this, the idle note stays quiet rather than flickering on moments after a claim. */
+export const IDLE_NOTE_MIN_GOLD = 20;
 
 const STARTERS: StarterFaction[] = ['kingdom', 'undead', 'infernal'];
 
@@ -77,10 +81,13 @@ export function closestStarter(owned: OwnedMap): StarterUnlockProgress | null {
 }
 
 /**
- * At most ONE note. Priority: an unspent Mastery Point (a decision waiting for you), then a starter deck that is
- * close to unlocking, then a card you just pulled for the first time. Nothing else earns a permanent place on Home.
+ * At most ONE note. Priority: a meaningful idle reward waiting to be claimed (it caps out and stalls if
+ * ignored - the only one of these that actively decays), then an unspent Mastery Point (a decision
+ * waiting for you, but one that never expires), then a starter deck that is close to unlocking, then a
+ * card you just pulled for the first time. Nothing else earns a permanent place on Home.
  */
-export function pickHubNote(input: { masteryPoints: number; owned: OwnedMap; history: readonly SummonHistoryEntry[]; now: number }): HubNote | null {
+export function pickHubNote(input: { idle?: IdleRewardState; masteryPoints: number; owned: OwnedMap; history: readonly SummonHistoryEntry[]; now: number }): HubNote | null {
+  if (input.idle && input.idle.availableGold >= IDLE_NOTE_MIN_GOLD) return { kind: 'idle', gold: input.idle.availableGold, atCap: input.idle.atCap };
   if (input.masteryPoints > 0) return { kind: 'mastery', points: input.masteryPoints };
   const starter = closestStarter(input.owned);
   if (starter) return { kind: 'starter', deckId: starter.deckId, name: starter.name, collected: starter.collected, total: starter.total };
