@@ -24,7 +24,7 @@ import { grantQuickBattleXp } from '../game/progression/rewards';
 import type { XpGrantResult } from '../game/progression/types';
 import { grantGold } from '../game/economy/economy';
 import { quickBattleGold } from '../game/economy/rewards';
-import { battlePowerBonusForLevel } from '../game/heroLevel/config';
+import { battlePowerBonusForLevel } from '../game/heroLevel/battlePower';
 import { Icon } from '../components/Icon';
 import { useAnimationController } from '../components/animation/useAnimationController';
 import { resolveDuration } from '../components/animation/timing';

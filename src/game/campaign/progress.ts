@@ -16,6 +16,7 @@ import { getAccount } from '../progression/account';
 import { getHeroLevelState } from '../heroLevel/store';
 import { getAscensionState } from '../ascension/store';
 import { rosterPowerForDeck } from '../heroLevel/rosterPower';
+import { getConfig } from '../../config/config';
 
 // Campaign node-clearing progress. localStorage-only, following the same convention as
 // localDecks.ts/preferences.ts (try/catch-wrapped, sane defaults, never throws).
@@ -72,6 +73,14 @@ function saveProgress(progress: CampaignProgress): void {
 
 export function isNodeCleared(nodeId: string, progress: CampaignProgress): boolean {
   return progress.clearedNodes.includes(nodeId);
+}
+
+/** A node's recommended Roster Power (Commercial Prototype Phase 3), with a Phase 8 remote-config override
+ * checked first - see config/schema.ts's CampaignConfig.recommendedPowerOverrides header note on why this
+ * is an override map rather than moving the node's own authored value into config. Undefined when the
+ * node has no encounter or no recommendation at all (story/reward nodes). */
+export function recommendedPowerFor(node: CampaignNodeDef): number | undefined {
+  return getConfig().campaign.recommendedPowerOverrides[node.id] ?? node.encounter?.recommendedRosterPower;
 }
 
 /** A node is reachable once every node it `requires` is cleared - the optional challenge spur requires
@@ -188,7 +197,7 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
 
   // Commercial Prototype Phase 3: was the player under the node's recommended Roster Power for this
   // attempt? Computed once and reused by both the loss-tracking and the win/return-win branches below.
-  const recommended = node.encounter.recommendedRosterPower;
+  const recommended = recommendedPowerFor(node);
   const power = recommended !== undefined ? currentRosterPower() : null;
   const wasBehind = power !== null && recommended !== undefined && power < recommended;
 

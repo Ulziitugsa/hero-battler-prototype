@@ -326,6 +326,64 @@ shard system would, per the Phase 2 decision gate.
   (Phase 9-shaped) landed early, alongside Tickets, because it touched the same file - documented under
   Phase 9 below rather than re-described there.
 
+### Phase 8 — Remote config abstraction — Status: ✅ done
+
+- `src/config/schema.ts` — the full typed `GameConfig` surface: `economy`, `summon`, `heroLevel`,
+  `campaign`, `idle`, `missions`, `journey`, `offers`, `flags`. Two shapes, by design (see the file's own
+  header note): plain scalar/object fields for values that ARE the tunable number, and `*Overrides` maps
+  keyed by content id (a Campaign node id, a mission id, a journey day) for values that live inside
+  existing content files (`chapter1.ts`, `missions/definitions.ts`, `journey/definitions.ts`) - an
+  override map lets one id's number change without creating a second source of truth for that content.
+- `src/config/defaults.ts` — `DEFAULT_CONFIG`, every field equal to the value already live in the
+  codebase before this phase. `src/config/config.ts` — `getConfig()`/`setConfigProvider()` (same seam
+  shape as `analytics/track.ts`'s `setAnalyticsProvider`), a `createLocalProvider(overrides)` deep-merge
+  helper (the "local/default provider" the brief says is sufficient for this phase - no remote endpoint
+  wired), and a dev-only `setDevConfigOverride()` persisted to `localStorage` so a QA tester can retune
+  values without a rebuild (the "smallest reasonable solution" for a dev-facing override tool).
+- **What was actually migrated to read through `getConfig()` ("where practical"):**
+  - `economy/rewards.ts` - `campaignFirstClearGems`, `chapterCompleteGems`, `levelGems`,
+    `campaignWinGold`, `quickBattleGold` (all function-shaped already, now read config live on every call).
+  - `heroLevel/config.ts` - `heroLevelCapForAccount`, `goldCostForLevelUp`.
+  - `campaign/idleRewards.ts` - `goldPerHour` and `loadIdleReward`'s cap.
+  - `summon/summon.ts` - `summonCost`'s Ticket branch (`ticketCostSingle`/`ticketCostTen`).
+  - Three override maps actually wired at their read sites, not just declared in the schema:
+    `campaign/progress.ts`'s new `recommendedPowerFor(node)` (used by both `recordBattleResult` and
+    `StagePreviewSheet.tsx`), `missions/store.ts`'s `claimMission`, `journey/store.ts`'s `claimJourneyDay`.
+  - `SummonPage.tsx`'s Ticket-toggle visibility now also respects `flags.alwaysShowTicketToggle` - the
+    one feature flag actually wired to a UI decision this phase.
+- **A real architectural fix this phase required, not just config plumbing**: `heroLevel/config.ts`
+  previously held both `battlePowerBonusForLevel` (imported by `engine/abilities.ts`, which is reachable
+  from `api/` for Friendly Battle) and the newly-config-dependent `heroLevelCapForAccount`/
+  `goldCostForLevelUp` in one file. Importing `config/config.ts` into that file broke the `api/` build
+  (`import.meta.env` isn't typed under `api/tsconfig.dev.json`'s Node target) and - independent of the
+  build error - would have been the wrong design anyway: a combat-balance invariant must never be able to
+  drift via a remote config value. Split into `heroLevel/battlePower.ts` (engine-safe, zero dependency on
+  config) and kept `heroLevel/config.ts` for the economy-tuning half, re-exporting the engine-safe
+  constants so no other call site needed to change. `engine/abilities.ts` and `GamePage.tsx` now import
+  `battlePowerBonusForLevel` directly from `battlePower.ts`.
+- **Deliberately NOT routed through config, documented as actual game rules, not live-ops levers:**
+  `MAX_HERO_LEVEL` and `battlePowerBonusForLevel`'s breakpoints (the engine-safety invariant Phase 1's
+  tests protect), `ROSTER_POWER_WEIGHTS` (a first-draft formula still expected to change in *shape*, not
+  just tuning, per Section 5 - config values would falsely imply the formula itself is settled),
+  `ECONOMY_VERSION`/`MISSIONS_VERSION`/`JOURNEY_VERSION`/storage keys/`historyLimit`/pity clamping bounds
+  (schema versioning and storage bookkeeping, not economy tuning).
+- **Deliberately left un-wired despite being in the schema, with the limitation stated rather than
+  hidden**: `SUMMON_CONFIG`'s `pityThreshold`, `rarityRates`, `heroWeight`/`spellWeight`, and the featured
+  multipliers, plus per-banner Gem cost - all baked once into `SUMMON_POOLS` at module load
+  (`summon/pool.ts`'s `buildPool()`). Making these safely live-reconfigurable would mean rebuilding the
+  pool array reactively, a materially bigger change than "read a number from config" that this phase
+  explicitly did not take on (brief: "do not rebalance the entire economy endlessly"). Similarly, mission/
+  journey `target` counts are captured nowhere in config (see `MissionRewardOverride`'s own comment) -
+  only reward *amounts* are overridable, since a target change would need to flow consistently through
+  every place a progress count is capped/compared against it.
+- Tests: `config/config.test.ts` (provider swap, deep merge preserves untouched siblings, dev override
+  persistence, schema shape), `config/configIntegration.test.ts` (proves the abstraction flows
+  end-to-end: a provider swap changes what `campaignFirstClearGems`/`goldCostForLevelUp`/`goldPerHour`/
+  `summonCost`/`recommendedPowerFor`/`claimMission`/`claimJourneyDay` actually return, not just that
+  `getConfig()` itself resolves correctly).
+- Deviation: none from the task list; scope boundaries (what's wired vs. schema-only) are stated above
+  rather than silently left ambiguous.
+
 ## 9. Sequencing update (2026-09-24 follow-up) — the Commercial Validation Gate
 
 Supersedes this document's original Section 9. The docx's "Decision gate after Phase 10" is replaced by a

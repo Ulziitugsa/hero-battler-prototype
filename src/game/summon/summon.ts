@@ -12,6 +12,7 @@ import { takeForcedRarity } from './devControls';
 import { getPool, type SummonPool } from './pool';
 import { resolveSummons, type SummonPullResult } from './resolve';
 import { track } from '../../analytics/track';
+import { getConfig } from '../../config/config';
 
 // The Summon flow, in one place: check affordability -> resolve (pure) -> spend + pity + history (one
 // economy write) -> grant every card through the collection store. Everything is decided and persisted
@@ -23,9 +24,12 @@ export type SummonCurrency = 'gems' | 'tickets';
 
 export const SUMMON_COUNTS: Record<SummonKind, number> = { single: 1, ten: SUMMON_CONFIG.tenCount };
 
-/** Gem cost is per-banner (SummonPool.cost); Ticket cost is flat and banner-independent - see summon/config.ts. */
+/** Gem cost is per-banner (SummonPool.cost); Ticket cost is flat and banner-independent. Reads the Phase 8
+ * config live (config/config.ts) rather than the SUMMON_CONFIG constants, so a remote provider can retune
+ * Summon prices without a release. */
 export function summonCost(pool: SummonPool, kind: SummonKind, currency: SummonCurrency = 'gems'): number {
-  if (currency === 'tickets') return kind === 'single' ? SUMMON_CONFIG.ticketCost.single : SUMMON_CONFIG.ticketCost.ten;
+  const cfg = getConfig().summon;
+  if (currency === 'tickets') return kind === 'single' ? cfg.ticketCostSingle : cfg.ticketCostTen;
   return kind === 'single' ? pool.cost.single : pool.cost.ten;
 }
 

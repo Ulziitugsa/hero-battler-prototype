@@ -7,6 +7,7 @@ import { useAccount } from '../../game/progression/useAccount';
 import { useHeroLevel } from '../../game/heroLevel/useHeroLevel';
 import { useAscension } from '../../game/ascension/useAscension';
 import { rosterPowerForDeck } from '../../game/heroLevel/rosterPower';
+import { recommendedPowerFor } from '../../game/campaign/progress';
 
 const TYPE_LABEL: Record<string, string> = { battle: 'Battle', elite: 'Elite', boss: 'Boss', challenge: 'Challenge' };
 const TYPE_ICON: Record<string, IconName> = { battle: 'battle', elite: 'power', boss: 'graveyard', challenge: 'warning' };
@@ -24,7 +25,7 @@ export function StagePreviewSheet({ node, cleared, onFight, onClose }: { node: C
 
   const activeDeck = getActiveDeck();
   const currentPower = rosterPowerForDeck(activeDeck.cardIds, account.level, heroLevelState, ascensionState);
-  const recommended = encounter.recommendedRosterPower;
+  const recommended = recommendedPowerFor(node);
 
   const energy = loadEnergy();
   const affordable = canAffordEnergy(encounter.energyCost);

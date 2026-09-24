@@ -2,7 +2,7 @@ import type { AbilityDefinition, ActionDef, CountBasis, ConditionDef, ConditionS
 import { LANES, TRIGGER_LABEL, adjacentLanes } from '../types/index.js';
 import { getCard } from '../cards/index.js';
 import { effectiveAbilities } from '../ascension/effective.js';
-import { battlePowerBonusForLevel } from '../heroLevel/config.js';
+import { battlePowerBonusForLevel } from '../heroLevel/battlePower.js';
 import { nextRandom } from './rng.js';
 import { STARTING_HP } from './constants.js';
 import { effectivePower } from './power.js';

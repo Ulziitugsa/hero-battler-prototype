@@ -14,6 +14,7 @@ import { RARITY_LABEL, affordabilityNote, pityDisplay, summonOptions } from '../
 import { ArchiveAudio } from '../game/summon/audio';
 import { onSummonSound } from '../game/summon/sound';
 import { getTickets, setUnlimitedGems } from '../game/economy/economy';
+import { getConfig } from '../config/config';
 import { useEconomy, useUnlimitedGems } from '../game/economy/useEconomy';
 import { track } from '../analytics/track';
 import type { Rarity } from '../game/types';
@@ -193,7 +194,7 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
         <span className="summon-pity-text">{pity.label}</span>
       </section>
 
-      {tickets > 0 && (
+      {(tickets > 0 || getConfig().flags.alwaysShowTicketToggle) && (
         <div className="summon-currency-toggle" role="group" aria-label="Pay with">
           <button type="button" className={currency === 'tickets' ? 'on' : ''} aria-pressed={currency === 'tickets'} onClick={() => setCurrency('tickets')}>
             <TicketIcon size={13} /> Tickets

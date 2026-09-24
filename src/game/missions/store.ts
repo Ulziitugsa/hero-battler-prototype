@@ -1,5 +1,6 @@
 import { grantGems, grantGold, grantTickets } from '../economy/economy';
 import { subscribeTrack, track, type AnalyticsEvent } from '../../analytics/track';
+import { getConfig } from '../../config/config';
 import { ALL_MISSIONS, DAILY_MISSIONS, getMissionDef, missionsForMetric, type MissionDef } from './definitions';
 
 // Missions store - same snapshot+listeners+sanitize shape as every other store in the repo (collection,
@@ -203,9 +204,15 @@ export function claimMission(id: string): ClaimResult {
   const claimedEntry: MissionProgress = { ...progress, claimed: true };
   if (def.period === 'daily') commit({ ...state, daily: { ...state.daily, [id]: claimedEntry } });
   else commit({ ...state, weekly: { ...state.weekly, [id]: claimedEntry } });
-  const gold = def.rewardGold > 0 ? grantGold(def.rewardGold, 'mission').gained : 0;
-  const gems = def.rewardGems > 0 ? grantGems(def.rewardGems, 'mission').gained : 0;
-  const tickets = def.rewardTickets > 0 ? grantTickets(def.rewardTickets, 'mission').gained : 0;
+  // Commercial Prototype Phase 8: a remote-config override can replace the reward amount without
+  // touching missions/definitions.ts - see config/schema.ts's MissionsConfig header note.
+  const override = getConfig().missions.rewardOverrides[id];
+  const rewardGold = override?.gold ?? def.rewardGold;
+  const rewardGems = override?.gems ?? def.rewardGems;
+  const rewardTickets = override?.tickets ?? def.rewardTickets;
+  const gold = rewardGold > 0 ? grantGold(rewardGold, 'mission').gained : 0;
+  const gems = rewardGems > 0 ? grantGems(rewardGems, 'mission').gained : 0;
+  const tickets = rewardTickets > 0 ? grantTickets(rewardTickets, 'mission').gained : 0;
   track('mission_claimed', { missionId: id, gold, gems, tickets });
   return { ok: true, missionId: id, gold, gems, tickets, reason: null };
 }

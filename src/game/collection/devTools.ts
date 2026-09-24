@@ -19,6 +19,7 @@ import { rosterPowerForDeck } from '../heroLevel/rosterPower';
 import { claimIdleReward, loadIdleReward, resetIdleRewards } from '../campaign/idleRewards';
 import { claimMission, getMissionsState, resetMissions, setMissionProgress } from '../missions/store';
 import { claimJourneyDay, getJourneyState, resetJourney } from '../journey/store';
+import { getConfig, reloadConfig, setDevConfigOverride } from '../../config/config';
 
 // DEV ONLY - attached to window.skyloomDev by main.tsx behind import.meta.env.DEV, so it never ships.
 // e.g. skyloomDev.grant('und-mira'), skyloomDev.setAllOwned(), skyloomDev.reset().
@@ -68,6 +69,14 @@ export const devTools = {
   journey: () => getJourneyState(),
   claimJourneyDay: (day: number) => claimJourneyDay(day),
   resetJourney: () => resetJourney(),
+  // ---- Remote config (Commercial Prototype Phase 8) ----
+  config: () => getConfig(),
+  /** Partial, deep-merged onto the defaults, persisted across reloads. skyloomDev.setConfigOverride(null) resets. */
+  setConfigOverride: (overrides: Parameters<typeof setDevConfigOverride>[0]) => {
+    setDevConfigOverride(overrides);
+    return getConfig();
+  },
+  reloadConfig: () => reloadConfig(),
   banners: () => SUMMON_BANNERS.map((b) => b.id),
   /** Pity is per banner: skyloomDev.setPity('gravebound', 39). */
   setPity: (bannerId: string, count: number) => setPity(bannerId, count),

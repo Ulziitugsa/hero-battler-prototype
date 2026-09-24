@@ -2,6 +2,7 @@ import { grantGems, grantGold, grantTickets } from '../economy/economy';
 import { grantCard } from '../collection/collection';
 import { track } from '../../analytics/track';
 import { getFirstSeenAt } from '../../analytics/context';
+import { getConfig } from '../../config/config';
 import { JOURNEY_DAYS, JOURNEY_LENGTH_DAYS, getJourneyDayDef } from './definitions';
 
 // The 7-day journey's persisted state - a dedicated storage key nothing else in the codebase reads or
@@ -130,9 +131,15 @@ export function claimJourneyDay(day: number, now: number = Date.now()): JourneyC
   if (day > view.currentDay) return { ok: false, day, gold: 0, gems: 0, tickets: 0, cardGranted: null, reason: 'Not unlocked yet.' };
   if (view.claimedDays.includes(day)) return { ok: false, day, gold: 0, gems: 0, tickets: 0, cardGranted: null, reason: 'Already claimed.' };
 
-  const gold = def.rewardGold > 0 ? grantGold(def.rewardGold, 'journey').gained : 0;
-  const gems = def.rewardGems > 0 ? grantGems(def.rewardGems, 'journey').gained : 0;
-  const tickets = def.rewardTickets > 0 ? grantTickets(def.rewardTickets, 'journey').gained : 0;
+  // Commercial Prototype Phase 8: a remote-config override can replace a day's reward amount without
+  // touching journey/definitions.ts - see config/schema.ts's JourneyConfig header note.
+  const override = getConfig().journey.rewardOverrides[day];
+  const rewardGold = override?.gold ?? def.rewardGold;
+  const rewardGems = override?.gems ?? def.rewardGems;
+  const rewardTickets = override?.tickets ?? def.rewardTickets;
+  const gold = rewardGold > 0 ? grantGold(rewardGold, 'journey').gained : 0;
+  const gems = rewardGems > 0 ? grantGems(rewardGems, 'journey').gained : 0;
+  const tickets = rewardTickets > 0 ? grantTickets(rewardTickets, 'journey').gained : 0;
   let cardGranted: string | null = null;
   if (def.rewardCardId) {
     grantCard(def.rewardCardId, def.rewardCardCount ?? 1);

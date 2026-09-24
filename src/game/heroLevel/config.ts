@@ -1,40 +1,31 @@
 // Hero Level tuning (Commercial Prototype Phase 1) - every number lives here, same convention as
 // economy/config.ts, ascension/config.ts, progression/config.ts. PROTOTYPE values, not final balance.
 //
-// THE CORE CONSTRAINT (see docs/COMMERCIAL-PROTOTYPE-PLAN.md Section 5): the live roster's Hero Power
-// spans exactly 3-7 in the playtest set (see docs/game/CARD-SYSTEM.md - rarity is a design lens, not a
-// Power tier; a Common can already legitimately out-power a Legendary, e.g. kng-common-knight at 6 vs.
-// kng-archmage-vael at 4). Levelling must never dominate that spread - it should be able to narrow a
-// close gap, never invert a wide one. Roster Power (rosterPower.ts) is a separate, much larger, purely
-// virtual number used for UI/gating/Campaign recommendations; it is NEVER read by the battle engine.
+// Commercial Prototype Phase 8 split: MAX_HERO_LEVEL and battlePowerBonusForLevel moved to
+// battlePower.ts, which has NO dependency on config/config.ts, because engine/abilities.ts (reachable
+// from api/ for Friendly Battle) imports battlePowerBonusForLevel directly - a combat-balance invariant
+// must never be able to drift via a remote config value. Re-exported below so every existing import of
+// `./config` keeps working unchanged. heroLevelCapForAccount and goldCostForLevelUp stay here and ARE
+// routed through config/config.ts - account-level pacing and Gold cost are economy tuning, not game rules.
 
-export const MAX_HERO_LEVEL = 60;
+import { getConfig } from '../../config/config.js';
+import { MAX_HERO_LEVEL, battlePowerBonusForLevel, MAX_BATTLE_POWER_BONUS } from './battlePower.js';
+
+export { MAX_HERO_LEVEL, battlePowerBonusForLevel, MAX_BATTLE_POWER_BONUS };
 
 /** A hero can never be levelled past what the player's own Account Level allows - Level 1 caps a hero at
  * 3, Level 20 (max account level) allows the full 60. Ties hero progression to the "staged unlock" ladder
  * (see progression/config.ts's MASTERY_POINT_LEVELS for the same pattern applied to Mastery). */
 export function heroLevelCapForAccount(accountLevel: number): number {
-  return Math.max(1, Math.min(MAX_HERO_LEVEL, accountLevel * 3));
+  const cfg = getConfig().heroLevel;
+  return Math.max(1, Math.min(cfg.maxHeroLevel, accountLevel * cfg.accountLevelCapMultiplier));
 }
-
-/**
- * The ONLY numeric contribution Hero Level makes to real lane combat, added once at Hero placement
- * (see engine/abilities.ts's makeHeroInstance). Two breakpoints, not a continuous curve, so the number is
- * always a small whole integer the player can reason about at a glance: +0 below Level 30, +1 from Level
- * 30, +2 from Level 60 (max). +2 is deliberately smaller than the roster's narrowest meaningful gaps
- * (e.g. 3 between a Power-3 Common and a Power-6/7 Hero) - see heroLevel.test.ts's engine-safety cases.
- */
-export function battlePowerBonusForLevel(level: number): number {
-  if (level >= 60) return 2;
-  if (level >= 30) return 1;
-  return 0;
-}
-export const MAX_BATTLE_POWER_BONUS = 2;
 
 /** Gold cost to raise a hero from `fromLevel` to `fromLevel + 1`. Rising linear curve - deliberately a
  * long-tail Gold sink (see docs/COMMERCIAL-PROTOTYPE-PLAN.md's "always a reason to keep playing" note). */
 export function goldCostForLevelUp(fromLevel: number): number {
-  return 20 + fromLevel * 12;
+  const cfg = getConfig().heroLevel;
+  return cfg.levelUpCostBase + fromLevel * cfg.levelUpCostPerLevel;
 }
 
 // ---- Roster Power (first proposal - NOT approved as final balance, see plan Section 5) -----------
