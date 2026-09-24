@@ -1,0 +1,126 @@
+/* Offers sheet (Commercial Prototype Phase 10) - reuses missions.css's sheet chrome; adds the catalog
+   list + the unmistakable TEST MODE banner, which is load-bearing UI, not decorative styling. */
+
+.offers-test-banner {
+  margin: 0 14px 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 120, 90, 0.12);
+  border: 1px solid rgba(255, 120, 90, 0.35);
+  color: #ffb3a0;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.offers-bonus-banner {
+  margin: 0 14px 10px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  background: rgba(255, 214, 140, 0.08);
+  color: var(--ember-gold-light);
+  font-size: 11px;
+}
+
+.offers-list {
+  overflow-y: auto;
+  padding: 0 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.offers-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 214, 140, 0.05);
+  border: 1px solid rgba(255, 214, 140, 0.1);
+}
+
+.offers-card.locked {
+  opacity: 0.5;
+}
+
+.offers-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.offers-card-title {
+  font-family: var(--ember-font-display);
+  font-size: 13px;
+  color: var(--ember-ink);
+}
+
+.offers-card-subtitle {
+  font-size: 11px;
+  color: var(--ember-ink-2);
+}
+
+.offers-card-rewards {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--ember-gold-light);
+}
+
+.offers-card-rewards span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.offers-card-price {
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-family: var(--ember-font-display);
+  font-size: 12px;
+  background: linear-gradient(180deg, var(--ember-gold-light), var(--ember-gold-deep));
+  color: var(--ember-gold-ink);
+  border: none;
+  white-space: nowrap;
+}
+
+.offers-card-locked-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--ember-ink-2);
+}
+
+.offers-confirm {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ember-ink-2);
+}
+
+.offers-confirm-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.offers-granted-banner {
+  margin: 0 14px 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(120, 220, 150, 0.12);
+  border: 1px solid rgba(120, 220, 150, 0.35);
+  color: #9be8b0;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}

@@ -1,5 +1,7 @@
 // Player-economy tuning - every Gem number lives here so balancing is a one-file change. These are
-// PROTOTYPE values, not final economy. Gems are earn-only: there is no purchase path of any kind.
+// PROTOTYPE values, not final economy. No REAL purchase path exists anywhere in this codebase - the
+// 'offer' source (Commercial Prototype Phase 10) is a simulated/test grant only, never real money;
+// see game/offers/store.ts's own header note.
 
 import type { CampaignNodeType } from '../campaign/types';
 
@@ -21,8 +23,8 @@ export const GEM_REWARDS = {
   levelMilestones: { 5: 100, 10: 100, 15: 100, 20: 150 } as Readonly<Record<number, number>>,
 } as const;
 
-/** Where a grant came from (for the record returned to callers / future analytics; not persisted). */
-export type GemSource = 'campaign' | 'chapter' | 'level' | 'starting' | 'mission' | 'journey' | 'dev';
+/** Where a grant came from (for the record returned to callers / future analytics; not persisted). 'offer' is always a simulated/test grant - see game/offers/store.ts. */
+export type GemSource = 'campaign' | 'chapter' | 'level' | 'starting' | 'mission' | 'journey' | 'offer' | 'dev';
 
 // ---- Gold (Commercial Prototype Phase 1) --------------------------------------------------------
 // Gold is the everyday soft currency: it funds Hero Level (game/heroLevel) and nothing else yet. Unlike
@@ -40,7 +42,7 @@ export const GOLD_REWARDS = {
   quickBattleDraw: 8,
 } as const;
 
-export type GoldSource = 'campaign' | 'quickBattle' | 'idle' | 'mission' | 'journey' | 'dev';
+export type GoldSource = 'campaign' | 'quickBattle' | 'idle' | 'mission' | 'journey' | 'offer' | 'dev';
 
 // ---- Summon Tickets (Commercial Prototype Phase 7) -----------------------------------------------
 // Tickets perform a Summon exactly like Gems (see summon/summon.ts) but are earn-only, sourced from

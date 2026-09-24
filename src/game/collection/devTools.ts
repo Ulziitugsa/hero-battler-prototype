@@ -21,6 +21,8 @@ import { claimMission, getMissionsState, resetMissions, setMissionProgress } fro
 import { claimJourneyDay, getJourneyState, resetJourney } from '../journey/store';
 import { getConfig, reloadConfig, setDevConfigOverride } from '../../config/config';
 import { clearQueuedEvents, getQueuedEvents } from '../../analytics/track';
+import { cancelPurchase, getPurchaseState, resetPurchases, simulatePurchase } from '../offers/store';
+import { OFFERS, type OfferId } from '../offers/definitions';
 
 // DEV ONLY - attached to window.skyloomDev by main.tsx behind import.meta.env.DEV, so it never ships.
 // e.g. skyloomDev.grant('und-mira'), skyloomDev.setAllOwned(), skyloomDev.reset().
@@ -84,6 +86,13 @@ export const devTools = {
   /** Just the names, most recent last - a quick skim without the full property bags. */
   analyticsEventNames: () => getQueuedEvents().map((e) => e.name),
   clearAnalyticsEvents: () => clearQueuedEvents(),
+  // ---- Offers (Commercial Prototype Phase 10 - simulated purchases only, never real money) ----
+  offers: () => OFFERS.map((o) => o.id),
+  purchases: () => getPurchaseState(),
+  /** Simulates a full offer->purchase_started->purchase_completed flow, exactly what the UI's confirm button does. TEST ONLY. */
+  simulatePurchase: (offerId: OfferId) => simulatePurchase(offerId),
+  simulateCancelledPurchase: (offerId: OfferId) => cancelPurchase(offerId),
+  resetPurchases: () => resetPurchases(),
   banners: () => SUMMON_BANNERS.map((b) => b.id),
   /** Pity is per banner: skyloomDev.setPity('gravebound', 39). */
   setPity: (bannerId: string, count: number) => setPity(bannerId, count),

@@ -451,6 +451,45 @@ closed playtest needs real data collection (Phase 11 revisits this specifically 
   `sessionId` stability across events in one session).
 - Deviation: none from the task list.
 
+### Phase 10 — Commercial prototype monetisation surfaces — Status: ✅ done
+
+**No real money is processed anywhere in this codebase.** No Stripe, no App Store billing, no Google Play
+billing - confirmed by construction, not just by claim: `game/offers/store.ts` grants every reward through
+the exact same `grantGold`/`grantGems`/`grantTickets`/`grantCard` functions every other reward source
+already uses, and every purchase button in the UI is labelled "(Test)" with a persistent "TEST MODE - no
+real purchase, no real charge" banner on the Offers sheet itself.
+
+- `src/game/offers/definitions.ts` — 6 catalog entries, not ten: Starter Pack (Gold+Gems+Tickets+
+  `kng-battle-captain`, an Epic with its own Ascension path, chosen specifically because it doesn't
+  overlap the 7-day journey's already-reserved `inf-blood-demon`/`inf-infernal-lord`), Growth Pack
+  (currency-only, bigger), 3 Gem packs (small/medium/large), and a locked "Season Pass" preview
+  (`comingSoon: true` - a name and a lock icon, no pass-progression system built, per the brief's "only if
+  it is cheap to represent cleanly"). Prices are NOT hardcoded here - they read from
+  `config/schema.ts`'s `offers.priceLabels` (Phase 8), so "future offer prices" is genuinely one of the
+  config-driven candidate values, not just declared as one.
+- **First-Purchase Bonus** (brief: "keep it in a development/test state") - not a catalog entry, a
+  `hasEverPurchased` flag in `game/offers/store.ts`'s persisted state. Whichever offer completes first
+  also grants `FIRST_PURCHASE_BONUS` (+200 Gems) on top, once, ever.
+- `simulatePurchase(offerId)` IS the "developer-only mechanism to simulate offer viewed/purchase started/
+  completed/cancelled" the brief asks for - there was no meaningful way to build a separate dev-only
+  simulator distinct from what the player-facing UI does, since nothing here is gated behind real payment
+  processing to begin with. The same function backs `skyloomDev.simulatePurchase()` and the Offers
+  sheet's "Confirm (Test)" button. `cancelPurchase(offerId)` models backing out at the confirmation step
+  (fires `purchase_started` then `purchase_cancelled`, grants nothing, does not consume the First-Purchase
+  Bonus eligibility).
+- UI: `OffersSheet.tsx`, reachable from Home's footer, gated behind `flags.offersEnabled` (Phase 8) - a
+  real feature-flag use, not just a declared one. `offer_seen` fires once per sheet open (all 6 offers at
+  once, matching a real storefront's impression tracking); `offer_clicked` on tapping into the confirm
+  step; `purchase_started`/`purchase_completed`/`purchase_cancelled` all carry `test: true` in their
+  properties, so a future real-payment integration can be told apart from every test event that came
+  before it without a schema change.
+- `economy/config.ts`'s `GemSource`/`GoldSource` gained an `'offer'` value (Tickets already had one from
+  Phase 7's forward-looking addition) - documented in the type itself as "always a simulated/test grant."
+- Tests: `game/offers/store.test.ts` (reward granted through the real stores, First-Purchase Bonus fires
+  exactly once and survives a cancelled attempt untouched, coming-soon/unknown offers refused cleanly,
+  persistence across reload, malformed-storage recovery).
+- Deviation: none from the task list.
+
 ## 9. Sequencing update (2026-09-24 follow-up) — the Commercial Validation Gate
 
 Supersedes this document's original Section 9. The docx's "Decision gate after Phase 10" is replaced by a
