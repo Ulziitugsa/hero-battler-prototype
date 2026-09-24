@@ -22,7 +22,7 @@ export const GEM_REWARDS = {
 } as const;
 
 /** Where a grant came from (for the record returned to callers / future analytics; not persisted). */
-export type GemSource = 'campaign' | 'chapter' | 'level' | 'starting' | 'dev';
+export type GemSource = 'campaign' | 'chapter' | 'level' | 'starting' | 'mission' | 'journey' | 'dev';
 
 // ---- Gold (Commercial Prototype Phase 1) --------------------------------------------------------
 // Gold is the everyday soft currency: it funds Hero Level (game/heroLevel) and nothing else yet. Unlike

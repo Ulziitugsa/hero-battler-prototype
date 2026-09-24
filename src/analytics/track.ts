@@ -17,11 +17,25 @@ export type AnalyticsProvider = (event: AnalyticsEvent) => void;
 const QUEUE_LIMIT = 500;
 const queue: AnalyticsEvent[] = [];
 let provider: AnalyticsProvider | null = null;
+const listeners = new Set<AnalyticsProvider>();
 
 /** Attaches a real analytics backend later (Phase 10+). Every event tracked before this call is still in
  * getQueuedEvents() for the new provider to drain if it wants to; nothing is lost by attaching late. */
 export function setAnalyticsProvider(next: AnalyticsProvider | null): void {
   provider = next;
+}
+
+/**
+ * Internal-only, separate from setAnalyticsProvider: lets in-app systems react to events without
+ * competing for the single external-provider slot. Commercial Prototype Phase 5 missions (and Phase 6's
+ * journey) subscribe here instead of scattering bespoke counters through gameplay code - "integrate
+ * progress using analytics/game events where sensible" (docs/COMMERCIAL-PROTOTYPE-PLAN.md Phase 5).
+ */
+export function subscribeTrack(listener: AnalyticsProvider): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 /** Records one event with common context merged in. Never throws - a bad `properties` value degrades to
@@ -41,6 +55,13 @@ export function track(name: AnalyticsEventName, properties: AnalyticsProperties 
     provider?.(event);
   } catch {
     // a misbehaving provider must never break the feature that just fired the event
+  }
+  for (const l of [...listeners]) {
+    try {
+      l(event);
+    } catch {
+      // one bad internal listener must never break another, or the feature that fired the event
+    }
   }
   return event;
 }

@@ -11,6 +11,9 @@ import { useAccount } from '../game/progression/useAccount';
 import { claimIdleReward } from '../game/campaign/idleRewards';
 import { track } from '../analytics/track';
 import { HubNoteLine } from './home/HomeSections';
+import { MissionsSheet } from '../components/MissionsSheet';
+import { useMissions } from '../game/missions/useMissions';
+import { anyMissionClaimable } from '../game/missions/store';
 
 interface HomeProps {
   onOpenBattleSetup: () => void; onOpenCampaign: () => void; onOpenDecks: () => void;
@@ -25,6 +28,9 @@ export function HomePage(props: HomeProps) {
   const deck = getActiveDeck();
   const [inspect, setInspect] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
+  const [missionsOpen, setMissionsOpen] = useState(false);
+  const missions = useMissions();
+  const missionsReady = anyMissionClaimable(missions);
   useEffect(() => {
     if (hub.note?.kind === 'idle') track('idle_reward_available', { gold: hub.note.gold, atCap: hub.note.atCap });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per distinct note, not on every render
@@ -39,7 +45,7 @@ export function HomePage(props: HomeProps) {
     </div>
     <section className="moon-destinations" aria-label="Your next adventure"><button onClick={props.onOpenLanterns}><span className="moon-destination-icon">☾</span><span><small>STORY ADVENTURE</small><strong>Lanterns of the Lost</strong><em>Three battles. One forgotten promise.</em></span><b>↗</b></button><button onClick={props.onOpenBattleSetup}><span className="moon-destination-icon">⚔</span><span><small>THE TRAINING GROUNDS</small><strong>Quick battle</strong><em>Practice against a rival formation.</em></span><b>↗</b></button><button onClick={props.onOpenFriendly}><span className="moon-destination-icon">⚔</span><span><small>THE DUELING PIER</small><strong>Friendly battle</strong><em>Invite a friend. Bring your best formation.</em></span><b>↗</b></button><button onClick={props.onOpenDecks}><span className="moon-destination-icon">◇</span><span><small>YOUR FORMATION</small><strong>{deck.label}</strong><em>{deck.cardIds.length} cards · manage your deck</em></span><b>↗</b></button></section>
     {hub.note && <HubNoteLine note={hub.note} onOpenProfile={props.onOpenProfile} onOpenDecks={props.onOpenDecks} onOpenHeroes={props.onOpenHeroes} onClaimIdle={() => { claimIdleReward(); hub.refreshIdle(); }} />}
-    <footer className="moon-home-footer"><span>☾ Moonwater village</span>{import.meta.env.DEV && <button onClick={props.onOpenPixelPreview}>Character studies</button>}<span>Energy {hub.energy.current}/{hub.energy.max}</span></footer>
-    {inspect && <CardDetail cardId={inspect} onClose={() => setInspect(null)} />}{help && <HowToPlaySheet onClose={() => setHelp(false)} />}
+    <footer className="moon-home-footer"><span>☾ Moonwater village</span>{import.meta.env.DEV && <button onClick={props.onOpenPixelPreview}>Character studies</button>}<button className="moon-quiet" onClick={() => setMissionsOpen(true)}>Missions{missionsReady ? ' •' : ''}</button><span>Energy {hub.energy.current}/{hub.energy.max}</span></footer>
+    {inspect && <CardDetail cardId={inspect} onClose={() => setInspect(null)} />}{help && <HowToPlaySheet onClose={() => setHelp(false)} />}{missionsOpen && <MissionsSheet onClose={() => setMissionsOpen(false)} />}
   </main>;
 }

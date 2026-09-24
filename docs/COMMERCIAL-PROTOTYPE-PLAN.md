@@ -209,17 +209,26 @@ This resolves the gate's concern directly: there is exactly **one** duplicate si
 
 ### Phase 5 — Daily + weekly missions — Status: ✅ done
 
-- `src/game/missions/` — `definitions.ts` (5 daily + 3 weekly, all backed by existing gameplay: Campaign
-  win, hero level-up, summon, spell played, idle claim), `store.ts` (persisted progress + deterministic
-  UTC-day/week reset, same snapshot+listener+sanitize pattern as every other store in the repo).
-- Progress is driven by the Phase 0 analytics events already flowing through the app (a mission listens
-  for the same `track()` calls other systems emit) rather than bespoke counters scattered through gameplay
-  code.
-- UI: a compact Missions sheet reachable from Home (same "sheet, not a new nav tab" pattern as
-  `GraveyardSheet`/`HelpModal`).
-- Analytics: `mission_progressed`, `mission_completed`, `mission_claimed`.
-- Tests: `missions/store.test.ts` (reset boundaries, no-double-claim, deterministic day/week keys).
-- Deviation: none.
+- `src/game/missions/definitions.ts` — 5 daily + 3 weekly, each backed by an EXISTING analytics event
+  name (Phases 0-4) as its metric: Campaign win, Hero Level-up, Summon, idle-reward claim, and duplicate
+  progress applied (Ascension). `src/game/missions/store.ts` — persisted progress + deterministic
+  day/week reset (epoch-based `Math.floor(now / DAY_MS)`, not calendar-aligned to Monday - a documented
+  prototype simplification), same snapshot+listener+sanitize pattern as every other store in the repo.
+- Progress is driven by the Phase 0 analytics stream, not bespoke counters: `analytics/track.ts` gained a
+  second, internal-only subscription mechanism (`subscribeTrack`, separate from the single external
+  `setAnalyticsProvider` slot) so missions can react to every `track()` call without competing for that
+  slot. `initMissions()` subscribes once, called from `main.tsx` at startup, so progress accrues even if
+  the player never opens the Missions sheet that session.
+- UI: a compact `MissionsSheet` reachable from Home's footer (same "sheet, not a new nav tab" pattern as
+  `GraveyardSheet`/`HelpModal`), with a small "•" marker when something is claimable.
+- Analytics: `mission_progressed` (every advance), `mission_completed` (once, at target), `mission_claimed`.
+- Tests: `missions/store.test.ts` (reset boundaries, no-double-claim, a claimed mission stops advancing,
+  deterministic day/week keys, malformed-storage recovery).
+- Deviation: the brief's example list included "use 3 spells" as a daily objective; spell plays have no
+  analytics event yet (Phase 0 didn't instrument them - only session/campaign/summon/hero/idle flows were
+  called "low-risk" to wire first). Substituted "advance a Hero with a duplicate"
+  (`duplicate_progress_applied`, Phase 2) rather than adding a new instrumentation surface under Phase 5
+  just to hit a specific example verb. Every mission is still backed by something that already fires.
 
 ### Phase 6 — Seven-day new player journey — Status: ✅ done
 
