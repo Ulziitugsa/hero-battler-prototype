@@ -28,13 +28,27 @@ export function daysSinceFirstSeen(now: number = Date.now()): number {
   return Math.max(0, Math.floor((now - getFirstSeenAt()) / (24 * 60 * 60 * 1000)));
 }
 
+// A random id, once per page load (in-memory only - never persisted, never tied to a real identity).
+// Commercial Prototype Phase 9: "session id where appropriate" - lets a later analytics provider group
+// this browser tab's events into one session without Claude inventing a heavier session-tracking system.
+function makeSessionId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+const SESSION_ID = makeSessionId();
+
 export interface AnalyticsContext {
   accountLevel: number;
   gems: number;
   gold: number;
+  tickets: number;
   daysSinceInstall: number;
   /** Always 'free' until Phase 12 wires real purchases - present now so no event schema changes later. */
   payerStatus: 'free' | 'payer';
+  sessionId: string;
 }
 
 /** Best-effort snapshot of "who is this and where are they" - never throws, never blocks. */
@@ -42,6 +56,7 @@ export function buildContext(): AnalyticsContext {
   let accountLevel = 1;
   let gems = 0;
   let gold = 0;
+  let tickets = 0;
   try {
     accountLevel = getAccount().level;
   } catch {
@@ -51,8 +66,9 @@ export function buildContext(): AnalyticsContext {
     const economy = getEconomy();
     gems = economy.gems;
     gold = economy.gold ?? 0;
+    tickets = economy.tickets ?? 0;
   } catch {
     // economy store not ready - default stands
   }
-  return { accountLevel, gems, gold, daysSinceInstall: daysSinceFirstSeen(), payerStatus: 'free' };
+  return { accountLevel, gems, gold, tickets, daysSinceInstall: daysSinceFirstSeen(), payerStatus: 'free', sessionId: SESSION_ID };
 }

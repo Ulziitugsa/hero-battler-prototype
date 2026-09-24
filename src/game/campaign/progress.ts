@@ -200,6 +200,20 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
   const recommended = recommendedPowerFor(node);
   const power = recommended !== undefined ? currentRosterPower() : null;
   const wasBehind = power !== null && recommended !== undefined && power < recommended;
+  if (wasBehind && power !== null && recommended !== undefined) {
+    // Commercial Prototype Phase 9: fires on every ATTEMPT made under the recommendation, win or lose -
+    // broader than campaign_loss_at_power_deficit below, which only fires on a loss.
+    track('campaign_power_wall_encountered', { nodeId, nodeType: node.type, currentPower: power, recommended, deficit: recommended - power });
+  }
+  // Commercial Prototype Phase 9: was this attempt a RETRY of a node the player previously lost while
+  // behind the recommendation - regardless of whether this attempt wins or loses. Broader than
+  // campaign_upgrade_after_loss/campaign_return_win below, which only fire on a win that also gained
+  // Power - this fires on every retry, so "did they come back at all" is measurable even when the retry
+  // fails again or succeeds on strategy alone without a Power gain.
+  const priorLossPower = progress.lastLossPower[nodeId];
+  if (priorLossPower !== undefined) {
+    track('campaign_retry_after_power_wall', { nodeId, lossPower: priorLossPower, retryPower: power ?? undefined, won });
+  }
 
   if (won) {
     progress.objectivesMet[nodeId] = [...alreadyMet];
@@ -210,14 +224,13 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
     if (claimNew) progress.firstClearClaimed = [...progress.firstClearClaimed, nodeId];
     // A previous loss on this node recorded a Power deficit - consumed on the next win regardless of
     // outcome, so it can never linger and misfire on some unrelated later win.
-    const lossPower = progress.lastLossPower[nodeId];
-    if (lossPower !== undefined) {
+    if (priorLossPower !== undefined) {
       const rest = { ...progress.lastLossPower };
       delete rest[nodeId];
       progress.lastLossPower = rest;
-      if (power !== null && power > lossPower) {
-        track('campaign_upgrade_after_loss', { nodeId, lossPower, winPower: power, powerGain: power - lossPower });
-        track('campaign_return_win', { nodeId, lossPower, winPower: power });
+      if (power !== null && power > priorLossPower) {
+        track('campaign_upgrade_after_loss', { nodeId, lossPower: priorLossPower, winPower: power, powerGain: power - priorLossPower });
+        track('campaign_return_win', { nodeId, lossPower: priorLossPower, winPower: power });
       }
     }
     saveProgress(progress);

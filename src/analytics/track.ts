@@ -45,7 +45,7 @@ export function track(name: AnalyticsEventName, properties: AnalyticsProperties 
   try {
     context = buildContext();
   } catch {
-    context = { accountLevel: 1, gems: 0, gold: 0, daysSinceInstall: 0, payerStatus: 'free' };
+    context = { accountLevel: 1, gems: 0, gold: 0, tickets: 0, daysSinceInstall: 0, payerStatus: 'free', sessionId: 'unknown' };
   }
   const event: AnalyticsEvent = { name, properties: { ...context, ...properties }, at: Date.now() };
   queue.push(event);

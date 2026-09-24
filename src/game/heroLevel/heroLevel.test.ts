@@ -12,6 +12,7 @@ import { getHeroLevel, getHeroLevelState, HERO_LEVEL_STORAGE_KEY, heroLevelsFor,
 import { getHeroLevelStatus, levelUpHero } from './levelUp';
 import { rosterPowerForCard, rosterPowerForDeck, rosterPowerForHero } from './rosterPower';
 import { getAscensionState } from '../ascension/store';
+import { clearQueuedEvents, getQueuedEvents } from '../../analytics/track';
 
 function installLocalStoragePolyfill() {
   const store = new Map<string, string>();
@@ -33,6 +34,7 @@ beforeEach(() => {
   reloadEconomy();
   reloadHeroLevels();
   resetProgression();
+  clearQueuedEvents();
 });
 
 // ---- config: the curve, the cap, the engine-safety invariant ----------------------------------
@@ -151,6 +153,29 @@ describe('Hero Level rules', () => {
     setAccountLevel(20);
     setHeroLevel('kng-royal-guard', MAX_HERO_LEVEL);
     expect(getHeroLevelStatus('kng-royal-guard', 1000000, 20)).toMatchObject({ canLevelUp: false, blocked: 'max-level', nextLevel: null, cost: null });
+  });
+});
+
+describe('levelUpHero analytics (Commercial Prototype Phase 9)', () => {
+  it('fires hero_levelled and roster_power_changed with a positive delta', () => {
+    grantCard('kng-royal-guard', 1);
+    setAccountLevel(20);
+    setGold(1000);
+    levelUpHero('kng-royal-guard');
+    const levelled = getQueuedEvents().filter((e) => e.name === 'hero_levelled');
+    const power = getQueuedEvents().filter((e) => e.name === 'roster_power_changed');
+    expect(levelled).toHaveLength(1);
+    expect(power).toHaveLength(1);
+    expect(power[0].properties).toMatchObject({ cardId: 'kng-royal-guard', source: 'heroLevel' });
+    expect(power[0].properties.delta as number).toBeGreaterThan(0);
+  });
+  it('a failed level-up (no Gold) fires neither event', () => {
+    grantCard('kng-royal-guard', 1);
+    setAccountLevel(20);
+    setGold(0);
+    levelUpHero('kng-royal-guard');
+    expect(getQueuedEvents().filter((e) => e.name === 'hero_levelled')).toHaveLength(0);
+    expect(getQueuedEvents().filter((e) => e.name === 'roster_power_changed')).toHaveLength(0);
   });
 });
 

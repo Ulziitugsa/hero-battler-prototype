@@ -125,3 +125,46 @@ describe('recordBattleResult - power-deficit and return-win tracking', () => {
     expect(storyOrRewardOnly).toBeUndefined(); // sanity: every battle-type node in the curve test above already has one
   });
 });
+
+describe('campaign_power_wall_encountered / campaign_retry_after_power_wall (Commercial Prototype Phase 9)', () => {
+  it('campaign_power_wall_encountered fires on ANY attempt made under the recommendation, win or lose', () => {
+    setAccountLevel(1);
+    const active = getActiveDeck();
+    recordBattleResult(BOSS, 'ENEMY_WIN', stats(), [], active.faction);
+    expect(getQueuedEvents().filter((e) => e.name === 'campaign_power_wall_encountered')).toHaveLength(1);
+    clearQueuedEvents();
+    recordBattleResult(BOSS, 'PLAYER_WIN', stats(), [], active.faction); // still behind, but wins on strategy
+    expect(getQueuedEvents().filter((e) => e.name === 'campaign_power_wall_encountered')).toHaveLength(1);
+  });
+  it('never fires when the attempt is at or above the recommendation', () => {
+    setAccountLevel(10);
+    for (const id of new Set(STARTER_DECKS.kingdom)) setHeroLevel(id, 30);
+    const active = getActiveDeck();
+    recordBattleResult(BOSS, 'PLAYER_WIN', stats(), [], active.faction);
+    expect(getQueuedEvents().filter((e) => e.name === 'campaign_power_wall_encountered')).toHaveLength(0);
+  });
+  it('campaign_retry_after_power_wall fires on ANY re-attempt after a recorded loss, including a second loss', () => {
+    setAccountLevel(1);
+    const active = getActiveDeck();
+    recordBattleResult(BOSS, 'ENEMY_WIN', stats(), [], active.faction); // first attempt - no retry event yet
+    expect(getQueuedEvents().filter((e) => e.name === 'campaign_retry_after_power_wall')).toHaveLength(0);
+    clearQueuedEvents();
+    recordBattleResult(BOSS, 'ENEMY_WIN', stats(), [], active.faction); // second attempt - a retry, still a loss
+    const events = getQueuedEvents().filter((e) => e.name === 'campaign_retry_after_power_wall');
+    expect(events).toHaveLength(1);
+    expect(events[0].properties).toMatchObject({ nodeId: BOSS, won: false });
+  });
+  it('campaign_retry_after_power_wall fires on a winning retry too, alongside the more specific upgrade/return-win events', () => {
+    setAccountLevel(1);
+    const active = getActiveDeck();
+    recordBattleResult(BOSS, 'ENEMY_WIN', stats(), [], active.faction);
+    clearQueuedEvents();
+    setAccountLevel(10);
+    for (const id of new Set(STARTER_DECKS.kingdom)) setHeroLevel(id, 30);
+    recordBattleResult(BOSS, 'PLAYER_WIN', stats(), [], active.faction);
+    const events = getQueuedEvents().filter((e) => e.name === 'campaign_retry_after_power_wall');
+    expect(events).toHaveLength(1);
+    expect(events[0].properties.won).toBe(true);
+    expect(getQueuedEvents().filter((e) => e.name === 'campaign_upgrade_after_loss')).toHaveLength(1);
+  });
+});

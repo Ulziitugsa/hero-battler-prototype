@@ -1,4 +1,5 @@
 import { getAscensionStatus } from '../ascension/ascend';
+import { starsForCard } from '../ascension/stars';
 import { getCollection, grantCard } from '../collection/collection';
 import { getStarterDeckUnlockProgress, starterDeckId } from '../collection/starterUnlock';
 import type { GrantResult, OwnedMap } from '../collection/types';
@@ -129,7 +130,12 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
   if (currency === 'tickets') track('summon_ticket_used', { bannerId: pool.id, count: cost });
   for (const pull of pulls) {
     if (pull.rarity === 'legendary') track('legendary_pulled', { bannerId: pool.id, cardId: pull.cardId, wasNew: pull.grant.isNew, pityAfter });
-    if (!pull.grant.isNew) track('duplicate_acquired', { cardId: pull.cardId, rarity: pull.rarity, source: 'summon', copiesOwned: pull.grant.owned, ascensionAvailable: pull.ascensionAvailable });
+    if (!pull.grant.isNew) {
+      track('duplicate_acquired', { cardId: pull.cardId, rarity: pull.rarity, source: 'summon', copiesOwned: pull.grant.owned, ascensionAvailable: pull.ascensionAvailable });
+      const starsBefore = starsForCard(pull.cardId, before);
+      const starsAfter = starsForCard(pull.cardId, after);
+      if (starsAfter !== starsBefore) track('hero_star_changed', { cardId: pull.cardId, starsBefore, starsAfter, source: 'summon' });
+    }
   }
 
   return {

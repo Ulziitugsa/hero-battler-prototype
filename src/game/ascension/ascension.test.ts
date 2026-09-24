@@ -17,6 +17,7 @@ import { CARD_ASCENSIONS, getCardAscension, supportsAscension } from './definiti
 import { effectiveAbilities, getEffectiveCardDefinition } from './effective';
 import { ascendCard, getAscensionStatus } from './ascend';
 import { ASCENSION_STORAGE_KEY, ascensionRanksFor, getAscensionRank, getAscensionState, getDuplicatesSpent, reloadAscension, resetAscension, sanitizeAscension, setAscensionRank } from './store';
+import { clearQueuedEvents, getQueuedEvents } from '../../analytics/track';
 
 function installLocalStoragePolyfill() {
   const store = new Map<string, string>();
@@ -36,6 +37,7 @@ beforeEach(() => {
   installLocalStoragePolyfill();
   reloadCollection();
   reloadAscension();
+  clearQueuedEvents();
 });
 
 // ---- persistence -----------------------------------------------------------------------------
@@ -425,5 +427,41 @@ describe('Toll of the Ford, Fortify and starter safety', () => {
     ascendCard('und-bone-soldier');
     expect(getAscensionStatus('und-bone-soldier')).toMatchObject({ canAscend: false }); // rank II (cost 2) would break the deck
     expect(getOwnedCount('und-bone-soldier')).toBe(2);
+  });
+});
+
+// ---- analytics (Commercial Prototype Phase 9) --------------------------------------------------
+
+describe('ascendCard analytics', () => {
+  it('fires duplicate_progress_applied and hero_ascended together, with matching rank properties', () => {
+    setCollection({ 'und-bone-soldier': 2 });
+    ascendCard('und-bone-soldier');
+    const dup = getQueuedEvents().filter((e) => e.name === 'duplicate_progress_applied');
+    const asc = getQueuedEvents().filter((e) => e.name === 'hero_ascended');
+    expect(dup).toHaveLength(1);
+    expect(asc).toHaveLength(1);
+    expect(asc[0].properties).toMatchObject({ cardId: 'und-bone-soldier', rankBefore: 0, rankAfter: 1 });
+  });
+  it('fires hero_star_changed when the Ascension rank crosses a star boundary', () => {
+    setCollection({ 'und-bone-soldier': 1 + 1 + 2 + 3 }); // enough for all three ranks
+    ascendCard('und-bone-soldier'); // rank 0 -> 1: stars 0 -> 2
+    const events = getQueuedEvents().filter((e) => e.name === 'hero_star_changed');
+    expect(events).toHaveLength(1);
+    expect(events[0].properties).toMatchObject({ cardId: 'und-bone-soldier', starsBefore: 0, starsAfter: 2 });
+  });
+  it('fires roster_power_changed with a positive delta', () => {
+    setCollection({ 'und-bone-soldier': 2 });
+    ascendCard('und-bone-soldier');
+    const events = getQueuedEvents().filter((e) => e.name === 'roster_power_changed');
+    expect(events).toHaveLength(1);
+    expect(events[0].properties.source).toBe('ascension');
+    expect(events[0].properties.delta as number).toBeGreaterThan(0);
+  });
+  it('a failed Ascend (blocked) fires none of these events', () => {
+    setCollection({ 'und-bone-soldier': 1 }); // no spare - blocked
+    ascendCard('und-bone-soldier');
+    expect(getQueuedEvents().filter((e) => e.name === 'hero_ascended')).toHaveLength(0);
+    expect(getQueuedEvents().filter((e) => e.name === 'hero_star_changed')).toHaveLength(0);
+    expect(getQueuedEvents().filter((e) => e.name === 'roster_power_changed')).toHaveLength(0);
   });
 });

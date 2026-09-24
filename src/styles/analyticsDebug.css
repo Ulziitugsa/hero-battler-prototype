@@ -1,0 +1,109 @@
+/* Dev-only analytics debug panel (Commercial Prototype Phase 9) - deliberately plain/utilitarian, not
+   styled to match the Embervale visual language, so it reads unmistakably as a developer tool rather than
+   a real product surface (see Phase 11's "hide or clearly separate developer tools" acceptance criterion). */
+
+.analytics-debug-toggle {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #1a1a1a;
+  color: #7fd88f;
+  border: 1px solid #3a3a3a;
+  font: 700 11px monospace;
+  opacity: 0.55;
+}
+
+.analytics-debug-toggle:hover {
+  opacity: 1;
+}
+
+.analytics-debug-panel {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  z-index: 999;
+  width: min(360px, calc(100vw - 20px));
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: #111;
+  color: #ddd;
+  border: 1px solid #3a3a3a;
+  border-radius: 10px;
+  font-family: monospace;
+  font-size: 11px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.analytics-debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid #333;
+  color: #7fd88f;
+  font-weight: 700;
+}
+
+.analytics-debug-header button {
+  background: none;
+  border: none;
+  color: #999;
+}
+
+.analytics-debug-list {
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.analytics-debug-empty {
+  padding: 10px;
+  color: #777;
+}
+
+.analytics-debug-row {
+  border-bottom: 1px solid #222;
+}
+
+.analytics-debug-row-head {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 6px;
+  background: none;
+  border: none;
+  color: #ddd;
+  text-align: left;
+  cursor: pointer;
+}
+
+.analytics-debug-row-head:hover {
+  background: #1c1c1c;
+}
+
+.analytics-debug-name {
+  color: #9ecbff;
+}
+
+.analytics-debug-time {
+  color: #666;
+  flex-shrink: 0;
+}
+
+.analytics-debug-props {
+  margin: 0 0 6px;
+  padding: 6px 10px;
+  background: #0a0a0a;
+  color: #aaa;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}

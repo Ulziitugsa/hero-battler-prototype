@@ -4,6 +4,9 @@ import { ownsCard } from '../collection/collection';
 import { track } from '../../analytics/track';
 import { MAX_HERO_LEVEL, goldCostForLevelUp, heroLevelCapForAccount } from './config';
 import { getHeroLevel, getHeroLevelState, recordHeroLevel } from './store';
+import { rosterPowerForHero } from './rosterPower';
+import { getCard } from '../cards';
+import { getAscensionRank } from '../ascension/store';
 import type { LevelUpResult } from './types';
 
 // Hero Level rules, in one place - mirrors ascension/ascend.ts's shape: a status query the UI renders
@@ -50,8 +53,15 @@ export function levelUpHero(cardId: string): LevelUpResult {
   if (!spendGold(status.cost)) {
     return { ok: false, cardId, levelBefore: status.level, levelAfter: status.level, goldSpent: 0, reason: 'Needs more Gold.' };
   }
+  const card = getCard(cardId);
+  const rank = getAscensionRank(cardId);
+  const rosterPowerBefore = card.power !== undefined ? rosterPowerForHero(card.power, status.level, rank) : 0;
+
   recordHeroLevel(cardId, status.nextLevel);
+
+  const rosterPowerAfter = card.power !== undefined ? rosterPowerForHero(card.power, status.nextLevel, rank) : 0;
   track('hero_levelled', { cardId, levelBefore: status.level, levelAfter: status.nextLevel, goldSpent: status.cost });
+  if (rosterPowerAfter !== rosterPowerBefore) track('roster_power_changed', { cardId, source: 'heroLevel', rosterPowerBefore, rosterPowerAfter, delta: rosterPowerAfter - rosterPowerBefore });
   return { ok: true, cardId, levelBefore: status.level, levelAfter: status.nextLevel, goldSpent: status.cost, reason: null };
 }
 

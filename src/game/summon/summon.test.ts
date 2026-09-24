@@ -17,6 +17,7 @@ import { PREVIEW_SCENARIOS, buildPreviewOutcome } from './preview';
 import { resolveSummon, resolveSummons } from './resolve';
 import { performSummon, summonCost } from './summon';
 import { affordabilityNote, formatPercent, pityDisplay, summonOptions } from './view';
+import { clearQueuedEvents, getQueuedEvents } from '../../analytics/track';
 
 function installLocalStoragePolyfill() {
   const store = new Map<string, string>();
@@ -38,6 +39,7 @@ beforeEach(() => {
   reloadEconomy();
   reloadAscension();
   forceNextRarity(null);
+  clearQueuedEvents();
 });
 
 const vanguard = getPool('royal-vanguard');
@@ -393,6 +395,26 @@ describe('performSummon', () => {
     let seed = 1;
     for (let i = 0; i < 400 && !getCollection()['inf-infernal-lord']; i++) performSummon('ten', 'infernal-hunt', seed++);
     expect(Object.keys(getCollection()).some((id) => id.startsWith('inf-'))).toBe(true);
+  });
+});
+
+describe('performSummon duplicate analytics (Commercial Prototype Phase 9)', () => {
+  it('fires hero_star_changed when a duplicate crosses a star boundary for a card with no Ascension path', () => {
+    // kng-archer has no Ascension path - stars are copy-derived (2nd copy = 1 star, see ascension/stars.ts).
+    setGems(1000);
+    setCollection({ 'kng-archer': 1 });
+    const seed = findSeed((s) => resolveSummon(vanguard, { pity: 0 }, s).cardId === 'kng-archer');
+    performSummon('single', 'royal-vanguard', seed);
+    const events = getQueuedEvents().filter((e) => e.name === 'hero_star_changed');
+    expect(events).toHaveLength(1);
+    expect(events[0].properties).toMatchObject({ cardId: 'kng-archer', starsBefore: 0, starsAfter: 1, source: 'summon' });
+  });
+  it('a brand-new card (not a duplicate) fires no hero_star_changed', () => {
+    setGems(1000);
+    setCollection({});
+    const seed = findSeed((s) => resolveSummon(vanguard, { pity: 0 }, s).cardId === 'kng-archer');
+    performSummon('single', 'royal-vanguard', seed);
+    expect(getQueuedEvents().filter((e) => e.name === 'hero_star_changed')).toHaveLength(0);
   });
 });
 

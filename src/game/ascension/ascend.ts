@@ -5,7 +5,11 @@ import { listDeckOptions, type DeckOption } from '../engine/deckOptions';
 import { ascensionCost, MIN_COPIES_KEPT } from './config';
 import { getCardAscension, maxRankFor } from './definitions';
 import { getAscensionRank, getAscensionState, recordAscension, type AscensionState } from './store';
+import { starsForCard } from './stars';
 import { track } from '../../analytics/track';
+import { getCard } from '../cards';
+import { getHeroLevel } from '../heroLevel/store';
+import { rosterPowerForHero } from '../heroLevel/rosterPower';
 
 // Ascension rules, in one place. Ascending spends spare duplicates of the same card:
 //   - the collection quantity IS the number of copies available, so spending lowers it directly (decks,
@@ -93,9 +97,22 @@ export function ascendCard(cardId: string): AscendResult {
   if (!status.canAscend || status.nextRank === null || status.cost === null) {
     return { ok: false, cardId, newRank: status.rank, spent: 0, reason: status.reason };
   }
+  const starsBefore = starsForCard(cardId);
+  const card = getCard(cardId);
+  const level = getHeroLevel(cardId);
+  const rosterPowerBefore = card.power !== undefined ? rosterPowerForHero(card.power, level, status.rank) : 0;
+
   removeCard(cardId, status.cost);
   recordAscension(cardId, status.nextRank, status.cost);
+
+  const starsAfter = starsForCard(cardId);
+  const rosterPowerAfter = card.power !== undefined ? rosterPowerForHero(card.power, level, status.nextRank) : 0;
+
   track('duplicate_progress_applied', { cardId, system: 'ascension', rankBefore: status.rank, rankAfter: status.nextRank, duplicatesSpent: status.cost });
+  track('hero_ascended', { cardId, rankBefore: status.rank, rankAfter: status.nextRank, duplicatesSpent: status.cost });
+  if (starsAfter !== starsBefore) track('hero_star_changed', { cardId, starsBefore, starsAfter });
+  if (rosterPowerAfter !== rosterPowerBefore) track('roster_power_changed', { cardId, source: 'ascension', rosterPowerBefore, rosterPowerAfter, delta: rosterPowerAfter - rosterPowerBefore });
+
   return { ok: true, cardId, newRank: status.nextRank, spent: status.cost, reason: null };
 }
 

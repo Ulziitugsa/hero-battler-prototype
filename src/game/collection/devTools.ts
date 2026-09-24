@@ -20,6 +20,7 @@ import { claimIdleReward, loadIdleReward, resetIdleRewards } from '../campaign/i
 import { claimMission, getMissionsState, resetMissions, setMissionProgress } from '../missions/store';
 import { claimJourneyDay, getJourneyState, resetJourney } from '../journey/store';
 import { getConfig, reloadConfig, setDevConfigOverride } from '../../config/config';
+import { clearQueuedEvents, getQueuedEvents } from '../../analytics/track';
 
 // DEV ONLY - attached to window.skyloomDev by main.tsx behind import.meta.env.DEV, so it never ships.
 // e.g. skyloomDev.grant('und-mira'), skyloomDev.setAllOwned(), skyloomDev.reset().
@@ -77,6 +78,12 @@ export const devTools = {
     return getConfig();
   },
   reloadConfig: () => reloadConfig(),
+  // ---- Analytics debug (Commercial Prototype Phase 9) ----
+  /** Every event track()'d so far this session (capped at 500 - see analytics/track.ts). */
+  analyticsEvents: () => getQueuedEvents(),
+  /** Just the names, most recent last - a quick skim without the full property bags. */
+  analyticsEventNames: () => getQueuedEvents().map((e) => e.name),
+  clearAnalyticsEvents: () => clearQueuedEvents(),
   banners: () => SUMMON_BANNERS.map((b) => b.id),
   /** Pity is per banner: skyloomDev.setPity('gravebound', 39). */
   setPity: (bannerId: string, count: number) => setPity(bannerId, count),

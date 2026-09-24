@@ -29,10 +29,19 @@ describe('track', () => {
     expect(event.properties).toHaveProperty('accountLevel');
     expect(event.properties).toHaveProperty('gems');
     expect(event.properties).toHaveProperty('gold');
+    expect(event.properties).toHaveProperty('tickets');
     expect(event.properties).toHaveProperty('daysSinceInstall');
     expect(event.properties).toHaveProperty('payerStatus', 'free');
+    expect(event.properties).toHaveProperty('sessionId');
+    expect(typeof event.properties.sessionId).toBe('string');
     expect(typeof event.at).toBe('number');
     expect(getQueuedEvents()).toHaveLength(1);
+  });
+
+  it('sessionId stays the same across multiple events in the same session', () => {
+    const a = track('session_started');
+    const b = track('summon_opened');
+    expect(a.properties.sessionId).toBe(b.properties.sessionId);
   });
 
   it('caller-supplied properties win over context when keys collide', () => {

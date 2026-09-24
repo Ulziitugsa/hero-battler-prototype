@@ -384,6 +384,73 @@ shard system would, per the Phase 2 decision gate.
 - Deviation: none from the task list; scope boundaries (what's wired vs. schema-only) are stated above
   rather than silently left ambiguous.
 
+### Phase 9 — Analytics completion — Status: ✅ done
+
+Audited every event this follow-up's brief named against what Phases 0-8 already fired. Where a Phase
+0-8 event already covered the same measurement need under a different name, BOTH names now coexist
+(the mapping is recorded below) rather than renaming and risking silent breakage of the 600+ existing
+tests that assert specific event names - consistent with how Phase 3 already kept
+`campaign_node_started` instead of adding a separate `campaign_attempt`.
+
+**New events wired (not just declared) this phase:**
+
+| Event | Fired from | What it measures |
+|---|---|---|
+| `hero_ascended` | `ascension/ascend.ts`'s `ascendCard` | Same moment as `duplicate_progress_applied`, Ascension-specific framing |
+| `hero_star_changed` | `ascend.ts` (rank-derived track) and `summon/summon.ts` (copy-derived track, on a duplicate pull) | Only fires when the star count actually crosses a boundary, not on every duplicate |
+| `roster_power_changed` | `ascend.ts` and `heroLevel/levelUp.ts` | Per-card marginal Roster Power delta (`rosterPowerForHero` before/after) - not a full-deck recompute, which these mutation sites have no deck context for |
+| `campaign_power_wall_encountered` | `campaign/progress.ts`'s `recordBattleResult` | Every ATTEMPT made under the recommendation, win or lose - broader than the Phase 3 `campaign_loss_at_power_deficit`, which only fires on a loss |
+| `campaign_retry_after_power_wall` | same | Every RE-attempt of a previously-lost-while-behind node, win or lose - broader than Phase 3's `campaign_upgrade_after_loss`/`campaign_return_win`, which only fire on a win that also gained Power |
+| `summon_ticket_used` | Phase 7 (already wired then) | — |
+| `daily_mission_progress`/`daily_mission_completed`/`weekly_mission_progress`/`weekly_mission_completed`/`daily_set_completed` | Phase 7 (already wired then, while touching the same file for Tickets) | — |
+| `journey_reward_claimed` | Phase 7 (already wired then) | — |
+
+**Name mapping (both sides fire; nothing was renamed):**
+
+| Brief's name | This codebase's Phase 0-3 name | Relationship |
+|---|---|---|
+| `campaign_stage_started` | `campaign_node_started` | Same event, existing name kept |
+| `campaign_stage_won`/`campaign_stage_lost` | `campaign_won`/`campaign_lost` | Same |
+| `resource_earned`/`resource_spent` | *(not added)* | See below |
+
+**`resource_earned`/`resource_spent` deliberately NOT added**, per the brief's own escape hatch ("only if
+this can be done without generating useless telemetry volume; otherwise instrument at meaningful
+transaction boundaries"). Every Gold/Gems/Tickets grant already rides on a specific, meaningful event with
+the amount in its properties - `campaign_won` (gold), `mission_claimed` (gold/gems/tickets),
+`idle_reward_claimed`, `journey_day_claimed`, `hero_levelled` (goldSpent), `summon_performed` (cost). A
+generic pair fired on every `grantGold`/`grantGems`/`spendGold`/`spendGems` call would roughly double
+total event volume for zero new information.
+
+**Context properties** (`analytics/context.ts`, merged onto every event automatically): added `tickets`
+and `sessionId` (a `crypto.randomUUID()` generated once per page load, in-memory only, never persisted or
+tied to a real identity) to the existing `accountLevel`/`gems`/`gold`/`daysSinceInstall`/`payerStatus`.
+Roster Power and Campaign-stage context were deliberately NOT added to the global context (they would
+require recomputing the active deck's Roster Power on every single event, including ones that have
+nothing to do with progression) - they're passed explicitly only on the events where they're actually
+relevant (`campaign_won`/`campaign_lost` already carry `rosterPower`/`power`; `hero_ascended`/
+`hero_levelled`/`roster_power_changed` carry the per-card before/after values directly).
+
+**Debug event inspector**: `AnalyticsDebugPanel.tsx`, a dev-only (`import.meta.env.DEV`) floating panel
+mounted once at the App root (visible from every screen, not one page) - lists every `track()`'d event
+this session, most recent first, expandable to the full property bag. Deliberately styled plain/
+monospace rather than matching the Embervale visual language, so it reads unmistakably as a developer
+tool (anticipates Phase 11's "hide or clearly separate developer tools" criterion). Also added
+`skyloomDev.analyticsEvents()`/`analyticsEventNames()`/`clearAnalyticsEvents()` console helpers for
+scripted inspection.
+
+**No production analytics vendor was integrated** - the architecture (`setAnalyticsProvider`) makes
+wiring one later a one-line call at app startup; there is nothing to gain from picking one before the
+closed playtest needs real data collection (Phase 11 revisits this specifically for that need).
+
+- Tests added to existing suites rather than a new file (keeping event coverage next to the system that
+  fires it): `ascension/ascension.test.ts` (`hero_ascended`/`hero_star_changed`/`roster_power_changed`
+  fire together and only on a successful Ascend), `heroLevel/heroLevel.test.ts` (`roster_power_changed`
+  on a successful level-up only), `summon/summon.test.ts` (`hero_star_changed` on a duplicate pull, not a
+  new card), `campaign/powerCurve.test.ts` (`campaign_power_wall_encountered`/
+  `campaign_retry_after_power_wall` firing conditions), `analytics/track.test.ts` (new context fields,
+  `sessionId` stability across events in one session).
+- Deviation: none from the task list.
+
 ## 9. Sequencing update (2026-09-24 follow-up) — the Commercial Validation Gate
 
 Supersedes this document's original Section 9. The docx's "Decision gate after Phase 10" is replaced by a
