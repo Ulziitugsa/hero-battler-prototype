@@ -3,6 +3,10 @@ import { canAffordEnergy, formatCountdown, loadEnergy } from '../../game/campaig
 import { getActiveDeck } from '../../game/engine/activeDeck';
 import { getOwnedCount } from '../../game/collection/collection';
 import { Icon, type IconName } from '../../components/Icon';
+import { useAccount } from '../../game/progression/useAccount';
+import { useHeroLevel } from '../../game/heroLevel/useHeroLevel';
+import { useAscension } from '../../game/ascension/useAscension';
+import { rosterPowerForDeck } from '../../game/heroLevel/rosterPower';
 
 const TYPE_LABEL: Record<string, string> = { battle: 'Battle', elite: 'Elite', boss: 'Boss', challenge: 'Challenge' };
 const TYPE_ICON: Record<string, IconName> = { battle: 'battle', elite: 'power', boss: 'graveyard', challenge: 'warning' };
@@ -11,10 +15,16 @@ const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', e
 /** One carved sheet for standard/elite/boss/challenge nodes - type, name, opponent, threat, objective
  * seals, first-clear vs. repeat reward, the player's active deck, cost and Fight (Campaign Screen.dc.html). */
 export function StagePreviewSheet({ node, cleared, onFight, onClose }: { node: CampaignNodeDef; cleared: boolean; onFight: () => void; onClose: () => void }) {
+  const account = useAccount();
+  const heroLevelState = useHeroLevel();
+  const ascensionState = useAscension();
+
   const encounter = node.encounter;
   if (!encounter) return null;
 
   const activeDeck = getActiveDeck();
+  const currentPower = rosterPowerForDeck(activeDeck.cardIds, account.level, heroLevelState, ascensionState);
+  const recommended = encounter.recommendedRosterPower;
 
   const energy = loadEnergy();
   const affordable = canAffordEnergy(encounter.energyCost);
@@ -124,6 +134,16 @@ export function StagePreviewSheet({ node, cleared, onFight, onClose }: { node: C
             <span>{activeDeck.cardIds.length} / 15 · your active deck</span>
           </div>
         </div>
+
+        {recommended !== undefined && (
+          <div className={`campaign-sheet-power-row ${currentPower < recommended ? 'under' : 'ready'}`}>
+            <Icon name="power" size={13} />
+            <span className="campaign-sheet-power-label">Roster Power</span>
+            <span className="campaign-sheet-power-value">
+              {currentPower.toLocaleString()} <em>/ {recommended.toLocaleString()} recommended</em>
+            </span>
+          </div>
+        )}
 
         <div className="campaign-sheet-action-row">
           <div className="campaign-sheet-cost">

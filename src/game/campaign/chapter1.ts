@@ -49,6 +49,7 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeCardId: 'und-bone-soldier',
         threat: 1,
         energyCost: 5,
+        recommendedRosterPower: 400,
         objectives: [],
         firstClearReward: { label: 'Bone Soldier', sub: 'Three Undead recruits join your road', icon: 'card', cardId: 'und-bone-soldier', count: 3 },
         repeatReward: { label: '1 ember', sub: 'Every clear after the first', icon: 'ember' },
@@ -67,6 +68,7 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeCardId: 'und-bone-soldier',
         threat: 2,
         energyCost: 5,
+        recommendedRosterPower: 450,
         objectives: [
           { id: 'rounds', text: 'Win within 5 rounds', check: 'roundsWithin', value: 5 },
           { id: 'hp', text: 'Take less than 8 damage', check: 'healthAtLeast', value: 12 },
@@ -98,6 +100,7 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeCardId: 'und-bone-soldier',
         threat: 2,
         energyCost: 5,
+        recommendedRosterPower: 500,
         objectives: [
           { id: 'rounds', text: 'Win within 5 rounds', check: 'roundsWithin', value: 5 },
           { id: 'hp', text: 'Take less than 8 damage', check: 'healthAtLeast', value: 12 },
@@ -121,6 +124,7 @@ export const CHAPTER_1: CampaignChapterDef = {
         threat: 3,
         energyCost: 5,
         startingHp: 12,
+        recommendedRosterPower: 550,
         modifier: { title: 'Challenge rule', text: 'You start at 12 health instead of 20.' },
         objectives: [
           { id: 'hp', text: 'Never fall below 5 health', check: 'healthAtLeast', value: 5 },
@@ -143,6 +147,7 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeCardId: 'und-bone-soldier',
         threat: 3,
         energyCost: 5,
+        recommendedRosterPower: 550,
         objectives: [
           { id: 'rounds', text: 'Win within 6 rounds', check: 'roundsWithin', value: 6 },
           { id: 'overflow', text: 'Deal 5+ overflow damage', check: 'overflowDealtAtLeast', value: 5 },
@@ -179,6 +184,7 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeCardId: 'und-bone-soldier',
         threat: 3,
         energyCost: 5,
+        recommendedRosterPower: 600,
         objectives: [
           { id: 'rounds', text: 'Win within 6 rounds', check: 'roundsWithin', value: 6 },
           { id: 'hp', text: 'Take less than 10 damage', check: 'healthAtLeast', value: 10 },
@@ -200,6 +206,7 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeCardId: 'und-mira',
         threat: 4,
         energyCost: 7,
+        recommendedRosterPower: 650,
         modifier: { title: 'Encounter rule', text: 'Mira’s warband leans hard on the graveyard - expect returned and revived Heroes all match.' },
         objectives: [
           { id: 'nohero', text: 'Win without losing a Hero', check: 'noHeroLost' },
@@ -222,6 +229,7 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeCardId: 'und-bone-soldier',
         threat: 4,
         energyCost: 5,
+        recommendedRosterPower: 700,
         objectives: [
           { id: 'rounds', text: 'Win within 6 rounds', check: 'roundsWithin', value: 6 },
           { id: 'hp', text: 'Take less than 10 damage', check: 'healthAtLeast', value: 10 },
@@ -243,6 +251,12 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeCardId: 'und-vharos',
         threat: 5,
         energyCost: 10,
+        // The visible progression wall (docs/COMMERCIAL-PROTOTYPE-PLAN.md Phase 3): comfortably above what
+        // pure card collection alone yields (~575-765 across the whole 1-20 account range with no
+        // deliberate Level/Ascension spend, measured directly from rosterPowerForDeck - see the "diag"
+        // note in campaign/powerCurve.test.ts). A few Hero Levels or the free Ascension from the Toll of
+        // the Ford challenge close the gap; strategy still decides the fight itself.
+        recommendedRosterPower: 800,
         modifier: { title: 'Encounter rule', text: 'The full Undead starter deck, Vharos included - every mechanic Chapter 1 taught, at once.' },
         objectives: [
           { id: 'rounds', text: 'Win within 8 rounds', check: 'roundsWithin', value: 8 },

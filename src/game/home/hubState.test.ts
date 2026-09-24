@@ -30,7 +30,7 @@ beforeEach(() => {
 });
 
 const ids = CHAPTER_1.nodes.map((n) => n.id);
-const progress = (cleared: string[]): CampaignProgress => ({ clearedNodes: cleared, objectivesMet: {}, firstClearClaimed: cleared });
+const progress = (cleared: string[]): CampaignProgress => ({ clearedNodes: cleared, objectivesMet: {}, firstClearClaimed: cleared, lastLossPower: {} });
 const starter = buildStarterCollection();
 const undeadCards = (n: number): Record<string, number> => {
   const out: Record<string, number> = {};

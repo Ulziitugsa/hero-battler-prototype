@@ -6628,6 +6628,39 @@ button {
   color: #c8a98f;
 }
 
+/* Neutral by design, even when "under" - a recommendation, never a block screen (Commercial Prototype
+   Phase 3: "without implying the stage is impossible below recommendation"). Both states share the same
+   background; only the numeral's color shifts slightly, no warning iconography, no red. */
+.campaign-sheet-power-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--px-panel-2, #1b2b35);
+  border: 1px solid var(--px-line-dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #c8a98f;
+}
+
+.campaign-sheet-power-label {
+  flex: 1;
+}
+
+.campaign-sheet-power-value {
+  color: #ffeec4;
+}
+
+.campaign-sheet-power-value em {
+  font-style: normal;
+  font-weight: 700;
+  color: #a98d78;
+}
+
+.campaign-sheet-power-row.under .campaign-sheet-power-value {
+  color: #e3c98e;
+}
+
 .campaign-sheet-action-row {
   display: flex;
   align-items: center;

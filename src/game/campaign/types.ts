@@ -44,6 +44,14 @@ export interface CampaignEncounterDef {
   /** Overrides the match's starting HP (createMatch's own `startingHp` option) - a real mechanical
    * effect, not flavor text, e.g. the challenge node's "start at 12 health instead of 20". */
   startingHp?: number;
+  /**
+   * Commercial Prototype Phase 3 - a suggested Roster Power (game/heroLevel/rosterPower.ts), shown
+   * alongside the player's own current Roster Power on the stage preview as a neutral "here's roughly
+   * where you should be" comparison. Deliberately NOT an enforced gate: a strong deck/placement can still
+   * clear a stage below the recommendation, and the UI must never imply otherwise (see StagePreviewSheet).
+   * Omit for nodes where the comparison isn't meaningful (story/reward nodes have no encounter at all).
+   */
+  recommendedRosterPower?: number;
   modifier?: { title: string; text: string };
   objectives: CampaignObjectiveDef[];
   firstClearReward: CampaignRewardDef;

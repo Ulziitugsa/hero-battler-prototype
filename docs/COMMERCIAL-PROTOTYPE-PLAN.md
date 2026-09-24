@@ -159,18 +159,30 @@ This resolves the gate's concern directly: there is exactly **one** duplicate si
 
 ### Phase 3 — Campaign power curve — Status: ✅ done
 
-- `CampaignEncounterDef.recommendedRosterPower?: number` added to `campaign/types.ts`; populated for
-  Chapter 1's 13 nodes on a rising curve (tuned so the boss node is a genuine wall at the account level a
-  player reaches through normal first-clear-only play, per the docx's "reach the boss under-powered,
-  return after upgrading" loop).
-- `rosterPowerForDeck(cardIds)` in `heroLevel/rosterPower.ts` sums the Phase 1 formula over a deck.
-- `StagePreviewSheet.tsx`: shows current vs. recommended Roster Power without implying the stage is
-  impossible below it ("Recommended power" line, neutral tone, no red block screen).
-- Analytics: `campaign_attempt`, `campaign_loss_at_power_deficit`, `campaign_upgrade_after_loss`,
-  `campaign_return_win` (the metric the whole progression thesis lives or dies on, per Section 9 of the
-  brief).
+- `CampaignEncounterDef.recommendedRosterPower?: number` added to `campaign/types.ts`; populated for the
+  9 battle/challenge/elite/boss nodes in Chapter 1 (story/reward nodes have no encounter to compare
+  against). Values are grounded in the real formula, not guessed: a diagnostic run of
+  `rosterPowerForDeck` against the actual Kingdom starter deck showed pure-collection play (no deliberate
+  Hero Level/Ascension spend) sits at 575-765 across the whole account Level 1-20 range. The boss is set
+  to 800 - above that entire range, so the boss is provably a wall for collection alone at every account
+  level, while a modest deliberate spend (a handful of Hero Levels, or the one free Ascension the
+  Toll-of-the-Ford challenge already grants) clears it comfortably. Verified directly in
+  `campaign/powerCurve.test.ts`, not asserted by feel.
+- `rosterPowerForDeck(cardIds, accountLevel, ...)` (already built in Phase 1) is reused as-is.
+- `StagePreviewSheet.tsx`: a neutral "Roster Power: current / recommended" row (no warning iconography,
+  no red, same background whether under or at recommendation) - reads `recordBattleResult`'s reused
+  `currentRosterPower()` logic via the same `rosterPowerForDeck` call.
+- `campaign/progress.ts`: `CampaignProgress` gained `lastLossPower: Record<nodeId, number>` - the Roster
+  Power recorded at the moment of a loss while under the node's recommendation, consumed (cleared,
+  whether or not Power actually rose) on the next win on that node.
+- Analytics: `campaign_node_started` (Phase 0, serves as the "attempt" event - no separate
+  `campaign_attempt` was added), `campaign_loss_at_power_deficit` (fires only when the loss happened
+  under the recommendation), `campaign_upgrade_after_loss` / `campaign_return_win` (fire together on a
+  win that followed a recorded loss AND Roster Power genuinely increased since - a win on the same Power
+  clears the flag but fires neither, since that was a strategy win, not a "the upgrade loop worked" win).
 - Tests: `campaign/powerCurve.test.ts`.
-- Deviation: none.
+- Deviation: the docx listed a bare `campaign_attempt` event name; reused the existing
+  `campaign_node_started` (Phase 0) instead of adding a near-duplicate.
 
 ### Phase 4 — Idle / offline rewards — Status: ✅ done
 
