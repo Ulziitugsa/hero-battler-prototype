@@ -6,6 +6,7 @@ import { MASTERIES, MASTERY_ORDER, masteryEffectText, masteryNextRankText, rankN
 import { canUpgradeMastery, equipMastery, masteryPointsAvailable, upgradeMastery } from '../game/progression/account';
 import { MASTERY_RANK_UP_COST, MAX_LEVEL, xpToNextLevel } from '../game/progression/config';
 import { useAccount } from '../game/progression/useAccount';
+import { resetEverything } from '../game/devReset';
 import '../styles/profile.css';
 
 /**
@@ -17,6 +18,7 @@ export function ProfilePage({ onOpenStats }: { onOpenStats: () => void }) {
   const account = useAccount();
   const [helpOpen, setHelpOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<MasteryId>(account.equippedMasteryId ?? 'fortification');
+  const [confirmingReset, setConfirmingReset] = useState(false);
 
   const atMax = account.level >= MAX_LEVEL;
   const need = xpToNextLevel(account.level);
@@ -136,6 +138,31 @@ export function ProfilePage({ onOpenStats }: { onOpenStats: () => void }) {
           <Icon name="bug" />
           <span>Playtest Stats</span>
         </button>
+        {confirmingReset ? (
+          <div className="profile-row profile-reset-confirm" role="alertdialog" aria-label="Confirm reset">
+            <span>Erase all local progress? This cannot be undone.</span>
+            <span className="profile-reset-confirm-btns">
+              <button type="button" onClick={() => setConfirmingReset(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="danger"
+                onClick={() => {
+                  resetEverything();
+                  window.location.reload();
+                }}
+              >
+                Erase everything
+              </button>
+            </span>
+          </div>
+        ) : (
+          <button type="button" className="profile-row" onClick={() => setConfirmingReset(true)}>
+            <Icon name="warning" />
+            <span>Reset Progress (Playtest)</span>
+          </button>
+        )}
       </div>
 
       <div className="profile-footer">Hero Battler · Card Set v0.1 prototype</div>

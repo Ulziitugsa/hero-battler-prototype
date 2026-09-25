@@ -74,3 +74,27 @@ export function getQueuedEvents(): readonly AnalyticsEvent[] {
 export function clearQueuedEvents(): void {
   queue.length = 0;
 }
+
+const DEBUG_PANEL_STORAGE_KEY = 'skyloom-debug';
+
+/**
+ * Commercial Prototype Phase 11: a closed playtest runs a built (non-dev) app, where import.meta.env.DEV
+ * is false and window.skyloomDev doesn't exist - so the AnalyticsDebugPanel (App.tsx) would otherwise be
+ * unreachable by external testers. Rather than standing up a remote analytics backend (out of scope for
+ * this phase - no server exists to receive it), visiting the app once with ?debug=1 latches a localStorage
+ * flag that keeps the same in-app panel available on that device from then on. Least-complex reversible
+ * option; see docs/COMMERCIAL-PROTOTYPE-PLAN.md Phase 11.
+ */
+export function isDebugPanelEnabled(): boolean {
+  if (import.meta.env.DEV) return true;
+  try {
+    if (typeof window === 'undefined') return false;
+    if (new URLSearchParams(window.location.search).get('debug') === '1') {
+      window.localStorage.setItem(DEBUG_PANEL_STORAGE_KEY, '1');
+      return true;
+    }
+    return window.localStorage.getItem(DEBUG_PANEL_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}

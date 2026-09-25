@@ -71,6 +71,15 @@ function saveProgress(progress: CampaignProgress): void {
   }
 }
 
+/** Dev/playtest only - back to a fresh, unstarted Campaign. See game/devReset.ts's resetEverything (Commercial Prototype Phase 11). */
+export function resetCampaignProgress(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function isNodeCleared(nodeId: string, progress: CampaignProgress): boolean {
   return progress.clearedNodes.includes(nodeId);
 }

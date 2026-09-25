@@ -28,3 +28,12 @@ export function loadRecentMatches(): RecentMatchEntry[] {
     return [];
   }
 }
+
+/** Dev/playtest only. See game/devReset.ts's resetEverything (Commercial Prototype Phase 11). */
+export function resetMatchHistory(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}

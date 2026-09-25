@@ -145,6 +145,9 @@ export function StagePreviewSheet({ node, cleared, onFight, onClose }: { node: C
             </span>
           </div>
         )}
+        {recommended !== undefined && currentPower < recommended && (
+          <p className="campaign-sheet-power-hint">Strategy can still carry you here - but if it's tough, Level up or Ascend a Hero in Heroes and come back stronger.</p>
+        )}
 
         <div className="campaign-sheet-action-row">
           <div className="campaign-sheet-cost">

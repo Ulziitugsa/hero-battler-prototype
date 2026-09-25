@@ -28,6 +28,17 @@ export function daysSinceFirstSeen(now: number = Date.now()): number {
   return Math.max(0, Math.floor((now - getFirstSeenAt()) / (24 * 60 * 60 * 1000)));
 }
 
+/** Dev/playtest only - the next getFirstSeenAt() call re-stamps "now" as first launch, so the 7-day
+ * journey (which reads this same timestamp) also restarts at Day 1. See game/devReset.ts's
+ * resetEverything (Commercial Prototype Phase 11). */
+export function resetFirstSeenAt(): void {
+  try {
+    localStorage.removeItem(FIRST_SEEN_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 // A random id, once per page load (in-memory only - never persisted, never tied to a real identity).
 // Commercial Prototype Phase 9: "session id where appropriate" - lets a later analytics provider group
 // this browser tab's events into one session without Claude inventing a heavier session-tracking system.

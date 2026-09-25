@@ -5,9 +5,10 @@ import '../styles/analyticsDebug.css';
 
 /**
  * The "simple development/debug way to inspect emitted events" the brief asks for (Commercial Prototype
- * Phase 9) - not a real analytics dashboard, a floating dev-only panel that lists what track() has fired
- * this session, most recent first. Mounted once at the App root (dev builds only - see App.tsx) so it's
- * reachable from every screen, not just one page.
+ * Phase 9) - not a real analytics dashboard, a floating panel that lists what track() has fired this
+ * session, most recent first. Mounted once at the App root, gated by isDebugPanelEnabled() (dev builds
+ * always; a playtest build only after visiting once with ?debug=1 - see analytics/track.ts and App.tsx)
+ * so it's reachable from every screen, not just one page.
  */
 export function AnalyticsDebugPanel() {
   const [open, setOpen] = useState(false);

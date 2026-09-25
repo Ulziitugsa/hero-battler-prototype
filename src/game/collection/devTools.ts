@@ -23,6 +23,7 @@ import { getConfig, reloadConfig, setDevConfigOverride } from '../../config/conf
 import { clearQueuedEvents, getQueuedEvents } from '../../analytics/track';
 import { cancelPurchase, getPurchaseState, resetPurchases, simulatePurchase } from '../offers/store';
 import { OFFERS, type OfferId } from '../offers/definitions';
+import { resetEverything } from '../devReset';
 
 // DEV ONLY - attached to window.skyloomDev by main.tsx behind import.meta.env.DEV, so it never ships.
 // e.g. skyloomDev.grant('und-mira'), skyloomDev.setAllOwned(), skyloomDev.reset().
@@ -93,6 +94,9 @@ export const devTools = {
   simulatePurchase: (offerId: OfferId) => simulatePurchase(offerId),
   simulateCancelledPurchase: (offerId: OfferId) => cancelPurchase(offerId),
   resetPurchases: () => resetPurchases(),
+  // ---- Full reset (Commercial Prototype Phase 11) ----
+  /** Every piece of local state, back to a fresh install. Does NOT reload the page itself (the UI's Profile button does that) - a console call can inspect the result immediately. */
+  resetEverything: () => resetEverything(),
   banners: () => SUMMON_BANNERS.map((b) => b.id),
   /** Pity is per banner: skyloomDev.setPity('gravebound', 39). */
   setPity: (bannerId: string, count: number) => setPity(bannerId, count),

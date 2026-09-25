@@ -21,11 +21,11 @@ import { heroLevelsFor } from './game/heroLevel/store';
 import type { MasteryLoadout } from './game/types';
 import { WorldBackdrop } from './components/WorldBackdrop';
 import { AnalyticsDebugPanel } from './components/AnalyticsDebugPanel';
-import { track } from './analytics/track';
+import { isDebugPanelEnabled, track } from './analytics/track';
 import './styles/moonwaterGame.css';
 
 export default function App() {
-  return <div className="moon-game"><WorldBackdrop /><Suspense fallback={<p role="status" style={{ padding: 32 }}>Opening Moonwater…</p>}><GameApp /></Suspense>{import.meta.env.DEV && <AnalyticsDebugPanel />}</div>;
+  return <div className="moon-game"><WorldBackdrop /><Suspense fallback={<p role="status" style={{ padding: 32 }}>Opening Moonwater…</p>}><GameApp /></Suspense>{isDebugPanelEnabled() && <AnalyticsDebugPanel />}</div>;
 }
 
 function GameApp() {

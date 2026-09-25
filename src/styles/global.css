@@ -3224,6 +3224,38 @@ button {
   border-color: var(--gold-dim);
 }
 
+/* Reset-progress confirmation (Commercial Prototype Phase 11) - deliberately reads as a warning, not a
+   normal row: this is the one destructive action reachable from the everyday Profile screen. */
+.profile-reset-confirm {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-color: #c0524a;
+  cursor: default;
+}
+
+.profile-reset-confirm-btns {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.profile-reset-confirm-btns button {
+  flex: 1;
+  min-height: var(--tap-min);
+  border-radius: var(--radius-m);
+  border: 1px solid var(--line);
+  background: var(--panel-2, var(--panel));
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.profile-reset-confirm-btns button.danger {
+  background: #c0524a;
+  border-color: #c0524a;
+  color: #fff;
+}
+
 .profile-footer {
   text-align: center;
   font: var(--text-caption);
@@ -6659,6 +6691,14 @@ button {
 
 .campaign-sheet-power-row.under .campaign-sheet-power-value {
   color: #e3c98e;
+}
+
+/* Commercial Prototype Phase 11 - the actionable follow-up to the (deliberately neutral) power row above. */
+.campaign-sheet-power-hint {
+  margin: 4px 12px 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #c8a98f;
 }
 
 .campaign-sheet-action-row {

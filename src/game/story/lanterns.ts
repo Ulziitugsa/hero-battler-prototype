@@ -24,3 +24,7 @@ export function completeLanternTrial(id: string): boolean {
   try { localStorage.setItem(KEY, JSON.stringify([...new Set([...cleared, id])])); return true; }
   catch { return false; }
 }
+/** Dev/playtest only. See game/devReset.ts's resetEverything (Commercial Prototype Phase 11). */
+export function resetLanternProgress(): void {
+  try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+}

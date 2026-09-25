@@ -490,6 +490,77 @@ real purchase, no real charge" banner on the Offers sheet itself.
   persistence across reload, malformed-storage recovery).
 - Deviation: none from the task list.
 
+### Phase 11 — Closed-playtest readiness — Status: ✅ done
+
+Nothing in this phase is a new system; it is a readiness pass over everything Phases 0–10 built, plus the
+one genuinely missing piece (a full reset).
+
+- **Reset flow.** `src/game/devReset.ts` (new) — `resetEverything()` calls every store's own `resetX()` in
+  one place (collection, economy incl. Summon pity/history, account progression, Hero Level, Ascension,
+  missions, journey, idle rewards, purchases, campaign progress, saved decks, preferences, match history,
+  lantern progress, first-seen timestamp) and re-stamps `session_started`. Four stores had no reset helper
+  before this phase and gained one here: `game/story/lanterns.ts` (`resetLanternProgress`),
+  `game/engine/localDecks.ts` (`resetSavedDecks`), `game/engine/preferences.ts` (`resetPreferences`),
+  `game/engine/localMatchHistory.ts` (`resetMatchHistory`), plus `analytics/context.ts`
+  (`resetFirstSeenAt`). UI: `ProfilePage.tsx`'s existing "Developer Tools" section gained a two-step
+  confirm "Reset Progress (Playtest)" row (`resetEverything()` then reload) — deliberately not
+  DEV-gated, since testers themselves are the ones who need this, not just developers; the "(Playtest)"
+  suffix and the confirm step are the separation from a real product surface, not an env check.
+- **Save/version safety audit.** Every store already carried its own `version` field and defensive
+  `sanitizeX()` parser (the pre-existing snapshot/listener/sanitize pattern this whole workstream reused,
+  not something new to Phase 11). The audit evidence is `src/game/devReset.test.ts` (new): it dirties every
+  single store `resetEverything()` touches, resets, reloads each store fresh from storage (not just from
+  the in-memory snapshot), and asserts a genuinely clean state — including that `migrateToRealCollection()`
+  (main.tsx's startup collection migration) does not reintroduce stale rewards after a reset, and that
+  calling `resetEverything()` twice in a row is safe (idempotency test). No version/migration bug was
+  found; the test exists so a future one would be caught immediately.
+- **Progression-UX clarity.** `StagePreviewSheet.tsx` already showed a neutral Roster Power vs. recommended
+  comparison (Phase 3); it had no next step. Added one actionable hint line, shown only when under
+  recommendation: *"Strategy can still carry you here - but if it's tough, Level up or Ascend a Hero in
+  Heroes and come back stronger."* Styled via `.campaign-sheet-power-hint` in `global.css`, matching the
+  existing power row's neutral tone (no warning colour, no blocking language — a stage under
+  recommendation is still playable, per Phase 3's own design decision).
+- **Analytics/debug for playtest builds — a decision this phase had to make.** The brief asks for "a simple
+  development/debug way to inspect emitted events"; Phase 9 built `AnalyticsDebugPanel.tsx` gated on
+  `import.meta.env.DEV`. A closed playtest runs a *built* app (`vite build`), where `DEV` is false and
+  `window.skyloomDev` doesn't exist — so external testers could never reach it, and there is no backend in
+  this codebase to send events to instead. Least-complex reversible option chosen: `analytics/track.ts`
+  gained `isDebugPanelEnabled()` — true in dev builds as before, or in a built app after visiting once with
+  `?debug=1` (which latches a `localStorage` flag so it persists on that device from then on, no code
+  change or redeploy needed to turn it on for a specific tester). `App.tsx` now gates the panel on this
+  instead of the raw `DEV` check. Deliberately **not** built: a remote analytics ingestion endpoint — that
+  is new backend infrastructure, disproportionate to a small known closed-playtest cohort, and adjacent to
+  the explicit Section 10 stop list (server-authoritative systems). If a later, larger playtest genuinely
+  needs remote (not on-device) analytics visibility, that is a Gate-time decision, not one this phase makes
+  pre-emptively.
+- **Dev/debug UI separation — reviewed, no changes needed beyond the panel above.** Surfaces that can
+  distort playtest data if testers reach them (`skyloomDev` console helpers, `SummonPage`'s `DevPanel` —
+  unlimited Gems, forced rarity, preview scenarios — and the pixel-art "Character studies" page) are all
+  gated on `import.meta.env.DEV` and are unreachable in a built app. Surfaces testers are meant to use
+  during a playtest (Reset Progress, Playtest Stats) are visible but explicitly labelled as playtest
+  tooling rather than hidden. Product surfaces under evaluation (the Offers sheet) stay visible to
+  everyone with their own honest "TEST MODE" labelling (Phase 10) — that is the surface being playtested,
+  not a dev tool to hide.
+- **Mobile quality.** Manually walked the intended phone viewport (390×844) via a live dev server: Home,
+  Missions sheet, Journey sheet, Offers sheet (incl. the simulated purchase confirm step), the Summon
+  page's Gems/Tickets currency toggle, and the Campaign StagePreviewSheet's new hint. One material blocker
+  found and fixed: Home's footer row (`moon-home-footer` in `moonwaterGame.css`) originally only laid out
+  1–2 short items and had no wrap behaviour; Phases 5/6/10 added Missions/Day-X/Offers buttons to the same
+  row, and at narrow widths items were force-wrapping mid-word ("Moonwater" / "village" as two lines)
+  instead of wrapping as whole items. Fixed by adding `flex-wrap:wrap; row-gap:8px; justify-content:center;
+  text-align:center` to the existing `@media(max-width:700px)` rule for `.moon-home-footer` — items now
+  flow onto a second line as complete units. Everything else checked (Missions/Journey/Offers sheets, the
+  Summon currency toggle, the Reset confirm dialog, the StagePreviewSheet action row) rendered without
+  clipping, overlap, or undersized touch targets; verified `.campaign-sheet-action-row`'s Fight button
+  bounding rect stays inside the viewport rather than trusting a scaled screenshot. No broader redesign was
+  undertaken.
+- Tests: `src/game/devReset.test.ts` (new, 2 tests — full-clear coverage and idempotency).
+- Deviation: the "lightweight remote provider" contingency in the brief was evaluated and deliberately not
+  exercised — see the analytics/debug bullet above for the reasoning.
+
+**This completes Phase 11.** Per Section 9/10 below, implementation stops here until a closed external
+playtest has run and the Commercial Validation Gate has been reviewed against real data.
+
 ## 9. Sequencing update (2026-09-24 follow-up) — the Commercial Validation Gate
 
 Supersedes this document's original Section 9. The docx's "Decision gate after Phase 10" is replaced by a

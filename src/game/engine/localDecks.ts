@@ -46,3 +46,12 @@ export function deleteSavedDeck(id: string): void {
 export function makeDeckId(): string {
   return `deck-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 }
+
+/** Dev/playtest only. See game/devReset.ts's resetEverything (Commercial Prototype Phase 11). */
+export function resetSavedDecks(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}

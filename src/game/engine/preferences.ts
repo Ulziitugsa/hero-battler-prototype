@@ -30,3 +30,12 @@ export function savePreferences(prefs: Preferences): void {
     // best-effort only
   }
 }
+
+/** Dev/playtest only. See game/devReset.ts's resetEverything (Commercial Prototype Phase 11). */
+export function resetPreferences(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
