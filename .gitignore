@@ -26,3 +26,6 @@ dist-ssr
 .vercel
 .env*
 !.env.example
+
+# Local browser QA screenshots and captures.
+.qa/

@@ -1,11 +1,14 @@
-# UI redesign backlog
+# Historical UI redesign backlog
 
-Design work that is **not** finished, in priority order. Everything settled lives in
-[DESIGN-SOURCE-OF-TRUTH.md](DESIGN-SOURCE-OF-TRUTH.md); this file is only the open list.
+This backlog records the earlier Embervale redesign and is **not the current Moonwater task list**.
+The current pixel-art direction and implemented interface are recorded in
+[MOONWATER-VISUAL-POLISH.md](MOONWATER-VISUAL-POLISH.md) and
+[PIXEL-STYLE-CORRECTION.md](PIXEL-STYLE-CORRECTION.md).
 
-**Read this first.** The approved Embervale direction currently exists as Claude Design prototypes,
-**not** as code. `src/styles/global.css` and every screen in `src/pages` are still the earlier
-dark-panel build. So each item below has two distinct pieces of work behind it:
+The entries below are preserved as historical design discussion. Their status and proposed direction
+have not been reconciled with the current Moonwater implementation.
+
+Each original item described two pieces of work:
 
 - **(D)** a design decision that is still open, and
 - **(I)** integration of an already-approved design into the repo.
@@ -19,7 +22,7 @@ Both are named per item so neither gets lost.
 | P2 | Real card artwork | D + content, then I |
 | P3 | Combat resolution feedback | D, then I |
 | P4 | Victory / defeat | D, then I |
-| - | Embervale integration of already-approved screens | I only |
+| - | Historical Embervale screen integration | I only |
 
 ---
 
@@ -209,7 +212,7 @@ developer-facing in tone - a key/value stats dump - and is not a designed victor
 
 ---
 
-## Standing item - Embervale integration
+## Historical item - Embervale integration
 
 Not a design task, but it belongs on this list so it is not mistaken for done.
 

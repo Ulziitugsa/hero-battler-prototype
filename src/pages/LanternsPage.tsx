@@ -14,7 +14,7 @@ export function LanternsPage({ onBack, onFight, result, initialTrialId }: { onBa
   const unlocked = canPlayTrial(trial.id, cleared);
   const done = cleared.includes(trial.id);
   return <main className="lantern-page">
-    <header className="lantern-nav"><button onClick={onBack} aria-label="Back to Home"><Icon name="back" size={20} /></button><span>Embervale · Stories</span><span>{cleared.length} / 3</span></header>
+    <header className="lantern-nav"><button onClick={onBack} aria-label="Back to Home"><Icon name="back" size={20} /></button><span>Moonwater · Stories</span><span>{cleared.length} / 3</span></header>
     <div className="lantern-cover"><span>A tale from the Ashen Road</span><h1>Lanterns<br />of the Lost</h1><p>The dead are not invading.<br />They are keeping watch.</p></div>
     <div className="lantern-body">
       {result && <p className="lantern-result" role="status">{result}</p>}

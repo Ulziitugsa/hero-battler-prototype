@@ -1,4 +1,4 @@
-# Embervale — playable prototype
+# Moonwater — playable prototype
 
 ## Deploy a private playtest
 
@@ -20,6 +20,8 @@ Run `npm run dev`. On Home, choose **Lanterns of the Lost** for the story or **S
 
 Collection, currency, and progression remain local. Private multiplayer is available once Supabase and Vercel are configured; checkout and permanent accounts are not implemented. Existing saves and previous art files are retained.
 
+The current prototype also includes a test-only Shop with a daily Gold gift, attention marks only for ready value, optional pixel-art Home backgrounds, local AI Ranked matches, and a developer-only Combat V2 lab. See [Ranked mode](docs/RANKED-MODE.md), [the Combat V2 design record](docs/COMBAT-V2-DESIGN.md), and [native/mobile notes](docs/NATIVE-MOBILE.md). Combat V2 remains isolated from live match rules.
+
 ## Historical phase notes
 
 A throwaway browser prototype. Phase 0.4 froze the core combat rules (`CORE PLAYTEST RULESET v0.1`
@@ -38,15 +40,16 @@ The consolidated source-of-truth documents live in [`docs/`](docs/README.md):
   "CORE PLAYTEST RULESET v0.1" below.
 - [`docs/game/CARD-SYSTEM.md`](docs/game/CARD-SYSTEM.md) - card data model, abilities, targeting,
   rarity, factions, deck rules.
-- [`docs/design/DESIGN-SOURCE-OF-TRUTH.md`](docs/design/DESIGN-SOURCE-OF-TRUTH.md) - the approved
-  Embervale visual direction (summary of `Design Source of Truth.pdf`).
-- [`docs/design/CHARACTER-ART-BIBLE.md`](docs/design/CHARACTER-ART-BIBLE.md) - approved character and
-  spell art direction.
-- [`docs/design/UI-REDESIGN-BACKLOG.md`](docs/design/UI-REDESIGN-BACKLOG.md) - design work that is not
-  finished, P0-P4.
+- [`docs/design/MOONWATER-VISUAL-POLISH.md`](docs/design/MOONWATER-VISUAL-POLISH.md) and
+  [`docs/design/PIXEL-STYLE-CORRECTION.md`](docs/design/PIXEL-STYLE-CORRECTION.md) - current Moonwater
+  interface and pixel-art direction. `DESIGN-SOURCE-OF-TRUTH.md` records a superseded Embervale study.
+- [`docs/design/CHARACTER-ART-BIBLE.md`](docs/design/CHARACTER-ART-BIBLE.md) - historical painterly
+  exploration; the current pixel-art direction is documented above.
+- [`docs/design/UI-REDESIGN-BACKLOG.md`](docs/design/UI-REDESIGN-BACKLOG.md) - historical Embervale
+  redesign discussion, not the current Moonwater task list.
 
-**The UI in `src/` is still the pre-Embervale dark-panel build.** The approved visual direction is
-documented but not yet implemented; see the backlog.
+The current UI uses the Moonwater pixel-art direction. Older Embervale design and backlog documents
+are retained as historical design context and do not override the current Moonwater references above.
 
 ## What changed since Phase 0.4 (Card Set v0.1)
 

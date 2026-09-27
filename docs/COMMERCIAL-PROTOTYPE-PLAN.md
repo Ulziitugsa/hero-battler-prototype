@@ -1,4 +1,7 @@
-# Embervale commercial prototype — living implementation plan
+# Commercial prototype — implementation record
+
+This records the Phase 0–11 implementation work from the original Embervale-named brief. The current
+game name and visual direction are Moonwater; historical source wording is retained below for traceability.
 
 Source: `Embervale_Commercial_Prototype_Implementation_Plan.docx` (24 September 2026), reconciled here
 with [PRODUCTION-PLAN.md](PRODUCTION-PLAN.md). This file is the one that gets updated as phases land —

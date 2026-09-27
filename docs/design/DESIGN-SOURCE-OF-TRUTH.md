@@ -1,16 +1,15 @@
-# Design source of truth (repo-side summary)
+# Historical Embervale design study (superseded)
 
-**Status:** approved direction, partially implemented.
-**Authoritative long-form document:** `Design Source of Truth.pdf` at the repo root - Embervale v1,
-September 2026, exported from Claude Design. This file is the concise repo-side reference; where it
-is silent or ambiguous on a visual decision, the PDF is authoritative. This file does **not**
-reproduce the exploratory discussion behind those decisions.
+**Status:** archived historical direction. Moonwater's current pixel-art direction supersedes this
+document; use [MOONWATER-VISUAL-POLISH.md](MOONWATER-VISUAL-POLISH.md) and
+[PIXEL-STYLE-CORRECTION.md](PIXEL-STYLE-CORRECTION.md) for current product work.
+**Historical long-form source:** `Design Source of Truth.pdf` at the repo root - Embervale v1,
+September 2026, exported from Claude Design. The PDF and this summary are retained as provenance only;
+neither is authoritative for current Moonwater work.
 
-**Implementation status warning.** The Embervale direction below is approved but **not yet built in
-`src/`**. The shipped UI (`src/styles/global.css`, all of `src/pages`) is still the earlier
-dark-panel/dashboard build that section "Rejected directions" rules out. Read this document as
-*where the product is going*, not as a description of the current screens. See
-[UI-REDESIGN-BACKLOG.md](UI-REDESIGN-BACKLOG.md).
+**Historical implementation note.** The status text and design proposals below describe an earlier
+Embervale design pass. They no longer describe the current UI or product direction. Keep this file
+for design provenance only; use current Moonwater docs and code for implementation decisions.
 
 ---
 
@@ -28,7 +27,7 @@ dark-panel/dashboard build that section "Rejected directions" rules out. Read th
 - Design reads game data from the code (`src/game/cards`, `src/components/Icon.tsx`) rather than
   inventing a parallel data set.
 
-## 2. Approved visual direction - Embervale
+## 2. Superseded visual direction - Embervale
 
 A warm sunset fantasy realm rendered in carved wood, hammered gold and dusk-lit stone. This is the
 approved direction; alternatives are not proposed on top of it. Two fully explored concepts,

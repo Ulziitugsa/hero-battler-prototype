@@ -1,11 +1,11 @@
-# Character art bible
+# Historical character art direction
 
-**Status:** approved art direction. No final artwork exists yet - every card currently renders a
-styled geometric placeholder (see "Current state of art in the repo" at the end).
+**Status:** archived art direction. The roster now has pixel-art assets, and the painterly guidance
+below is superseded by [PIXEL-STYLE-CORRECTION.md](PIXEL-STYLE-CORRECTION.md) and the current assets in
+`public/art/pixel/`.
 
-This document is the standalone reference for character and spell artwork. It supersedes the earlier
-hyper-detailed fantasy rendering direction, which was **rejected because it looked obviously
-AI-generated**.
+This document preserves the earlier character and spell illustration exploration. It is not the
+current reference for art production.
 
 The approved direction is:
 

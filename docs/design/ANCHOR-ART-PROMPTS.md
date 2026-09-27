@@ -1,6 +1,9 @@
-# Embervale anchor art prompts
+# Legacy character anchor-art prompts
 
 Generated using the built-in image-generation tool. These are generated assets, not commissioned illustrations. Previous Paladin and Infernal Lord files remain intact.
+
+These prompts record earlier painterly illustration experiments. Current Moonwater pixel-art assets
+and direction are documented in [PIXEL-STYLE-CORRECTION.md](PIXEL-STYLE-CORRECTION.md).
 
 ## Vharos — public/art/und-vharos.png
 

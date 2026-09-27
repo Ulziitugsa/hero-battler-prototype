@@ -1,4 +1,8 @@
-# Embervale production plan
+# Moonwater production plan
+
+Current product identity and visual direction are Moonwater pixel art. This plan retains earlier
+Embervale naming and narrative passages as historical source material; they do not change the current
+game name or visual direction.
 
 ## Latest approved visual direction
 
@@ -29,7 +33,10 @@ The player is a watch captain who discovers that the kingdom's prosperity and th
 
 Chapter arc: Ashen Road (who are the dead guarding?) → Census House (who erased the names?) → Cinder Coast (who signed?) → Winter Court (what can replace the bargain?). Each chapter should introduce an enemy strategy and a character reversal, not just stronger numbers.
 
-## Visual production rules
+## Historical visual production notes (superseded)
+
+Use [PIXEL-STYLE-CORRECTION.md](design/PIXEL-STYLE-CORRECTION.md) and
+[MOONWATER-VISUAL-POLISH.md](design/MOONWATER-VISUAL-POLISH.md) for current Moonwater visual decisions.
 
 **Direction update after user review:** the user rejected the glossy knight studies and supplied an anime card reference. Future art must follow `design/CHARACTER-APPEAL.md`: expressive proportions, strong contours, and controlled cel shading. The woodcut proposal below records the initial experiment; it is no longer the target for full-roster production. Existing integrated legendary art is provisional.
 
