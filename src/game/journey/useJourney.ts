@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { getJourneyState } from './store';
 import type { JourneyView } from './store';
+import { useAppResume } from '../../platform/lifecycle';
 
 /**
  * Journey state, recomputed on demand. Deliberately NOT a useSyncExternalStore subscription:
@@ -11,6 +12,8 @@ import type { JourneyView } from './store';
  */
 export function useJourney(): JourneyView & { refresh: () => void } {
   const [, setTick] = useState(0);
+  const refresh = useCallback(() => setTick((t) => t + 1), []);
+  useAppResume(refresh);
   const view = getJourneyState();
-  return { ...view, refresh: () => setTick((t) => t + 1) };
+  return { ...view, refresh };
 }

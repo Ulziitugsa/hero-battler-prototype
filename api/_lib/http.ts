@@ -13,6 +13,8 @@ export interface ApiRequest {
 export interface ApiResponse {
   status(code: number): ApiResponse;
   json(body: unknown): void;
+  setHeader?(name: string, value: string): void;
+  end?(): void;
 }
 
 export class HttpError extends Error {
@@ -44,5 +46,30 @@ export function withErrorHandling(handler: (req: ApiRequest, res: ApiResponse) =
       console.error(err);
       res.status(500).json({ error: 'Internal error' });
     }
+  };
+}
+
+/** CORS for the packaged Capacitor origins. Browser same-origin requests need no CORS configuration. */
+export function withCapacitorCors(handler: (req: ApiRequest, res: ApiResponse) => Promise<void>) {
+  return async (req: ApiRequest, res: ApiResponse) => {
+    const originHeader = req.headers.origin;
+    const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
+    const allowed = (process.env.CAPACITOR_ALLOWED_ORIGINS ?? '').split(',').map((value) => value.trim()).filter(Boolean);
+    if (origin && allowed.includes(origin)) {
+      res.setHeader?.('Access-Control-Allow-Origin', origin);
+      res.setHeader?.('Vary', 'Origin');
+      res.setHeader?.('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+      res.setHeader?.('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader?.('Access-Control-Max-Age', '86400');
+    }
+    if (req.method === 'OPTIONS') {
+      if (!origin || !allowed.includes(origin)) {
+        res.status(403).json({ error: 'Origin is not allowed' });
+        return;
+      }
+      res.status(204).end?.();
+      return;
+    }
+    await handler(req, res);
   };
 }

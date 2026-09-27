@@ -248,6 +248,20 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Solid backing for the native status bar (edge-to-edge Android ignores StatusBar.setBackgroundColor).
+   Zero-height on the web, where the inset is 0. */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  height: env(safe-area-inset-top, 0px);
+  background: #100e14;
+  pointer-events: none;
+}
+
 button {
   font-family: inherit;
   cursor: pointer;
@@ -298,7 +312,8 @@ button {
 
 .battle-scene {
   position: absolute;
-  inset: 0;
+  /* Keep the percentage-laid-out scene clear of the native status and gesture bars. */
+  inset: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
   overflow: hidden;
   border-radius: 0;
   background: linear-gradient(180deg, var(--px-bg-deep, #0a141e) 0%, var(--px-bg-deep, #0a141e) 16%, #5a2e2a 42%, #3a1d1a 64%, #1a1012 100%);
@@ -1633,6 +1648,8 @@ button {
 .app-frame-content {
   flex: 1;
   min-height: 0;
+  /* Native Android (targetSdk 35+) is always edge-to-edge, so the status bar overlays the WebView. */
+  padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
@@ -5153,7 +5170,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px 16px 28px;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(28px + env(safe-area-inset-bottom, 0px));
   color: var(--px-ink);
   font-family: var(--px-font-display);
   overflow-x: hidden;
@@ -6126,7 +6143,7 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 12px 26px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 26px;
   background: linear-gradient(180deg, rgba(21, 13, 19, 0.88), rgba(21, 13, 19, 0));
 }
 
@@ -6216,7 +6233,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 22px 14px 12px;
+  padding: 22px 14px calc(12px + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(180deg, rgba(21, 13, 19, 0), rgba(21, 13, 19, 0.9));
 }
 

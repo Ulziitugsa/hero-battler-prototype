@@ -4,14 +4,16 @@ import type { CreateMatchResponse, DeckSnapshot, FriendlyRoom, MatchViewResponse
 
 async function callApi<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await currentAccessToken();
-  const res = await fetch(path, {
+  const apiBase = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '');
+  const endpoint = apiBase ? `${apiBase}${path}` : path;
+  const res = await fetch(endpoint, {
     ...init,
     signal: AbortSignal.timeout(30000),
     cache: 'no-store',
     headers: { ...(init?.headers ?? {}), Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   });
   const body = await res.json().catch(() => { throw new Error('Online battle service is unavailable. Please try again shortly.'); });
-  if (!res.ok) throw new Error(body.error ?? `Request to ${path} failed (${res.status})`);
+  if (!res.ok) throw new Error(body.error ?? `Request to ${endpoint} failed (${res.status})`);
   return body as T;
 }
 

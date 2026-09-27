@@ -1,5 +1,5 @@
 import type { ApiRequest, ApiResponse } from './_lib/http.js';
-import { HttpError, withErrorHandling } from './_lib/http.js';
+import { HttpError, withCapacitorCors, withErrorHandling } from './_lib/http.js';
 import { authenticateCaller } from './_lib/auth.js';
 import { supabaseAsUser } from './_lib/supabaseAdmin.js';
 import { resolveRoundInternal } from './_lib/resolveRoundInternal.js';
@@ -13,7 +13,7 @@ import { isActionShape } from './_lib/actionShape.js';
  * resolves it). api/resolve-round.ts remains as an idempotent recovery/retry endpoint on the same shared
  * resolveRoundInternal.
  */
-export default withErrorHandling(async (req: ApiRequest, res: ApiResponse) => {
+export default withErrorHandling(withCapacitorCors(async (req: ApiRequest, res: ApiResponse) => {
   if (req.method !== 'POST') throw new HttpError(405, 'Method not allowed');
 
   const { token } = await authenticateCaller(req);
@@ -54,4 +54,4 @@ export default withErrorHandling(async (req: ApiRequest, res: ApiResponse) => {
     view: side === 'player' ? outcome.view.hostView : outcome.view.guestView,
     events: side === 'player' ? outcome.view.hostEvents : outcome.view.guestEvents,
   });
-});
+}));

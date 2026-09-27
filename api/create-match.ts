@@ -1,5 +1,5 @@
 import type { ApiRequest, ApiResponse } from './_lib/http.js';
-import { HttpError, withErrorHandling } from './_lib/http.js';
+import { HttpError, withCapacitorCors, withErrorHandling } from './_lib/http.js';
 import { authenticateCaller, canonicalSideFromRoom } from './_lib/auth.js';
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 import { createMatch } from '../src/game/engine/match.js';
@@ -33,7 +33,7 @@ const BUILD_RECOVERY_TIMEOUT_MS = 20_000;
  * different database row the other side never saw, a permanent silent "stuck waiting" with no error.
  * Fixed with the same started_at + timeout pattern as the round-resolution RESOLVING claim.
  */
-export default withErrorHandling(async (req: ApiRequest, res: ApiResponse) => {
+export default withErrorHandling(withCapacitorCors(async (req: ApiRequest, res: ApiResponse) => {
   if (req.method !== 'POST') throw new HttpError(405, 'Method not allowed');
 
   const { uid } = await authenticateCaller(req);
@@ -117,7 +117,7 @@ export default withErrorHandling(async (req: ApiRequest, res: ApiResponse) => {
     view: side === 'player' ? hostView : guestView,
     events: side === 'player' ? hostEvents : guestEvents,
   });
-});
+}));
 
 async function respondWithMatchView(res: ApiResponse, matchId: string, side: Side) {
   const { data: match, error } = await supabaseAdmin().from('friendly_matches').select('*').eq('id', matchId).single();

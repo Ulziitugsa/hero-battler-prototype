@@ -1,5 +1,5 @@
 import type { ApiRequest, ApiResponse } from './_lib/http.js';
-import { HttpError, withErrorHandling } from './_lib/http.js';
+import { HttpError, withCapacitorCors, withErrorHandling } from './_lib/http.js';
 import { authenticateCaller, canonicalSideFromRoom } from './_lib/auth.js';
 import { loadRoomForMatch } from './_lib/matchAccess.js';
 import { resolveRoundInternal } from './_lib/resolveRoundInternal.js';
@@ -12,7 +12,7 @@ import { supabaseAdmin } from './_lib/supabaseAdmin.js';
  * same claim/validate/resolve/persist logic, so it can only ever no-op or catch up a genuinely stuck
  * resolve (a prior resolver that crashed after claiming the round) - never double-resolve.
  */
-export default withErrorHandling(async (req: ApiRequest, res: ApiResponse) => {
+export default withErrorHandling(withCapacitorCors(async (req: ApiRequest, res: ApiResponse) => {
   if (req.method !== 'POST') throw new HttpError(405, 'Method not allowed');
 
   const { uid } = await authenticateCaller(req);
@@ -39,4 +39,4 @@ export default withErrorHandling(async (req: ApiRequest, res: ApiResponse) => {
     view: side === 'player' ? outcome.view.hostView : outcome.view.guestView,
     events: side === 'player' ? outcome.view.hostEvents : outcome.view.guestEvents,
   });
-});
+}));

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { loadProgress } from '../campaign/progress';
 import { loadEnergy, type EnergyState } from '../campaign/energy';
 import { loadIdleReward, type IdleRewardState } from '../campaign/idleRewards';
@@ -7,6 +7,7 @@ import { useEconomy, useUnlimitedGems } from '../economy/useEconomy';
 import { masteryPointsAvailable } from '../progression/account';
 import { useAccount } from '../progression/useAccount';
 import { attentionState, campaignHub, pickHubNote, type AttentionState, type CampaignHub, type HubNote } from './hubState';
+import { useAppResume } from '../../platform/lifecycle';
 
 export interface HubState {
   campaign: CampaignHub;
@@ -17,6 +18,7 @@ export interface HubState {
   attention: AttentionState;
   /** Call after claiming the idle reward so the note/available amount recompute without a full remount. */
   refreshIdle: () => void;
+  refreshTimeSystems: () => void;
 }
 
 /**
@@ -32,15 +34,16 @@ export function useHubState(): HubState {
   const account = useAccount();
   const { gems, summon } = useEconomy();
   const unlimited = useUnlimitedGems();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately read once per mount
-  const campaign = useMemo(() => campaignHub(loadProgress()), []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const energy = useMemo(() => loadEnergy(), []);
   const [idleTick, setIdleTick] = useState(0);
+  const [, setTimeTick] = useState(0);
+  const refreshTimeSystems = useCallback(() => { setTimeTick((t) => t + 1); setIdleTick((t) => t + 1); }, []);
+  useAppResume(refreshTimeSystems);
+  const campaign = campaignHub(loadProgress());
+  const energy = loadEnergy();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- idleTick is the deliberate re-trigger; loadIdleReward reads its own fresh Campaign-progress default
   const idle = useMemo(() => loadIdleReward(), [idleTick]);
   const masteryPoints = masteryPointsAvailable(account);
-  const now = useMemo(() => Date.now(), []);
+  const now = Date.now();
   return {
     campaign,
     energy,
@@ -49,5 +52,6 @@ export function useHubState(): HubState {
     note: pickHubNote({ idle, masteryPoints, owned, history: summon.history, now }),
     attention: attentionState({ gems, unlimitedGems: unlimited, masteryPoints, owned }),
     refreshIdle: () => setIdleTick((t) => t + 1),
+    refreshTimeSystems,
   };
 }

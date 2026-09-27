@@ -1,5 +1,5 @@
 import type { ApiRequest, ApiResponse } from './_lib/http.js';
-import { HttpError, withErrorHandling } from './_lib/http.js';
+import { HttpError, withCapacitorCors, withErrorHandling } from './_lib/http.js';
 import { authenticateCaller, canonicalSideFromRoom } from './_lib/auth.js';
 import { loadRoomForMatch } from './_lib/matchAccess.js';
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
@@ -8,7 +8,7 @@ import { supabaseAdmin } from './_lib/supabaseAdmin.js';
  * Used for: picking up the OTHER client's result after a realtime ping, and reconnect-after-refresh.
  * Always returns only the caller's own oriented+redacted view - friendly_matches itself is never exposed.
  */
-export default withErrorHandling(async (req: ApiRequest, res: ApiResponse) => {
+export default withErrorHandling(withCapacitorCors(async (req: ApiRequest, res: ApiResponse) => {
   if (req.method !== 'GET') throw new HttpError(405, 'Method not allowed');
 
   const { uid } = await authenticateCaller(req);
@@ -31,4 +31,4 @@ export default withErrorHandling(async (req: ApiRequest, res: ApiResponse) => {
     view: side === 'player' ? match.host_view : match.guest_view,
     events: side === 'player' ? match.last_events_for_host : match.last_events_for_guest,
   });
-});
+}));
