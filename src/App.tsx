@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { GamePage } from './pages/GamePage';
 import { HomePage } from './pages/HomePage';
 const PixelPreviewPage = lazy(() => import('./pages/PixelPreviewPage').then(m => ({ default: m.PixelPreviewPage })));
@@ -8,6 +8,7 @@ import { DecksPage } from './pages/DecksPage';
 import { HeroesPage } from './pages/HeroesPage';
 import { StatsPage } from './pages/StatsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { ShopPage } from './pages/ShopPage';
 import { SummonPage } from './pages/SummonPage';
 import { LanternsPage } from './pages/LanternsPage';
 import { completeLanternTrial } from './game/story/lanterns';
@@ -23,9 +24,20 @@ import { WorldBackdrop } from './components/WorldBackdrop';
 import { AnalyticsDebugPanel } from './components/AnalyticsDebugPanel';
 import { isDebugPanelEnabled, track } from './analytics/track';
 import './styles/moonwaterGame.css';
+import { installLifecycleBridge } from './platform/lifecycle';
+import { registerBackButton } from './platform/backButton';
+import { configureStatusBar } from './platform/statusBar';
+import { App as NativeApp } from '@capacitor/app';
+import './styles/moonwaterPolish.css';
+import { MoonwaterLoading } from './components/MoonwaterLoading';
+import { RankedPage } from './pages/RankedPage';
+import { chooseRankedOpponent, getRanked, recordRankedMatch } from './game/ranked/store';
+import { listDeckOptions } from './game/engine/deckOptions';
+import { CombatV2LabPage } from './pages/CombatV2LabPage';
+import { getCard } from './game/cards';
 
 export default function App() {
-  return <div className="moon-game"><WorldBackdrop /><Suspense fallback={<p role="status" style={{ padding: 32 }}>Opening Moonwater…</p>}><GameApp /></Suspense>{isDebugPanelEnabled() && <AnalyticsDebugPanel />}</div>;
+  return <div className="moon-game"><WorldBackdrop /><Suspense fallback={<MoonwaterLoading />}><GameApp /></Suspense>{isDebugPanelEnabled() && <AnalyticsDebugPanel />}</div>;
 }
 
 function GameApp() {
@@ -33,6 +45,7 @@ function GameApp() {
   const [showPixelPreview, setShowPixelPreview] = useState(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('pixelPreview'));
   const [showFriendly, setShowFriendly] = useState(() => new URLSearchParams(window.location.search).has('friendly'));
   const [showStats, setShowStats] = useState(false);
+  const [showCombatLab, setShowCombatLab] = useState(false);
   const [showBattleSetup, setShowBattleSetup] = useState(false);
   const [showCampaign, setShowCampaign] = useState(false);
   // Home's Continue Campaign lands straight on the chapter map; other entries start at region select.
@@ -43,16 +56,53 @@ function GameApp() {
   const [storySaveFailed, setStorySaveFailed] = useState(false);
   const [storyResult, setStoryResult] = useState<string | null>(null);
   const [lastStoryTrial, setLastStoryTrial] = useState<string | null>(null);
-  const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; startingHp?: number; mastery: MasteryLoadout | null; ascensions: Record<string, number>; heroLevels: Record<string, number> } | null>(null);
+  const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; startingHp?: number; mastery: MasteryLoadout | null; ascensions: Record<string, number>; heroLevels: Record<string, number>; enemyHeroLevels?: Record<string, number>; rankedOpponentLabel?: string } | null>(null);
   // Which Campaign node the in-progress battle belongs to, if any - set only by startCampaignBattle,
   // never by Quick Battle, so Quick Battle can never touch Campaign state (see progress.ts's own note).
   const [campaignNodeId, setCampaignNodeId] = useState<string | null>(null);
   const [pendingCampaignResult, setPendingCampaignResult] = useState<BattleResultOutcome | null>(null);
   const battleCounter = useRef(0);
 
+  useEffect(() => {
+    void configureStatusBar();
+    return installLifecycleBridge();
+  }, []);
+
+  // The handler reads current state; keep it in a ref so the native listener is registered once.
+  const backHandler = useRef<() => void>(() => {});
+  backHandler.current = () => {
+    const dialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"]'));
+    const topDialog = dialogs.reverse().find((dialog) => dialog.getClientRects().length > 0);
+    if (topDialog) {
+      const target = document.activeElement instanceof HTMLElement && topDialog.contains(document.activeElement)
+        ? document.activeElement
+        : topDialog;
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      return;
+    }
+    if (battleSetup) {
+      setBattleSetup(null);
+      if (lanternTrialId) { setLanternTrialId(null); setShowLanterns(true); }
+      if (campaignNodeId) { setCampaignNodeId(null); setShowCampaign(true); }
+      return;
+    }
+    if (showFriendly) { setShowFriendly(false); window.history.replaceState(null, '', window.location.pathname); return; }
+    if (showPixelPreview) { setShowPixelPreview(false); window.history.replaceState(null, '', window.location.pathname); return; }
+    if (showStats) { setShowStats(false); return; }
+    if (showCombatLab) { setShowCombatLab(false); setTab('profile'); return; }
+    if (showBattleSetup) { setShowBattleSetup(false); return; }
+    if (showCampaign) { setShowCampaign(false); setCampaignOnMap(false); return; }
+    if (showSummon) { setShowSummon(false); return; }
+    if (showLanterns) { setShowLanterns(false); return; }
+    if (tab !== 'home') { setTab('home'); return; }
+    void NativeApp.exitApp();
+  };
+  useEffect(() => registerBackButton(() => backHandler.current()), []);
+
   if (showPixelPreview) return <PixelPreviewPage onBack={() => { setShowPixelPreview(false); window.history.replaceState(null, '', window.location.pathname); }} />;
 
   if (showFriendly) return <FriendlyBattlePage onBack={() => { setShowFriendly(false); window.history.replaceState(null, '', window.location.pathname); }} />;
+  if (showCombatLab) return <CombatV2LabPage onBack={() => { setShowCombatLab(false); setTab('profile'); }} />;
 
   // An in-progress match renders full-screen, outside the bottom-nav shell entirely - combat
   // shouldn't compete with navigation chrome for space on a small phone (see README "Battle
@@ -70,8 +120,16 @@ function GameApp() {
         playerMastery={battleSetup.mastery}
         playerAscensions={battleSetup.ascensions}
         playerHeroLevels={battleSetup.heroLevels}
+        enemyHeroLevels={battleSetup.enemyHeroLevels}
         onMatchEnd={
-          campaignNodeId
+          battleSetup.rankedOpponentLabel
+            ? (status) => {
+                const result = status === 'PLAYER_WIN' ? 'win' : status === 'DRAW' ? 'draw' : 'loss';
+                const before = recordRankedMatch(result, battleSetup.rankedOpponentLabel!);
+                track(result === 'win' ? 'ranked_match_won' : 'ranked_match_lost', { opponent: battleSetup.rankedOpponentLabel });
+                track('ranked_rating_changed', { rating: before.rating, result });
+              }
+            : campaignNodeId
             ? (status, stats, events) => {
                 const playerDeckFaction = getActiveDeck().faction;
                 setPendingCampaignResult(recordBattleResult(campaignNodeId, status, stats, events, playerDeckFaction));
@@ -88,6 +146,7 @@ function GameApp() {
             setCampaignNodeId(null);
             setShowCampaign(true);
           }
+          if (battleSetup.rankedOpponentLabel) setTab('ranked');
         }}
       />
     );
@@ -114,6 +173,13 @@ function GameApp() {
         onFightNode={startCampaignBattle}
         pendingResult={pendingCampaignResult}
         onConsumedResult={() => setPendingCampaignResult(null)}
+        onRecoveryDestination={(destination) => {
+          setShowCampaign(false);
+          setCampaignOnMap(false);
+          if (destination === 'home') setTab('home');
+          if (destination === 'heroes') setTab('heroes');
+          if (destination === 'decks') setTab('decks');
+        }}
       />
     );
   }
@@ -130,10 +196,10 @@ function GameApp() {
     startBattle({ label: active.label, cardIds: active.cardIds }, { label, cardIds: deck });
   }} />{storySaveFailed && <p role="alert">Your browser could not save this story result. Enable local storage before replaying.</p>}</>;
 
-  function startBattle(player: DeckChoice, enemy: DeckChoice) {
+  function startBattle(player: DeckChoice, enemy: DeckChoice, rankedOpponentLabel?: string, enemyHeroLevels?: Record<string, number>) {
     battleCounter.current += 1;
     setShowBattleSetup(false);
-    setBattleSetup({ player, enemy, id: battleCounter.current, mastery: getEquippedLoadout(), ascensions: ascensionRanksFor(player.cardIds), heroLevels: heroLevelsFor(player.cardIds) });
+    setBattleSetup({ player, enemy, id: battleCounter.current, mastery: getEquippedLoadout(), ascensions: ascensionRanksFor(player.cardIds), heroLevels: heroLevelsFor(player.cardIds), enemyHeroLevels, rankedOpponentLabel });
   }
 
   function startCampaignBattle(nodeId: string, player: DeckChoice, enemy: DeckChoice, startingHp?: number) {
@@ -157,6 +223,7 @@ function GameApp() {
         onOpenDecks={() => setTab('decks')}
         onOpenHeroes={() => setTab('heroes')}
         onOpenProfile={() => setTab('profile')}
+        onOpenShop={() => setTab('shop')}
         onOpenSummon={() => setShowSummon(true)}
         onOpenLanterns={() => setShowLanterns(true)}
         onOpenPixelPreview={() => setShowPixelPreview(true)}
@@ -164,10 +231,21 @@ function GameApp() {
     );
   } else if (tab === 'heroes') {
     screen = <HeroesPage onOpenDecks={() => setTab('decks')} />;
+  } else if (tab === 'shop') {
+    screen = <ShopPage />;
   } else if (tab === 'decks') {
     screen = <DecksPage />;
+  } else if (tab === 'ranked') {
+    screen = <RankedPage onBattle={() => {
+      const player = getActiveDeck();
+      const ranked = getRanked();
+      const rival = chooseRankedOpponent(listDeckOptions(), player, ranked.rating);
+      const levels=heroLevelsFor(player.cardIds);const uniqueHeroes=[...new Set(player.cardIds.filter(id=>getCard(id).type==='hero'))];const averageLevel=uniqueHeroes.length?Math.round(uniqueHeroes.reduce((sum,id)=>sum+(levels[id]??1),0)/uniqueHeroes.length):1;const enemyLevels=Object.fromEntries([...new Set(rival.cardIds.filter(id=>getCard(id).type==='hero'))].map(id=>[id,averageLevel]));
+      track('ranked_match_started', { rating: ranked.rating, opponent: rival.label });
+      startBattle({ label: player.label, cardIds: player.cardIds }, { label: `AI · ${rival.label}`, cardIds: rival.cardIds }, rival.label, enemyLevels);
+    }} />;
   } else {
-    screen = <ProfilePage onOpenStats={() => setShowStats(true)} />;
+    screen = <ProfilePage onOpenStats={() => setShowStats(true)} onOpenCombatLab={() => setShowCombatLab(true)} />;
   }
 
   return (
