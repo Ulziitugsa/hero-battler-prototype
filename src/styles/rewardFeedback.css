@@ -1,0 +1,9 @@
+.reward-feedback { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:4px 10px; min-height:32px; padding:6px 9px; color:#f4ecd7; background:#17343b; border-left:2px solid #d5bd83; animation:reward-feedback-in 420ms ease-out both; }
+.reward-feedback strong { color:#ffe0a0; font:700 11px/1.3 var(--mono); }
+.reward-feedback>span { color:#d1d9ca; font:10px/1.35 Georgia,serif; }
+.reward-feedback.small { background:#142b35; border-color:#8da99a; }
+.reward-feedback.small strong { color:#e0e7d8; }
+.reward-feedback.progression { background:#263a36; border-color:#e4c080; box-shadow:inset 0 0 14px #d3ae5433; }
+.reward-feedback.major { background:#2b3632; border-color:#f0cd7d; box-shadow:inset 0 0 0 1px #e4c0804d,0 0 16px #e4c08033; }
+@keyframes reward-feedback-in { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+@media(prefers-reduced-motion:reduce) { .reward-feedback { animation:none; } }

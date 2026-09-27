@@ -1,4 +1,5 @@
 import { getAscensionStatus } from '../ascension/ascend';
+import { getCardAscension } from '../ascension/definitions';
 import { starsForCard } from '../ascension/stars';
 import { getCollection, grantCard } from '../collection/collection';
 import { getStarterDeckUnlockProgress, starterDeckId } from '../collection/starterUnlock';
@@ -38,6 +39,10 @@ export interface SummonPull extends SummonPullResult {
   grant: GrantResult;
   /** A duplicate that leaves this card with an Ascension available (never auto-applied). */
   ascensionAvailable: boolean;
+  /** Explicitly distinguishes useful Ascension copies from Stars on cards without an authored path. */
+  hasAscensionPath: boolean;
+  starsBefore: number;
+  starsAfter: number;
 }
 
 export interface StarterProgressNote {
@@ -119,10 +124,22 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
   const grants = results.map((r) => grantCard(r.cardId, 1));
   const after = getCollection();
   const pulls: SummonPull[] = [];
+  let progressionOwned: OwnedMap = { ...before };
   results.forEach((r, i) => {
     const grant = grants[i];
     if (!grant) return; // unreachable for a validated pool (every id is a real card)
-    pulls.push({ ...r, grant, ascensionAvailable: !grant.isNew && getAscensionStatus(r.cardId, after).canAscend });
+    const starsBefore = starsForCard(r.cardId, progressionOwned);
+    const nextOwned = { ...progressionOwned, [r.cardId]: grant.owned };
+    const starsAfter = starsForCard(r.cardId, nextOwned);
+    pulls.push({
+      ...r,
+      grant,
+      ascensionAvailable: !grant.isNew && getAscensionStatus(r.cardId, after).canAscend,
+      hasAscensionPath: !!getCardAscension(r.cardId),
+      starsBefore,
+      starsAfter,
+    });
+    progressionOwned = nextOwned;
   });
 
   const highestRarity = highestRarityOf(pulls.map((p) => p.rarity));
@@ -132,9 +149,7 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
     if (pull.rarity === 'legendary') track('legendary_pulled', { bannerId: pool.id, cardId: pull.cardId, wasNew: pull.grant.isNew, pityAfter });
     if (!pull.grant.isNew) {
       track('duplicate_acquired', { cardId: pull.cardId, rarity: pull.rarity, source: 'summon', copiesOwned: pull.grant.owned, ascensionAvailable: pull.ascensionAvailable });
-      const starsBefore = starsForCard(pull.cardId, before);
-      const starsAfter = starsForCard(pull.cardId, after);
-      if (starsAfter !== starsBefore) track('hero_star_changed', { cardId: pull.cardId, starsBefore, starsAfter, source: 'summon' });
+      if (pull.starsAfter !== pull.starsBefore) track('hero_star_changed', { cardId: pull.cardId, starsBefore: pull.starsBefore, starsAfter: pull.starsAfter, source: 'summon' });
     }
   }
 

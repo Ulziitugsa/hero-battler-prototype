@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { DeckChoice } from '../BattleSetupPage';
 import { CHAPTER_1 } from '../../game/campaign/chapter1';
 import { REGIONS } from '../../game/campaign/regions';
-import { loadProgress, isNodeCleared, isNodeUnlocked, getCurrentNodeId, findNode, clearNonBattleNode, type BattleResultOutcome, type CampaignProgress } from '../../game/campaign/progress';
+import { loadProgress, isNodeCleared, isNodeUnlocked, getCurrentNodeId, findNode, clearNonBattleNode, recommendedPowerFor, type BattleResultOutcome, type CampaignProgress } from '../../game/campaign/progress';
 import { loadEnergy, spendEnergy, formatCountdown, type EnergyState } from '../../game/campaign/energy';
 import { chapterWorldArtUrl } from '../../game/campaign/art';
 import { getActiveDeck } from '../../game/engine/activeDeck';
@@ -14,6 +14,14 @@ import { StagePreviewSheet } from './StagePreviewSheet';
 import { StoryBeatSheet } from './StoryBeatSheet';
 import { RewardClaimSheet } from './RewardClaimSheet';
 import { StageResultSheet } from './StageResultSheet';
+import { loadIdleReward } from '../../game/campaign/idleRewards';
+import { getHeroLevelStatus } from '../../game/heroLevel/levelUp';
+import { getCard } from '../../game/cards';
+import { track } from '../../analytics/track';
+import { getAccount } from '../../game/progression/account';
+import { getHeroLevelState } from '../../game/heroLevel/store';
+import { getAscensionState } from '../../game/ascension/store';
+import { rosterPowerForDeck } from '../../game/heroLevel/rosterPower';
 
 const NODE_ICON: Record<CampaignNodeType, IconName> = { battle: 'battle', story: 'spell', reward: 'trophy', challenge: 'warning', elite: 'power', boss: 'graveyard' };
 
@@ -37,9 +45,10 @@ export interface CampaignPageProps {
   /** Open straight on the chapter map (Home's Continue Campaign) instead of region select. */
   openOnMap?: boolean;
   onConsumedResult: () => void;
+  onRecoveryDestination?: (destination: 'home' | 'heroes' | 'decks') => void;
 }
 
-export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedResult, openOnMap = false }: CampaignPageProps) {
+export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedResult, onRecoveryDestination, openOnMap = false }: CampaignPageProps) {
   const [view, setView] = useState<'regions' | 'map'>(pendingResult || openOnMap ? 'map' : 'regions');
   const [, setProgressTick] = useState(0);
   const [openNodeId, setOpenNodeId] = useState<string | null>(null);
@@ -193,6 +202,18 @@ export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedRes
   }
 
   const activeResult = pendingResult ?? claimResult;
+  const recovery = ((result: BattleResultOutcome | null) => {
+    if (!result || result.won) return undefined;
+    const idle = loadIdleReward();
+    const activeDeck = getActiveDeck();
+    const upgradeReady = activeDeck.cardIds.some((id) => getCard(id).type === 'hero' && getHeroLevelStatus(id).canLevelUp);
+    const destination = idle.availableGold > 0 ? 'home' as const : upgradeReady ? 'heroes' as const : 'decks' as const;
+    const label = destination === 'home' ? 'Claim Idle Gold' : destination === 'heroes' ? 'Upgrade a Hero' : 'Edit deck';
+    const power = rosterPowerForDeck(activeDeck.cardIds, getAccount().level, getHeroLevelState(), getAscensionState());
+    const recommendation = recommendedPowerFor(result.node);
+    const deficit = recommendation === undefined ? undefined : Math.max(0, recommendation - power);
+    return { label, destination, deficit };
+  })(activeResult);
   const worldArtUrl = chapterWorldArtUrl(CHAPTER_1.id);
 
   if (view === 'regions') {
@@ -419,7 +440,12 @@ export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedRes
           {openNode_?.type && ['battle', 'elite', 'boss', 'challenge'].includes(openNode_.type) && <StagePreviewSheet node={openNode_} cleared={isNodeCleared(openNode_.id, progress)} onFight={handleFight} onClose={() => setOpenNodeId(null)} />}
           {openNode_?.type === 'story' && openNode_.story && <StoryBeatSheet story={openNode_.story} onDone={handleStoryDone} />}
           {openNode_?.type === 'reward' && <RewardClaimSheet node={openNode_} onClaim={handleClaimReward} />}
-          {activeResult && <StageResultSheet outcome={activeResult} onContinue={handleResultContinue} />}
+          {activeResult && <StageResultSheet outcome={activeResult} onContinue={handleResultContinue} recovery={recovery ? { label: recovery.label, kind: recovery.destination, deficit: recovery.deficit, onSelect: () => {
+            onConsumedResult();
+            if (claimResult) setClaimResult(null);
+            track('campaign_upgrade_after_loss', { stageId: activeResult.node.id, destination: recovery.destination, rosterPowerDeficit: recovery.deficit });
+            (onRecoveryDestination ? () => onRecoveryDestination(recovery.destination) : onExit)();
+          } } : undefined} onRetry={() => { handleResultContinue(); setOpenNodeId(activeResult.node.id); }} />}
         </div>
       </div>
     </div>

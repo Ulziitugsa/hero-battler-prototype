@@ -2,6 +2,7 @@ import type { GrantResult } from '../collection/types';
 import type { Rarity } from '../types';
 import { getPool } from './pool';
 import { highestRarityOf, type SummonPull, type SummonSuccess } from './summon';
+import { getCardAscension } from '../ascension/definitions';
 
 // DEV-ONLY visual test mode. Builds a SYNTHETIC outcome for the reveal presentation so every rarity /
 // featured / 10x case can be inspected on demand. It touches nothing: no Gems spent, no cards granted, no
@@ -44,7 +45,7 @@ export function buildPreviewOutcome(bannerId: string, scenario: PreviewScenario)
     const entry = entries[n % entries.length];
     const owned = (i % 3) + 1; // deterministic mix of New (1) and duplicates (2, 3)
     const grant: GrantResult = { cardId: entry.cardId, granted: 1, previous: owned - 1, owned, isNew: owned === 1 };
-    return { cardId: entry.cardId, rarity: entry.rarity, featured: entry.featured, pityBefore: 0, pityAfter: 0, pityTriggered: false, grant, ascensionAvailable: !grant.isNew && i % 2 === 0 };
+    return { cardId: entry.cardId, rarity: entry.rarity, featured: entry.featured, pityBefore: 0, pityAfter: 0, pityTriggered: false, grant, ascensionAvailable: !grant.isNew && i % 2 === 0, hasAscensionPath: !!getCardAscension(entry.cardId), starsBefore: 0, starsAfter: 0 };
   });
   return { ok: true, kind: pulls.length === 1 ? 'single' : 'ten', bannerId, seed: 0, currency: 'gems', cost: 0, pulls, pityBefore: 0, pityAfter: 0, highestRarity: highestRarityOf(pulls.map((p) => p.rarity)), starterProgress: [] };
 }

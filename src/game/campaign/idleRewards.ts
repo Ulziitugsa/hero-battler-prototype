@@ -40,6 +40,11 @@ function readStored(): StoredIdle {
   }
 }
 
+/** Stable id for the current accrual cycle, used to acknowledge Home's return note once per claim cycle. */
+export function idleRewardCycleId(): number {
+  return readStored().lastClaimAt;
+}
+
 function write(stored: StoredIdle): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));

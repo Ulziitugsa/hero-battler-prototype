@@ -31,7 +31,7 @@ export function affordabilityNote(balance: number, pool: SummonPool, unlimited =
   const single = summonOptions(balance, pool, unlimited, currency)[0];
   if (single.affordable) return null;
   const label = currency === 'gems' ? 'Gems' : 'Tickets';
-  return `Need ${single.cost} ${label} · You have ${balance}`;
+  return `Need ${single.shortfall} more ${label} · You have ${balance}`;
 }
 
 export interface PityDisplay {
@@ -50,7 +50,7 @@ export function pityDisplay(pity: number): PityDisplay {
     current,
     threshold,
     remaining,
-    label: remaining === 1 ? 'Your next summon is a guaranteed Legendary' : `${remaining} summons until a guaranteed Legendary`,
+    label: remaining === 1 ? 'Your next pull is a guaranteed Legendary' : `${remaining} pulls until a guaranteed Legendary`,
   };
 }
 

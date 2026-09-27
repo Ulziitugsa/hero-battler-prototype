@@ -110,6 +110,7 @@ export function ascendCard(cardId: string): AscendResult {
 
   track('duplicate_progress_applied', { cardId, system: 'ascension', rankBefore: status.rank, rankAfter: status.nextRank, duplicatesSpent: status.cost });
   track('hero_ascended', { cardId, rankBefore: status.rank, rankAfter: status.nextRank, duplicatesSpent: status.cost });
+  track('ascension_completed', { heroId: cardId, rankBefore: status.rank, rankAfter: status.nextRank, starsBefore, starsAfter, rosterPowerBefore, rosterPowerAfter });
   if (starsAfter !== starsBefore) track('hero_star_changed', { cardId, starsBefore, starsAfter });
   if (rosterPowerAfter !== rosterPowerBefore) track('roster_power_changed', { cardId, source: 'ascension', rosterPowerBefore, rosterPowerAfter, delta: rosterPowerAfter - rosterPowerBefore });
 

@@ -1,13 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CardDefinition } from '../../game/types';
 import { Icon } from '../../components/Icon';
 import { useCollection } from '../../game/collection/useCollection';
 import { useAscension } from '../../game/ascension/useAscension';
 import { ascendCard, ascensionLabel, getAscensionStatus } from '../../game/ascension/ascend';
 import { getCardAscension } from '../../game/ascension/definitions';
-import { starsForNextRank } from '../../game/ascension/stars';
+import { getAscensionRank } from '../../game/ascension/store';
+import { getHeroLevel } from '../../game/heroLevel/store';
+import { rosterPowerForHero } from '../../game/heroLevel/rosterPower';
+import { starsForCard, starsForNextRank } from '../../game/ascension/stars';
 import { StarStrip } from './StarStrip';
+import { RewardFeedback } from '../../components/RewardFeedback';
+import { track } from '../../analytics/track';
 import '../../styles/ascension.css';
+import { haptics } from '../../platform/haptics';
 
 /** Three carved marks showing how far a card has Ascended. */
 export function AscensionPips({ rank, max }: { rank: number; max: number }) {
@@ -26,19 +32,45 @@ export function AscensionPips({ rank, max }: { rank: number; max: number }) {
  * it; cards without an Ascension path say so in one quiet line. Every number comes from
  * game/ascension - this component decides nothing.
  */
-export function AscensionPanel({ card }: { card: CardDefinition }) {
+export function AscensionPanel({ card, priority = false }: { card: CardDefinition; priority?: boolean }) {
   const owned = useCollection();
   const ascension = useAscension();
   const [confirming, setConfirming] = useState(false);
+  const [ascending, setAscending] = useState(false);
+  const [feedback, setFeedback] = useState<{ rank: number; stars: number; power: number; improvement: string } | null>(null);
+  useEffect(() => {
+    if (!feedback) return;
+    const timeout = window.setTimeout(() => setFeedback(null), 1100);
+    return () => window.clearTimeout(timeout);
+  }, [feedback]);
   const status = getAscensionStatus(card.id, owned, ascension);
   const def = getCardAscension(card.id);
+  const nextDef = status.nextRank && def ? def.ranks[status.nextRank - 1] : null;
+  const level = getHeroLevel(card.id);
+  const rank = getAscensionRank(card.id);
+  const rosterGain = nextDef ? rosterPowerForHero(card.power ?? 0, level, rank + 1) - rosterPowerForHero(card.power ?? 0, level, rank) : 0;
+  const improvement = nextDef?.summary ?? 'Hero strengthened';
+
+  useEffect(() => {
+    if (!ascending) return;
+    const timeout = window.setTimeout(() => {
+      const result = ascendCard(card.id);
+      if (result.ok) {
+        void haptics.ascension();
+        const stars = starsForCard(card.id);
+        setFeedback({ rank: result.newRank, stars, power: rosterGain, improvement });
+        track('milestone_animation_shown', { milestone: 'ascension', heroId: card.id, rank: result.newRank });
+      }
+      setAscending(false);
+      setConfirming(false);
+    }, 240);
+    return () => window.clearTimeout(timeout);
+  }, [ascending, card.id, rosterGain, improvement]);
 
   if (!status.supported || !def) return <p className="asc-later">Ascension coming later.</p>;
 
-  const nextDef = status.nextRank ? def.ranks[status.nextRank - 1] : null;
-
   return (
-    <section className="asc-panel" aria-label="Ascension">
+    <section className={`asc-panel ascension-panel ${priority ? 'progression-primary' : ''} ${feedback ? 'ascension-flare' : ''}`} aria-label="Ascension">
       <div className="asc-head">
         <span className="asc-title">
           <AscensionPips rank={status.rank} max={status.maxRank} />
@@ -49,6 +81,8 @@ export function AscensionPanel({ card }: { card: CardDefinition }) {
           ×{status.owned} · {status.spare} spare
         </span>
       </div>
+      {feedback && <RewardFeedback tone="major" detail={`Ascension ${feedback.rank} · ${feedback.stars} of 5 Stars · ${feedback.improvement}`}>Roster Power +{feedback.power}</RewardFeedback>}
+      {ascending && <p className="ascension-sequence-status" role="status">The sigil answers…</p>}
 
       {nextDef && status.cost !== null && (
         <>
@@ -65,6 +99,7 @@ export function AscensionPanel({ card }: { card: CardDefinition }) {
                 </span>
               ) : null;
             })()}
+            <span className="asc-roster-change">Adds <strong>+{rosterGain} Roster Power</strong> toward Campaign strength.</span>
           </p>
 
           {confirming ? (
@@ -79,12 +114,10 @@ export function AscensionPanel({ card }: { card: CardDefinition }) {
                 <button
                   type="button"
                   className="asc-btn gold"
-                  onClick={() => {
-                    ascendCard(card.id);
-                    setConfirming(false);
-                  }}
+                  disabled={ascending}
+                  onClick={() => setAscending(true)}
                 >
-                  Confirm
+                  {ascending ? 'Ascending…' : 'Confirm'}
                 </button>
               </span>
             </div>

@@ -40,7 +40,7 @@ export function getHeroLevelStatus(cardId: string, gold: number = getGold(), acc
   if (!owned) return blocked('not-owned', 'Collect this hero to level it.');
   if (nextLevel === null) return blocked('max-level', 'Max level.');
   if (nextLevel > accountCap) return blocked('account-cap', `Reach Account Level ${Math.ceil(nextLevel / 3)} to raise this hero further.`);
-  if (cost === null || gold < cost) return blocked('no-gold', `Needs ${cost ?? 0} Gold.`);
+  if (cost === null || gold < cost) return blocked('no-gold', `Need ${Math.max(0, (cost ?? 0) - gold).toLocaleString()} more Gold.`);
   return { ...base, canLevelUp: true, blocked: null, reason: null };
 }
 
@@ -51,7 +51,7 @@ export function levelUpHero(cardId: string): LevelUpResult {
     return { ok: false, cardId, levelBefore: status.level, levelAfter: status.level, goldSpent: 0, reason: status.reason };
   }
   if (!spendGold(status.cost)) {
-    return { ok: false, cardId, levelBefore: status.level, levelAfter: status.level, goldSpent: 0, reason: 'Needs more Gold.' };
+    return { ok: false, cardId, levelBefore: status.level, levelAfter: status.level, goldSpent: 0, reason: `Need ${Math.max(0, status.cost - getGold()).toLocaleString()} more Gold.` };
   }
   const card = getCard(cardId);
   const rank = getAscensionRank(cardId);

@@ -1,7 +1,7 @@
 // Campaign Energy - a real-time "stamina" resource gating how many Campaign stages can be started.
 // Distinct from the deprecated per-card ENERGY_ENABLED flag in game/engine/constants.ts (a mana-like
 // in-match cost system that was tested and removed) - this is a meta-progression resource, not
-// something spent during a battle. No purchase/refill path exists or is planned for this prototype.
+// something spent during a battle. Shop refills spend Gems through the existing economy.
 //
 // All the numbers below are the design's own placeholders (see "Open points": "42/60, 5/7/10, 1 per 5
 // min are placeholders for balancing"), centralized here so retuning is a one-line change.
@@ -88,6 +88,17 @@ export function spendEnergy(cost: number): EnergyState {
   const resolved = resolve(readStored());
   const next: StoredEnergy = { current: Math.max(0, resolved.current - cost), updatedAt: resolved.updatedAt };
   write(next);
+  return loadEnergy();
+}
+
+/** Adds a consumable refill. Partial regeneration time is kept unless the refill reaches the cap,
+ * where overflow is discarded. */
+export function restoreEnergy(amount: number): EnergyState {
+  if (!Number.isFinite(amount) || amount <= 0) return loadEnergy();
+  const resolved = resolve(readStored());
+  const current = Math.min(CAMPAIGN_ENERGY_MAX, resolved.current + Math.floor(amount));
+  if (current === resolved.current) return loadEnergy();
+  write({ current, updatedAt: current >= CAMPAIGN_ENERGY_MAX ? new Date().toISOString() : resolved.updatedAt });
   return loadEnergy();
 }
 

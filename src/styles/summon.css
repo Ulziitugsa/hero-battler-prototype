@@ -149,6 +149,7 @@
 .summon-pity-bar { display: block; height: 5px; background: rgba(6, 10, 14, 0.75); overflow: hidden; box-shadow: 0 0 0 1px var(--px-line-soft); }
 .summon-pity-bar > span { display: block; height: 100%; background: var(--px-gold, #ebc989); transition: width 0.3s; }
 .summon-pity-text { font-size: 0.76rem; color: var(--px-ink-dim, #cdae86); }
+.summon-pity-shared-note { font-size: 0.68rem; color: var(--px-ink-dim, #c7d2cb); }
 
 .summon-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 16px; }
 .summon-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 11px 8px; cursor: pointer; font-family: var(--px-font-display); color: var(--px-gold-ink); background: var(--px-gold-deep, #c69f65); border: 1px solid var(--px-gold-strong); box-shadow: inset 0 0 0 2px var(--px-gold), var(--px-shadow-button); }
@@ -208,3 +209,5 @@
   .sb-embers i, .sb-seal .seal-ring { animation: none !important; }
   .sb, .summon-dots button { transition: none !important; }
 }
+.summon-resource-tip { position:relative; max-width:92%; margin:8px auto; padding:8px 28px 8px 10px; border:1px solid #c8a96555; border-radius:8px; color:#d5d0bd; background:#11242a; font-size:11px; line-height:1.4; }
+.summon-resource-tip button { position:absolute; top:3px; right:6px; padding:1px 4px; border:0; color:#c9c2ad; background:transparent; font-size:16px; }

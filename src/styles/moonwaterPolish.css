@@ -1,0 +1,304 @@
+/* Moonwater premium pass: one readable sans UI voice, fantasy serif for moments worth framing,
+   and pixel art kept inside the world and character silhouettes. */
+.moon-game {
+  --moon-display: 'Bree Serif', Georgia, serif;
+  --moon-ui: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --moon-night: #081723;
+  --moon-deep: #0d202d;
+  --moon-panel: #142c38;
+  --moon-panel-raised: #1a3641;
+  --moon-line: rgba(174, 202, 193, .2);
+  --moon-ivory: #f7f0de;
+  --moon-muted: #b7c8c6;
+  --moon-dim: #91aaa9;
+  --moon-teal: #70c0c0;
+  --moon-prestige: #f0d59a;
+  font-family: var(--moon-ui);
+  color: var(--moon-ivory);
+  background: var(--moon-night);
+}
+.moon-game :is(button, input, select, textarea) { font-family: var(--moon-ui); }
+.attention-dot{position:absolute;right:-2px;top:-2px;width:9px;height:9px;border:1px solid #f4e3b4;border-radius:50%;background:#dd7751;box-shadow:0 1px 4px #08131dcc;pointer-events:none}.attention-dot-new{background:#78c898;border-color:#d5f1cc}.attention-badge-wrap{position:relative;display:inline-flex}.attention-badge{position:absolute;right:-7px;top:-7px;min-width:15px;height:15px;display:grid;place-items:center;padding:0 3px;border-radius:9px;background:#d96648;border:1px solid #ffe0a2;color:#fff5df;font:700 9px var(--mono);box-shadow:0 1px 4px #050b10}.attention-badge.count{background:#bf8246}.moon-game .hud-medallion-chip{position:relative}
+.moon-game .pf-background-test{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:9px 11px;color:#f1d794;background:#172b33;border:1px dashed #c5a862;font-size:12px}
+.moon-game :is(h1, h2, h3, .pf-name, .pf-detail-name, .hr-sheet-name, .home-continue span) { font-family: var(--moon-display); }
+.moon-game .moon-world-image { background-position: center 38%; }
+.moon-game .moon-world-shade { background: linear-gradient(0deg, rgba(5, 15, 24, .96), rgba(7, 20, 29, .34) 72%), linear-gradient(90deg, rgba(5, 15, 24, .62), transparent 65%); }
+
+/* Home identity and balances */
+.moon-game .moon-home-hub { width: min(100%, 700px); gap: 15px; padding: 0 20px 22px; color: var(--moon-ivory); }
+.moon-game .moon-home-hub .moon-home-header { min-height: 78px; gap: 12px; border-bottom: 1px solid rgba(196, 218, 211, .13); }
+.moon-player-identity { display: flex; align-items: center; gap: 11px; min-width: 0; padding: 3px 0; border: 0; background: none; color: inherit; text-align: left; }
+.moon-player-avatar { position: relative; display: grid; place-items: center; flex: 0 0 48px; width: 48px; height: 48px; color: #f4dda5; border: 1px solid rgba(245, 220, 162, .75); border-radius: 17px; background: radial-gradient(circle at 50% 38%, #315666, #132936 72%); box-shadow: inset 0 0 0 3px rgba(6, 17, 26, .72), 0 0 0 1px rgba(201, 181, 126, .16), 0 5px 15px #030d14aa; }
+.moon-player-avatar > span:not(.mastery-crest) { font-size: 25px; line-height: 1; }
+.moon-player-avatar i { position: absolute; right: -6px; bottom: -5px; min-width: 21px; height: 21px; display: grid; place-items: center; padding: 0 4px; border: 1px solid #ffe8b2; border-radius: 50%; background: #806d48; color: #fff5d9; font: 800 11px/1 var(--moon-ui); font-style: normal; }
+.moon-player-copy { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.moon-player-copy strong { overflow: hidden; color: var(--moon-ivory); font: 700 16px/1.1 var(--moon-ui); text-overflow: ellipsis; white-space: nowrap; }
+.moon-player-copy small { overflow: hidden; color: #c4d2cc; font: 600 11px/1.25 var(--moon-ui); text-overflow: ellipsis; white-space: nowrap; }
+.moon-xp-track { display: block; width: min(126px, 32vw); height: 4px; margin-top: 4px; overflow: hidden; border-radius: 99px; background: #07141dd9; }
+.moon-xp-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #78bdbd, #eed596); }
+.moon-game .moon-home-tools { min-width: 0; gap: 7px; }
+.moon-game .moon-home-tools :is(.gem-balance, .gold-balance, .ticket-balance) { min-height: 36px; padding: 5px 8px; gap: 5px; border: 1px solid rgba(197, 218, 207, .14); border-radius: 999px; background: rgba(9, 26, 36, .78); color: var(--moon-ivory); box-shadow: none; font: 700 12px/1 var(--moon-ui); }
+.moon-game .moon-home-tools :is(.gem-balance, .gold-balance, .ticket-balance) svg { width: 14px; height: 14px; }
+.moon-help-button { flex: 0 0 32px; width: 32px; height: 32px; border: 1px solid rgba(197, 218, 207, .22); border-radius: 50%; background: rgba(11, 30, 41, .84); color: #dbe3d6; font: 700 14px var(--moon-ui); }
+
+/* Campaign becomes an illustrated destination with a single clear action. */
+.moon-game .home-campaign { isolation: isolate; min-height: 326px; padding: 18px 18px 16px; border: 1px solid rgba(185, 209, 199, .3); border-radius: 24px; border-top: 1px solid rgba(242, 219, 165, .78); background: linear-gradient(120deg, rgba(8, 23, 34, .94) 0%, rgba(10, 27, 38, .82) 50%, rgba(11, 28, 39, .44) 100%), #0d202d; box-shadow: inset 0 1px rgba(255,255,255,.07), 0 16px 36px rgba(0, 8, 14, .34); }
+.moon-game .home-campaign::before { position: absolute; z-index: -2; inset: 0; content: ''; background: url('/art/pixel/ashen-road.png') center 44% / cover; opacity: .7; image-rendering: pixelated; }
+.moon-game .home-campaign::after { z-index: -1; inset: 0; width: auto; height: auto; background: linear-gradient(90deg, rgba(6, 19, 29, .72), rgba(7, 22, 32, .5) 50%, rgba(7, 22, 32, .05)), linear-gradient(0deg, rgba(7, 21, 31, .98), rgba(7, 21, 31, .1) 70%); }
+.home-campaign-scene { display: none; }
+.moon-game .home-campaign-top { position: relative; min-height: 164px; align-items: flex-start; }
+.home-campaign-heading { position: relative; z-index: 2; width: 62%; padding-top: 3px; }
+.moon-game .home-kicker { max-width: 195px; color: #e8d39e; font: 800 10px/1.35 var(--moon-ui); letter-spacing: .11em; text-transform: uppercase; text-shadow: 0 2px 10px #06141e; }
+.moon-game .home-kicker { display: block; width: 100%; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; letter-spacing: .08em; }
+.moon-game .home-campaign h1 { max-width: 240px; margin: 10px 0 4px; color: #fff5df; font: 400 clamp(27px, 7.2vw, 36px)/1.05 var(--moon-display); text-shadow: 0 3px 15px #07141d; }
+.home-stage-count { display: inline-flex; align-items: baseline; gap: 5px; color: #d3e0d9; font: 700 12px/1.3 var(--moon-ui); }
+.home-stage-count i { color: #a9bdbc; font-style: normal; font-weight: 600; }
+.moon-game .home-feature-card { position: absolute; z-index: 1; top: -18px; right: -18px; bottom: -4px; display: flex; align-items: stretch; justify-content: flex-end; width: 56%; height: auto; padding: 0; overflow: hidden; border: 0; background: transparent; box-shadow: none; }
+.home-feature-wash { position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(7, 22, 31, .18) 35%, rgba(7, 22, 31, .04)); }
+.moon-game .home-feature-art { position: absolute; inset: 4px -8px 13px auto; width: 100%; height: 100%; object-fit: contain; object-position: right bottom; transform: scale(1.22); filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .38)); image-rendering: pixelated; }
+.home-feature-caption { position: absolute; right: 8px; bottom: 10px; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; padding: 5px 9px; border: 1px solid rgba(226, 216, 170, .2); border-radius: 12px; background: rgba(7, 22, 32, .79); box-shadow: 0 5px 18px #06131c77; }
+.home-feature-caption small { color: #c9cfb4; font: 800 8px/1.2 var(--moon-ui); letter-spacing: .12em; }
+.home-feature-caption strong { color: #fff0c9; font: 700 13px/1.15 var(--moon-display); }
+.moon-game .home-progress { position: relative; z-index: 2; height: 6px; margin: 2px 0 10px; overflow: hidden; border: 0; border-radius: 99px; background: rgba(231, 241, 226, .19); box-shadow: inset 0 1px 2px #06151e88; }
+.moon-game .home-progress > span { border-radius: inherit; background: linear-gradient(90deg, #70b8ba, #ead29a); box-shadow: 0 0 12px #a9d5c788; }
+.moon-game .home-power-line { position: relative; z-index: 2; gap: 7px 12px; color: #d3e0dc; font: 700 12px/1.35 var(--moon-ui); }
+.moon-game .home-power-line strong { color: #fff2d1; font-size: 13px; }
+.moon-game .home-power-line .home-energy { margin-left: auto; color: #d6e0d9; font: 700 11px/1.3 var(--moon-ui); }
+.moon-game .home-power-read { padding: 3px 7px; border-radius: 999px; font: 800 9px/1 var(--moon-ui); }
+.moon-game .home-target-reward { position: relative; z-index: 2; min-height: 50px; margin: 12px 0 11px; padding: 7px 10px; border: 1px solid rgba(205, 218, 194, .15); border-left: 2px solid #e8cf91; border-radius: 13px; background: rgba(8, 22, 31, .78); backdrop-filter: blur(6px); }
+.moon-game .home-target-reward small { color: #dfd4b1; font: 800 9px/1.3 var(--moon-ui); letter-spacing: .06em; }
+.moon-game .home-target-reward strong { color: #fff1d5; font: 700 15px/1.25 var(--moon-display); }
+.moon-game .home-reward-spark { color: #f3d996; font-size: 20px; }
+.moon-game .home-continue { position: relative; z-index: 2; min-height: 52px; padding: 0 17px 0 20px; border: 1px solid #f7e5b8; border-radius: 15px; background: linear-gradient(135deg, #f1d99f, #c49f68); color: #282719; box-shadow: inset 0 1px rgba(255,255,255,.58), 0 5px 0 rgba(89, 69, 43, .82), 0 10px 22px rgba(0, 8, 13, .22); font: 800 15px/1 var(--moon-ui); letter-spacing: .01em; text-transform: none; }
+.moon-game .home-continue span { font-family: var(--moon-display); font-size: 18px; }
+.moon-game .home-continue b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(66, 54, 34, .11); font: 24px/1 var(--moon-display); }
+.moon-game .home-continue:active { transform: translateY(2px); box-shadow: inset 0 1px rgba(255,255,255,.5), 0 3px 0 rgba(89, 69, 43, .82); }
+
+/* Secondary play and reward rail: readable destinations without four competing boxes. */
+.moon-game .home-secondary-actions { align-items: center; gap: 0; padding: 0 3px; }
+.moon-game .home-secondary-actions button { min-height: 55px; grid-template-columns: 33px 1fr; padding: 6px 8px; border: 0; border-radius: 14px; background: rgba(12, 31, 42, .6); box-shadow: none; }
+.moon-game .home-secondary-actions button > span { display: grid; place-items: center; width: 29px; height: 29px; border: 1px solid rgba(153, 188, 180, .25); border-radius: 50%; color: #c8d6d0; font-size: 16px; }
+.moon-game .home-secondary-actions strong { color: #e8eee4; font: 700 13px/1.15 var(--moon-ui); }
+.moon-game .home-secondary-actions small { color: #a9bfbd; font: 600 10px/1.2 var(--moon-ui); }
+.home-action-divider { width: 1px; height: 34px; background: linear-gradient(transparent, rgba(189, 209, 201, .22), transparent); }
+.moon-game .home-formation { min-height: 48px; padding: 5px 12px; border: 1px solid rgba(172, 199, 189, .13); border-radius: 14px; background: rgba(10, 27, 37, .65); }
+.home-formation-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: rgba(109, 166, 167, .12); color: #a8cdca; }
+.moon-game .home-formation small { color: #9db6b5; font: 800 9px/1.25 var(--moon-ui); letter-spacing: .1em; }
+.moon-game .home-formation strong { color: #e9efe4; font: 700 13px/1.2 var(--moon-ui); }
+.moon-game .home-formation-meta { color: #bdcdca; font: 700 11px/1.2 var(--moon-ui); }
+.moon-game .home-reward-rail { gap: 3px; padding: 5px 0 1px; border-top: 1px solid rgba(184, 207, 196, .12); }
+.moon-game .home-reward-rail button { align-items: center; min-height: 76px; gap: 1px; padding: 7px 3px; overflow: visible; border: 1px solid transparent; border-radius: 15px; background: rgba(8, 24, 34, .5); text-align: center; }
+.moon-game .home-reward-rail .home-rail-icon { display: grid; place-items: center; width: 31px; height: 31px; margin-bottom: 3px; border: 1px solid rgba(158, 190, 181, .17); border-radius: 50%; color: #9db9b5; background: rgba(25, 52, 61, .72); font-size: 15px; }
+.moon-game .home-reward-rail strong { max-width: 100%; margin-top: 1px; color: #dae4dc; font: 700 12px/1.15 var(--moon-ui); }
+.moon-game .home-reward-rail small { color: #a8bfbd; font: 600 10px/1.2 var(--moon-ui); }
+.moon-game .home-reward-rail button.is-passive { border-color: transparent; background: transparent; }
+.moon-game .home-reward-rail button.is-passive .home-rail-icon { color: #91aaa8; background: rgba(26, 51, 61, .6); }
+.moon-game .home-reward-rail button.is-passive strong { color: #c3d2cc; }
+.moon-game .home-reward-rail button.is-passive small { color: #9fb4b3; }
+.moon-game .home-reward-rail button.is-ready { border-color: rgba(235, 211, 151, .53); background: linear-gradient(180deg, rgba(42, 72, 71, .94), rgba(17, 43, 52, .9)); box-shadow: inset 0 0 0 1px rgba(243, 218, 154, .12), 0 5px 16px rgba(2, 13, 19, .22); }
+.moon-game .home-reward-rail button.is-ready .home-rail-icon { color: #ffe7ad; border-color: rgba(242, 221, 169, .42); background: radial-gradient(circle at 50% 32%, rgba(173, 152, 101, .42), rgba(31, 60, 65, .88)); }
+.moon-game .home-reward-rail button.is-ready strong { color: #fff0cc; }
+.moon-game .home-reward-rail button.is-ready small { color: #e0dfc5; }
+.moon-game .home-reward-rail button.is-ready i { top: -5px; right: 0; padding: 3px 5px; border: 1px solid #f7e4b7; border-radius: 999px; color: #2f2b20; background: #ead59c; box-shadow: 0 2px 6px #07151ccc; font: 900 8px/1 var(--moon-ui); }
+.moon-game .home-quiet-links { min-height: 31px; padding-top: 6px; border-top-color: rgba(184, 207, 196, .1); }
+.moon-game .home-quiet-links > small { color: #94aaa6; font: 800 9px/1 var(--moon-ui); letter-spacing: .12em; }
+.moon-game .home-quiet-links > span { gap: 16px; }
+.moon-game .home-quiet-links button,.moon-game .home-dev-link { color: #b4c7c2; font: 700 11px/1 var(--moon-ui); }
+.moon-game .home-quiet-links .home-offers-link { color: #9eaeaa !important; }
+.moon-game .moon-home-footer { padding: 5px 0; color: #9db2b0; font: 600 10px/1.2 var(--moon-ui); }
+
+/* Collection: soften the catalogue without losing its crisp pixel portraits. */
+.moon-game .heroes-screen,.moon-game .decks-screen,.moon-game .profile-screen { color: var(--moon-ivory); border: 1px solid rgba(176, 204, 195, .12); border-radius: 26px; background: linear-gradient(180deg, rgba(13, 33, 45, .96), rgba(7, 23, 34, .95)); box-shadow: 0 22px 64px rgba(0, 8, 14, .35); font-family: var(--moon-ui); }
+.moon-game .hr-title,.moon-game .dk-title,.moon-game .pf-title { color: #f5e7bd; font: 400 34px/1.1 var(--moon-display); }
+.moon-game .hr-grid { gap: 18px 14px; }
+.moon-game .hr-card-frame,.moon-game .dk-card-frame { overflow: hidden; border: 1px solid rgba(209, 211, 172, .38); border-radius: 20px; background: linear-gradient(145deg, #274854, #102934 72%); box-shadow: 0 9px 22px rgba(0, 8, 14, .34), inset 0 1px rgba(255,255,255,.08); }
+.moon-game .hr-card-window { overflow: hidden; border-radius: 18px 18px 9px 9px; }
+.moon-game .hr-card-plate,.moon-game .dk-card-plate { min-height: 46px; padding: 7px 8px; border-top: 1px solid rgba(214, 222, 195, .13); border-radius: 0 0 16px 16px; background: linear-gradient(180deg, #1b3943, #122a35); }
+.moon-game .hr-card-name { color: #f3edda; font: 700 13px/1.15 var(--moon-ui); }
+.moon-game .hr-card-frame:has(.asc-mark),.moon-game .hr-card-frame:has(.hr-level-mark) { border-color: rgba(241, 215, 152, .75); box-shadow: 0 0 0 1px rgba(241, 215, 152, .18), 0 12px 26px rgba(0, 8, 14, .4); }
+
+/* Hero inspection sheet: portrait first, framed like a collectible, with progression facts clear. */
+.moon-game .hr-sheet-backdrop { background: rgba(3, 13, 21, .78); backdrop-filter: blur(5px); }
+.moon-game .hr-sheet { --frame-a: rgba(203, 220, 199, .34); width: min(520px, 100%); max-height: 95dvh; border: 1px solid rgba(195, 216, 202, .22); border-bottom: 0; border-radius: 28px 28px 0 0; background: radial-gradient(120% 38% at 50% 0%, rgba(71, 120, 129, .24), transparent 74%), linear-gradient(180deg, #132f3c, #0b1d29 55%); box-shadow: 0 -20px 60px rgba(0, 8, 14, .55); color: var(--moon-ivory); font-family: var(--moon-ui); }
+.moon-game .hr-sheet.r-legendary { --frame-a: #d8b978; }
+.moon-game .hr-sheet.r-epic { --frame-a: #b59bd5; }
+.moon-game .hr-sheet-scroll { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+.moon-game .hr-sheet-stage { padding: max(50px, env(safe-area-inset-top)) 32px 0; }
+.moon-game .hr-sheet-frame { max-width: 340px; margin: 0 auto; padding: 4px; overflow: hidden; border-radius: 25px 25px 18px 18px; background: linear-gradient(135deg, rgba(231, 211, 157, .9), rgba(75, 126, 135, .58) 47%, rgba(12, 38, 50, .8)); box-shadow: 0 0 0 1px rgba(255,255,255,.15), 0 18px 36px rgba(0, 5, 12, .48); }
+.moon-game .hr-sheet.r-legendary .hr-sheet-frame { box-shadow: 0 0 0 1px rgba(255,255,255,.16), 0 0 28px rgba(228, 197, 126, .22), 0 18px 36px rgba(0, 5, 12, .48); }
+.moon-game .hr-sheet-window .hr-art { display: block; width: 100%; max-height: min(39dvh, 330px); aspect-ratio: 1.12 / 1; border-radius: 21px 21px 14px 14px; background: radial-gradient(ellipse at 52% 32%, #496f77, #1c3b49 58%, #102b38); }
+.moon-game .hr-sheet-window .hr-art canvas,.moon-game .hr-sheet-window .hr-art img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.moon-game .hr-sheet .hr-art-emblem { transform: scale(1.9); }
+.moon-game .hr-sheet-close,.moon-game .hr-sheet-nav { border: 1px solid rgba(220, 227, 202, .34); border-radius: 50%; background: rgba(9, 27, 38, .88); color: #f3e2b4; box-shadow: 0 5px 16px #06131d66; }
+.moon-game .hr-sheet-close { top: 12px; right: 15px; }
+.moon-game .hr-sheet-nav { top: 61%; width: 42px; height: 42px; }
+.moon-game .hr-sheet-nav.prev { left: 0; }
+.moon-game .hr-sheet-nav.next { right: 0; }
+.moon-game .hr-sheet-body { gap: 13px; padding: 14px 22px 4px; }
+.hr-sheet-title { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.moon-game .hr-sheet-overline { color: #aac4c1; font: 800 10px/1.3 var(--moon-ui); letter-spacing: .13em; }
+.moon-game .hr-sheet-name { color: #fff0cf; font: 400 clamp(27px, 7vw, 36px)/1.04 var(--moon-display); text-shadow: 0 3px 14px #07161e; }
+.moon-game .hr-sheet-powerline { color: #cbdbd4; font: 700 12px/1.4 var(--moon-ui); }
+.moon-game .hr-sheet-line { justify-content: center; gap: 8px; }
+.moon-game .hr-sheet-line.faction { color: #d4e1da; font: 700 14px/1.3 var(--moon-ui); }
+.moon-game .hr-rarity-tag { font: 900 11px/1 var(--moon-ui); letter-spacing: .08em; }
+.moon-game .hr-owned-seal { min-height: 31px; padding: 0 11px; border: 1px solid rgba(199, 218, 203, .23); border-radius: 999px; background: rgba(8, 24, 33, .7); color: #d2dfd7; font: 800 10px/1 var(--moon-ui); }
+.moon-game .hr-owned-seal.owned { border-color: rgba(227, 203, 142, .38); background: rgba(123, 101, 57, .17); color: #f1dda8; }
+.moon-game .hr-battle-power-note { padding: 10px 12px; border: 1px solid rgba(176, 204, 193, .13); border-radius: 14px; background: rgba(8, 24, 34, .54); color: #bfd1cb; font: 600 12px/1.4 var(--moon-ui); }
+.moon-game .hr-battle-power-note strong { color: #f4dda5; font: 800 12px/1.35 var(--moon-ui); }
+.moon-game .hr-tags { gap: 7px; }
+.moon-game .hr-tag { padding: 6px 10px; border: 1px solid rgba(165, 196, 185, .18); border-radius: 999px; background: rgba(24, 52, 63, .65); color: #c3d5ce; font: 800 10px/1 var(--moon-ui); letter-spacing: .02em; }
+.moon-game .hr-rules { gap: 11px; padding: 14px 16px; border: 1px solid rgba(167, 197, 189, .18); border-radius: 17px; background: linear-gradient(145deg, rgba(25, 52, 63, .92), rgba(13, 34, 46, .94)); color: #e8ecdf; }
+.moon-game .hr-rule-trigger { color: #e7ce94; font: 900 10px/1.25 var(--moon-ui); letter-spacing: .08em; }
+.moon-game .hr-rule-text { color: #e7ece3; font: 600 15px/1.45 var(--moon-ui); }
+.moon-game .hr-source { color: #b7ceca; font: 600 12px/1.4 var(--moon-ui); }
+.moon-game .hr-deck-link { min-height: 58px; border: 1px solid rgba(186, 208, 195, .17); border-radius: 15px; background: rgba(13, 34, 45, .74); }
+.moon-game .hr-deck-link-text { color: #a9c1bc; font: 800 10px/1.25 var(--moon-ui); }
+.moon-game .hr-deck-link-text strong { color: #f1eddc; font: 700 14px/1.2 var(--moon-ui); }
+.moon-game .hr-deck-link-go { color: #ead49b; font: 800 11px/1 var(--moon-ui); }
+.moon-game .asc-panel { gap: 12px; padding: 15px; border: 1px solid rgba(177, 204, 194, .2); border-radius: 18px; background: linear-gradient(145deg, rgba(25, 52, 63, .92), rgba(13, 34, 46, .94)); }
+.moon-game .asc-title { color: #f0d59a; font: 700 17px/1.2 var(--moon-ui); }
+.moon-game .asc-title em { border-radius: 999px; color: #302d22; background: linear-gradient(135deg, #f0d99d, #c6a16c); font: 900 11px/1 var(--moon-ui); }
+.moon-game .asc-copies { color: #c7d8d1; font: 700 12px/1.35 var(--moon-ui); }
+.moon-game .asc-next,.moon-game .asc-reason,.moon-game .asc-later { color: #c4d3ce; font: 600 13px/1.45 var(--moon-ui); }
+.moon-game .asc-next strong { color: #f0d59a; }
+.moon-game .asc-btn { min-height: 48px; border: 1px solid rgba(186, 211, 195, .23); border-radius: 14px; background: #1d3c48; color: #e4ece2; font: 800 13px/1 var(--moon-ui); box-shadow: none; }
+.moon-game .asc-btn.gold { border-color: #f7e3b3; background: linear-gradient(135deg, #f0d99d, #c6a16c); color: #2c2a21; box-shadow: 0 4px 0 #66553a; }
+.moon-game .asc-confirm { border-radius: 15px; color: #e4ece2; background: #173542; border-color: rgba(231, 210, 153, .35); font: 600 13px/1.45 var(--moon-ui); }
+
+/* Account page and shared mastery cards */
+.moon-game .profile-screen { gap: 17px; padding: 25px clamp(18px, 5vw, 34px) 35px; }
+.moon-game .pf-title { margin-bottom: 2px; }
+.moon-game .pf-account { gap: 16px; padding: 19px; border: 1px solid rgba(216, 206, 163, .29); border-radius: 23px; background: radial-gradient(110% 110% at 0% 0%, rgba(66, 119, 129, .33), transparent 67%), linear-gradient(135deg, #193b47, #112a38 72%); box-shadow: inset 0 1px rgba(255,255,255,.08), 0 13px 30px rgba(0, 8, 14, .28); }
+.moon-game .pf-level-medal { position: relative; gap: 2px; width: 76px; height: 76px; border: 1px solid rgba(244, 222, 164, .74); border-radius: 22px; color: #f4e4b9; background: radial-gradient(circle at 50% 32%, #477480, #193845 69%); box-shadow: inset 0 0 0 4px rgba(7, 22, 32, .62), 0 7px 18px #06151c66; font: 800 12px/1 var(--moon-ui); }
+.moon-game .pf-level-medal i { position: absolute; right: -7px; bottom: -5px; min-width: 24px; height: 24px; display: grid; place-items: center; padding: 0 5px; border: 1px solid #f7e4b1; border-radius: 50%; background: #806b45; color: #fff3d1; font: 900 12px/1 var(--moon-ui); font-style: normal; }
+.moon-game .pf-account-kicker { color: #c9cfb1; font: 900 9px/1.2 var(--moon-ui); letter-spacing: .14em; }
+.moon-game .pf-name { color: #fff0cd; font: 400 25px/1.08 var(--moon-display); }
+.moon-game .pf-level-line,.moon-game .pf-xp-text { color: #c7d8d1; font: 700 12px/1.3 var(--moon-ui); }
+.moon-game .pf-xp-bar { height: 8px; border-radius: 99px; background: #081b25; }
+.moon-game .pf-xp-bar span { border-radius: inherit; background: linear-gradient(90deg, #73b9b9, #eed59a); }
+.moon-game .pf-section-head h2 { color: #f0dfb3; font: 400 22px/1.1 var(--moon-display); }
+.moon-game .pf-points { color: #bdcfca; font: 700 12px/1.3 var(--moon-ui); }
+.moon-game .pf-points.has { border-radius: 999px; background: linear-gradient(135deg, #f0d99f, #c7a773); color: #322e22; }
+.moon-game .pf-mastery { min-height: 68px; padding: 8px 14px; border: 1px solid rgba(161, 195, 184, .17); border-radius: 17px; background: linear-gradient(135deg, #1a3945, #122c38); box-shadow: 0 5px 14px rgba(0, 8, 14, .18); }
+.moon-game .pf-mastery.sel { border-color: rgba(230, 209, 151, .61); background: linear-gradient(135deg, #29484b, #18333d); box-shadow: inset 0 0 0 1px rgba(230, 209, 151, .13), 0 8px 20px #06141b55; }
+.moon-game .pf-mastery-crest { width: 43px; height: 43px; border-radius: 15px; color: #f0d89a; background: #173643; border: 1px solid rgba(218, 208, 157, .31); }
+.moon-game .pf-mastery-name { color: #f0eddf; font: 700 15px/1.15 var(--moon-ui); }
+.moon-game .pf-mastery-sub { color: #adc5c0; font: 600 12px/1.2 var(--moon-ui); }
+.moon-game .pf-detail { gap: 11px; padding: 17px; border: 1px solid rgba(177, 204, 194, .19); border-radius: 20px; background: linear-gradient(140deg, #173542, #102833); }
+.moon-game .pf-detail-name { color: #f2dda5; font: 400 22px/1.1 var(--moon-display); }
+.moon-game .pf-blurb,.moon-game .pf-next,.moon-game .pf-hint { color: #bfd0cb; font: 600 14px/1.5 var(--moon-ui); }
+.moon-game .pf-effect { padding: 12px 14px; border: 1px solid rgba(212, 218, 176, .29); border-radius: 15px; background: linear-gradient(135deg, #d7d7bb, #bfcdbb); color: #18343a; font: 700 14px/1.45 var(--moon-ui); }
+.moon-game .pf-btn { min-height: 48px; border: 1px solid rgba(186, 211, 195, .23); border-radius: 14px; background: #1d3c48; color: #e4ece2; font: 800 13px/1 var(--moon-ui); }
+.moon-game .pf-btn.gold { border-color: #f7e3b3; border-radius: 14px; background: linear-gradient(135deg, #f0d99d, #c6a16c); color: #2c2a21; box-shadow: 0 4px 0 #66553a; }
+.moon-game .profile-section { padding: 14px 15px; border: 1px solid rgba(171, 199, 188, .12); border-radius: 18px; background: rgba(10, 27, 37, .55); }
+.moon-game .profile-section-title { color: #a8c2be; font: 900 10px/1.2 var(--moon-ui); letter-spacing: .11em; }
+.moon-game .profile-row { min-height: 46px; border-bottom-color: rgba(170, 199, 190, .1); color: #e1e8dd; font: 700 13px/1.3 var(--moon-ui); }
+.moon-game .profile-footer { color: #a1b5b0; font: 600 11px/1.3 var(--moon-ui); }
+
+/* Bottom navigation: low profile, but a confident active destination and legible labels. */
+.moon-game .hud-arc { height: calc(76px + env(safe-area-inset-bottom, 0px)); padding: 7px max(12px, calc((100vw - 600px)/2)) calc(7px + env(safe-area-inset-bottom, 0px)); align-items: stretch; gap: 4px; border-top: 1px solid rgba(185, 209, 198, .16); background: rgba(7, 21, 31, .96); box-shadow: 0 -12px 30px rgba(1, 9, 15, .35); backdrop-filter: blur(16px); }
+.moon-game .hud-medallion { gap: 3px; border: 0; border-radius: 15px; color: #aabfbc; font: 700 11px/1.1 var(--moon-ui); letter-spacing: .01em; text-transform: none; }
+.moon-game .hud-medallion-chip { width: 34px; height: 34px; border: 1px solid transparent; border-radius: 13px; background: transparent; color: #b3c7c4; }
+.moon-game .hud-medallion-chip svg { width: 20px; height: 20px; }
+.moon-game .hud-medallion.active { border: 1px solid rgba(236, 217, 166, .12); border-radius: 16px; background: linear-gradient(180deg, rgba(48, 76, 79, .65), rgba(21, 48, 58, .42)); color: #f2dfad; }
+.moon-game .hud-medallion.active .hud-medallion-chip { border-color: rgba(237, 217, 165, .38); border-radius: 13px; background: radial-gradient(circle at 50% 25%, #536a61, #2b484a); color: #f4dfaa; box-shadow: 0 3px 12px rgba(1, 10, 15, .22); }
+.moon-game .hud-medallion.active .hud-medallion-label { color: #f4dfaa; }
+.moon-game .analytics-debug-toggle { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px) + 8px); z-index: 39; border-radius: 999px; opacity: .4; }
+.moon-game .analytics-debug-panel { right: 10px; bottom: calc(76px + env(safe-area-inset-bottom, 0px) + 8px); max-height: min(66vh, 560px); }
+
+@media (max-width: 500px) {
+  .moon-game .moon-home-hub { gap: 12px; padding: 0 16px 18px; }
+  .moon-game .moon-home-hub .moon-home-header { min-height: 72px; }
+  .moon-player-avatar { flex-basis: 43px; width: 43px; height: 43px; border-radius: 15px; }
+  .moon-player-copy strong { font-size: 15px; }
+  .moon-player-copy small { font-size: 10px; }
+  .moon-game .moon-home-tools { gap: 4px; }
+  .moon-game .moon-home-tools :is(.gem-balance, .gold-balance, .ticket-balance) { min-height: 32px; padding: 4px 6px; font-size: 11px; }
+  .moon-game .home-campaign { min-height: 312px; padding: 15px 14px 15px; border-radius: 22px; }
+  .moon-game .home-campaign-top { min-height: 153px; }
+  .home-campaign-heading { width: 66%; }
+  .moon-game .home-campaign h1 { max-width: 195px; font-size: clamp(26px, 7vw, 32px); }
+  .moon-game .home-feature-card { top: -15px; right: -14px; width: 53%; bottom: -2px; }
+  .moon-game .home-target-reward { min-height: 46px; margin: 10px 0 9px; }
+  .moon-game .home-target-reward strong { font-size: 14px; }
+  .moon-game .home-continue { min-height: 48px; }
+  .moon-game .home-secondary-actions button { min-height: 50px; grid-template-columns: 30px 1fr; }
+  .moon-game .home-secondary-actions strong { font-size: 12px; }
+  .moon-game .home-reward-rail { gap: 1px; }
+  .moon-game .home-reward-rail button { min-height: 70px; padding-inline: 2px; border-radius: 13px; }
+  .moon-game .home-reward-rail strong { font-size: 11px; }
+  .moon-game .home-reward-rail small { font-size: 9px; }
+  .moon-game .hr-sheet-stage { padding-inline: 27px; }
+  .moon-game .hr-sheet-window .hr-art { max-height: min(35dvh, 290px); }
+  .moon-game .hr-sheet-body { padding-inline: 17px; }
+  .moon-game .heroes-screen,.moon-game .decks-screen,.moon-game .profile-screen { margin: 15px auto; padding: 21px 16px 28px; border-radius: 24px; }
+  .moon-game .hud-arc { padding-inline: 9px; }
+}
+@media (max-width: 360px) {
+  .moon-game .moon-home-hub { padding-inline: 12px; }
+  .moon-game .moon-home-tools :is(.gold-balance, .gem-balance, .ticket-balance) { padding-inline: 4px; }
+  .moon-game .home-power-line { font-size: 11px; }
+  .moon-game .home-power-line .home-energy { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .moon-player-avatar,.home-feature-art,.hud-medallion,.home-continue { transition: none !important; animation: none !important; }
+}
+
+/* World personalization: each environment keeps its own color identity while retaining text contrast. */
+.moon-game .moon-world-scene { position:absolute; inset:0; background-position:center 38%; background-size:cover; transition:opacity 460ms ease; }
+.moon-game .moon-world-scene.fade-away { opacity: 0; }
+.moon-game .moon-world-scene.fade-in { animation: moon-scene-enter 460ms ease both; }
+.moon-game .moon-world-scene.pixel-art { image-rendering: pixelated; }
+.moon-game .moon-world-shade { transition: background 300ms ease; }
+.moon-game .moon-world[data-background="sunstone-canyon"] .moon-world-shade { background:linear-gradient(0deg,rgba(5,15,24,.97),rgba(7,20,29,.56) 76%),linear-gradient(90deg,rgba(5,15,24,.65),transparent 72%); }
+.moon-game .moon-world[data-background="coral-garden"] .moon-world-shade { background:linear-gradient(0deg,rgba(5,15,24,.97),rgba(7,20,29,.48) 75%),linear-gradient(90deg,rgba(5,15,24,.62),transparent 72%); }
+.moon-game .moon-world[data-background="sunstone-canyon"] .moon-world-fireflies,
+.moon-game .moon-world[data-background="coral-garden"] .moon-world-fireflies { opacity:.25; }
+@keyframes moon-scene-enter { from { opacity:0; } to { opacity:1; } }
+
+/* Hero inspection is a full-height destination presented over the collection route. */
+.moon-game .hr-sheet-backdrop { align-items:stretch; padding:0; background:rgba(3,12,18,.92); backdrop-filter:none; }
+.moon-game .hr-sheet { position:relative; width:100%; max-width:none; height:100dvh; max-height:none; border:0; border-radius:0; background:linear-gradient(180deg,#0b202c,#081923 58%,#0b1d28); box-shadow:none; }
+.moon-game .hr-sheet-scroll { height:100%; padding-top:env(safe-area-inset-top); padding-bottom:max(24px,env(safe-area-inset-bottom)); }
+.moon-game .hr-sheet-stage { min-height:38dvh; padding:calc(env(safe-area-inset-top) + 48px) 44px 10px; display:flex; align-items:flex-end; justify-content:center; background:radial-gradient(ellipse at 50% 70%,rgba(90,145,143,.32),transparent 62%),linear-gradient(180deg,rgba(43,79,86,.28),transparent); }
+.moon-game .hr-sheet-frame { width:min(74vw,310px); max-width:none; padding:0; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.moon-game .hr-sheet-window { overflow:visible; }
+.moon-game .hr-sheet-window .hr-art { width:100%; height:clamp(250px,38dvh,410px); max-height:42dvh; aspect-ratio:auto; border-radius:0; background:transparent; filter:drop-shadow(0 15px 23px #020d15aa); }
+.moon-game .hr-sheet-window .hr-art canvas,.moon-game .hr-sheet-window .hr-art img { object-fit:contain; object-position:center bottom; image-rendering:pixelated; }
+.moon-game .hr-sheet-body { width:min(100%,680px); margin:0 auto; padding:18px 22px 30px; }
+.moon-game .hr-sheet-close { position:fixed; z-index:3; top:calc(env(safe-area-inset-top) + 10px); left:14px; right:auto; width:auto; min-width:44px; height:42px; display:flex; align-items:center; justify-content:center; gap:7px; padding:0 12px; border-radius:22px; }
+.moon-game .hr-sheet-close::after { content:"Heroes"; font:800 12px/1 var(--moon-ui); }
+.moon-game .hr-sheet-nav { top:24dvh; }
+.moon-game .hr-sheet-line { flex-wrap:wrap; }
+.moon-game .hr-sheet-line.faction { justify-content:center; }
+.moon-game .hr-battle-power-note { justify-content:center; flex-wrap:wrap; }
+.moon-game .pf-background-section { padding:14px; border:1px solid rgba(164,193,181,.18); border-radius:16px; background:linear-gradient(150deg,#16343d,#102630); }
+.moon-game .pf-background-current { display:flex; align-items:center; gap:10px; }
+.moon-game .pf-background-preview { flex:none; width:58px; height:54px; border:1px solid #c6d5c466; border-radius:11px; background-position:center 45%; background-size:cover; image-rendering:pixelated; }
+.moon-game .pf-background-copy { display:flex; flex:1; flex-direction:column; gap:3px; min-width:0; }
+.moon-game .pf-background-copy strong { color:#f2e7ca; font:400 16px/1.15 var(--moon-display); }
+.moon-game .pf-background-copy small,.moon-game .pf-background-option-copy small { color:#a8bfba; font-size:10px; line-height:1.35; }
+.moon-game .pf-background-open { min-height:38px; padding:0 12px; border:1px solid #adc6b644; border-radius:10px; color:#e4d8b7; background:#203e46; font-size:11px; font-weight:800; }
+.moon-game .pf-background-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+.moon-game .pf-background-option { display:grid; grid-template-columns:55px 1fr 16px; align-items:center; gap:8px; min-width:0; padding:7px; border:1px solid #a4c3b722; border-radius:11px; color:#efe7d4; text-align:left; background:#0e2530; }
+.moon-game .pf-background-option.selected { border-color:#e2c77f99; background:#1b353d; }
+.moon-game .pf-background-option.locked { opacity:.58; }
+.moon-game .pf-background-thumb { width:55px; height:50px; border-radius:7px; background-position:center 42%; background-size:cover; image-rendering:pixelated; }
+.moon-game .pf-background-option-copy { display:flex; min-width:0; flex-direction:column; gap:3px; }
+.moon-game .pf-background-option-copy strong { overflow:hidden; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+.moon-game .pf-background-option>svg { color:#e2c77f; }
+
+/* A real lazy-chunk wait gets a short branded loader; there is no artificial minimum duration. */
+.moon-game .moon-loading { position:fixed; z-index:120; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:calc(30px + env(safe-area-inset-top)) 24px calc(30px + env(safe-area-inset-bottom)); color:#f5edda; text-align:center; background:radial-gradient(ellipse at 50% 38%,rgba(82,136,143,.3),transparent 55%),linear-gradient(180deg,#0b2633,#081723 72%); }
+.moon-loading-orb { position:relative; display:grid; place-items:center; width:78px; height:78px; margin-bottom:20px; border:1px solid #d9c7848c; border-radius:50%; color:#f0d99f; background:radial-gradient(circle,#9bbdac37,transparent 68%); box-shadow:0 0 34px #a6d7d022,inset 0 0 22px #d8cb8720; }
+.moon-loading-orb span { font-size:47px; line-height:1; transform:rotate(-25deg); }
+.moon-loading-orb i { position:absolute; inset:-8px; border:1px solid #a3c4be38; border-left-color:#dbc887; border-radius:50%; animation:moon-loading-turn 2.4s linear infinite; }
+.moon-loading-kicker { margin:0 0 5px; color:#a9c6bd; font:800 9px/1.4 var(--moon-ui); letter-spacing:.2em; }
+.moon-game .moon-loading h1 { margin:0; color:#f3e4bd; font:400 38px/1.15 var(--moon-display); }
+.moon-loading-tip { max-width:280px; min-height:38px; margin:11px 0 24px; color:#bacbc2; font-size:12px; line-height:1.5; }
+.moon-loading-spinner { width:23px; height:23px; border:2px solid #b6cabe55; border-top-color:#eed698; border-radius:50%; animation:moon-loading-turn .8s linear infinite; }
+.moon-loading-label { margin-top:8px; color:#94afaa; font-size:10px; letter-spacing:.04em; }
+@keyframes moon-loading-turn { to { transform:rotate(360deg); } }
+@media(max-width:390px) { .moon-game .hr-sheet-stage { min-height:36dvh; padding-inline:35px; }.moon-game .hr-sheet-window .hr-art { height:min(36dvh,320px); }.moon-game .hr-sheet-body { padding-inline:16px; }.moon-game .pf-background-grid { grid-template-columns:1fr; } }
+@media(prefers-reduced-motion:reduce) { .moon-game .moon-world-scene,.moon-game .moon-world-shade { transition:none; }.moon-game .moon-world-scene.fade-in { animation:none; }.moon-loading-orb i,.moon-loading-spinner { animation:none; } }

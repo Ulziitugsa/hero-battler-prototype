@@ -3,6 +3,7 @@ import { getCard } from '../cards';
 import { PLAYTEST_ROSTER } from '../cards/roster';
 import { STARTER_DECKS } from '../cards/starterDecks';
 import { reloadAscension } from '../ascension/store';
+import { getCardAscension } from '../ascension/definitions';
 import { CHAPTER_1 } from '../campaign/chapter1';
 import { acquisitionSummary, getCardAcquisitionSources, getUnavailableCards, primaryAcquisitionLabel } from '../collection/acquisition';
 import { getCollection, getOwnedCount, reloadCollection, setCollection } from '../collection/collection';
@@ -358,6 +359,9 @@ describe('performSummon', () => {
       seen.set(p.cardId, n);
       expect(p.grant.isNew).toBe(n === 1);
       expect(p.grant.owned).toBe(n);
+      expect(p.hasAscensionPath).toBe(!!getCardAscension(p.cardId));
+      if (!p.hasAscensionPath) expect(p.starsAfter - p.starsBefore).toBe(n === 1 ? 0 : 1);
+      else expect(p.starsAfter).toBe(p.starsBefore); // Stars follow Ascension rank on authored paths.
     }
   });
 
@@ -505,7 +509,7 @@ describe('UI logic', () => {
     const [single, ten] = summonOptions(60, vanguard);
     expect(single).toMatchObject({ cost: 100, affordable: false, shortfall: 40 });
     expect(ten).toMatchObject({ cost: 900, affordable: false, shortfall: 840 });
-    expect(affordabilityNote(60, vanguard)).toBe('Need 100 Gems · You have 60');
+    expect(affordabilityNote(60, vanguard)).toBe('Need 40 more Gems · You have 60');
   });
   it('enables single at 100 but not 10x until 900', () => {
     expect(summonOptions(100, vanguard).map((o) => o.affordable)).toEqual([true, false]);
@@ -513,8 +517,8 @@ describe('UI logic', () => {
     expect(affordabilityNote(100, vanguard)).toBeNull();
   });
   it('pity display counts from the counter', () => {
-    expect(pityDisplay(17)).toMatchObject({ current: 17, threshold: 40, remaining: 23, label: '23 summons until a guaranteed Legendary' });
-    expect(pityDisplay(39)).toMatchObject({ remaining: 1, label: 'Your next summon is a guaranteed Legendary' });
+    expect(pityDisplay(17)).toMatchObject({ current: 17, threshold: 40, remaining: 23, label: '23 pulls until a guaranteed Legendary' });
+    expect(pityDisplay(39)).toMatchObject({ remaining: 1, label: 'Your next pull is a guaranteed Legendary' });
     expect(pityDisplay(999).current).toBe(39);
   });
 });

@@ -1,5 +1,5 @@
 import { CardArtwork } from '../components/CardArtwork';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardDefinition, Faction, Rarity } from '../game/types';
 import { TRIGGER_LABEL } from '../game/types';
 import { getCard } from '../game/cards';
@@ -19,8 +19,15 @@ import { AscensionPanel } from './heroes/AscensionPanel';
 import { HeroLevelPanel } from './heroes/HeroLevelPanel';
 import { useHeroLevel } from '../game/heroLevel/useHeroLevel';
 import { getHeroLevel } from '../game/heroLevel/store';
+import { getHeroLevelStatus } from '../game/heroLevel/levelUp';
 import { StarStrip } from './heroes/StarStrip';
 import { starsForCard } from '../game/ascension/stars';
+import { useEconomy } from '../game/economy/useEconomy';
+import { useAccount } from '../game/progression/useAccount';
+import { track } from '../analytics/track';
+import { useDialogFocus } from '../components/useDialogFocus';
+import { getAscensionStatus } from '../game/ascension/ascend';
+import { rosterPowerForHero } from '../game/heroLevel/rosterPower';
 import { displayRole, emptyCopy, FACTION_LABEL, FACTION_ORDER, filterHeroes, isFiltered, scopeOf, SORT_LABEL, tally, type HeroFilters, type OwnedFilter, type SortMode } from './heroes/collection';
 import '../styles/heroes.css';
 
@@ -128,18 +135,31 @@ function HeroDetail({
 }) {
   const deckLabel = findDeckFor(card.id);
   const ascension = useAscension();
+  const ownedCards = useCollection();
+  const levels = useHeroLevel();
+  const { gold } = useEconomy();
+  const account = useAccount();
   const rank = owned ? getAscensionRank(card.id, ascension) : 0;
+  const levelStatus = getHeroLevelStatus(card.id, gold, account.level);
+  const ascensionStatus = getAscensionStatus(card.id, ownedCards, ascension);
+  const primaryProgression = levelStatus.canLevelUp ? 'level' : ascensionStatus.canAscend ? 'ascension' : null;
+  const heroRosterPower = card.power === undefined ? null : rosterPowerForHero(card.power, getHeroLevel(card.id, levels), rank);
   const abilities = effectiveAbilities(card.id, rank);
   const fromAscension = ascensionAddedAbilities(card.id, rank);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useDialogFocus(onClose);
+  const trackedHero = useRef<string | null>(null);
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 });
-  }, [card.id]);
+    if (trackedHero.current !== card.id) {
+      trackedHero.current = card.id;
+      track('hero_detail_opened', { heroId: card.id, rarity: card.rarity, level: owned ? getHeroLevel(card.id, levels) : 0 });
+    }
+  }, [card.id, card.rarity, levels, owned]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
       if (e.key === 'ArrowLeft') onPrev?.();
       if (e.key === 'ArrowRight') onNext?.();
     };
@@ -149,7 +169,7 @@ function HeroDetail({
 
   return (
     <div className="overlay-backdrop hr-sheet-backdrop" onClick={onClose}>
-      <div className={`hr-sheet r-${card.rarity} ${owned ? '' : 'missing'}`} role="dialog" aria-modal="true" aria-label={card.name} onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} className={`hr-sheet r-${card.rarity} ${owned ? '' : 'missing'}`} role="dialog" aria-modal="true" aria-label={card.name} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="hr-sheet-scroll" ref={bodyRef}>
           <div className="hr-sheet-stage">
             <div className="hr-sheet-frame">
@@ -176,7 +196,7 @@ function HeroDetail({
           </div>
 
           <div className="hr-sheet-body">
-            <h2 className="hr-sheet-name">{card.name}</h2>
+            <div className="hr-sheet-title"><span className="hr-sheet-overline">{owned ? 'IN YOUR COLLECTION' : 'A HERO TO DISCOVER'}</span><h2 className="hr-sheet-name">{card.name}</h2><span className="hr-sheet-powerline">{owned ? `Level ${getHeroLevel(card.id, levels)}` : 'Hero'}{rank > 0 ? ` · Ascension ${rank}` : ''}{heroRosterPower !== null && owned ? ` · +${heroRosterPower} Roster Power` : ''}</span></div>
 
             <div className="hr-sheet-line">
               <span className={`hr-rarity-tag r-${card.rarity}`}>
@@ -196,6 +216,10 @@ function HeroDetail({
                 {[`${FACTION_LABEL[card.faction]} Hero`, displayRole(card)].filter(Boolean).join(' · ')}
               </span>
             </div>
+            <div className="hr-battle-power-note"><Icon name="power" size={13} /><span>Battle Power {card.power} · used in lane clashes</span>{owned && heroRosterPower !== null && <strong>Roster contribution {heroRosterPower}</strong>}</div>
+
+            {owned && <HeroLevelPanel card={card} priority={primaryProgression === 'level'} />}
+            {owned && <AscensionPanel card={card} priority={primaryProgression === 'ascension'} />}
 
             <div className={`hr-source ${owned ? '' : 'missing'}`}>
               <Icon name={owned ? 'check' : 'lock'} size={13} />
@@ -225,9 +249,6 @@ function HeroDetail({
               ))}
             </div>
 
-            {owned && <HeroLevelPanel card={card} />}
-            {owned && <AscensionPanel card={card} />}
-
             {deckLabel && (
               <button type="button" className="hr-deck-link" onClick={onOpenDecks}>
                 <span className="hr-deck-link-text">
@@ -243,8 +264,8 @@ function HeroDetail({
           </div>
         </div>
 
-        <button type="button" className="hr-sheet-close" onClick={onClose} aria-label="Close">
-          <Icon name="close" size={18} />
+        <button type="button" className="hr-sheet-close" onClick={onClose} aria-label="Back to Heroes">
+          <Icon name="back" size={18} />
         </button>
       </div>
     </div>
@@ -264,6 +285,7 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
   const [sortMode, setSortMode] = useState<SortMode>('rarity');
   const [sortOpen, setSortOpen] = useState(false);
   const [inspectId, setInspectId] = useState<string | null>(null);
+  const closeInspect = useCallback(() => setInspectId(null), []);
 
   const filters: HeroFilters = { owned: ownedFilter, faction: factionFilter, rarity: rarityFilter, query };
   const list = useMemo(() => filterHeroes(HEROES, owned, { owned: ownedFilter, faction: factionFilter, rarity: rarityFilter, query }, sortMode), [owned, ownedFilter, factionFilter, rarityFilter, query, sortMode]);
@@ -274,6 +296,11 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
   const showMissing = ownedFilter === 'missing';
   const counter = showMissing ? `${t.missing}` : `${t.have} / ${t.total}`;
   const caption = query.trim() ? 'matching Heroes' : `${scopeName} ${showMissing ? 'still missing' : 'collected'}`;
+  useEffect(() => {
+    track('collection_progress_viewed', { discovered: t.have, available: t.total, completion: t.total ? t.have / t.total : 0 });
+  // Count/filter changes are not separate collection visits.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const pct = t.total === 0 ? 0 : Math.round(((showMissing ? t.missing : t.have) / t.total) * 100);
 
   function clearFilters() {
@@ -430,7 +457,7 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
           card={inspectCard}
           owned={owned.has(inspectCard.id)}
           count={collection[inspectCard.id] ?? 0}
-          onClose={() => setInspectId(null)}
+          onClose={closeInspect}
           onPrev={list.length > 1 && idx >= 0 ? () => go(-1) : undefined}
           onNext={list.length > 1 && idx >= 0 ? () => go(1) : undefined}
           onOpenDecks={onOpenDecks}

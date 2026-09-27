@@ -44,12 +44,22 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
   const [preview, setPreview] = useState(false);
   const [audio] = useState(() => new ArchiveAudio());
   const [soundOn, setSoundOn] = useState(false);
+  const [ticketTipVisible, setTicketTipVisible] = useState(() => {
+    try { return tickets > 0 && summon.history.length === 0 && localStorage.getItem('moonwater:education:ticket-summon') !== '1'; } catch { return tickets > 0 && summon.history.length === 0; }
+  });
   useEffect(() => {
     const unsubscribe = onSummonSound(event => audio.play(event));
     return () => { unsubscribe(); audio.close(); };
   }, [audio]);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per screen visit, not per banner swipe
   useEffect(() => { track('summon_opened'); }, []);
+  useEffect(() => {
+    if (!ticketTipVisible) return;
+    try { localStorage.setItem('moonwater:education:ticket-summon', '1'); } catch { /* best effort */ }
+    track('first_time_resource_explainer_shown', { resource: 'summon_ticket', source: 'summon' });
+  // Show only on the first relevant visit; a performed Summon also removes the explanation.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { outcome, view, start, skip, end, finishIntro } = useSummonSequence();
   const railRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +69,15 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
   const options = summonOptions(balance, pool, unlimited, currency);
   const note = affordabilityNote(balance, pool, unlimited, currency);
   const pity = pityDisplay(summon.pity[banner.id] ?? 0);
+  const pityProgress = pity.current / pity.threshold;
+  const pityTone = pityProgress >= 0.8 ? 'pity-close' : pityProgress >= 0.55 ? 'pity-near' : '';
   const busy = !!outcome;
+
+  function selectCurrency(next: SummonCurrency) {
+    if (next === currency) return;
+    track('summon_currency_selected', { bannerId: banner.id, from: currency, to: next, ticketsAvailable: tickets, gemsAvailable: gems });
+    setCurrency(next);
+  }
 
   // Snap the rail to the remembered banner on mount, then follow the swipe to track which one is current.
   useLayoutEffect(() => {
@@ -179,7 +197,7 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
         ))}
       </div>
 
-      <section className="summon-pity" aria-label="Legendary guarantee">
+      <section className={`summon-pity ${pityTone}`} aria-label="Legendary guarantee">
         <div className="summon-pity-row">
           <span>
             <Gems rarity="legendary" /> Legendary guarantee
@@ -192,23 +210,25 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
           <span style={{ width: `${(pity.current / pity.threshold) * 100}%` }} />
         </span>
         <span className="summon-pity-text">{pity.label}</span>
+        <span className="summon-pity-shared-note">Tickets and Gems advance this same banner guarantee.</span>
       </section>
 
-      {(tickets > 0 || getConfig().flags.alwaysShowTicketToggle) && (
+      {(tickets > 0 || currency === 'tickets' || getConfig().flags.alwaysShowTicketToggle) && (
         <div className="summon-currency-toggle" role="group" aria-label="Pay with">
-          <button type="button" className={currency === 'tickets' ? 'on' : ''} aria-pressed={currency === 'tickets'} onClick={() => setCurrency('tickets')}>
-            <TicketIcon size={13} /> Tickets
+          <button type="button" className={currency === 'tickets' ? 'on' : ''} aria-pressed={currency === 'tickets'} onClick={() => selectCurrency('tickets')}>
+            <TicketIcon size={13} /> Tickets · {tickets}
           </button>
-          <button type="button" className={currency === 'gems' ? 'on' : ''} aria-pressed={currency === 'gems'} onClick={() => setCurrency('gems')}>
-            <GemIcon size={13} /> Gems
+          <button type="button" className={currency === 'gems' ? 'on' : ''} aria-pressed={currency === 'gems'} onClick={() => selectCurrency('gems')}>
+            <GemIcon size={13} /> Gems · {gems}
           </button>
         </div>
       )}
+      {ticketTipVisible && summon.history.length === 0 && tickets > 0 && <p className="summon-resource-tip" role="note">Summon Tickets let you make a free pull. They share this banner’s guarantee with Gems. <button type="button" onClick={() => setTicketTipVisible(false)} aria-label="Dismiss Ticket tip">×</button></p>}
 
       <section className="summon-actions">
         {options.map((o) => (
-          <button key={o.kind} type="button" className={`summon-btn ${o.kind}`} disabled={!o.affordable || busy} onClick={() => summonNow(o.kind)}>
-            <span className="summon-btn-label">{o.count === 1 ? 'Summon' : `Summon ×${o.count}`}</span>
+          <button key={o.kind} type="button" className={`summon-btn ${o.kind} ${o.kind === 'single' && currency === 'tickets' && o.affordable ? 'ticket-ready' : ''}`} aria-label={currency === 'tickets' && o.kind === 'single' ? `Use ${o.cost} Ticket` : undefined} disabled={!o.affordable || busy} onClick={() => summonNow(o.kind)}>
+            <span className="summon-btn-label">{currency === 'tickets' && o.count === 1 ? 'Use 1 Ticket' : o.count === 1 ? 'Summon' : `Summon ×${o.count}`}</span>
             <span className="summon-btn-cost">
               {currency === 'gems' ? <GemIcon size={14} /> : <TicketIcon size={14} />}
               {o.cost}

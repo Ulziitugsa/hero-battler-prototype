@@ -3,6 +3,9 @@ import { Icon, type IconName } from '../../components/Icon';
 import { RewardCard } from './RewardCard';
 import { XpSummary } from '../../components/XpSummary';
 import { getAscensionStatus } from '../../game/ascension/ascend';
+import { track } from '../../analytics/track';
+import { useEffect } from 'react';
+import { haptics } from '../../platform/haptics';
 
 const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', emblem: 'hero', star: 'trophy' };
 
@@ -10,9 +13,13 @@ const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', e
  * Chapter Complete (the wax chapter seal + a next-region note) are the same carved sheet with rows
  * switched on, matching the design's "seal" screens. A loss gets its own much quieter variant - the
  * design has no defeat screen to port, so this is the minimal honest equivalent. */
-export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResultOutcome; onContinue: () => void }) {
+export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { outcome: BattleResultOutcome; onContinue: () => void; recovery?: { label: string; kind: string; deficit?: number; onSelect: () => void }; onRetry?: () => void }) {
   const { node, won, reward, objectivesMet, chapterComplete, cardGrant, starterProgress, xp, gems, gold } = outcome;
   const isCardReward = !!(reward?.firstClear && reward.def.cardId);
+
+  useEffect(() => {
+    if (won) void (chapterComplete ? haptics.chapterComplete() : haptics.campaignVictory());
+  }, [won, chapterComplete]);
 
   if (!won) {
     return (
@@ -23,11 +30,10 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
           </div>
           <span className="campaign-result-kicker">{node.name}</span>
           <span className="campaign-result-title">Not this time</span>
-          <span className="campaign-result-blurb">The road is still there. Adjust your deck and try again.</span>
+          <span className="campaign-result-blurb">The road is still there. {recovery?.deficit ? `Your Roster Power is ${recovery.deficit} below the recommendation. ` : ''}A small change can help.</span>
           <XpSummary xp={xp} />
-          <button type="button" className="campaign-result-cta" onClick={onContinue}>
-            Back to the road
-          </button>
+          {recovery && <button type="button" className="campaign-result-cta" onClick={() => { track('post_loss_action_selected', { stageId: node.id, action: recovery.kind }); recovery.onSelect(); }}>{recovery.label}</button>}
+          <button type="button" className="campaign-result-secondary" onClick={() => { track('post_loss_action_selected', { stageId: node.id, action: 'retry' }); (onRetry ?? onContinue)(); }}>Try again</button>
         </div>
       </div>
     );
@@ -73,8 +79,8 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
               </div>
             </div>
           </div>
-          <button type="button" className="campaign-result-cta" onClick={onContinue}>
-            Back to the road
+          <button type="button" className="campaign-result-cta" onClick={() => { track('post_win_action_selected', { stageId: node.id, action: 'continue_chapter', chapterComplete: true }); onContinue(); }}>
+            Return to the road
           </button>
         </div>
       </div>
@@ -163,8 +169,8 @@ export function StageResultSheet({ outcome, onContinue }: { outcome: BattleResul
           )}
         </div>
 
-        <button type="button" className="campaign-result-cta" onClick={onContinue}>
-          Back to the road
+        <button type="button" className="campaign-result-cta" onClick={() => { track('post_win_action_selected', { stageId: node.id, action: 'continue_chapter', chapterComplete: false }); onContinue(); }}>
+          Continue the chapter
         </button>
       </div>
     </div>

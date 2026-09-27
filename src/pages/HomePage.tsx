@@ -1,62 +1,190 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { CardDetail } from '../components/CardDetail';
 import { CollectibleCard } from '../components/CollectibleCard';
 import { GemBalance } from '../components/GemIcon';
 import { GoldBalance } from '../components/GoldIcon';
 import { TicketBalance } from '../components/TicketIcon';
-import { useEconomy } from '../game/economy/useEconomy';
 import { HowToPlaySheet } from '../components/HowToPlaySheet';
+import { MissionsSheet } from '../components/MissionsSheet';
+import { JourneySheet } from '../components/JourneySheet';
 import { getCard } from '../game/cards';
 import { getActiveDeck } from '../game/engine/activeDeck';
 import { useHubState } from '../game/home/useHubState';
 import { useAccount } from '../game/progression/useAccount';
-import { claimIdleReward } from '../game/campaign/idleRewards';
+import { claimIdleReward, idleRewardCycleId } from '../game/campaign/idleRewards';
+import { CHAPTER_1 } from '../game/campaign/chapter1';
+import { findNode, getCurrentNodeId, isNodeCleared, loadProgress, recommendedPowerFor } from '../game/campaign/progress';
+import { useHeroLevel } from '../game/heroLevel/useHeroLevel';
+import { useAscension } from '../game/ascension/useAscension';
+import { rosterPowerForDeck } from '../game/heroLevel/rosterPower';
 import { track } from '../analytics/track';
-import { HubNoteLine } from './home/HomeSections';
-import { MissionsSheet } from '../components/MissionsSheet';
+import { listMissions } from '../game/missions/store';
+import type { MissionsState } from '../game/missions/store';
 import { useMissions } from '../game/missions/useMissions';
-import { anyMissionClaimable } from '../game/missions/store';
-import { JourneySheet } from '../components/JourneySheet';
 import { useJourney } from '../game/journey/useJourney';
-import { OffersSheet } from '../components/OffersSheet';
-import { getConfig } from '../config/config';
+import { useEconomy } from '../game/economy/useEconomy';
+import { loadSelectedBanner } from '../game/summon/selectedBanner';
+import { getBanner } from '../game/summon/banners';
+import { SUMMON_CONFIG } from '../game/summon/config';
+import { pityDisplay } from '../game/summon/view';
+import { JOURNEY_DAYS } from '../game/journey/definitions';
+import { MasteryCrest } from '../components/MasteryCrest';
+import { MASTERIES, rankNumeral } from '../game/mastery/definitions';
+import { MAX_LEVEL, xpToNextLevel } from '../game/progression/config';
+import { CardArtwork } from '../components/CardArtwork';
+import { getDailyShopGiftState, subscribeDailyShopGift } from '../game/shop/dailyGift';
 
 interface HomeProps {
   onOpenBattleSetup: () => void; onOpenCampaign: () => void; onOpenDecks: () => void;
-  onOpenHeroes: () => void; onOpenProfile: () => void; onOpenSummon: () => void;
+  onOpenHeroes: () => void; onOpenProfile: () => void; onOpenShop: () => void; onOpenSummon: () => void;
   onOpenFriendly: () => void; onOpenLanterns: () => void; onOpenPixelPreview: () => void;
 }
-const SPOTLIGHT = ['inf-flame-imp', 'kng-paladin', 'und-grave-knight'];
+
+function claimableCount(state: MissionsState, period: 'daily' | 'weekly'): number {
+  return listMissions(period, state).filter(({ def, progress }) => !progress.claimed && progress.count >= def.target).length;
+}
+
+function rewardLabel(node: (typeof CHAPTER_1.nodes)[number]): string | null {
+  const reward = node.encounter?.firstClearReward ?? node.reward;
+  return reward ? `${reward.label}${reward.count && reward.count > 1 ? ` ×${reward.count}` : ''}` : null;
+}
 
 export function HomePage(props: HomeProps) {
   const hub = useHubState();
   const account = useAccount();
+  const heroLevels = useHeroLevel();
+  const ascensions = useAscension();
   const deck = getActiveDeck();
   const [inspect, setInspect] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [journeyOpen, setJourneyOpen] = useState(false);
-  const [offersOpen, setOffersOpen] = useState(false);
-  const offersEnabled = getConfig().flags.offersEnabled;
+  const [idleClaimedGold, setIdleClaimedGold] = useState(0);
+  const closeMissions = useCallback(() => setMissionsOpen(false), []);
+  const closeJourney = useCallback(() => setJourneyOpen(false), []);
   const missions = useMissions();
-  const missionsReady = anyMissionClaimable(missions);
+  const dailyReady = claimableCount(missions, 'daily');
+  const weeklyReady = claimableCount(missions, 'weekly');
+  const dailyRows = listMissions('daily', missions);
+  const dailyAllClaimed = dailyRows.length > 0 && dailyRows.every(({ progress }) => progress.claimed);
   const journey = useJourney();
-  const { tickets } = useEconomy();
+  const economy = useEconomy();
+  const dailyShopGift = useSyncExternalStore(subscribeDailyShopGift, getDailyShopGiftState, getDailyShopGiftState);
+  const progress = loadProgress();
+  const mainRoadNodes = CHAPTER_1.nodes.filter(node => !node.optional);
+  const mainRoadCleared = mainRoadNodes.filter(node => isNodeCleared(node.id, progress)).length;
+  const currentNode = hub.campaign.nextName ? findNode(getCurrentNodeId(progress) ?? '') : undefined;
+  const currentStep = currentNode ? mainRoadNodes.indexOf(currentNode) + 1 : mainRoadNodes.length;
+  const nextEncounter = currentNode ? (currentNode.encounter ? currentNode : CHAPTER_1.nodes.slice(CHAPTER_1.nodes.indexOf(currentNode)).find(n => !n.optional && n.encounter)) : undefined;
+  const currentPower = rosterPowerForDeck(deck.cardIds, account.level, heroLevels, ascensions);
+  const recommended = nextEncounter ? recommendedPowerFor(nextEncounter) : undefined;
+  const nextReward = (() => {
+    const start = currentNode ? CHAPTER_1.nodes.indexOf(currentNode) : CHAPTER_1.nodes.length;
+    for (const node of CHAPTER_1.nodes.slice(start)) {
+      if (node.optional || isNodeCleared(node.id, progress)) continue;
+      const label = rewardLabel(node);
+      if (!label) continue;
+      const distance = CHAPTER_1.nodes.slice(start, CHAPTER_1.nodes.indexOf(node) + 1).filter(n => !n.optional && !!n.encounter).length;
+      return { label, distance, cardId: node.encounter?.firstClearReward.cardId ?? node.reward?.cardId };
+    }
+    return null;
+  })();
+  const banner = getBanner(loadSelectedBanner());
+  const bannerPity = banner ? (economy.summon.pity[banner.id] ?? 0) : 0;
+  const pity = pityDisplay(bannerPity);
+  const summonReady = economy.tickets > 0 || economy.gems >= SUMMON_CONFIG.singleCost;
+  const pityContext = pity.remaining <= 12;
+  const featureCard = [...deck.cardIds].map(getCard).filter(card => card.type === 'hero').sort((a, b) => {
+    const rarity: Record<string, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
+    return rarity[b.rarity] - rarity[a.rarity] || (b.power ?? 0) - (a.power ?? 0);
+  })[0]?.id ?? deck.cardIds[0];
+  const featureDefinition = featureCard ? getCard(featureCard) : null;
+  const mastery = account.equippedMasteryId ? MASTERIES[account.equippedMasteryId] : null;
+  const xpNeed = xpToNextLevel(account.level);
+  const xpPct = account.level >= MAX_LEVEL ? 100 : Math.round(account.xp / xpNeed * 100);
+  const powerRead = recommended === undefined ? null : currentPower >= recommended * 1.15 ? 'Favoured' : currentPower >= recommended * 0.9 ? 'Even' : 'Challenging';
+  const returnState = journey.claimableDays.length > 0
+    ? { key: `journey-${journey.claimableDays.join('-')}`, label: 'A Journey reward is ready to claim.' }
+    : hub.note?.kind === 'idle'
+      ? { key: `idle-${idleRewardCycleId()}`, label: `${hub.idle.availableGold.toLocaleString()} Idle Gold is ready to claim.` }
+      : dailyReady + weeklyReady > 0
+        ? { key: `missions-${missions.dayKey}-${missions.weekKey}-${dailyReady}-${weeklyReady}`, label: 'Mission rewards are ready to claim.' }
+        : summonReady
+          ? { key: `summon-${economy.tickets}-${economy.summon.history[0]?.at ?? 0}`, label: economy.tickets > 1 ? `${economy.tickets} Summon Tickets are ready to use.` : economy.tickets === 1 ? 'A Summon Ticket is ready to use.' : 'A Summon is available.' }
+          : hub.note?.kind === 'recent'
+            ? { key: `card-${hub.note.cardId}`, label: `${getCard(hub.note.cardId).name} joined your collection.` }
+            : null;
+  const returnSeen = (() => { try { return returnState ? localStorage.getItem(`moonwater:return-state:${returnState.key}`) === '1' : true; } catch { return false; } })();
+  const nextJourneyDay = JOURNEY_DAYS.find(day => day.day === journey.currentDay + 1);
+  const sessionGoalsComplete = dailyAllClaimed && dailyReady + weeklyReady === 0 && journey.claimableDays.length === 0 && hub.idle.availableGold === 0 && !summonReady;
+
   useEffect(() => {
     if (hub.note?.kind === 'idle') track('idle_reward_available', { gold: hub.note.gold, atCap: hub.note.atCap });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per distinct note, not on every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hub.note?.kind === 'idle' ? hub.note.gold : null]);
-  return <main className="moon-home">
-    <header className="moon-home-header"><button className="moon-quiet" onClick={props.onOpenProfile}>Wanderer <span>· Level {account.level}</span></button><span className="moon-brand">EMBER<span>VALE</span></span><div className="moon-home-tools">{tickets > 0 && <TicketBalance />}<GoldBalance /><GemBalance /><button className="moon-quiet" onClick={() => setHelp(true)} aria-label="How to play">?</button></div></header>
-    <div className="moon-home-main">
-      <section className="moon-welcome"><span className="moon-eyebrow">A PLACE BETWEEN ADVENTURES</span><h1>Meet me at<br /><em>Moonwater.</em></h1><p>Leave a light on for the ones<br />who haven’t found their way home.</p><span className="moon-location">✦ THE LANTERN COAST <span>· BLUE HOUR</span></span>
-        <button className="moon-primary moon-adventure" onClick={props.onOpenCampaign}>{hub.campaign.status === 'fresh' ? 'Begin your adventure' : hub.campaign.status === 'complete' ? 'Revisit the Ashen Road' : 'Continue your adventure'} <span>→</span></button><small>{hub.campaign.nextName ?? hub.campaign.region} · {hub.campaign.cleared}/{hub.campaign.total} stages</small>
-      </section>
-      <section className="moon-spotlight" aria-label="Discover companions"><div className="moon-section-line"><span>STORIES WAITING TO BE FOUND</span><button onClick={props.onOpenHeroes}>Your collection →</button></div><div className="moon-home-cards">{SPOTLIGHT.map(id => <button key={id} className="moon-inspect-card" onClick={() => setInspect(id)} aria-label={`Inspect ${getCard(id).name}`}><CollectibleCard cardId={id} /></button>)}</div><p className="moon-home-quote">Some answer a call. Others have been waiting for you.</p><button className="moon-primary" onClick={props.onOpenSummon}>✦ Visit the moonwell</button><small>Discover companions · view banners & rates</small></section>
-    </div>
-    <section className="moon-destinations" aria-label="Your next adventure"><button onClick={props.onOpenLanterns}><span className="moon-destination-icon">☾</span><span><small>STORY ADVENTURE</small><strong>Lanterns of the Lost</strong><em>Three battles. One forgotten promise.</em></span><b>↗</b></button><button onClick={props.onOpenBattleSetup}><span className="moon-destination-icon">⚔</span><span><small>THE TRAINING GROUNDS</small><strong>Quick battle</strong><em>Practice against a rival formation.</em></span><b>↗</b></button><button onClick={props.onOpenFriendly}><span className="moon-destination-icon">⚔</span><span><small>THE DUELING PIER</small><strong>Friendly battle</strong><em>Invite a friend. Bring your best formation.</em></span><b>↗</b></button><button onClick={props.onOpenDecks}><span className="moon-destination-icon">◇</span><span><small>YOUR FORMATION</small><strong>{deck.label}</strong><em>{deck.cardIds.length} cards · manage your deck</em></span><b>↗</b></button></section>
-    {hub.note && <HubNoteLine note={hub.note} onOpenProfile={props.onOpenProfile} onOpenDecks={props.onOpenDecks} onOpenHeroes={props.onOpenHeroes} onClaimIdle={() => { claimIdleReward(); hub.refreshIdle(); }} />}
-    <footer className="moon-home-footer"><span>☾ Moonwater village</span>{import.meta.env.DEV && <button onClick={props.onOpenPixelPreview}>Character studies</button>}<button className="moon-quiet" onClick={() => setMissionsOpen(true)}>Missions{missionsReady ? ' •' : ''}</button>{!journey.complete && <button className="moon-quiet" onClick={() => setJourneyOpen(true)}>Day {journey.currentDay}{journey.claimableDays.length > 0 ? ' •' : ''}</button>}{offersEnabled && <button className="moon-quiet" onClick={() => setOffersOpen(true)}>Offers</button>}<span>Energy {hub.energy.current}/{hub.energy.max}</span></footer>
-    {inspect && <CardDetail cardId={inspect} onClose={() => setInspect(null)} />}{help && <HowToPlaySheet onClose={() => setHelp(false)} />}{missionsOpen && <MissionsSheet onClose={() => setMissionsOpen(false)} />}{journeyOpen && <JourneySheet onClose={() => setJourneyOpen(false)} />}{offersOpen && <OffersSheet onClose={() => setOffersOpen(false)} />}
+  useEffect(() => {
+    if (!returnState || returnSeen) return;
+    try { localStorage.setItem(`moonwater:return-state:${returnState.key}`, '1'); } catch { /* best effort */ }
+    track('return_state_shown', { state: returnState.key });
+  // A return-state is acknowledged once per distinct underlying ready state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnState?.key]);
+  useEffect(() => {
+    if (!sessionGoalsComplete) return;
+    try {
+      if (sessionStorage.getItem('moonwater:session-goals-reached') === '1') return;
+      sessionStorage.setItem('moonwater:session-goals-reached', '1');
+    } catch { /* best effort */ }
+    track('session_goal_state_reached', { source: 'home' });
+  }, [sessionGoalsComplete]);
+  useEffect(() => {
+    if (idleClaimedGold <= 0) return;
+    const timeout = window.setTimeout(() => setIdleClaimedGold(0), 2600);
+    return () => window.clearTimeout(timeout);
+  }, [idleClaimedGold]);
+
+  const rewardDistance = nextReward?.distance === 0 ? 'Ready ahead' : nextReward?.distance === 1 ? 'Next battle' : nextReward ? `${nextReward.distance} battles away` : '';
+  const continueLabel = hub.campaign.status === 'fresh' ? 'Begin Campaign' : hub.campaign.status === 'complete' ? 'Replay Campaign' : 'Continue Campaign';
+
+  return <main className="moon-home moon-home-hub">
+    <header className="moon-home-header">
+      <button type="button" className="moon-player-identity" onClick={props.onOpenProfile} aria-label={`Wanderer, account level ${account.level}. Open profile`}>
+        <span className="moon-player-avatar">{mastery ? <MasteryCrest id={mastery.id} size={23} /> : <span aria-hidden="true">☾</span>}<i>{account.level}</i></span>
+        <span className="moon-player-copy"><strong>Wanderer</strong><small>{mastery ? `${mastery.name} ${rankNumeral(account.unlockedMasteries[mastery.id] ?? 1)}` : `Wayfarer · Level ${account.level}`}</small><span className="moon-xp-track" role="progressbar" aria-valuemin={0} aria-valuemax={xpNeed} aria-valuenow={account.xp} aria-label="Account experience"><i style={{ width: `${xpPct}%` }} /></span></span>
+      </button>
+      <div className="moon-home-tools" role="group" aria-label="Balances">{economy.tickets > 0 && <TicketBalance />}<GoldBalance /><GemBalance /><button className="moon-help-button" onClick={() => setHelp(true)} aria-label="How to play">?</button></div>
+    </header>
+
+    <section className="home-campaign" aria-labelledby="home-campaign-title">
+      <div className="home-campaign-scene" aria-hidden="true" />
+      <div className="home-campaign-top"><div className="home-campaign-heading"><span className="home-kicker">{hub.campaign.chapterLine.replace(/^The /, '').replace(' · Chapter ', ' · Ch. ')}</span><h1 id="home-campaign-title">{currentNode?.name ?? hub.campaign.region}</h1><span className="home-stage-count">Step {Math.min(currentStep, mainRoadNodes.length)} <i>of</i> {mainRoadNodes.length}</span></div>
+        {featureCard && featureDefinition && <button type="button" className={`home-feature-card ${featureDefinition.faction}`} onClick={() => setInspect(featureCard)} aria-label={`View ${featureDefinition.name}, featured Hero`}><span className="home-feature-wash"/><CardArtwork cardId={featureCard} className="home-feature-art"/><span className="home-feature-caption"><small>YOUR VANGUARD</small><strong>{featureDefinition.shortName}</strong></span></button>}
+      </div>
+      <div className="home-progress" role="progressbar" aria-label="Campaign chapter progress" aria-valuemin={0} aria-valuemax={mainRoadNodes.length} aria-valuenow={mainRoadCleared}><span style={{ width: `${mainRoadNodes.length ? mainRoadCleared / mainRoadNodes.length * 100 : 0}%` }} /></div>
+      <div className="home-power-line"><span>Roster Power <strong>{currentPower}</strong>{powerRead && <b className={`home-power-read ${powerRead.toLowerCase()}`}>{powerRead}</b>}</span>{recommended !== undefined && <span>Recommended <strong>{recommended}</strong></span>}<span className="home-energy">Energy {hub.energy.current}/{hub.energy.max}</span></div>
+      {nextReward && <div className="home-target-reward"><span className="home-reward-spark" aria-hidden="true">✦</span><span><small>NEXT CAMPAIGN REWARD · {rewardDistance.toUpperCase()}</small><strong>{nextReward.label}</strong></span>{nextReward.cardId && <span className="home-reward-art" aria-hidden="true"><CollectibleCard cardId={nextReward.cardId} /></span>}</div>}
+      <button className="home-continue" onClick={props.onOpenCampaign}><span>{continueLabel}</span><b aria-hidden="true">→</b></button>
+      {returnState && !returnSeen && (returnState.key.startsWith('card-')
+        ? <button type="button" className="home-return-note" onClick={props.onOpenHeroes} aria-label={`${returnState.label} View collection`}>{returnState.label} · View collection →</button>
+        : <p className="home-return-note" role="status">{returnState.label}</p>)}
+    </section>
+
+    <section className="home-secondary-actions" aria-label="Other battles"><button onClick={props.onOpenBattleSetup}><span aria-hidden="true">⚔</span><strong>Quick Battle</strong><small>Practice</small></button><span className="home-action-divider" aria-hidden="true"/><button onClick={props.onOpenFriendly}><span aria-hidden="true">◇</span><strong>Friendly Battle</strong><small>Play with a friend</small></button></section>
+
+    <button className="home-formation" onClick={props.onOpenDecks}><span className="home-formation-icon" aria-hidden="true">▤</span><span><small>ACTIVE FORMATION</small><strong>{deck.label}</strong></span><span className="home-formation-meta">{deck.cardIds.length} cards · Edit →</span></button>
+
+    <section className="home-reward-rail" aria-label="Rewards and destinations">
+      <button className={dailyReady + weeklyReady > 0 ? 'is-ready' : 'is-passive'} onClick={() => setMissionsOpen(true)}><span className="home-rail-icon">✦</span><strong>Missions</strong><small>{dailyReady + weeklyReady ? `${dailyReady + weeklyReady} ready` : 'Daily · Weekly'}</small>{dailyReady + weeklyReady > 0 && <i>READY</i>}</button>
+      <button className={journey.claimableDays.length > 0 ? 'is-ready' : 'is-passive'} onClick={() => setJourneyOpen(true)}><span className="home-rail-icon">☾</span><strong>Journey</strong><small>{journey.claimableDays.length ? `${journey.claimableDays.length} ready` : nextJourneyDay ? `Tomorrow · ${nextJourneyDay.rewardTickets ? `${nextJourneyDay.rewardTickets} Ticket${nextJourneyDay.rewardTickets === 1 ? '' : 's'}` : nextJourneyDay.title}` : `Day ${journey.currentDay} of 7`}</small>{journey.claimableDays.length > 0 && <i>READY</i>}</button>
+      <button className={hub.idle.availableGold > 0 ? 'is-ready' : 'is-passive'} disabled={hub.idle.availableGold <= 0} onClick={() => { const result = claimIdleReward(); hub.refreshIdle(); if (result.gold > 0) setIdleClaimedGold(result.gold); }}><span className="home-rail-icon">◈</span><strong>Idle Gold</strong><small>{hub.idle.availableGold > 0 ? `${hub.idle.availableGold.toLocaleString()} to claim` : 'Accruing'}</small>{hub.idle.availableGold > 0 && <i>READY</i>}</button>
+      <button className={summonReady ? 'is-ready' : 'is-passive'} onClick={props.onOpenSummon}><span className="home-rail-icon">✧</span><strong>Moonwell</strong><small>{economy.tickets > 0 ? `${economy.tickets} ticket${economy.tickets === 1 ? '' : 's'}` : summonReady ? 'Summon ready' : pityContext ? `${pity.remaining} pulls to guarantee` : 'Summon'}</small>{summonReady && <i>READY</i>}</button>
+    </section>
+    {sessionGoalsComplete && <p className="home-session-calm" role="status">Daily rewards claimed · Idle Gold will keep accumulating.</p>}
+
+    {idleClaimedGold > 0 && <div className="moon-claim-feedback" role="status">+{idleClaimedGold.toLocaleString()} Gold collected</div>}
+
+    <nav className="home-quiet-links" aria-label="More"><small>MORE</small><span>{!dailyShopGift.claimed && <button className="home-shop-gift-link" onClick={props.onOpenShop}>Free Shop gift · Ready</button>}<button className="home-collection-link" onClick={props.onOpenHeroes}>Collection</button>{import.meta.env.DEV && <button className="home-dev-link" onClick={props.onOpenPixelPreview}>Character studies</button>}</span></nav>
+    <footer className="moon-home-footer"><span>☾ Moonwater village</span><span>{hub.campaign.chapterLine}</span></footer>
+    {inspect && <CardDetail cardId={inspect} onClose={() => setInspect(null)} />}{help && <HowToPlaySheet onClose={() => setHelp(false)} />}{missionsOpen && <MissionsSheet onClose={closeMissions} />}{journeyOpen && <JourneySheet onClose={closeJourney} />}
   </main>;
 }
