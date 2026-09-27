@@ -6,16 +6,16 @@ import { Sigil } from './CardParts';
 const PORTRAIT_RESOLUTION = 160;
 
 const images = new Map<string, Promise<HTMLImageElement>>();
-function loadImage(src: string) {
+function loadImage(src: string, priority = false) {
   if (!images.has(src)) images.set(src, new Promise((resolve, reject) => {
-    const image = new Image(); image.onload = () => resolve(image); image.onerror = () => { images.delete(src); reject(new Error(`Artwork unavailable: ${src}`)); }; image.src = src;
+    const image = new Image(); image.fetchPriority = priority ? 'high' : 'auto'; image.onload = () => resolve(image); image.onerror = () => { images.delete(src); reject(new Error(`Artwork unavailable: ${src}`)); }; image.src = src;
   }));
   return images.get(src)!;
 }
 
 /** Render on a 160px grid: crisp pixels with enough detail for readable faces, not a high-resolution image with a CSS filter.
  * Sheets are decoded once; offscreen, hidden-tab and reduced-motion loops stop. */
-export function CardArtwork({ cardId, companion, animated = true, className = '' }: { cardId?: string; companion?: string; animated?: boolean; className?: string }) {
+export function CardArtwork({ cardId, companion, animated = true, priority = false, className = '' }: { cardId?: string; companion?: string; animated?: boolean; priority?: boolean; className?: string }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [failed, setFailed] = useState(false);
   const asset = companion ? PIXEL_COMPANIONS[companion] : PIXEL_CARD_ART[cardId ?? ''];
@@ -43,9 +43,9 @@ export function CardArtwork({ cardId, companion, animated = true, className = ''
     };
     const observer = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; sync(); });
     observer.observe(element); document.addEventListener('visibilitychange', sync); reduced.addEventListener('change', sync);
-    loadImage(asset.src).then(value => { if (!cancelled) { image = value; paint(); sync(); } }).catch(() => { if (!cancelled) setFailed(true); });
+    loadImage(asset.src, priority).then(value => { if (!cancelled) { image = value; paint(); sync(); } }).catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; window.clearInterval(timer); observer.disconnect(); document.removeEventListener('visibilitychange', sync); reduced.removeEventListener('change', sync); };
-  }, [asset, animated]);
+  }, [asset, animated, priority]);
   if (!asset || failed) return <span className={`moon-art moon-rune ${card?.faction ?? 'kingdom'} ${className}`} aria-hidden="true"><Sigil faction={card?.type === 'spell' ? 'spell' : card?.faction ?? 'kingdom'} size="lg" /></span>;
   return <canvas ref={canvas} width={PORTRAIT_RESOLUTION} height={PORTRAIT_RESOLUTION} className={`moon-art ${className}`} aria-hidden="true" />;
 }

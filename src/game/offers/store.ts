@@ -102,6 +102,18 @@ export function trackOfferSeen(id: OfferId): void {
   track('offer_seen', { offerId: id });
 }
 
+export function trackOfferOpened(source: string, sessionOfferCount: number): void {
+  track('offer_opened', { popup_source: source, session_offer_count: sessionOfferCount });
+}
+
+export function trackOfferDismissed(source: string, sessionOfferCount: number): void {
+  track('offer_dismissed', { popup_source: source, session_offer_count: sessionOfferCount });
+}
+
+export function trackOfferCtaClicked(id: OfferId, source: string, sessionOfferCount: number): void {
+  track('offer_cta_clicked', { offerId: id, popup_source: source, session_offer_count: sessionOfferCount });
+}
+
 /** The player tapped an offer to open its confirmation. */
 export function trackOfferClicked(id: OfferId): void {
   track('offer_clicked', { offerId: id });
