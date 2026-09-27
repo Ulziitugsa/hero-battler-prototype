@@ -47,6 +47,7 @@ export interface GamePageProps {
   playerAscensions?: Record<string, number>;
   /** The player's Hero Levels for the cards in their deck (cardId -> level), captured at setup. Omit for all Level 1. */
   playerHeroLevels?: Record<string, number>;
+  enemyHeroLevels?: Record<string, number>;
   /** Overrides the match's starting HP (both sides) - used by Campaign's challenge nodes. Omit for the default STARTING_HP. */
   startingHp?: number;
   /** Fires once, the instant this match reaches MATCH_END - before the player dismisses the summary
@@ -112,7 +113,7 @@ function buildPreviewZones(
   return { heroZones: previewHero, spellZones: previewSpell };
 }
 
-export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, playerHeroLevels, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch }: GamePageProps) {
+export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, playerHeroLevels, enemyHeroLevels, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch }: GamePageProps) {
   function buildMatch(matchSeed: number) {
     return createMatch({
       seed: matchSeed,
@@ -121,7 +122,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
       startingHp,
       masteries: playerMastery ? { player: playerMastery } : undefined,
       ascensions: playerAscensions && Object.keys(playerAscensions).length > 0 ? { player: playerAscensions } : undefined,
-      heroLevels: playerHeroLevels && Object.keys(playerHeroLevels).length > 0 ? { player: playerHeroLevels } : undefined,
+      heroLevels: (playerHeroLevels && Object.keys(playerHeroLevels).length > 0) || (enemyHeroLevels && Object.keys(enemyHeroLevels).length > 0) ? { ...(playerHeroLevels ? { player: playerHeroLevels } : {}), ...(enemyHeroLevels ? { enemy: enemyHeroLevels } : {}) } : undefined,
     });
   }
 

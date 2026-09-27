@@ -120,6 +120,11 @@ export function attentionState(input: { gems: number; unlimitedGems?: boolean; m
 }
 
 /** Which bottom-nav destinations get a wax dot: only where something is genuinely waiting there. */
-export function navDots(a: AttentionState): { heroes: boolean; profile: boolean } {
-  return { heroes: a.ascensionReady, profile: a.masteryPoint };
+export function navDots(a: AttentionState): { heroes: boolean; home: boolean } {
+  return { heroes: a.ascensionReady, home: a.masteryPoint };
+}
+
+/** One Home destination marker aggregates its genuinely actionable sub-items. */
+export function homeAttentionReady(input: { masteryPoint: boolean; missionReward: boolean; journeyReward: boolean; idleReward: boolean }): boolean {
+  return input.masteryPoint || input.missionReward || input.journeyReward || input.idleReward;
 }
