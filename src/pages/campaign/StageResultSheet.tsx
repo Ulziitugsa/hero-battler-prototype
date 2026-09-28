@@ -30,7 +30,7 @@ export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { o
           </div>
           <span className="campaign-result-kicker">{node.name}</span>
           <span className="campaign-result-title">Not this time</span>
-          <span className="campaign-result-blurb">The road is still there. {recovery?.deficit ? `Your Roster Power is ${recovery.deficit} below the recommendation. ` : ''}A small change can help.</span>
+          <span className="campaign-result-blurb">The road is still there. {recovery?.deficit ? `Your Deck Strength is ${recovery.deficit} below the recommendation. ` : ''}A small change can help.</span>
           <XpSummary xp={xp} />
           {recovery && <button type="button" className="campaign-result-cta" onClick={() => { track('post_loss_action_selected', { stageId: node.id, action: recovery.kind }); recovery.onSelect(); }}>{recovery.label}</button>}
           <button type="button" className="campaign-result-secondary" onClick={() => { track('post_loss_action_selected', { stageId: node.id, action: 'retry' }); (onRetry ?? onContinue)(); }}>Try again</button>
@@ -131,7 +131,7 @@ export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { o
         {isCardReward && cardGrant && !cardGrant.isNew && getAscensionStatus(cardGrant.cardId).canAscend && (
           <div className="campaign-result-unlock">
             <Icon name="power" size={15} />
-            <span>Ascension available — see Heroes</span>
+            <span>Card Mastery available — see Cards</span>
           </div>
         )}
 

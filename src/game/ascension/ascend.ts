@@ -118,6 +118,6 @@ export function ascendCard(cardId: string): AscendResult {
 }
 
 /** Player-facing name of a rank. */
-export const ascensionLabel = (rank: number): string => (rank <= 0 ? 'Base' : `Ascension ${['I', 'II', 'III', 'IV'][rank - 1] ?? rank}`);
+export const ascensionLabel = (rank: number): string => `Mastery ${['I', 'II', 'III', 'IV', 'V'][Math.max(0, Math.floor(rank))] ?? rank + 1}`;
 export const ascensionNumeral = (rank: number): string => ['', 'I', 'II', 'III', 'IV'][rank] ?? String(rank);
 

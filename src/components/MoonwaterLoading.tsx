@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { track } from '../analytics/track';
 
-const TIP = 'Place Heroes carefully — lanes decide their targets.';
+const TIP = 'Place units carefully — lanes decide their targets.';
 
 export function MoonwaterLoading() {
   const startedAt = useRef(0);

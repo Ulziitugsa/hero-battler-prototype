@@ -21,6 +21,8 @@ export type IconName =
   | 'continuousSpell'
   | 'power'
   | 'hp'
+  | 'attack'
+  | 'lp'
   | 'graveyard'
   | 'deck'
   | 'check'
@@ -55,6 +57,8 @@ const PATHS: Record<IconName, string> = {
   continuousSpell: 'M8 12a4 4 0 1 1 8 0 4 4 0 0 1-8 0ZM12 2a10 10 0 1 0 8.66 5M20 2v5h-5',
   power: 'M13 2 4 14h6l-1 8 9-12h-6l1-8Z',
   hp: 'M12 20.5s-7.5-4.6-9.7-9C.7 8 2 4.5 5.3 4c2-.3 3.7.7 4.7 2.2C11 4.7 12.7 3.7 14.7 4c3.3.5 4.6 4 3 7.5-2.2 4.4-9.7 9-9.7 9Z',
+  attack: 'M6.5 17.5 17 7M14 4l6 2-2 6-2-2-3 3-3-3 3-3-2-2ZM4 20l3.5-3.5',
+  lp: 'M12 20.5s-7.5-4.6-9.7-9C.7 8 2 4.5 5.3 4c2-.3 3.7.7 4.7 2.2C11 4.7 12.7 3.7 14.7 4c3.3.5 4.6 4 3 7.5-2.2 4.4-9.7 9-9.7 9Z',
   graveyard: 'M7 21V11a5 5 0 0 1 10 0v10M4 21h16M9 14h2M9 17h2',
   deck: 'M6 9.5 12 6l6 3.5v5L12 18l-6-3.5v-5ZM12 6v12',
   check: 'M5 12.5 10 17l9-10',

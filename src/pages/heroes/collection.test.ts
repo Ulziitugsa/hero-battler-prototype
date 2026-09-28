@@ -35,9 +35,9 @@ describe('tally / empty copy', () => {
   it('picks the right empty state', () => {
     const all = new Set(HEROES.map((c) => c.id));
     expect(emptyCopy({ ...base, owned: 'missing' }, HEROES, all).title).toBe('Collection complete');
-    expect(emptyCopy({ ...base, owned: 'missing', faction: 'kingdom' }, HEROES, OWNED).title).toBe('No missing Kingdom Heroes');
-    expect(emptyCopy({ ...base, owned: 'owned' }, HEROES, new Set()).title).toBe('No Heroes yet');
-    expect(emptyCopy({ ...base, query: 'zzzz' }, HEROES, OWNED).title).toBe('No Heroes found');
+    expect(emptyCopy({ ...base, owned: 'missing', faction: 'kingdom' }, HEROES, OWNED).title).toBe('No missing Kingdom Cards');
+    expect(emptyCopy({ ...base, owned: 'owned' }, HEROES, new Set()).title).toBe('No cards yet');
+    expect(emptyCopy({ ...base, query: 'zzzz' }, HEROES, OWNED).title).toBe('No cards found');
   });
   it('avoids "Undead · Undead"', () => {
     expect(displayRole(getCard('und-vharos'))).toBe('');

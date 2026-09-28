@@ -23,7 +23,7 @@ export type TabId = 'home' | 'heroes' | 'shop' | 'decks' | 'ranked' | 'profile';
 
 const TABS: { id: TabId; label: string; icon: IconName }[] = [
   { id: 'home', label: 'Home', icon: 'home' },
-  { id: 'heroes', label: 'Heroes', icon: 'heroes' },
+  { id: 'heroes', label: 'Cards', icon: 'cards' },
   { id: 'shop', label: 'Shop', icon: 'shop' },
   { id: 'decks', label: 'Decks', icon: 'decks' },
   { id: 'ranked', label: 'Ranked', icon: 'battle' },
@@ -35,7 +35,7 @@ const TABS: { id: TabId; label: string; icon: IconName }[] = [
  * chrome for vertical space on a small phone.
  */
 export function AppShell({ active, onNavigate, children }: { active: TabId; onNavigate: (tab: TabId) => void; children: ReactNode }) {
-  // One aggregated Home marker covers claimable rewards and Profile access; Heroes, Shop, and Ranked each have one marker.
+  // One aggregated Home marker covers claimable rewards and Profile access; Cards, Shop, and Ranked each have one marker.
   const owned = useCollection();
   const account = useAccount();
   const gift = useSyncExternalStore(subscribeDailyShopGift, getDailyShopGiftState, getDailyShopGiftState);
@@ -53,7 +53,7 @@ export function AppShell({ active, onNavigate, children }: { active: TabId; onNa
   const homeReady = homeAttentionReady({masteryPoint:dots.home,missionReward:dailyReady,journeyReward:journey.claimableDays.length>0,idleReward:hub.note?.kind==='idle'});
   const shopReady = !gift.claimed && getGold()<MAX_GOLD;
   const rankedReady = readyRankRewards(ranked).length>0;
-  const dotFor: Partial<Record<TabId, string>> = { home: homeReady ? 'Reward or Mastery action ready on Home' : '', heroes: dots.heroes ? 'Ascension available' : '', shop: shopReady ? 'Free Shop gift ready' : '', ranked: rankedReady ? 'Rank reward ready' : '' };
+  const dotFor: Partial<Record<TabId, string>> = { home: homeReady ? 'Reward or Mastery action ready on Home' : '', heroes: dots.heroes ? 'Card Mastery available' : '', shop: shopReady ? 'Free Shop gift ready' : '', ranked: rankedReady ? 'Rank reward ready' : '' };
   const previousDots = useRef<Record<string, boolean>>({});
   useEffect(()=>{ const states={home:homeReady,heroes:dots.heroes,shop:shopReady,ranked:rankedReady};for(const [destination,visible] of Object.entries(states)){if(visible&&!previousDots.current[destination])track('attention_indicator_shown',{destination});if(!visible&&previousDots.current[destination])track('attention_indicator_cleared',{destination});previousDots.current[destination]=visible;} },[homeReady,dots.heroes,shopReady,rankedReady]);
   return (

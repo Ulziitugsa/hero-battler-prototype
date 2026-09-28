@@ -15,7 +15,7 @@ import { track } from '../../analytics/track';
 import '../../styles/ascension.css';
 import { haptics } from '../../platform/haptics';
 
-/** Three carved marks showing how far a card has Ascended. */
+/** Three carved marks showing current duplicate-funded Card Mastery progress. */
 export function AscensionPips({ rank, max }: { rank: number; max: number }) {
   return (
     <span className="asc-pips" aria-hidden="true">
@@ -27,9 +27,8 @@ export function AscensionPips({ rank, max }: { rank: number; max: number }) {
 }
 
 /**
- * The Ascension section of an OWNED card's detail sheet: current rank, copies, the next rank's concise
- * change and cost, and one Ascend button with a single inline confirmation. Missing cards don't render
- * it; cards without an Ascension path say so in one quiet line. Every number comes from
+ * The Card Mastery section of an owned card's detail sheet. Existing Ascension storage and copy costs
+ * remain intact so saves survive the terminology migration. Every number comes from
  * game/ascension - this component decides nothing.
  */
 export function AscensionPanel({ card, priority = false }: { card: CardDefinition; priority?: boolean }) {
@@ -49,7 +48,7 @@ export function AscensionPanel({ card, priority = false }: { card: CardDefinitio
   const level = getHeroLevel(card.id);
   const rank = getAscensionRank(card.id);
   const rosterGain = nextDef ? rosterPowerForHero(card.power ?? 0, level, rank + 1) - rosterPowerForHero(card.power ?? 0, level, rank) : 0;
-  const improvement = nextDef?.summary ?? 'Hero strengthened';
+  const improvement = nextDef?.summary ?? 'Card improved';
 
   useEffect(() => {
     if (!ascending) return;
@@ -67,10 +66,10 @@ export function AscensionPanel({ card, priority = false }: { card: CardDefinitio
     return () => window.clearTimeout(timeout);
   }, [ascending, card.id, rosterGain, improvement]);
 
-  if (!status.supported || !def) return <p className="asc-later">Ascension coming later.</p>;
+  if (!status.supported || !def) return <p className="asc-later">No duplicate-funded Mastery path for this card yet.</p>;
 
   return (
-    <section className={`asc-panel ascension-panel ${priority ? 'progression-primary' : ''} ${feedback ? 'ascension-flare' : ''}`} aria-label="Ascension">
+    <section className={`asc-panel ascension-panel ${priority ? 'progression-primary' : ''} ${feedback ? 'ascension-flare' : ''}`} aria-label="Card Mastery">
       <div className="asc-head">
         <span className="asc-title">
           <AscensionPips rank={status.rank} max={status.maxRank} />
@@ -81,7 +80,7 @@ export function AscensionPanel({ card, priority = false }: { card: CardDefinitio
           ×{status.owned} · {status.spare} spare
         </span>
       </div>
-      {feedback && <RewardFeedback tone="major" detail={`Ascension ${feedback.rank} · ${feedback.stars} of 5 Stars · ${feedback.improvement}`}>Roster Power +{feedback.power}</RewardFeedback>}
+      {feedback && <RewardFeedback tone="major" detail={`${ascensionLabel(feedback.rank)} · ${feedback.stars} derived marks · ${feedback.improvement}`}>Deck Strength +{feedback.power}</RewardFeedback>}
       {ascending && <p className="ascension-sequence-status" role="status">The sigil answers…</p>}
 
       {nextDef && status.cost !== null && (
@@ -99,13 +98,13 @@ export function AscensionPanel({ card, priority = false }: { card: CardDefinitio
                 </span>
               ) : null;
             })()}
-            <span className="asc-roster-change">Adds <strong>+{rosterGain} Roster Power</strong> toward Campaign strength.</span>
+            <span className="asc-roster-change">Adds <strong>+{rosterGain} Deck Strength</strong> to the summary.</span>
           </p>
 
           {confirming ? (
-            <div className="asc-confirm" role="alertdialog" aria-label="Confirm Ascension">
+            <div className="asc-confirm" role="alertdialog" aria-label="Confirm Card Mastery">
               <span>
-                Ascend {card.shortName} to {ascensionLabel(nextDef.rank)}? Consumes {status.cost} duplicate {status.cost === 1 ? 'copy' : 'copies'}.
+                Raise {card.shortName} to {ascensionLabel(nextDef.rank)}? Uses {status.cost} duplicate {status.cost === 1 ? 'copy' : 'copies'}.
               </span>
               <span className="asc-confirm-btns">
                 <button type="button" className="asc-btn" onClick={() => setConfirming(false)}>
@@ -117,14 +116,14 @@ export function AscensionPanel({ card, priority = false }: { card: CardDefinitio
                   disabled={ascending}
                   onClick={() => setAscending(true)}
                 >
-                  {ascending ? 'Ascending…' : 'Confirm'}
+              {ascending ? 'Applying…' : 'Confirm'}
                 </button>
               </span>
             </div>
           ) : (
             <button type="button" className={`asc-btn wide ${status.canAscend ? 'gold' : ''}`} disabled={!status.canAscend} onClick={() => setConfirming(true)}>
               <Icon name={status.canAscend ? 'power' : 'lock'} size={14} />
-              Ascend · {status.cost} {status.cost === 1 ? 'duplicate' : 'duplicates'}
+              Mastery · {status.cost} {status.cost === 1 ? 'duplicate' : 'duplicates'}
             </button>
           )}
           {!status.canAscend && status.reason && <p className="asc-reason">{status.reason}</p>}

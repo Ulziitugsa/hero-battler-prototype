@@ -111,8 +111,8 @@ function applyEventVisual(v: StepVisuals, e: GameEvent, state: GameState): void 
       if (e.outcome === 'EMPTY' || e.outcome === 'STALLED') return; // STALLED: no clash happens - the COMBAT_STALLED beat already showed why
       const pHero = state.player.heroZones[e.lane];
       const eHero = state.enemy.heroZones[e.lane];
-      const playerInvolved = e.outcome === 'PLAYER_DIRECT' || e.outcome === 'PLAYER_WINS' || e.outcome === 'ENEMY_WINS' || e.outcome === 'TIE';
-      const enemyInvolved = e.outcome === 'ENEMY_DIRECT' || e.outcome === 'PLAYER_WINS' || e.outcome === 'ENEMY_WINS' || e.outcome === 'TIE';
+      const playerInvolved = e.outcome === 'PLAYER_DIRECT' || e.outcome === 'PLAYER_WINS' || e.outcome === 'ENEMY_WINS' || e.outcome === 'TIE' || e.outcome === 'V2_CLASH';
+      const enemyInvolved = e.outcome === 'ENEMY_DIRECT' || e.outcome === 'PLAYER_WINS' || e.outcome === 'ENEMY_WINS' || e.outcome === 'TIE' || e.outcome === 'V2_CLASH';
       if (playerInvolved && pHero) addHeroClass(v, pHero.instanceId, 'chit-lunge-player');
       if (enemyInvolved && eHero) addHeroClass(v, eHero.instanceId, 'chit-lunge-enemy');
       v.clashLane = { lane: e.lane, player: playerInvolved && !!pHero, enemy: enemyInvolved && !!eHero };
@@ -140,6 +140,17 @@ function applyEventVisual(v: StepVisuals, e: GameEvent, state: GameState): void 
       }
       return;
     }
+    case 'HERO_DAMAGE':
+      addHeroClass(v, e.instanceId, 'flash-damage');
+      addHeroFloater(v, e.instanceId, { key: `hp-${e.instanceId}-${e.to}`, kind: 'power-down', text: `-${e.amount}` });
+      return;
+    case 'HERO_HEAL':
+      addHeroClass(v, e.instanceId, 'flash-buff');
+      addHeroFloater(v, e.instanceId, { key: `heal-${e.instanceId}-${e.to}`, kind: 'heal', text: `+${e.amount}` });
+      return;
+    case 'HERO_SHIELD_APPLIED':
+      addHeroFloater(v, e.instanceId, { key: `shield-${e.instanceId}-${e.amount}`, kind: 'immune', text: `+${e.amount} SH` });
+      return;
     case 'POWER_CHANGED': {
       const delta = e.to - e.from;
       if (delta === 0) return;

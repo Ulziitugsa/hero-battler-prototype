@@ -1,6 +1,6 @@
 import type { GameEvent, GameState, LaneId, Side } from '../types';
 import { LANES } from '../types';
-import { ascensionRank, makeHeroInstance, makeSpellZoneInstance } from './abilities';
+import { ascensionRank, heroLevelOf, makeHeroInstance, makeSpellZoneInstance } from './abilities';
 
 // Pure playback reducer used ONLY by the UI to reconstruct intermediate board states while animating
 // through a resolved round's event log. It never decides anything - every number it applies (the
@@ -32,7 +32,7 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
       for (const placement of event.placements) {
         const side = placement.side === 'player' ? p : e;
         if (placement.zone === 'hero') {
-          side.heroZones[placement.lane] = makeHeroInstance(placement.side, placement.lane, next.round, placement.cardId, ascensionRank(next, placement.side, placement.cardId));
+          side.heroZones[placement.lane] = makeHeroInstance(placement.side, placement.lane, next.round, placement.cardId, ascensionRank(next, placement.side, placement.cardId), heroLevelOf(next, placement.side, placement.cardId), next.combatModel);
         } else {
           side.spellZones[placement.lane] = makeSpellZoneInstance(placement.side, placement.lane, next.round, placement.cardId);
         }
@@ -78,11 +78,24 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
     }
     case 'TOKEN_SUMMONED': {
       const side = event.side === 'player' ? p : e;
-      const token = makeHeroInstance(event.side, event.lane, next.round, event.cardId);
+      const token = makeHeroInstance(event.side, event.lane, next.round, event.cardId, 0, 1, next.combatModel);
       token.instanceId = event.instanceId;
       token.token = true;
       token.power = event.power;
       side.heroZones[event.lane] = token;
+      return next;
+    }
+    case 'HERO_DAMAGE':
+    case 'HERO_HEAL': {
+      const side = event.side === 'player' ? p : e;
+      const hero = side.heroZones[event.lane];
+      if (hero?.instanceId === event.instanceId) hero.hp = event.to;
+      return next;
+    }
+    case 'HERO_SHIELD_APPLIED': {
+      const side = event.side === 'player' ? p : e;
+      const hero = side.heroZones[event.lane];
+      if (hero?.instanceId === event.instanceId) hero.combatShield = (hero.combatShield ?? 0) + event.amount;
       return next;
     }
     case 'CARD_DRAWN': {
@@ -112,7 +125,7 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
     case 'REVIVED': {
       const side = event.side === 'player' ? p : e;
       side.graveyard.splice(event.graveyardIndex, 1);
-      const instance = makeHeroInstance(event.side, event.lane, next.round, event.cardId, ascensionRank(next, event.side, event.cardId));
+      const instance = makeHeroInstance(event.side, event.lane, next.round, event.cardId, ascensionRank(next, event.side, event.cardId), heroLevelOf(next, event.side, event.cardId), next.combatModel);
       instance.power = event.power; // may differ from the card's base Power (e.g. Vharos's reduced self-revival)
       side.heroZones[event.lane] = instance;
       return next;
@@ -136,7 +149,10 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
       const lane = findHeroLane(next, event.side, event.instanceId);
       if (lane) {
         const hero = side.heroZones[lane];
-        if (hero) hero.shielded = false;
+        if (hero) {
+          hero.shielded = false;
+          if (next.combatModel === 'v2' && (hero.hp ?? 1) <= 0) hero.hp = 1;
+        }
       }
       return next;
     }

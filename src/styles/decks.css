@@ -311,6 +311,7 @@
 
 .dk-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; }
 
+.dk-card-wrap { position: relative; display: flex; min-width: 0; }
 .dk-card {
   --frame-a: #7a746c;
   --frame-b: #3a3733;
@@ -322,7 +323,11 @@
   text-align: left;
   cursor: pointer;
   min-width: 0;
+  width: 100%;
 }
+.dk-card-wrap .dk-card { flex: 1; }
+.dk-card-inspect { position: absolute; z-index: 4; top: 31px; right: 5px; width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border: 1px solid rgba(255,226,180,.42); border-radius: 50%; background: rgba(8,17,22,.82); color: var(--ember-ink-2); }
+.dk-card-inspect:focus-visible { outline: 2px solid var(--ember-gold-light); outline-offset: 2px; }
 .dk-card.r-rare { --frame-a: #8fb0d4; --frame-b: #3d556e; }
 .dk-card.r-epic { --frame-a: #b08fd8; --frame-b: #4e3672; }
 .dk-card.r-legendary { --frame-a: var(--ember-gold-light); --frame-b: var(--ember-gold-deep); }
@@ -397,6 +402,11 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 .dk-card-power.spell { color: var(--ember-gold); }
+.dk-card-stats { position: absolute; z-index: 3; left: 4px; right: 4px; bottom: 5px; }
+.dk-card-stats .card-stat-pair { gap: 2px; }
+.dk-card-stats .card-stat { gap: 2px; padding: 3px 1px; }
+.dk-card-stats .card-stat strong { font-size: 8px; }
+.dk-card-stats .card-stat svg { width: 9px; height: 9px; }
 
 .dk-card-count {
   position: absolute;

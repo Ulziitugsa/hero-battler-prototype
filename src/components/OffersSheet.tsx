@@ -193,7 +193,7 @@ export function OffersSheet({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        {visibleOffers.length === 0 && <p className="offers-empty-note">Explore Campaign, Summons, and Hero progression. Relevant offers may appear here as you play.</p>}
+        {visibleOffers.length === 0 && <p className="offers-empty-note">Explore Campaign, Summons, and Card Mastery. Relevant offers may appear here as you play.</p>}
 
         {!showMore && <button type="button" className="offers-more-options" aria-expanded={false} onClick={() => setShowMore(true)}>Show all offers</button>}
 

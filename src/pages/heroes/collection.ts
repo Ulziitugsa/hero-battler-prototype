@@ -10,7 +10,7 @@ export const FACTION_ORDER: Faction[] = ['kingdom', 'undead', 'infernal'];
 export const FACTION_LABEL: Record<Faction, string> = { kingdom: 'Kingdom', undead: 'Undead', infernal: 'Infernal', wildborn: 'Wildborn' };
 const RARITY_RANK: Record<Rarity, number> = { legendary: 0, epic: 1, rare: 2, common: 3 };
 
-export const SORT_LABEL: Record<SortMode, string> = { rarity: 'Rarity', power: 'Power', name: 'Name', faction: 'Faction' };
+export const SORT_LABEL: Record<SortMode, string> = { rarity: 'Rarity', power: 'ATK', name: 'Name', faction: 'Faction' };
 
 export interface HeroFilters {
   owned: OwnedFilter;
@@ -82,14 +82,14 @@ export interface EmptyCopy {
 /** Short, game-like copy for a grid with nothing in it - only called when the filtered list is empty. */
 export function emptyCopy(f: HeroFilters, all: CardDefinition[], owned: ReadonlySet<string>): EmptyCopy {
   const scope = scopeOf(all, f);
-  const who = f.faction === 'all' ? 'Heroes' : `${FACTION_LABEL[f.faction]} Heroes`;
+  const who = f.faction === 'all' ? 'Cards' : `${FACTION_LABEL[f.faction]} Cards`;
   if (scope.length > 0 && f.owned === 'missing') {
-    return all.every((c) => owned.has(c.id)) ? { title: 'Collection complete', sub: 'Every Hero is yours.' } : { title: `No missing ${who}`, sub: 'You hold every one of these.' };
+    return all.every((c) => owned.has(c.id)) ? { title: 'Collection complete', sub: 'Every card is yours.' } : { title: `No missing ${who}`, sub: 'You hold every one of these.' };
   }
   if (scope.length > 0 && f.owned === 'owned') {
-    return owned.size === 0 ? { title: 'No Heroes yet', sub: 'Your collection is empty.' } : { title: `No ${who} collected`, sub: 'None of these are yours yet.' };
+    return owned.size === 0 ? { title: 'No cards yet', sub: 'Your collection is empty.' } : { title: `No ${who} collected`, sub: 'None of these are yours yet.' };
   }
-  return { title: 'No Heroes found', sub: 'Nothing matches these filters.' };
+  return { title: 'No cards found', sub: 'Nothing matches these filters.' };
 }
 
 export function isFiltered(f: HeroFilters): boolean {

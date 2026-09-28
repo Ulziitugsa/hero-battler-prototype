@@ -1,11 +1,11 @@
 import { Icon } from './Icon';
 
 const RULES: { icon: Parameters<typeof Icon>[0]['name']; text: string }[] = [
-  { icon: 'hero', text: '3 Hero lanes and 3 Spell lanes face off, side by side.' },
-  { icon: 'deck', text: 'Play Heroes and Spells from your hand into any open lane.' },
+  { icon: 'hero', text: '3 unit lanes and 3 Spell lanes face off, side by side.' },
+  { icon: 'deck', text: 'Play units and Spells from your hand into any open lane.' },
   { icon: 'power', text: 'Higher Power wins a lane - the loser is destroyed, the winner is untouched.' },
-  { icon: 'warning', text: 'Equal Power destroys both Heroes in that lane.' },
-  { icon: 'hp', text: 'An empty lane lets the enemy Hero hit your HP directly.' },
+  { icon: 'warning', text: 'Equal Power destroys both units in that lane.' },
+  { icon: 'hp', text: 'An empty lane lets the enemy unit hit your HP directly.' },
   { icon: 'spell', text: 'Spells resolve before Combat, in the order you placed them.' },
   { icon: 'continuousSpell', text: 'Continuous Spells stay on the board, working every round, until removed.' },
   { icon: 'check', text: 'You draw back up to 3 cards in hand at the start of every round.' },

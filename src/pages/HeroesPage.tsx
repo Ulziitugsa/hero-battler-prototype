@@ -17,17 +17,16 @@ import { ascensionNumeral } from '../game/ascension/ascend';
 import { ascensionAddedAbilities, effectiveAbilities } from '../game/ascension/effective';
 import { AscensionPanel } from './heroes/AscensionPanel';
 import { HeroLevelPanel } from './heroes/HeroLevelPanel';
-import { useHeroLevel } from '../game/heroLevel/useHeroLevel';
 import { getHeroLevel } from '../game/heroLevel/store';
-import { getHeroLevelStatus } from '../game/heroLevel/levelUp';
 import { StarStrip } from './heroes/StarStrip';
 import { starsForCard } from '../game/ascension/stars';
-import { useEconomy } from '../game/economy/useEconomy';
-import { useAccount } from '../game/progression/useAccount';
 import { track } from '../analytics/track';
 import { useDialogFocus } from '../components/useDialogFocus';
 import { getAscensionStatus } from '../game/ascension/ascend';
 import { rosterPowerForHero } from '../game/heroLevel/rosterPower';
+import { CardStatPair } from '../components/CardStatPair';
+import { cardStatsPreviewEnabled } from '../game/cards/cardStatsPreview';
+import { useHeroLevel } from '../game/heroLevel/useHeroLevel';
 import { displayRole, emptyCopy, FACTION_LABEL, FACTION_ORDER, filterHeroes, isFiltered, scopeOf, SORT_LABEL, tally, type HeroFilters, type OwnedFilter, type SortMode } from './heroes/collection';
 import '../styles/heroes.css';
 
@@ -87,7 +86,7 @@ function HeroArt({ card, owned, large }: { card: CardDefinition; owned: boolean;
   );
 }
 
-function HeroTile({ card, owned, count, rank, level, onClick }: { card: CardDefinition; owned: boolean; count: number; rank: number; level: number; onClick: () => void }) {
+function HeroTile({ card, owned, count, rank, onClick }: { card: CardDefinition; owned: boolean; count: number; rank: number; onClick: () => void }) {
   return (
     <button type="button" className={`hr-card r-${card.rarity} ${owned ? '' : 'missing'}`} onClick={onClick} aria-label={`${card.name}, ${RARITY_LABEL[card.rarity]}, ${owned ? 'owned' : 'not collected'}`}>
       {card.rarity === 'legendary' && <span className="hr-crown" aria-hidden="true" />}
@@ -103,9 +102,8 @@ function HeroTile({ card, owned, count, rank, level, onClick }: { card: CardDefi
             </span>
           )}
           {count > 1 && <span className="hr-copies">×{count}</span>}
-          {owned && rank > 0 && <span className="asc-mark" title="Ascended">{ascensionNumeral(rank)}</span>}
-          {owned && level > 1 && <span className="hr-level-mark" title={`Level ${level}`}>Lv{level}</span>}
-          <span className="hr-power">{card.power}</span>
+          {owned && rank > 0 && <span className="asc-mark" title="Card Mastery">{ascensionNumeral(rank)}</span>}
+          {cardStatsPreviewEnabled() ? <span className="hr-card-stats"><CardStatPair card={card} compact /></span> : <span className="hr-power">{card.power}</span>}
         </span>
         <span className="hr-card-plate">
           <Sigil faction={card.faction} size="sm" />
@@ -137,12 +135,9 @@ function HeroDetail({
   const ascension = useAscension();
   const ownedCards = useCollection();
   const levels = useHeroLevel();
-  const { gold } = useEconomy();
-  const account = useAccount();
   const rank = owned ? getAscensionRank(card.id, ascension) : 0;
-  const levelStatus = getHeroLevelStatus(card.id, gold, account.level);
   const ascensionStatus = getAscensionStatus(card.id, ownedCards, ascension);
-  const primaryProgression = levelStatus.canLevelUp ? 'level' : ascensionStatus.canAscend ? 'ascension' : null;
+  const primaryProgression = ascensionStatus.canAscend ? 'mastery' : null;
   const heroRosterPower = card.power === undefined ? null : rosterPowerForHero(card.power, getHeroLevel(card.id, levels), rank);
   const abilities = effectiveAbilities(card.id, rank);
   const fromAscension = ascensionAddedAbilities(card.id, rank);
@@ -196,7 +191,7 @@ function HeroDetail({
           </div>
 
           <div className="hr-sheet-body">
-            <div className="hr-sheet-title"><span className="hr-sheet-overline">{owned ? 'IN YOUR COLLECTION' : 'A HERO TO DISCOVER'}</span><h2 className="hr-sheet-name">{card.name}</h2><span className="hr-sheet-powerline">{owned ? `Level ${getHeroLevel(card.id, levels)}` : 'Hero'}{rank > 0 ? ` · Ascension ${rank}` : ''}{heroRosterPower !== null && owned ? ` · +${heroRosterPower} Roster Power` : ''}</span></div>
+            <div className="hr-sheet-title"><span className="hr-sheet-overline">{owned ? 'IN YOUR COLLECTION' : 'A CARD TO DISCOVER'}</span><h2 className="hr-sheet-name">{card.name}</h2><span className="hr-sheet-powerline">{owned ? `Mastery ${['I', 'II', 'III', 'IV', 'V'][rank] ?? rank + 1} · saved Level ${getHeroLevel(card.id, levels)}` : 'Unit card'}{heroRosterPower !== null && owned ? ` · ${heroRosterPower} Deck Strength` : ''}</span></div>
 
             <div className="hr-sheet-line">
               <span className={`hr-rarity-tag r-${card.rarity}`}>
@@ -213,13 +208,13 @@ function HeroDetail({
             <div className="hr-sheet-line faction">
               <Sigil faction={card.faction} size="md" />
               <span>
-                {[`${FACTION_LABEL[card.faction]} Hero`, displayRole(card)].filter(Boolean).join(' · ')}
+                {[`${FACTION_LABEL[card.faction]} Unit`, displayRole(card)].filter(Boolean).join(' · ')}
               </span>
             </div>
-            <div className="hr-battle-power-note"><Icon name="power" size={13} /><span>Battle Power {card.power} · used in lane clashes</span>{owned && heroRosterPower !== null && <strong>Roster contribution {heroRosterPower}</strong>}</div>
+            {cardStatsPreviewEnabled() ? <div className="hr-card-stat-summary"><CardStatPair card={card} /><small>LP Contribution adds to starting Life. These frame values are a local design preview.</small></div> : <div className="hr-battle-power-note"><Icon name="battle" size={13} /><span>Legacy lane value {card.power} · production combat is still on the existing rules</span>{owned && heroRosterPower !== null && <strong>Deck Strength {heroRosterPower}</strong>}</div>}
 
-            {owned && <HeroLevelPanel card={card} priority={primaryProgression === 'level'} />}
-            {owned && <AscensionPanel card={card} priority={primaryProgression === 'ascension'} />}
+            {owned && <AscensionPanel card={card} priority={primaryProgression === 'mastery'} />}
+            {owned && <details className="legacy-growth"><summary>Legacy Level · saved at {getHeroLevel(card.id, levels)}</summary><p>Earlier Level progress is preserved while the bounded card progression migration is designed.</p><HeroLevelPanel card={card} /></details>}
 
             <div className={`hr-source ${owned ? '' : 'missing'}`}>
               <Icon name={owned ? 'check' : 'lock'} size={13} />
@@ -264,7 +259,7 @@ function HeroDetail({
           </div>
         </div>
 
-        <button type="button" className="hr-sheet-close" onClick={onClose} aria-label="Back to Heroes">
+        <button type="button" className="hr-sheet-close" onClick={onClose} aria-label="Back to Cards">
           <Icon name="back" size={18} />
         </button>
       </div>
@@ -275,7 +270,6 @@ function HeroDetail({
 export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
   const collection = useCollection();
   const ascensionState = useAscension();
-  const heroLevelState = useHeroLevel();
   const owned = useMemo(() => new Set(HERO_IDS.filter((id) => (collection[id] ?? 0) > 0)), [collection]);
   const [ownedFilter, setOwnedFilter] = useState<OwnedFilter>('all');
   const [factionFilter, setFactionFilter] = useState<Faction | 'all'>('all');
@@ -292,10 +286,10 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
   const scope = scopeOf(HEROES, filters);
   const t = tally(scope, owned);
 
-  const scopeName = [rarityFilter === 'all' ? '' : RARITY_LABEL[rarityFilter], factionFilter === 'all' ? '' : FACTION_LABEL[factionFilter], 'Heroes'].filter(Boolean).join(' ');
+  const scopeName = [rarityFilter === 'all' ? '' : RARITY_LABEL[rarityFilter], factionFilter === 'all' ? '' : FACTION_LABEL[factionFilter], 'Cards'].filter(Boolean).join(' ');
   const showMissing = ownedFilter === 'missing';
   const counter = showMissing ? `${t.missing}` : `${t.have} / ${t.total}`;
-  const caption = query.trim() ? 'matching Heroes' : `${scopeName} ${showMissing ? 'still missing' : 'collected'}`;
+  const caption = query.trim() ? 'matching cards' : `${scopeName} ${showMissing ? 'still missing' : 'collected'}`;
   useEffect(() => {
     track('collection_progress_viewed', { discovered: t.have, available: t.total, completion: t.total ? t.have / t.total : 0 });
   // Count/filter changes are not separate collection visits.
@@ -323,7 +317,7 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
   return (
     <div className="heroes-screen">
       <header className="hr-head">
-        <h1 className="hr-title">Heroes</h1>
+        <h1 className="hr-title">Cards</h1>
         <div className="hr-tools">
           <button
             type="button"
@@ -332,7 +326,7 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
               if (searchOpen) setQuery('');
               setSearchOpen(!searchOpen);
             }}
-            aria-label={searchOpen ? 'Close search' : 'Search Heroes'}
+            aria-label={searchOpen ? 'Close search' : 'Search cards'}
             aria-expanded={searchOpen}
           >
             <Icon name={searchOpen ? 'close' : 'search'} size={18} />
@@ -372,7 +366,7 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
       {searchOpen && (
         <div className="hr-search">
           <Icon name="search" size={16} />
-          <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name or trait" aria-label="Search Heroes" />
+          <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name or effect" aria-label="Search cards" />
           {query && (
             <button type="button" className="hr-search-clear" onClick={() => setQuery('')} aria-label="Clear search">
               <Icon name="close" size={14} />
@@ -447,7 +441,7 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
       ) : (
         <div className="hr-grid">
           {list.map((card) => (
-            <HeroTile key={card.id} card={card} owned={owned.has(card.id)} count={collection[card.id] ?? 0} rank={getAscensionRank(card.id, ascensionState)} level={getHeroLevel(card.id, heroLevelState)} onClick={() => setInspectId(card.id)} />
+            <HeroTile key={card.id} card={card} owned={owned.has(card.id)} count={collection[card.id] ?? 0} rank={getAscensionRank(card.id, ascensionState)} onClick={() => setInspectId(card.id)} />
           ))}
         </div>
       )}

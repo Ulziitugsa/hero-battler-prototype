@@ -5,32 +5,145 @@ try {
   const { PLAYTEST_ROSTER } = await server.ssrLoadModule('/src/game/cards/roster.ts');
   const { getCard } = await server.ssrLoadModule('/src/game/cards/index.ts');
   const { STARTER_DECKS } = await server.ssrLoadModule('/src/game/cards/starterDecks.ts');
-  const { combatStats, commanderHp, createV2State, resolveV2Round } = await server.ssrLoadModule('/src/game/combatV2/model.ts');
-  const heroes = [...new Set(PLAYTEST_ROSTER)].map(getCard).filter(c => c.type === 'hero');
-  const vals = heroes.map(c => c.power).sort((a,b)=>a-b);
-  const sum = xs => xs.reduce((a,b)=>a+b,0);
-  const median = xs => xs[Math.floor(xs.length/2)];
-  const byPower = [...new Set(vals)].map(power => {const c=heroes.find(h=>h.power===power);return {power,id:c.id,atk:combatStats(c.id).attack,hp:combatStats(c.id).maxHp};});
-  const medCard = heroes.find(c=>c.power===median(vals));
-  const examples = [1,20,40,60].map(level=>({level,...combatStats(medCard.id,level,0)}));
-  const ascension = [0,1,2].map(rank=>({rank,...combatStats(medCard.id,40,rank)}));
-  const matchup = byPower.map(a=>byPower.map(d=>Math.ceil(d.hp/a.atk)));
-  const growthChecks = [[1,1],[20,1],[1,20],[40,20],[20,40],[60,1]].map(([aLevel,dLevel])=>({attackLevel:aLevel,targetLevel:dLevel,attacker:combatStats(medCard.id,aLevel).attack,targetHp:combatStats(medCard.id,dLevel).maxHp,hits:Math.ceil(combatStats(medCard.id,dLevel).maxHp/combatStats(medCard.id,aLevel).attack)}));
-  const decks = Object.entries(STARTER_DECKS).map(([faction,ids])=>({faction,ids:ids.filter(id=>getCard(id).type==='hero')}));
-  const vitality = decks.map(d=>({faction:d.faction,heroes:d.ids.length,A:commanderHp(d.ids,1,0,'A'),B:commanderHp(d.ids,1,0,'B'),C:commanderHp(d.ids,1,0,'C')}));
-  const simulate = (p,e,level=20) => {
-    let s=createV2State(101,p,e,{playerLevel:level,enemyLevel:level}); let pi=0,ei=0;
-    for(let i=0;i<100&&s.status==='IN_PROGRESS';i++){
-      const pp=[],ep=[];for(const lane of ['left','center','right']){
-        if(!s.player.heroes[lane]&&pi<p.length)pp.push({cardId:p[pi++],lane,level});
-        if(!s.enemy.heroes[lane]&&ei<e.length)ep.push({cardId:e[ei++],lane,level});
-      }
-      s=resolveV2Round(s,pp,ep);
-      if(pi>=p.length&&ei>=e.length&&Object.keys(s.player.heroes).length===0&&Object.keys(s.enemy.heroes).length===0)break;
+  const { combatStats, commanderHp, createV2State, makeV2Hero, resolveV2Round, DIRECT_COMMANDER_MULTIPLIER, DIRECT_COMMANDER_DAMAGE_CAP } = await server.ssrLoadModule('/src/game/combatV2/model.ts');
+
+  const heroes = [...new Set(PLAYTEST_ROSTER)].map(getCard).filter(card => card.type === 'hero');
+  const powerValues = heroes.map(card => card.power ?? 1).sort((a, b) => a - b);
+  const medianPower = powerValues[Math.floor(powerValues.length / 2)];
+  const representative = ['kng-light-priest', 'kng-archer', 'und-vharos'].map(getCard);
+  const sum = values => values.reduce((total, value) => total + value, 0);
+
+  function duel(cardId, attackerLevel, defenderLevel, attackerAscension = 0, defenderAscension = 0) {
+    let state = createV2State(17, [cardId], [cardId]);
+    state.player.commanderHp = state.enemy.commanderHp = 999;
+    state.player.cardsLeft = [];
+    state.enemy.cardsLeft = [];
+    state.player.heroes.center = makeV2Hero(cardId, attackerLevel, attackerAscension);
+    state.enemy.heroes.center = makeV2Hero(cardId, defenderLevel, defenderAscension);
+    let clashes = 0;
+    while (clashes < 20 && state.player.heroes.center && state.enemy.heroes.center) {
+      state = resolveV2Round(state, [], []);
+      clashes += 1;
     }
-    const events=s.events;return {rounds:s.round-1,status:s.status,playerHp:s.player.commanderHp,enemyHp:s.enemy.commanderHp,heroesDestroyed:s.player.defeated.length+s.enemy.defeated.length,directDamage:sum(events.filter(e=>e.type==='COMMANDER_DAMAGE').map(e=>e.amount??0)),winner:s.status==='PLAYER_WIN'?'player':s.status==='ENEMY_WIN'?'enemy':'unfinished'};
-  };
-  const matches=[];for(const p of decks)for(const e of decks)if(p!==e)matches.push({match:`${p.faction} vs ${e.faction}`,...simulate(p.ids,e.ids)});
-  const directDamage = [0.5,0.75,1].map(multiplier=>({multiplier,lv20MedianHero:Math.ceil(combatStats(medCard.id,20).attack*multiplier)}));
-  console.log(JSON.stringify({heroCount:heroes.length,power:{min:vals[0],median:median(vals),max:vals.at(-1),mean:+(sum(vals)/vals.length).toFixed(2),histogram:Object.fromEntries([...new Set(vals)].map(v=>[v,vals.filter(x=>x===v).length]))},medianExample:{id:medCard.id,power:medCard.power,levels:examples,ascension},byPower,matchup,powerRows:byPower.map(x=>x.power),growthChecks,commanderAlternatives:vitality,directDamage,prototypeMatches:matches},null,2));
-} finally { await server.close(); }
+    return {
+      clashes,
+      attackerRemainingHp: state.player.heroes.center?.hp ?? 0,
+      defenderRemainingHp: state.enemy.heroes.center?.hp ?? 0,
+      attackerMaxHp: combatStats(cardId, attackerLevel, attackerAscension).maxHp,
+      defenderMaxHp: combatStats(cardId, defenderLevel, defenderAscension).maxHp,
+    };
+  }
+
+  const levelPairs = [[1, 1], [20, 20], [40, 40], [60, 60], [20, 30], [20, 40], [40, 60]];
+  const peerCombat = levelPairs.map(([attackerLevel, defenderLevel]) => ({
+    attackerLevel,
+    defenderLevel,
+    examples: representative.map(card => ({
+      id: card.id,
+      power: card.power,
+      attacker: combatStats(card.id, attackerLevel),
+      defender: combatStats(card.id, defenderLevel),
+      ...duel(card.id, attackerLevel, defenderLevel),
+    })),
+  }));
+
+  const archer = getCard('kng-archer');
+  const ascension = [0, 1, 2, 3].map(rank => ({
+    rank,
+    stats: combatStats(archer.id, 40, rank),
+    vsRankZero: duel(archer.id, 40, 40, rank, 0),
+    mirrored: duel(archer.id, 40, 40, rank, rank),
+  }));
+
+  const decks = Object.entries(STARTER_DECKS).map(([faction, ids]) => ({
+    faction,
+    ids: ids.filter(id => getCard(id).type === 'hero'),
+  }));
+
+  function simulate(playerIds, enemyIds, level, formula = 'D', rules = {}) {
+    let state = createV2State(101, playerIds, enemyIds, { playerLevel: level, enemyLevel: level });
+    state.player.commanderHp = commanderHp(playerIds, level, 0, formula);
+    state.enemy.commanderHp = commanderHp(enemyIds, level, 0, formula);
+    let playerIndex = 0;
+    let enemyIndex = 0;
+    for (let round = 0; round < 100 && state.status === 'IN_PROGRESS'; round += 1) {
+      const playerPlays = [];
+      const enemyPlays = [];
+      for (const lane of ['left', 'center', 'right']) {
+        if (!state.player.heroes[lane] && playerIndex < playerIds.length) playerPlays.push({ cardId: playerIds[playerIndex++], lane, level });
+        if (!state.enemy.heroes[lane] && enemyIndex < enemyIds.length) enemyPlays.push({ cardId: enemyIds[enemyIndex++], lane, level });
+      }
+      state = resolveV2Round(state, playerPlays, enemyPlays, rules);
+    }
+    return {
+      rounds: state.round - 1,
+      result: state.status,
+      playerCommanderHp: state.player.commanderHp,
+      enemyCommanderHp: state.enemy.commanderHp,
+      defeatedHeroes: state.player.defeated.length + state.enemy.defeated.length,
+      directDamage: sum(state.events.filter(event => event.type === 'COMMANDER_DAMAGE').map(event => event.amount ?? 0)),
+    };
+  }
+
+  const formulas = ['A', 'B', 'C', 'D'];
+  const commanderComparisons = formulas.flatMap(formula => [1, 20, 40, 60].map(level => {
+    const matches = [];
+    for (let player = 0; player < decks.length; player += 1) {
+      for (let enemy = 0; enemy < decks.length; enemy += 1) {
+        if (player !== enemy) matches.push(simulate(decks[player].ids, decks[enemy].ids, level, formula));
+      }
+    }
+    return {
+      formula,
+      level,
+      commanderHpByStarter: decks.map(deck => ({ faction: deck.faction, hp: commanderHp(deck.ids, level, 0, formula) })),
+      averageRounds: +(sum(matches.map(match => match.rounds)) / matches.length).toFixed(1),
+      rangeRounds: [Math.min(...matches.map(match => match.rounds)), Math.max(...matches.map(match => match.rounds))],
+    };
+  }));
+
+  const directDamageMatchups = [
+    { label: '50% uncapped', multiplier: 0.5, cap: Number.POSITIVE_INFINITY },
+    { label: '50% capped at 10', multiplier: 0.5, cap: 10 },
+    { label: '75% capped at 15 (current)', multiplier: 0.75, cap: 15 },
+    { label: '75% uncapped', multiplier: 0.75, cap: Number.POSITIVE_INFINITY },
+    { label: '100% uncapped', multiplier: 1, cap: Number.POSITIVE_INFINITY },
+  ].map(scenario => [1, 20, 40, 60].map(level => {
+    const matches = [];
+    for (let player = 0; player < decks.length; player += 1) {
+      for (let enemy = 0; enemy < decks.length; enemy += 1) {
+        if (player !== enemy) matches.push(simulate(decks[player].ids, decks[enemy].ids, level, 'D', {
+          directCommanderMultiplier: scenario.multiplier,
+          directCommanderDamageCap: scenario.cap,
+        }));
+      }
+    }
+    return {
+      scenario: scenario.label,
+      level,
+      averageRounds: +(sum(matches.map(match => match.rounds)) / matches.length).toFixed(1),
+      rangeRounds: [Math.min(...matches.map(match => match.rounds)), Math.max(...matches.map(match => match.rounds))],
+    };
+  })).flat();
+
+  const damageSamples = [
+    ...representative.map(card => ({ id: card.id, level: 20, attack: combatStats(card.id, 20).attack })),
+    { id: 'und-vharos', level: 60, attack: combatStats('und-vharos', 60).attack },
+  ].map(sample => ({ ...sample, directDamage: Math.min(DIRECT_COMMANDER_DAMAGE_CAP, Math.ceil(sample.attack * DIRECT_COMMANDER_MULTIPLIER)) }));
+
+  console.log(JSON.stringify({
+    roster: {
+      heroCount: heroes.length,
+      medianPower,
+      powerDistribution: Object.fromEntries([...new Set(powerValues)].map(power => [power, powerValues.filter(value => value === power).length])),
+      levelExamples: representative.map(card => ({ id: card.id, power: card.power, levels: [1, 20, 40, 60].map(level => ({ level, ...combatStats(card.id, level) })) })),
+    },
+    peerCombat,
+    ascension,
+    commanderComparisons,
+    directDamageMatchups,
+    directDamage: { formula: `${DIRECT_COMMANDER_MULTIPLIER} × ATK, capped at ${DIRECT_COMMANDER_DAMAGE_CAP}`, samples: damageSamples },
+  }, null, 2));
+} finally {
+  await server.close();
+}

@@ -48,6 +48,7 @@ export type AnalyticsEventName =
   | 'summon_result_viewed'
   | 'summon_duplicate_progression_shown'
   | 'legendary_pulled'
+  | 'prototype_box_opened'
   // Idle rewards
   | 'idle_reward_available'
   | 'idle_reward_claimed'

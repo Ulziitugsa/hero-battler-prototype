@@ -208,7 +208,7 @@ export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedRes
     const activeDeck = getActiveDeck();
     const upgradeReady = activeDeck.cardIds.some((id) => getCard(id).type === 'hero' && getHeroLevelStatus(id).canLevelUp);
     const destination = idle.availableGold > 0 ? 'home' as const : upgradeReady ? 'heroes' as const : 'decks' as const;
-    const label = destination === 'home' ? 'Claim Idle Gold' : destination === 'heroes' ? 'Upgrade a Hero' : 'Edit deck';
+    const label = destination === 'home' ? 'Claim Idle Gold' : destination === 'heroes' ? 'View Cards' : 'Edit deck';
     const power = rosterPowerForDeck(activeDeck.cardIds, getAccount().level, getHeroLevelState(), getAscensionState());
     const recommendation = recommendedPowerFor(result.node);
     const deficit = recommendation === undefined ? undefined : Math.max(0, recommendation - power);

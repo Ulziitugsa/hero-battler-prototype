@@ -1190,6 +1190,17 @@ button {
   color: #fff3d6;
 }
 
+.zone-card-power.v2 { width: auto; min-width: 34%; height: 15px; aspect-ratio: auto; padding: 0 3px; border-radius: 2px; font-size: 8px; }
+.zone-card-stats { position: absolute; z-index: 3; left: 4%; right: 4%; top: 5%; }
+.zone-card-stats .card-stat-pair { gap: 2px; }
+.zone-card-stats .card-stat { gap: 1px; padding: 2px 1px; }
+.zone-card-stats .card-stat strong { font-size: 8px; }
+.zone-card-stats .card-stat svg { width: 9px; height: 9px; }
+.zone-card-vitality { position: absolute; z-index: 3; left: 5%; right: 5%; bottom: 22%; height: 15px; overflow: hidden; border: 1px solid #c4d4b5; border-radius: 2px; background: #14252b; color: #f2edd5; }
+.zone-card-vitality-fill { position: absolute; inset: 0 auto 0 0; background: #638b61; }
+.theirs .zone-card-vitality-fill { background: #a04e3d; }
+.zone-card-vitality small { position: relative; display: block; padding: 0 2px; text-align: center; font: 7px/13px var(--mono); text-shadow: 0 1px 2px #071015; }
+
 .zone-card-buff {
   position: absolute;
   left: 6%;
@@ -2037,6 +2048,11 @@ button {
   box-shadow: 0 0 0 1px var(--px-bg-deep), 0 3px 0 var(--px-gold-deep, #6e553c);
   color: var(--px-gold-ink, var(--ember-gold-ink));
 }
+.hand-card-stats { position: absolute; z-index: 2; left: 5%; right: 5%; top: 54%; }
+.hand-card-stats .card-stat-pair { gap: 2px; }
+.hand-card-stats .card-stat { gap: 1px; padding: 3px 1px; }
+.hand-card-stats .card-stat strong { font-size: 9px; }
+.hand-card-stats .card-stat svg { width: 10px; height: 10px; }
 
 .hand-card-token {
   position: absolute;
@@ -2127,6 +2143,8 @@ button {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  border: 1px solid rgba(255, 226, 180, .32);
+  padding: 0;
 }
 
 .hand-card-inspect:hover {

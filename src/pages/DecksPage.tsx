@@ -14,6 +14,8 @@ import { useCollection } from '../game/collection/useCollection';
 import { getOwnedCount, usableCopies } from '../game/collection/collection';
 import { CardDetail } from '../components/CardDetail';
 import { Icon } from '../components/Icon';
+import { CardStatPair } from '../components/CardStatPair';
+import { cardStatsPreviewEnabled } from '../game/cards/cardStatsPreview';
 import { Gems, Sigil } from '../components/CardParts';
 import { cardOrder, countCopies, deckComposition, getDeckStatus, plural, sortedEntries } from './decks/deckStatus';
 import { getDeckPresentation, type DeckPresentation } from './decks/deckPresentation';
@@ -65,6 +67,7 @@ function DeckCard({
   pool,
   deckFull,
   onClick,
+  onInspect,
 }: {
   card: CardDefinition;
   count: number;
@@ -75,6 +78,7 @@ function DeckCard({
   pool?: boolean;
   deckFull?: boolean;
   onClick?: () => void;
+  onInspect?: () => void;
 }) {
   const isHero = card.type === 'hero';
   const gameLimit = maxCopiesFor(card.id);
@@ -87,6 +91,7 @@ function DeckCard({
   const badge = pool ? (count > 0 ? `${count}/${limit}` : null) : over && ownedShort ? `Own ${ownedCount}` : count > 1 ? `×${count}` : null;
 
   return (
+    <span className="dk-card-wrap">
     <button
       type="button"
       className={`dk-card r-${card.rarity} ${pool && (maxed || deckFull) ? 'blocked' : ''} ${pool && maxed ? 'maxed' : ''} ${!pool && count > 1 ? 'stacked' : ''} ${over ? 'over' : ''}`}
@@ -100,7 +105,9 @@ function DeckCard({
           <span className="dk-card-gems">
             <Gems rarity={card.rarity} />
           </span>
-          {isHero ? (
+          {isHero && cardStatsPreviewEnabled() ? (
+          <span className="dk-card-stats"><CardStatPair card={card} compact /></span>
+          ) : isHero ? (
             <span className="dk-card-power">{card.power}</span>
           ) : (
             <span className="dk-card-power spell">
@@ -129,6 +136,8 @@ function DeckCard({
         </span>
       </span>
     </button>
+    {pool && onInspect && <button type="button" className="dk-card-inspect" aria-label={`Inspect ${card.name}`} onClick={(event) => { event.stopPropagation(); onInspect(); }}><Icon name="help" size={12} /></button>}
+    </span>
   );
 }
 
@@ -366,7 +375,7 @@ export function DecksPage() {
             <div className="dk-seg" role="group" aria-label="Card type">
               {(['all', 'hero', 'spell'] as TypeFilter[]).map((t) => (
                 <button type="button" key={t} className={`dk-seg-btn ${typeFilter === t ? 'on' : ''}`} onClick={() => setTypeFilter(t)}>
-                  {t === 'all' ? 'All' : t === 'hero' ? 'Heroes' : 'Spells'}
+                  {t === 'all' ? 'All' : t === 'hero' ? 'Units' : 'Spells'}
                 </button>
               ))}
             </div>
@@ -391,7 +400,7 @@ export function DecksPage() {
 
           <div className="dk-grid">
             {pool.map((c) => (
-              <DeckCard key={c.id} card={c} count={copies.get(c.id) ?? 0} ownedCount={getOwnedCount(c.id, owned)} ascension={getAscensionRank(c.id, ascensions)} pool deckFull={full} onClick={() => addCard(c)} />
+              <DeckCard key={c.id} card={c} count={copies.get(c.id) ?? 0} ownedCount={getOwnedCount(c.id, owned)} ascension={getAscensionRank(c.id, ascensions)} pool deckFull={full} onClick={() => addCard(c)} onInspect={() => setInspectCardId(c.id)} />
             ))}
           </div>
           {pool.length === 0 && (

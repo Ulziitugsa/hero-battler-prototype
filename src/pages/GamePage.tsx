@@ -6,6 +6,7 @@ import { createMatch } from '../game/engine/match';
 import { beginRound, resolveRound, spellHasAValidTarget, validateDeployment } from '../game/engine/resolveRound';
 import { withEffectivePowers } from '../game/engine/power';
 import { makeSeed } from '../game/engine/rng';
+import { combatStats } from '../game/combatV2/model';
 import { chooseAiAction } from '../game/ai/simpleAI';
 import { computeMatchStats, type MatchStats } from '../game/engine/stats';
 import { saveRecentMatch } from '../game/engine/localMatchHistory';
@@ -45,9 +46,11 @@ export interface GamePageProps {
   playerMastery?: MasteryLoadout | null;
   /** The player's Ascension ranks for the cards in their deck (cardId -> rank), captured at setup. Omit for all Base. */
   playerAscensions?: Record<string, number>;
+  enemyAscensions?: Record<string, number>;
   /** The player's Hero Levels for the cards in their deck (cardId -> level), captured at setup. Omit for all Level 1. */
   playerHeroLevels?: Record<string, number>;
   enemyHeroLevels?: Record<string, number>;
+  combatModel?: 'legacy' | 'v2';
   /** Overrides the match's starting HP (both sides) - used by Campaign's challenge nodes. Omit for the default STARTING_HP. */
   startingHp?: number;
   /** Fires once, the instant this match reaches MATCH_END - before the player dismisses the summary
@@ -77,12 +80,15 @@ function buildPreviewZones(
   spellZones: GameState['player']['spellZones'],
   pendingPlays: DeployPlay[],
   heroLevels: Record<string, number> = {},
+  heroAscensions: Record<string, number> = {},
+  combatModel: 'legacy' | 'v2' = 'legacy',
 ): { heroZones: GameState['player']['heroZones']; spellZones: GameState['player']['spellZones'] } {
   const previewHero = { ...heroZones };
   const previewSpell = { ...spellZones };
   for (const play of pendingPlays) {
     const card = getCard(play.cardId);
     if (card.type === 'hero') {
+      const v2Stats = combatModel === 'v2' ? combatStats(play.cardId, heroLevels[play.cardId] ?? 1, heroAscensions[play.cardId] ?? 0) : null;
       const pendingHero: HeroInstance = {
         instanceId: `pending-${play.handId}`,
         cardId: play.cardId,
@@ -91,7 +97,8 @@ function buildPreviewZones(
         shortName: card.shortName,
         // Matches makeHeroInstance's own Battle Power calculation, so the Deploy-phase preview never
         // shows a number Reveal is about to contradict for a levelled Hero.
-        power: (card.power ?? 0) + battlePowerBonusForLevel(heroLevels[play.cardId] ?? 1),
+        power: v2Stats?.attack ?? (card.power ?? 0) + battlePowerBonusForLevel(heroLevels[play.cardId] ?? 1),
+        ...(v2Stats ? { hp: v2Stats.maxHp, maxHp: v2Stats.maxHp, combatShield: 0 } : {}),
         tempPower: 0,
         shielded: false,
         silenced: false,
@@ -113,7 +120,7 @@ function buildPreviewZones(
   return { heroZones: previewHero, spellZones: previewSpell };
 }
 
-export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, playerHeroLevels, enemyHeroLevels, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch }: GamePageProps) {
+export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel = 'legacy' }: GamePageProps) {
   function buildMatch(matchSeed: number) {
     return createMatch({
       seed: matchSeed,
@@ -121,8 +128,9 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
       enemyDeck,
       startingHp,
       masteries: playerMastery ? { player: playerMastery } : undefined,
-      ascensions: playerAscensions && Object.keys(playerAscensions).length > 0 ? { player: playerAscensions } : undefined,
+      ascensions: (playerAscensions && Object.keys(playerAscensions).length > 0) || (enemyAscensions && Object.keys(enemyAscensions).length > 0) ? { ...(playerAscensions ? { player: playerAscensions } : {}), ...(enemyAscensions ? { enemy: enemyAscensions } : {}) } : undefined,
       heroLevels: (playerHeroLevels && Object.keys(playerHeroLevels).length > 0) || (enemyHeroLevels && Object.keys(enemyHeroLevels).length > 0) ? { ...(playerHeroLevels ? { player: playerHeroLevels } : {}), ...(enemyHeroLevels ? { enemy: enemyHeroLevels } : {}) } : undefined,
+      combatModel,
     });
   }
 
@@ -335,7 +343,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const displayState = isRevealing ? anim.displayState : gameState;
   const hpFxFor = (side: 'player' | 'enemy') => anim.visuals.hpFx.find((fx) => fx.side === side) ?? null;
 
-  const preview = phase === 'DEPLOY' ? buildPreviewZones(displayState.player.heroZones, displayState.player.spellZones, pendingPlays, playerHeroLevels) : null;
+  const preview = phase === 'DEPLOY' ? buildPreviewZones(displayState.player.heroZones, displayState.player.spellZones, pendingPlays, playerHeroLevels, playerAscensions, combatModel) : null;
 
   // Tapping a chit to inspect it - like every other board interaction - is locked out while the round
   // is resolving, so a mid-animation tap can never race the animation queue or open stale card data.
@@ -401,7 +409,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             <Icon name="bug" size={14} />
           </button>
 
-          <SideHeader side="enemy" name="Enemy" rank={enemyDeckLabel} hp={displayState.enemy.hp} hpFx={hpFxFor('enemy')} onClose={onExit} />
+          <SideHeader side="enemy" name="Enemy" rank={enemyDeckLabel} hp={displayState.enemy.hp} maxHp={displayState.enemy.maxHp} hpFx={hpFxFor('enemy')} onClose={onExit} />
           <OpponentHand count={displayState.enemy.hand.length} />
 
           <Battlefield
@@ -432,6 +440,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             name="You"
             rank={playerDeckLabel}
             hp={displayState.player.hp}
+            maxHp={displayState.player.maxHp}
             hpFx={hpFxFor('player')}
             graveyardPulse={anim.visuals.graveyardPulse === 'player'}
             deckCount={displayState.player.deck.length}

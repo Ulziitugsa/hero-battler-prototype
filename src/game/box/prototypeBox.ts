@@ -1,0 +1,131 @@
+import type { Rarity } from '../types/index.js';
+import { grantCard } from '../collection/collection.js';
+import { getCard } from '../cards/index.js';
+import { PLAYTEST_ROSTER } from '../cards/roster.js';
+
+export const PROTOTYPE_BOX = {
+  id: 'moonfall-test-v1',
+  name: 'Moonfall Box · Test',
+  packCount: 100,
+  cardsPerPack: 5,
+  cardCounts: { common: 250, rare: 150, epic: 75, legendary: 25 } satisfies Record<Rarity, number>,
+} as const;
+
+export const PROTOTYPE_BOX_STORAGE_KEY = 'moonwater:testBox:moonfall-v1';
+export type BoxRemaining = Record<string, number>;
+export interface PrototypeBoxState { version: 1; openedPacks: number; randomState: number; remaining: BoxRemaining }
+export interface PrototypeBoxPull { cardId: string; rarity: Rarity; previousCopies: number; ownedCopies: number; isNew: boolean }
+export interface OpenBoxResult { state: PrototypeBoxState; packs: PrototypeBoxPull[][] }
+
+const rarityOrder: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
+const cardIds = [...new Set(PLAYTEST_ROSTER)].sort();
+let snapshot: PrototypeBoxState | null = null;
+
+function initialRemaining(): BoxRemaining {
+  const result: BoxRemaining = {};
+  for (const rarity of rarityOrder) {
+    const eligible = cardIds.filter(id => getCard(id).rarity === rarity);
+    if (!eligible.length) continue;
+    const each = Math.floor(PROTOTYPE_BOX.cardCounts[rarity] / eligible.length);
+    let extra = PROTOTYPE_BOX.cardCounts[rarity] % eligible.length;
+    for (const id of eligible) result[id] = each + (extra-- > 0 ? 1 : 0);
+  }
+  return result;
+}
+
+function freshState(): PrototypeBoxState {
+  return { version: 1, openedPacks: 0, randomState: 0x4d4f4f4, remaining: initialRemaining() };
+}
+
+function save(state: PrototypeBoxState): PrototypeBoxState {
+  snapshot = state;
+  try { localStorage.setItem(PROTOTYPE_BOX_STORAGE_KEY, JSON.stringify(state)); } catch { /* test economy is best effort */ }
+  return state;
+}
+
+export function getPrototypeBoxState(): PrototypeBoxState {
+  if (snapshot) return snapshot;
+  try {
+    const raw = localStorage.getItem(PROTOTYPE_BOX_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<PrototypeBoxState>;
+      if (parsed.version === 1 && parsed.remaining && typeof parsed.remaining === 'object') {
+        snapshot = { ...freshState(), ...parsed, remaining: { ...initialRemaining(), ...parsed.remaining } };
+        return snapshot;
+      }
+    }
+  } catch { /* create a fresh test box */ }
+  snapshot = freshState();
+  return snapshot;
+}
+
+function totalRemaining(remaining: BoxRemaining): number {
+  return Object.values(remaining).reduce((sum, count) => sum + Math.max(0, count), 0);
+}
+
+export function prototypeBoxPacksRemaining(state = getPrototypeBoxState()): number {
+  return Math.min(PROTOTYPE_BOX.packCount - state.openedPacks, Math.floor(totalRemaining(state.remaining) / PROTOTYPE_BOX.cardsPerPack));
+}
+
+export function prototypeBoxRarityCounts(state = getPrototypeBoxState()): Record<Rarity, number> {
+  const counts: Record<Rarity, number> = { common: 0, rare: 0, epic: 0, legendary: 0 };
+  for (const [id, remaining] of Object.entries(state.remaining)) counts[getCard(id).rarity] += Math.max(0, remaining);
+  return counts;
+}
+
+function nextRandom(state: number): { state: number; value: number } {
+  const next = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+  return { state: next, value: next };
+}
+
+function draw(remaining: BoxRemaining, randomState: number): { cardId: string; randomState: number } {
+  const total = totalRemaining(remaining);
+  if (total < 1) throw new Error('The prototype Box has no cards left.');
+  // Reject the short tail so each remaining physical copy has the same draw interval.
+  const limit = Math.floor(0x100000000 / total) * total;
+  let roll = nextRandom(randomState);
+  while (roll.value >= limit) roll = nextRandom(roll.state);
+  let target = roll.value % total;
+  for (const id of cardIds) {
+    const count = remaining[id] ?? 0;
+    if (target < count) {
+      remaining[id] = count - 1;
+      return { cardId: id, randomState: roll.state };
+    }
+    target -= count;
+  }
+  throw new Error('The prototype Box contents are inconsistent.');
+}
+
+/** Opens 1 or 10 fixed five-card packs. Each physical card copy is removed from the finite pool. */
+export function openPrototypeBox(packCount: 1 | 10): OpenBoxResult {
+  const before = getPrototypeBoxState();
+  if (prototypeBoxPacksRemaining(before) < packCount) throw new Error(`Only ${prototypeBoxPacksRemaining(before)} packs remain.`);
+  const remaining = { ...before.remaining };
+  let randomState = before.randomState;
+  const packs: PrototypeBoxPull[][] = [];
+  for (let pack = 0; pack < packCount; pack += 1) {
+    const pulls: PrototypeBoxPull[] = [];
+    for (let slot = 0; slot < PROTOTYPE_BOX.cardsPerPack; slot += 1) {
+      const result = draw(remaining, randomState);
+      randomState = result.randomState;
+      const card = getCard(result.cardId);
+      const grant = grantCard(result.cardId);
+      if (!grant) throw new Error(`Could not add ${result.cardId} to the collection.`);
+      pulls.push({ cardId: result.cardId, rarity: card.rarity, previousCopies: grant.previous, ownedCopies: grant.owned, isNew: grant.isNew });
+    }
+    packs.push(pulls);
+  }
+  const next = save({ version: 1, openedPacks: before.openedPacks + packCount, randomState, remaining });
+  return { state: next, packs };
+}
+
+/** Test-only reset; it restores this Box's finite pool and never modifies collection ownership. */
+export function resetPrototypeBox(): PrototypeBoxState {
+  snapshot = null;
+  try { localStorage.removeItem(PROTOTYPE_BOX_STORAGE_KEY); } catch { /* best effort */ }
+  snapshot = freshState();
+  return save(snapshot);
+}
+
+export function reloadPrototypeBox(): void { snapshot = null; }

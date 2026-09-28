@@ -6,6 +6,7 @@ import { battlePowerBonusForLevel } from '../heroLevel/battlePower.js';
 import { nextRandom } from './rng.js';
 import { STARTING_HP } from './constants.js';
 import { effectivePower } from './power.js';
+import { combatStats } from '../combatV2/model.js';
 import { type Ctx, getHero, getSpellZone, livingHeroes, makeInstanceId, occupiedSpellZones, opposite, playerOf, push, setHero, setSpellZone } from './board.js';
 
 /** Everything an ability's actions need to know about who/what triggered it. Fully determines every automatic target. */
@@ -420,13 +421,63 @@ function executeAction(ctx: Ctx, action: ActionDef, exec: AbilityContext): void 
       for (const loc of locs) changeHeroPower(ctx, loc.side, loc.lane, amount, action.duration, exec.sourceName);
       return;
     }
+    case 'DAMAGE_HERO': {
+      if (ctx.state.combatModel !== 'v2') {
+        if (action.legacyPowerChange || action.legacyPowerSet !== undefined) {
+          const legacyTargets = filterHostileTargets(ctx, exec, action, resolveTargetLocations(ctx, exec, action.target));
+          for (const loc of legacyTargets) {
+            if (action.legacyPowerSet !== undefined) setHeroPower(ctx, loc.side, loc.lane, action.legacyPowerSet, 'PERMANENT', exec.sourceName);
+            else changeHeroPower(ctx, loc.side, loc.lane, -action.legacyPowerChange!, 'PERMANENT', exec.sourceName);
+          }
+        }
+        return;
+      }
+      const targets = filterHostileTargets(ctx, exec, action, resolveTargetLocations(ctx, exec, action.target));
+      for (const loc of targets) {
+        const hero = getHero(ctx, loc.side, loc.lane);
+        if (!hero || hero.hp === undefined) continue;
+        const from = hero.hp;
+        const absorbed = Math.min(hero.combatShield ?? 0, action.amount);
+        hero.combatShield = Math.max(0, (hero.combatShield ?? 0) - absorbed);
+        hero.hp = Math.max(0, hero.hp - (action.amount - absorbed));
+        push(ctx, { type: 'HERO_DAMAGE', side: loc.side, lane: loc.lane, instanceId: hero.instanceId, amount: from - hero.hp, from, to: hero.hp });
+        if (hero.hp <= 0) destroyAndChain(ctx, [loc]);
+      }
+      return;
+    }
+    case 'HEAL_HERO': {
+      if (ctx.state.combatModel !== 'v2') return;
+      for (const loc of resolveTargetLocations(ctx, exec, action.target)) {
+        const hero = getHero(ctx, loc.side, loc.lane);
+        if (!hero || hero.hp === undefined || hero.maxHp === undefined) continue;
+        const from = hero.hp;
+        hero.hp = Math.min(hero.maxHp, hero.hp + action.amount);
+        push(ctx, { type: 'HERO_HEAL', side: loc.side, lane: loc.lane, instanceId: hero.instanceId, amount: hero.hp - from, from, to: hero.hp });
+      }
+      return;
+    }
+    case 'APPLY_COMBAT_SHIELD': {
+      if (ctx.state.combatModel !== 'v2') return;
+      for (const loc of resolveTargetLocations(ctx, exec, action.target)) {
+        const hero = getHero(ctx, loc.side, loc.lane);
+        if (!hero) continue;
+        hero.combatShield = (hero.combatShield ?? 0) + action.amount;
+        push(ctx, { type: 'HERO_SHIELD_APPLIED', side: loc.side, lane: loc.lane, instanceId: hero.instanceId, amount: action.amount });
+      }
+      return;
+    }
     case 'DESTROY': {
       const candidates = filterHostileTargets(ctx, exec, action, resolveTargetLocations(ctx, exec, action.target));
       const toDestroy: { side: Side; lane: LaneId }[] = [];
       for (const loc of candidates) {
         const hero = getHero(ctx, loc.side, loc.lane);
         if (!hero) continue;
-        if (action.maxPower !== undefined && hero.power > action.maxPower) continue; // doesn't meet the threshold - fizzles for this one
+        if (action.maxPower !== undefined) {
+          const eligible = ctx.state.combatModel === 'v2' && hero.hp !== undefined && hero.maxHp !== undefined
+            ? hero.hp / hero.maxHp <= (action.maxPower <= 3 ? 0.25 : 0.5)
+            : hero.power <= action.maxPower;
+          if (!eligible) continue;
+        }
         toDestroy.push(loc);
       }
       if (toDestroy.length > 0) destroyAndChain(ctx, toDestroy);
@@ -505,7 +556,7 @@ function executeAction(ctx: Ctx, action: ActionDef, exec: AbilityContext): void 
       const pick = pickEligibleFromGraveyard(p.graveyard, action.maxPower, action.pick, ctx, action.faction);
       if (!pick) return;
       p.graveyard.splice(pick.index, 1);
-      const revived = makeHeroInstance(exec.ownerSide, exec.selfLane, ctx.state.round, pick.cardId, ascensionRank(ctx.state, exec.ownerSide, pick.cardId));
+      const revived = makeHeroInstance(exec.ownerSide, exec.selfLane, ctx.state.round, pick.cardId, ascensionRank(ctx.state, exec.ownerSide, pick.cardId), heroLevelOf(ctx.state, exec.ownerSide, pick.cardId), ctx.state.combatModel);
       setHero(ctx, exec.ownerSide, exec.selfLane, revived);
       push(ctx, { type: 'REVIVED', side: exec.ownerSide, instanceId: revived.instanceId, cardId: pick.cardId, name: getCard(pick.cardId).name, lane: exec.selfLane, power: revived.power, graveyardIndex: pick.index });
       return;
@@ -517,7 +568,7 @@ function executeAction(ctx: Ctx, action: ActionDef, exec: AbilityContext): void 
       const idx = p.graveyard.lastIndexOf(exec.deathCardId);
       if (idx < 0) return;
       p.graveyard.splice(idx, 1);
-      const instance = makeHeroInstance(exec.ownerSide, exec.selfLane, ctx.state.round, exec.deathCardId, ascensionRank(ctx.state, exec.ownerSide, exec.deathCardId));
+      const instance = makeHeroInstance(exec.ownerSide, exec.selfLane, ctx.state.round, exec.deathCardId, ascensionRank(ctx.state, exec.ownerSide, exec.deathCardId), heroLevelOf(ctx.state, exec.ownerSide, exec.deathCardId), ctx.state.combatModel);
       instance.power = action.power;
       setHero(ctx, exec.ownerSide, exec.selfLane, instance);
       push(ctx, { type: 'REVIVED', side: exec.ownerSide, instanceId: instance.instanceId, cardId: exec.deathCardId, name: getCard(exec.deathCardId).name, lane: exec.selfLane, power: instance.power, graveyardIndex: idx });
@@ -575,7 +626,7 @@ function executeAction(ctx: Ctx, action: ActionDef, exec: AbilityContext): void 
       for (const lane of LANES) {
         if (remaining <= 0) break;
         if (getHero(ctx, exec.ownerSide, lane) !== null) continue; // tokens only ever fill EMPTY lanes
-        const token = makeHeroInstance(exec.ownerSide, lane, ctx.state.round, action.tokenId);
+        const token = makeHeroInstance(exec.ownerSide, lane, ctx.state.round, action.tokenId, 0, 1, ctx.state.combatModel);
         token.instanceId = `t-${exec.ownerSide}-${lane}-r${ctx.state.round}-e${ctx.events.length}`;
         token.token = true;
         setHero(ctx, exec.ownerSide, lane, token);
@@ -731,6 +782,7 @@ function removeAndRecord(ctx: Ctx, side: Side, lane: LaneId): DeadHero | null {
     // The shield absorbs exactly one destruction attempt from ANY source (combat loss, DESTROY, a
     // Power<=0 sweep) - the Hero survives at its current Power, still occupying this lane.
     hero.shielded = false;
+    if (ctx.state.combatModel === 'v2' && hero.hp !== undefined) hero.hp = Math.max(1, hero.hp);
     push(ctx, { type: 'SHIELD_CONSUMED', side, instanceId: hero.instanceId, name: hero.name, lane });
     return null;
   }
@@ -806,8 +858,9 @@ export function sweepPowerZero(ctx: Ctx): void {
   destroyAndChain(ctx, findPowerZero(ctx));
 }
 
-export function makeHeroInstance(side: Side, lane: LaneId, round: number, cardId: string, ascension = 0, level = 1): HeroInstance {
+export function makeHeroInstance(side: Side, lane: LaneId, round: number, cardId: string, ascension = 0, level = 1, combatModel: GameState['combatModel'] = 'legacy'): HeroInstance {
   const card = getCard(cardId);
+  const v2Stats = combatModel === 'v2' ? combatStats(cardId, level, ascension) : null;
   return {
     ...(ascension > 0 ? { ascension } : {}),
     ...(level > 1 ? { level } : {}),
@@ -816,9 +869,10 @@ export function makeHeroInstance(side: Side, lane: LaneId, round: number, cardId
     faction: card.faction,
     name: card.name,
     shortName: card.shortName,
-    // Hero Level's ONLY effect on real combat: a small, hard-capped Battle Power bonus baked in once,
-    // here, at placement - see game/heroLevel/config.ts's header note on why this must stay small.
-    power: (card.power ?? 0) + battlePowerBonusForLevel(level),
+    // Legacy matches keep their capped Power bonus; V2 stores the Hero's combat ATK as Power so the
+    // existing ability and Continuous Spell systems continue to modify the live attack value.
+    power: v2Stats?.attack ?? (card.power ?? 0) + battlePowerBonusForLevel(level),
+    ...(v2Stats ? { hp: v2Stats.maxHp, maxHp: v2Stats.maxHp, combatShield: 0 } : {}),
     enteredRound: round,
     tempPower: 0,
     shielded: false,

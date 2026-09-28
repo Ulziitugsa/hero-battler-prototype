@@ -5,6 +5,8 @@ import { cardArtUrl } from '../game/cards/art';
 import { RARITY_GEMS } from './cardVisuals';
 import type { ChitVisual } from './animation/chitEffects';
 import { Icon } from './Icon';
+import { CardStatPair } from './CardStatPair';
+import { cardStatsPreviewEnabled } from '../game/cards/cardStatsPreview';
 import '../styles/ascension.css';
 
 /** A Hero zone's filled state - a compact version of the card frame (art, gems, power coin, name),
@@ -25,7 +27,7 @@ export function BoardChit({ hero, side, anim, disabled, onClick }: { hero: HeroI
       className={`zone-card hero-zone-card ${mine ? 'mine' : 'theirs'} ${hero.shielded ? 'chit-shield-active' : ''} ${hero.silenced ? 'chit-silenced-persistent' : ''} ${anim?.className ?? ''}`}
       onClick={onClick}
       disabled={disabled}
-      aria-label={`${card.name}, Power ${hero.power}`}
+      aria-label={`${card.name}, ${cardStatsPreviewEnabled() ? `ATK and LP preview for ${card.name}` : hero.maxHp !== undefined ? `ATK ${hero.power}, HP ${hero.hp ?? hero.maxHp} of ${hero.maxHp}` : `Power ${hero.power}`}`}
     >
       <span className={`zone-card-art ${hero.faction}`}>
         {artUrl ? (
@@ -43,7 +45,8 @@ export function BoardChit({ hero, side, anim, disabled, onClick }: { hero: HeroI
         ))}
       </span>
       {hero.ascension ? <span className="zone-card-asc" title="Ascended">{['', 'I', 'II', 'III'][hero.ascension]}</span> : null}
-      <span className="zone-card-power">{hero.power}</span>
+      {cardStatsPreviewEnabled() ? <span className="zone-card-stats"><CardStatPair card={card} compact effectivePower={hero.power} /></span> : <span className={`zone-card-power ${hero.maxHp !== undefined ? 'v2' : ''}`}>{hero.maxHp !== undefined ? `ATK ${hero.power}` : hero.power}</span>}
+      {hero.maxHp !== undefined && <span className="zone-card-vitality" aria-label={`HP ${hero.hp ?? hero.maxHp} / ${hero.maxHp}`}><span className="zone-card-vitality-fill" style={{ width: `${Math.max(0, Math.min(100, ((hero.hp ?? hero.maxHp) / hero.maxHp) * 100))}%` }} /><small>{hero.hp ?? hero.maxHp}/{hero.maxHp} HP{(hero.combatShield ?? 0) > 0 ? ` · SH ${hero.combatShield}` : ''}</small></span>}
       {hero.tempPower !== 0 && (
         <span className="zone-card-buff">
           {hero.tempPower > 0 ? '+' : ''}

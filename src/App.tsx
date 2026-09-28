@@ -35,6 +35,7 @@ import { chooseRankedOpponent, getRanked, recordRankedMatch } from './game/ranke
 import { listDeckOptions } from './game/engine/deckOptions';
 import { CombatV2LabPage } from './pages/CombatV2LabPage';
 import { getCard } from './game/cards';
+import { combatModelForMode } from './game/combatV2/featureFlag';
 
 export default function App() {
   return <div className="moon-game"><WorldBackdrop /><Suspense fallback={<MoonwaterLoading />}><GameApp /></Suspense>{isDebugPanelEnabled() && <AnalyticsDebugPanel />}</div>;
@@ -56,7 +57,7 @@ function GameApp() {
   const [storySaveFailed, setStorySaveFailed] = useState(false);
   const [storyResult, setStoryResult] = useState<string | null>(null);
   const [lastStoryTrial, setLastStoryTrial] = useState<string | null>(null);
-  const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; startingHp?: number; mastery: MasteryLoadout | null; ascensions: Record<string, number>; heroLevels: Record<string, number>; enemyHeroLevels?: Record<string, number>; rankedOpponentLabel?: string } | null>(null);
+  const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; startingHp?: number; mastery: MasteryLoadout | null; ascensions: Record<string, number>; enemyAscensions?: Record<string, number>; heroLevels: Record<string, number>; enemyHeroLevels?: Record<string, number>; rankedOpponentLabel?: string; combatModel: 'legacy' | 'v2' } | null>(null);
   // Which Campaign node the in-progress battle belongs to, if any - set only by startCampaignBattle,
   // never by Quick Battle, so Quick Battle can never touch Campaign state (see progress.ts's own note).
   const [campaignNodeId, setCampaignNodeId] = useState<string | null>(null);
@@ -119,8 +120,10 @@ function GameApp() {
         startingHp={battleSetup.startingHp}
         playerMastery={battleSetup.mastery}
         playerAscensions={battleSetup.ascensions}
+        enemyAscensions={battleSetup.enemyAscensions}
         playerHeroLevels={battleSetup.heroLevels}
         enemyHeroLevels={battleSetup.enemyHeroLevels}
+        combatModel={battleSetup.combatModel}
         onMatchEnd={
           battleSetup.rankedOpponentLabel
             ? (status) => {
@@ -158,7 +161,7 @@ function GameApp() {
 
   // Battle Setup is reached from Home's Fight seal, not a HUD tab (Home Screen v3) - it renders
   // full-screen, same as an in-progress match, with its own way back to Home.
-  if (showBattleSetup) return <BattleSetupPage onStartBattle={startBattle} onBack={() => setShowBattleSetup(false)} />;
+  if (showBattleSetup) return <BattleSetupPage onStartBattle={(player, enemy) => startBattle(player, enemy, undefined, undefined, combatModelForMode('quickBattle'))} onBack={() => setShowBattleSetup(false)} />;
 
   // Campaign, like Battle, runs without the bottom HUD arc - its own carved back medallion returns
   // to Home (Campaign Screen.dc.html's own "Open points" note).
@@ -193,13 +196,13 @@ function GameApp() {
     setLanternTrialId(id);
     setLastStoryTrial(id);
     setShowLanterns(false);
-    startBattle({ label: active.label, cardIds: active.cardIds }, { label, cardIds: deck });
+    startBattle({ label: active.label, cardIds: active.cardIds }, { label, cardIds: deck }, undefined, undefined, 'legacy');
   }} />{storySaveFailed && <p role="alert">Your browser could not save this story result. Enable local storage before replaying.</p>}</>;
 
-  function startBattle(player: DeckChoice, enemy: DeckChoice, rankedOpponentLabel?: string, enemyHeroLevels?: Record<string, number>) {
+  function startBattle(player: DeckChoice, enemy: DeckChoice, rankedOpponentLabel?: string, enemyHeroLevels?: Record<string, number>, combatModel: 'legacy' | 'v2' = combatModelForMode('quickBattle'), enemyAscensions?: Record<string, number>) {
     battleCounter.current += 1;
     setShowBattleSetup(false);
-    setBattleSetup({ player, enemy, id: battleCounter.current, mastery: getEquippedLoadout(), ascensions: ascensionRanksFor(player.cardIds), heroLevels: heroLevelsFor(player.cardIds), enemyHeroLevels, rankedOpponentLabel });
+    setBattleSetup({ player, enemy, id: battleCounter.current, mastery: getEquippedLoadout(), ascensions: ascensionRanksFor(player.cardIds), enemyAscensions, heroLevels: heroLevelsFor(player.cardIds), enemyHeroLevels, rankedOpponentLabel, combatModel });
   }
 
   function startCampaignBattle(nodeId: string, player: DeckChoice, enemy: DeckChoice, startingHp?: number) {
@@ -207,7 +210,7 @@ function GameApp() {
     setShowCampaign(false);
     setCampaignNodeId(nodeId);
     track('campaign_node_started', { nodeId });
-    setBattleSetup({ player, enemy, id: battleCounter.current, startingHp, mastery: getEquippedLoadout(), ascensions: ascensionRanksFor(player.cardIds), heroLevels: heroLevelsFor(player.cardIds) });
+    setBattleSetup({ player, enemy, id: battleCounter.current, startingHp, mastery: getEquippedLoadout(), ascensions: ascensionRanksFor(player.cardIds), heroLevels: heroLevelsFor(player.cardIds), combatModel: combatModelForMode('campaign') });
   }
 
   let screen;
@@ -242,7 +245,7 @@ function GameApp() {
       const rival = chooseRankedOpponent(listDeckOptions(), player, ranked.rating);
       const levels=heroLevelsFor(player.cardIds);const uniqueHeroes=[...new Set(player.cardIds.filter(id=>getCard(id).type==='hero'))];const averageLevel=uniqueHeroes.length?Math.round(uniqueHeroes.reduce((sum,id)=>sum+(levels[id]??1),0)/uniqueHeroes.length):1;const enemyLevels=Object.fromEntries([...new Set(rival.cardIds.filter(id=>getCard(id).type==='hero'))].map(id=>[id,averageLevel]));
       track('ranked_match_started', { rating: ranked.rating, opponent: rival.label });
-      startBattle({ label: player.label, cardIds: player.cardIds }, { label: `AI · ${rival.label}`, cardIds: rival.cardIds }, rival.label, enemyLevels);
+      startBattle({ label: player.label, cardIds: player.cardIds }, { label: `AI · ${rival.label}`, cardIds: rival.cardIds }, rival.label, enemyLevels, combatModelForMode('ranked'), ascensionRanksFor(rival.cardIds));
     }} />;
   } else {
     screen = <ProfilePage onOpenStats={() => setShowStats(true)} onOpenCombatLab={() => setShowCombatLab(true)} />;

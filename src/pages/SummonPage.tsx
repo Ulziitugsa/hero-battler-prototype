@@ -22,6 +22,7 @@ import { BannerShowcase } from './summon/BannerShowcase';
 import { PoolSheet } from './summon/PoolSheet';
 import { RitualStage } from './summon/RitualStage';
 import { useSummonSequence } from './summon/useSummonSequence';
+import { PrototypeBoxPanel } from './summon/PrototypeBoxPanel';
 import '../styles/summon.css';
 import '../styles/summonRitual.css';
 import '../styles/archiveRitual.css';
@@ -29,7 +30,7 @@ import '../styles/archiveRitual.css';
 /**
  * Summon: browse archetype banners, spend Gems, receive real cards. This screen only presents -
  * performSummon() decides the pulls, spends the Gems and updates the collection BEFORE the ritual starts;
- * the reveal (useSummonSequence + RitualStage) can only read that result. Heroes / Decks / Ascension read
+ * the reveal (useSummonSequence + RitualStage) can only read that result. Cards / Decks / Mastery read
  * the same stores, so they are already up to date the moment the cards appear.
  */
 export function SummonPage({ onBack }: { onBack: () => void }) {
@@ -257,6 +258,7 @@ export function SummonPage({ onBack }: { onBack: () => void }) {
       </div>
 
       {import.meta.env.DEV && <DevPanel bannerId={banner.id} unlimited={unlimited} onPreview={(s) => { setPreview(true); start(buildPreviewOutcome(banner.id, s)); }} />}
+      {import.meta.env.DEV && <PrototypeBoxPanel />}
 
       {outcome && view && <RitualStage outcome={outcome} view={view} faction={getPool(outcome.bannerId).banner.faction} onSkip={skip} onDone={end} onIntroFinished={finishIntro} preview={preview} />}
 

@@ -15,6 +15,7 @@ export function SideHeader({
   name,
   rank,
   hp,
+  maxHp,
   hpFx,
   graveyardPulse,
   deckCount,
@@ -28,6 +29,7 @@ export function SideHeader({
   name: string;
   rank: string;
   hp: number;
+  maxHp?: number;
   /** Drives the HP plate's flash colour, an enlarge/shake pulse on the numeral, and a floating +/- number by the bar - see components/animation/chitEffects.ts. */
   hpFx?: HpFx | null;
   /** Briefly highlights the Graveyard pill - a card just entered it. */
@@ -41,8 +43,9 @@ export function SideHeader({
   /** Small extra HUD element shown beside the pills (the equipped Mastery badge). */
   badge?: ReactNode;
 }) {
-  const pct = Math.max(0, Math.min(100, (hp / STARTING_HP) * 100));
-  const low = hp <= STARTING_HP * 0.3;
+  const healthMax = maxHp ?? STARTING_HP;
+  const pct = Math.max(0, Math.min(100, (hp / healthMax) * 100));
+  const low = hp <= healthMax * 0.3;
 
   return (
     <div className={`side-header ${side}`} aria-label={`${name}, ${rank}`}>
@@ -62,7 +65,7 @@ export function SideHeader({
           <span className="hp-plate-readout">
             <Icon name="hp" size={side === 'enemy' ? 8 : 11} filled />
             <span>
-              {side === 'player' ? `${hp} / ${STARTING_HP}` : hp}
+              {side === 'player' ? `${hp} / ${healthMax}` : `${hp} / ${healthMax}`}
             </span>
           </span>
           {hpFx && (

@@ -127,14 +127,14 @@ export const INSTANT_SPELL_CARDS: CardDefinition[] = [
     abilities: [
       {
         trigger: 'ON_PLAY',
-        actions: [{ type: 'CHANGE_POWER', amount: -4, duration: 'PERMANENT', target: 'ENEMY_SAME_LANE' }],
-        text: 'The enemy Hero in this lane loses 4 Power.',
+        actions: [{ type: 'DAMAGE_HERO', amount: 12, legacyPowerChange: 4, target: 'ENEMY_SAME_LANE' }],
+        text: 'Deal 12 damage to the enemy Hero in this lane.',
       },
       {
         trigger: 'ON_PLAY',
         conditions: [{ type: 'ENEMY_LANE_HAS_SPELL' }],
-        actions: [{ type: 'SET_POWER', value: 1, duration: 'PERMANENT', target: 'ENEMY_SAME_LANE' }],
-        text: "If the enemy has a Continuous Spell active in this lane, that Hero's Power is set to 1 instead.",
+        actions: [{ type: 'DAMAGE_HERO', amount: 20, legacyPowerSet: 1, target: 'ENEMY_SAME_LANE' }],
+        text: 'If the enemy has a Continuous Spell active in this lane, deal 20 damage instead.',
       },
     ],
   },

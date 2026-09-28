@@ -257,6 +257,15 @@
 }
 .hr-card.missing .hr-power { background: var(--px-panel-raised); border-color: var(--px-line-dim); color: var(--px-ink-dim); box-shadow: none; }
 .hr-power.big { min-width: 44px; height: 44px; right: 14px; bottom: 14px; font-size: 1.3rem; }
+.hr-card-stats { position: absolute; z-index: 3; left: 4px; right: 4px; bottom: 4px; }
+.hr-card-stats .card-stat-pair { gap: 2px; }
+.hr-card-stats .card-stat { gap: 2px; padding: 3px 2px; }
+.hr-card-stats .card-stat strong { font-size: 8px; }
+.hr-card-stat-summary { max-width: 340px; margin: 12px auto; }
+.hr-card-stat-summary small { display: block; margin-top: 6px; color: var(--px-ink-dim); font-size: 10px; line-height: 1.4; }
+.legacy-growth { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--px-line-soft, rgba(180,190,180,.15)); background: rgba(255,255,255,.025); }
+.legacy-growth > summary { color: var(--px-ink-dim, #c7bda5); font: 700 10px var(--px-font-label, sans-serif); cursor: pointer; }
+.legacy-growth > p { margin: 8px 0; color: var(--px-ink-dim, #c7bda5); font-size: 10px; line-height: 1.45; }
 
 .hr-card-plate {
   display: flex;

@@ -55,7 +55,7 @@ export function PoolSheet({ pool, onClose }: { pool: SummonPool; onClose: () => 
                               {c.name}
                               {entry.featured && <em className={entry.featured}>Featured</em>}
                             </span>
-                            <span className="pool-type">{c.type === 'hero' ? 'Hero' : 'Spell'}</span>
+                            <span className="pool-type">{c.type === 'hero' ? 'Unit' : 'Spell'}</span>
                             <span className="pool-pct">{formatPercent(percent)}</span>
                           </button>
                         </li>

@@ -5,6 +5,8 @@ import { getCard } from '../game/cards';
 import { cardArtUrl } from '../game/cards/art';
 import { Icon } from './Icon';
 import { RARITY_GEMS } from './cardVisuals';
+import { CardStatPair } from './CardStatPair';
+import { cardStatsPreviewEnabled } from '../game/cards/cardStatsPreview';
 
 function capitalize(s: string): string {
   return s[0].toUpperCase() + s.slice(1);
@@ -34,11 +36,18 @@ export function HandCard({
   const artUrl = cardArtUrl(card.id);
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
       className={`hand-card ${selected ? 'selected' : ''}`}
       style={style}
       onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        onSelect();
+      }}
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', hand.handId);
@@ -63,7 +72,7 @@ export function HandCard({
         </span>
       </span>
 
-      {!isSpell && <span className="hand-card-power">{card.power}</span>}
+      {!isSpell && (cardStatsPreviewEnabled() ? <span className="hand-card-stats"><CardStatPair card={card} compact /></span> : <span className="hand-card-power">{card.power}</span>)}
       {isSpell && (
         <span className="hand-card-token">
           <Icon name={continuous ? 'continuousSpell' : 'spell'} size={14} />
@@ -79,9 +88,9 @@ export function HandCard({
       </span>
       <span className="hand-card-ability">{card.abilities[0]?.text ?? 'No ability.'}</span>
 
-      <span
+      <button
+        type="button"
         className="hand-card-inspect"
-        role="button"
         aria-label="Inspect card"
         onClick={(e) => {
           e.stopPropagation();
@@ -89,7 +98,7 @@ export function HandCard({
         }}
       >
         <Icon name="help" size={12} />
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
-# Combat V2 experiment
+# Combat V2 experiment (superseded)
 
-Status: isolated prototype only. Campaign, Quick Battle, Friendly Battle, and Ranked continue to use the legacy deterministic Power resolver. Open the lab from Profile → Developer Tools (Vite development mode or `?debug=1`). The lab has AI, Campaign sandbox, and boss scenarios. It grants no game rewards.
+Status: **not promoted**. This document records a historical experiment in per-unit HP and combat stats. Normal modes use the legacy resolver; local development may opt into the experiment with `?combat=v2`. The proposed rules are not production rules. The current card-combat direction and simulation brief live in [CARD-COMBAT-DESIGN.md](CARD-COMBAT-DESIGN.md).
 
 ## Why test a new model
 
@@ -15,10 +15,11 @@ V2 keeps card placement, three lanes, tactical spells, and simultaneous lane att
 V2 stat rules:
 
 ```text
-Attack = round(Power × 2.4 + 2) + floor((Level − 1) / 10) + 2 × Ascension Rank
-Max HP = round(Attack × 2.5) + 2 × floor((Level − 1) / 10) + 7 × Ascension Rank
-Hero clash damage = effective Attack
-Commander direct damage = ceil(effective Attack × 0.75)
+Attack = round(Power × 2.4 + 2) + floor((Level − 1) / 10) + Ascension Rank
+Max HP = round(Attack × 2.5) + 2 × floor((Level − 1) / 10) + 3 × Ascension Rank
+Hero clash damage = effective Attack, dealt simultaneously
+Commander direct damage = min(15, ceil(effective Attack × 0.75))
+Commander max HP = clamp(round(60 + 0.08 × total deck Hero max HP), 80, 120)
 ```
 
 Rank is bounded to the prototype’s 0–3 stat input; in actual progression callers should also clamp it to the card’s defined Ascension path. Ascension adds stats while its existing ability evolution remains a separate strategic benefit. No stat bonus is granted by Stars independently; Stars continue to summarize Ascension.
@@ -32,7 +33,7 @@ Median Power Hero example (Power 4, `kng-archer`):
 | 40 | 15 | 44 |
 | 60 | 17 | 53 |
 
-At Level 40, the same example reaches 17 ATK / 56 HP at Ascension 1 and 19 ATK / 68 HP at Ascension 2. Per-card Ascension caps vary in the live definitions.
+At Level 40, the same example reaches 16 ATK / 50 HP at Ascension 1, 17 / 56 at Ascension 2, and 18 / 62 at Ascension 3. Per-card Ascension caps vary in the live definitions.
 
 Power-tier baseline at Level 1, before Ascension:
 
@@ -62,31 +63,31 @@ For a same-Power median Hero, the Level 1 peer matchup is 3 hits. Level 40 versu
 
 ## Commander health and match length
 
-The script compares three vitality rules on the 11-Hero portions of the current starter decks at Level 1:
+The script compares four vitality rules (A: 25% of roster Hero HP, B: 80 + 25%, C: full roster Hero HP, D: bounded 60 + 8%) on the 11-Hero portions of the current starter decks:
 
-| Starter | A: 25% of Hero HP sum | B: 80 + 25% | C: full Hero HP sum |
-|---|---:|---:|---:|
-| Kingdom | 90 | 170 | 361 |
-| Undead | 84 | 164 | 334 |
-| Infernal | 90 | 170 | 360 |
+| Starter | A: 25% of Hero HP sum | B: 80 + 25% | C: full Hero HP sum | D: 60 + 8%, bounded |
+|---|---:|---:|---:|---:|
+| Kingdom | 90 | 170 | 361 | 89 |
+| Undead | 84 | 164 | 334 | 87 |
+| Infernal | 90 | 170 | 360 | 89 |
 
-V2 selects Candidate A, recalculated from the deck’s Heroes. Its 60 HP floor applies only to tiny decks. Full vitality (C) asks for too many open-lane hits; B adds a large fixed buffer without a clear roster reason. Direct damage at 75% keeps an empty lane meaningful: the median Level 20 Hero deals 10 Commander damage rather than 13 at full Attack. The script also tests 50% (7 damage) and 100% (13 damage) as comparison points.
+V2 selects Candidate D, recalculated from the deck's Hero max HP. The clamp keeps tiny and developed decks in a bounded range. Direct damage at 75%, capped at 15, makes empty lanes meaningful without allowing high ATK to scale without bound. At Level 20/40/60, the starter matchup averages were 14.7/16.3/16.3 rounds (ranges 14–15/15–18/16–17); Level 1 averaged 13.3 rounds (13–14). The simulation deploys Heroes in lane order without spells, so actual battle pacing depends on the production AI and player decisions. The comparison script also evaluates 50% capped at 10, 75% uncapped, and 100% uncapped.
 
-Six deterministic, simplified 11-Hero starter-vs-starter trials finished in 15 rounds each using the selected stat and Commander rules. They deployed one Hero into each available lane, used no spells, and did not run the production AI or legacy ability resolver. This is a reproducible pace estimate, not a claim about observed player duration. Fifteen rounds is the upper edge of the intended mobile range; the next tuning pass should test faster draw/deployment and the actual AI before considering live use. Event totals in these trials ranged from 19–20 Hero defeats and 150–180 Commander damage dealt across both sides.
+The deterministic 11-Hero starter trials use a simple lane-order deployment and no spells; they do not model every production AI decision or ability interaction. Their 13–17 round range is a pace estimate, not measured player duration. Event totals and pairwise TTK data are reproducible with the simulator.
 
 ## Spells and event model
 
-The old card catalogue includes destruction, Power changes, damage, shields, stalling, revives, and persistent round-end effects. Those effects cannot be copied mechanically onto HP stats. The lab translates a small subset: Fireball becomes 10 Hero/Commander damage, Power Surge gives +3 Attack for that round, Weakness removes 3 Attack for that round, and Aegis Ward grants a 10-point shield. A lab-only +12 heal helper exercises healing without claiming an existing spell already heals. It is not shown as a selectable legacy spell.
+The production resolver retains the existing ability/event pipeline and translates effects that used to modify Power into V2 combat operations. Fireball deals fixed Hero damage (12; its continuous lane version deals 20); its Commander hit uses the bounded direct-damage rule. Power Surge and Weakness modify effective Attack for their existing duration, Aegis Ward applies a shield, healing clamps to max HP, stalls still suppress a lane clash, and destruction/revival use Hero HP. Existing cards are used; no new production spell roster was added. The lab also has explicit helper choices for isolated heal/shield tests.
 
-V2 emits deterministic `HERO_DEPLOYED`, `HERO_DAMAGE`, `HERO_HEAL`, `SHIELD_APPLIED`, `HERO_BUFF`, `HERO_DEBUFF`, `HERO_DESTROYED`, and `COMMANDER_DAMAGE` events. Seed is stored with the state; the current prototype policy has no random choices, so equal inputs produce the same log. The experimental UI shows ATK and an HP bar/value in each lane. Aggregate model, round, damage, duration, and boss-result analytics fire at battle completion.
+V2 emits deterministic `HERO_DEPLOYED`, `HERO_DAMAGE`, `HERO_HEAL`, shield, buff/debuff, destruction, and Commander damage events. Seed is stored with the state; the current prototype policy has no random choices, so equal inputs produce the same log. Battle lanes show ATK and current/max HP, and Hero Level previews show the resulting combat-stat increase. Aggregate model, round, damage, duration, and boss-result analytics fire at battle completion.
 
 ## Boss and campaign prototype
 
-The boss sandbox uses a 600 HP Commander, a Vharos guardian in the centre lane, and the same left/centre/right board. It demonstrates a large target while retaining lane pressure. The campaign sandbox uses the same prototype battle loop and intentionally grants no Campaign energy, rewards, or progress. Boss phases, lane telegraphs, adds, and percentage damage remain future design work.
+The boss sandbox uses a 240 HP Commander, a Vharos guardian in the centre lane, and the same left/centre/right board. Test spells include heal, Hero/Commander shields, attack buffs/debuffs, direct damage, and lane stall. It demonstrates multi-turn pressure and lane choices, but does not implement boss phases, telegraphs, or persistent adds. The campaign sandbox grants no Campaign energy, rewards, or progress.
 
 ## Ranked implications
 
-Ranked v1 is still on the production legacy engine. Its local rating is deliberately simple (+24 win, −12 loss, draw 0, floor at zero). An AI deck is selected by closest average Hero Power and its Hero Levels mirror the player deck’s average Level. This is a local prototype, not human matchmaking. If V2 ever reaches real PvP, decide explicitly between full progression, brackets, normalization, or soft normalization; this phase does not choose for live PvP.
+Ranked AI uses V2 and keeps its local rating (+24 win, −12 loss, draw 0, floor at zero). Opponent deck selection compares current Roster Power, including Hero Level and Ascension, with a rating-based target that rises gradually and caps at 20% above the player's roster. The AI Heroes use the player's average Hero Level to keep encounters near the same progression band. This remains local AI matchmaking, not human PvP. If V2 reaches real PvP, decide explicitly between full progression, brackets, normalization, or soft normalization.
 
 ## Alternatives and open questions
 

@@ -5,6 +5,7 @@ import { HAND_REFILL_TARGET, directDamageAmount } from './constants.js';
 import { makeDrawnHandCard } from './deck.js';
 import { type Ctx, getHero, getSpellZone, opposite, playerOf, push, setHero, setSpellZone } from './board.js';
 import { effectivePower } from './power.js';
+import { DIRECT_COMMANDER_DAMAGE_CAP, DIRECT_COMMANDER_MULTIPLIER } from '../combatV2/model.js';
 import { applyMasteries } from './mastery.js';
 import {
   dealDirectDamageAndTrigger,
@@ -192,7 +193,7 @@ export function resolveRound(state: GameState, playerAction: PlayerAction, enemy
       handRemovals.push({ side, handId: play.handId });
       const card = getCard(play.cardId);
       if (card.type === 'hero') {
-        const instance = makeHeroInstance(side, play.lane, round, play.cardId, ascensionRank(ctx.state, side, play.cardId), heroLevelOf(ctx.state, side, play.cardId));
+        const instance = makeHeroInstance(side, play.lane, round, play.cardId, ascensionRank(ctx.state, side, play.cardId), heroLevelOf(ctx.state, side, play.cardId), ctx.state.combatModel);
         setHero(ctx, side, play.lane, instance);
         placements.push({ side, lane: play.lane, zone: 'hero', instanceId: instance.instanceId, cardId: instance.cardId });
       } else if (card.spellKind === 'CONTINUOUS') {
@@ -250,6 +251,55 @@ export function resolveRound(state: GameState, playerAction: PlayerAction, enemy
   // overflows through as direct damage to the losing side's player. A tie destroys both with no
   // overflow. An unopposed Hero still deals its full current Power directly (unchanged).
   const combatLosers: { side: Side; lane: LaneId }[] = [];
+  if (ctx.state.combatModel === 'v2') {
+    const damageHero = (side: Side, lane: LaneId, amount: number) => {
+      const hero = getHero(ctx, side, lane);
+      if (!hero || hero.hp === undefined) return;
+      const from = hero.hp;
+      const absorbed = Math.min(hero.combatShield ?? 0, amount);
+      hero.combatShield = Math.max(0, (hero.combatShield ?? 0) - absorbed);
+      hero.hp = Math.max(0, hero.hp - (amount - absorbed));
+      push(ctx, { type: 'HERO_DAMAGE', side, lane, instanceId: hero.instanceId, amount: from - hero.hp, from, to: hero.hp });
+      if (hero.hp <= 0) combatLosers.push({ side, lane });
+    };
+    const directV2 = (side: Side, lane: LaneId, power: number, name: string) => {
+      const amount = Math.min(DIRECT_COMMANDER_DAMAGE_CAP, Math.ceil(Math.max(1, power) * DIRECT_COMMANDER_MULTIPLIER));
+      dealDirectDamageAndTrigger(ctx, side, lane, amount, name);
+    };
+
+    for (const lane of LANES) {
+      const pHero = getHero(ctx, 'player', lane);
+      const eHero = getHero(ctx, 'enemy', lane);
+      const pPower = pHero ? effectivePower(ctx.state, 'player', lane) : 0;
+      const ePower = eHero ? effectivePower(ctx.state, 'enemy', lane) : 0;
+      const pBypass = pHero && eHero ? bypassReductionFor(ctx, 'player', lane) : null;
+      const eBypass = pHero && eHero ? bypassReductionFor(ctx, 'enemy', lane) : null;
+
+      if (pHero && eHero && (pHero.stalled || eHero.stalled)) {
+        push(ctx, { type: 'COMBAT', lane, outcome: 'STALLED', player: { name: pHero.name, power: pPower }, enemy: { name: eHero.name, power: ePower } });
+      } else if (pHero && eHero && (pBypass !== null || eBypass !== null)) {
+        const attackers: { side: Side; name: string; power: number; reduction: number }[] = [];
+        if (pBypass !== null) attackers.push({ side: 'player', name: pHero.name, power: pPower, reduction: pBypass });
+        if (eBypass !== null) attackers.push({ side: 'enemy', name: eHero.name, power: ePower, reduction: eBypass });
+        for (const attacker of attackers) {
+          push(ctx, { type: 'COMBAT', lane, outcome: attacker.side === 'player' ? 'PLAYER_DIRECT' : 'ENEMY_DIRECT', player: { name: pHero.name, power: pPower }, enemy: { name: eHero.name, power: ePower }, bypass: true });
+          directV2(attacker.side, lane, Math.max(0, attacker.power - attacker.reduction), attacker.name);
+        }
+      } else if (pHero && eHero) {
+        push(ctx, { type: 'COMBAT', lane, outcome: 'V2_CLASH', player: { name: pHero.name, power: pPower }, enemy: { name: eHero.name, power: ePower } });
+        damageHero('enemy', lane, pPower);
+        damageHero('player', lane, ePower);
+      } else if (pHero) {
+        push(ctx, { type: 'COMBAT', lane, outcome: 'PLAYER_DIRECT', player: { name: pHero.name, power: pPower }, enemy: null });
+        directV2('player', lane, pPower, pHero.name);
+      } else if (eHero) {
+        push(ctx, { type: 'COMBAT', lane, outcome: 'ENEMY_DIRECT', player: null, enemy: { name: eHero.name, power: ePower } });
+        directV2('enemy', lane, ePower, eHero.name);
+      } else {
+        push(ctx, { type: 'COMBAT', lane, outcome: 'EMPTY', player: null, enemy: null });
+      }
+    }
+  } else {
   for (const lane of LANES) {
     const pHero = getHero(ctx, 'player', lane);
     const eHero = getHero(ctx, 'enemy', lane);
@@ -295,6 +345,7 @@ export function resolveRound(state: GameState, playerAction: PlayerAction, enemy
     } else {
       push(ctx, { type: 'COMBAT', lane, outcome: 'EMPTY', player: null, enemy: null });
     }
+  }
   }
 
   // 6. destruction queue + death-trigger chains (On Death / Ally Dies / Enemy Dies)

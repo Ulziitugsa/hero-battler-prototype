@@ -163,7 +163,7 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, onIntroFin
                 <span className="chip gold">
                   {newCount} new · {outcome.pulls.length - newCount} duplicate{outcome.pulls.length - newCount === 1 ? '' : 's'}
                 </span>
-                {newHeroCount > 0 && <span className="chip gold">{newHeroCount} new Hero{newHeroCount === 1 ? '' : 'es'}</span>}
+                {newHeroCount > 0 && <span className="chip gold">{newHeroCount} new unit{newHeroCount === 1 ? '' : 's'}</span>}
                 {starProgress.length > 0 && <span className="chip gold">Star progress updated · {starProgress.map(id => getCard(id).shortName).join(', ')}</span>}
                 {ascensionCopies > 0 && <span className="chip">{ascendable.length ? `Ascension ready · ${ascendable.map(id => getCard(id).shortName).join(', ')}` : `${ascensionCopies} copy${ascensionCopies === 1 ? '' : 'ies'} added toward Ascension`}</span>}
                 {outcome.pulls.some((p) => p.pityTriggered) && <span className="chip gold">Guarantee reached</span>}

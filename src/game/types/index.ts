@@ -162,6 +162,10 @@ export type ActionDef =
   | { type: 'SET_POWER'; value: number; duration: 'PERMANENT' | 'UNTIL_ROUND_END'; target: TargetScope }
   /** Power delta scaled by a live board/Graveyard count - e.g. "+1 Power for each Undead Hero in your Graveyard". `perCount` may be negative for a cost/drain effect. */
   | { type: 'CHANGE_POWER_BY_COUNT'; basis: CountBasis; faction?: Faction; tag?: string; perCount: number; duration: 'PERMANENT' | 'UNTIL_ROUND_END'; target: TargetScope }
+  /** V2 damage uses Hero HP; the optional fallback preserves this card's legacy Power-drain behavior. */
+  | { type: 'DAMAGE_HERO'; amount: number; target: TargetScope; legacyPowerChange?: number; legacyPowerSet?: number }
+  | { type: 'HEAL_HERO'; amount: number; target: TargetScope }
+  | { type: 'APPLY_COMBAT_SHIELD'; amount: number; target: TargetScope }
   | { type: 'DESTROY'; target: TargetScope; maxPower?: number }
   /** Destroys the Continuous Spell (not the Hero) occupying the resolved lane - e.g. Dispel. */
   | { type: 'DESTROY_SPELL_ZONE'; target: TargetScope }
@@ -300,6 +304,11 @@ export interface HeroInstance {
   ascension?: number;
   /** Hero Level this Hero entered play with (display only - its Battle Power bonus is already baked into `power`, see makeHeroInstance). Absent = Level 1. */
   level?: number;
+  /** V2 combat health. Absent in legacy matches so existing save/replay fixtures keep their old shape. */
+  hp?: number;
+  maxHp?: number;
+  /** Numeric V2 shield points, distinct from the legacy one-time destruction shield. */
+  combatShield?: number;
 }
 
 export interface SpellZoneInstance {
@@ -320,6 +329,8 @@ export interface HandCard {
 export interface PlayerState {
   side: Side;
   hp: number;
+  /** V2 Commander starting health; legacy matches continue to use the shared 20 HP scale. */
+  maxHp?: number;
   deck: string[]; // cardIds, draw from index 0, return-to-deck pushes to the end
   hand: HandCard[];
   graveyard: string[]; // cardIds, destruction order
@@ -341,6 +352,8 @@ export interface GameState {
   player: PlayerState;
   enemy: PlayerState;
   status: 'IN_PROGRESS' | 'PLAYER_WIN' | 'ENEMY_WIN' | 'DRAW';
+  /** Omitted means legacy; V2 remains explicitly selected per local PvE match. */
+  combatModel?: 'legacy' | 'v2';
   /** Equipped Masteries per side; absent/undefined side = none. Read by beginRound (engine/mastery.ts). */
   masteries?: Partial<Record<Side, MasteryLoadout>>;
   /**
@@ -389,7 +402,7 @@ export interface Placement {
 }
 
 /** PLAYER_DIRECT/ENEMY_DIRECT: an unopposed hit, or (with `bypass` set on the COMBAT event) a bypass attack past an opposing Hero. STALLED: combat in this lane was negated (STALL_COMBAT). */
-export type CombatOutcome = 'PLAYER_WINS' | 'ENEMY_WINS' | 'TIE' | 'PLAYER_DIRECT' | 'ENEMY_DIRECT' | 'EMPTY' | 'STALLED';
+export type CombatOutcome = 'PLAYER_WINS' | 'ENEMY_WINS' | 'TIE' | 'PLAYER_DIRECT' | 'ENEMY_DIRECT' | 'EMPTY' | 'STALLED' | 'V2_CLASH';
 
 export type GameEvent =
   | { type: 'ROUND_START'; round: number }
@@ -409,6 +422,9 @@ export type GameEvent =
       bypass?: boolean;
     }
   | { type: 'DIRECT_DAMAGE'; side: Side; amount: number; from: number; to: number; sourceName: string }
+  | { type: 'HERO_DAMAGE'; side: Side; lane: LaneId; instanceId: string; amount: number; from: number; to: number }
+  | { type: 'HERO_HEAL'; side: Side; lane: LaneId; instanceId: string; amount: number; from: number; to: number }
+  | { type: 'HERO_SHIELD_APPLIED'; side: Side; lane: LaneId; instanceId: string; amount: number }
   /**
    * Combat overflow: the losing side's player takes (winner's Power - loser's Power) damage the
    * instant their Hero is beaten in a lane - distinct from DIRECT_DAMAGE, which is only for an

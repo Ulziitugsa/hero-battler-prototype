@@ -140,16 +140,16 @@ export function StagePreviewSheet({ node, cleared, onFight, onClose }: { node: C
           <>
             <div className={`campaign-sheet-power-row ${currentPower < recommended ? 'under' : 'ready'}`}>
               <Icon name="power" size={13} />
-              <span className="campaign-sheet-power-label">Roster Power</span>
+              <span className="campaign-sheet-power-label">Deck Strength</span>
               <span className="campaign-sheet-power-value">
                 {currentPower.toLocaleString()} <em>/ {recommended.toLocaleString()} recommended</em>
               </span>
             </div>
-            <p className="campaign-sheet-power-context">Roster Power is your broader Campaign strength. Card Power is compared in each lane.</p>
+            <p className="campaign-sheet-power-context">Deck Strength summarizes your collection investment. Lane matchups still decide battles.</p>
           </>
         )}
         {recommended !== undefined && currentPower < recommended && (
-          <p className="campaign-sheet-power-hint">Strategy can still carry you here - but if it's tough, Level up or Ascend a Hero in Heroes and come back stronger.</p>
+          <p className="campaign-sheet-power-hint">If this stage feels rough, try a different deck or change your lane plan.</p>
         )}
 
         <div className="campaign-sheet-action-row">

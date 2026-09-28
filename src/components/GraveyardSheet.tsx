@@ -57,7 +57,7 @@ export function GraveyardSheet({
             {ordered.map((cardId, i) => {
               const card = getCard(cardId);
               const artUrl = cardArtUrl(cardId);
-              const typeLabel = card.type === 'hero' ? 'Hero' : card.spellKind === 'CONTINUOUS' ? 'Continuous Spell' : 'Spell';
+              const typeLabel = card.type === 'hero' ? 'Unit' : card.spellKind === 'CONTINUOUS' ? 'Continuous Spell' : 'Spell';
               return (
                 <button type="button" className="graveyard-card-row" key={`${cardId}-${i}`} onClick={() => onInspect(cardId)}>
                   <span className="graveyard-card-art">

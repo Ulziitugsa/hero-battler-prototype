@@ -4,8 +4,8 @@ import { Icon, type IconName } from './Icon';
 // fuller 9-point HelpModal used elsewhere (TopControls, Profile). Deliberately short: "no walls of
 // text" per the Embervale UI principles.
 const STEPS: { icon: IconName; title: string; text: string }[] = [
-  { icon: 'deck', title: 'Choose a card', text: 'Tap a hero or spell in your hand. You draw back up to 3 cards every round.' },
-  { icon: 'hero', title: 'Place it in a lane', text: 'Heroes go to the front line, spells sit behind them. Placing is targeting.' },
+  { icon: 'deck', title: 'Choose a card', text: 'Tap a unit or spell in your hand. You draw back up to 3 cards every round.' },
+  { icon: 'hero', title: 'Place it in a lane', text: 'Units go to the front line, spells sit behind them. Placing is targeting.' },
   { icon: 'battle', title: 'Press Fight', text: 'The two front lines clash once, then the round resolves. No confirm step.' },
 ];
 
@@ -33,7 +33,7 @@ export function HowToPlaySheet({ onClose }: { onClose: () => void }) {
             </div>
           ))}
         </div>
-        <div className="how-to-play-footnote">One card, one lane, one Fight press per round. Spells sit behind your heroes and support them.</div>
+        <div className="how-to-play-footnote">One card, one lane, one Fight press per round. Spells sit behind your units and support them.</div>
         <button type="button" className="how-to-play-cta" onClick={onClose}>
           Got it
         </button>
