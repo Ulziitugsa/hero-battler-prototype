@@ -2,6 +2,8 @@ import type { SpellZoneInstance, Side } from '../game/types';
 import { getCard } from '../game/cards';
 import { Icon } from './Icon';
 import { cardEffectSummary } from '../game/cards/effectText';
+import { cardCombatEffectSummary } from '../game/cardCombat/cardText';
+import { useCardCombatDisplay } from './combatDisplay';
 import type { ChitVisual } from './animation/chitEffects';
 
 /**
@@ -17,7 +19,7 @@ export function SpellZoneChit({ spell, side, anim, disabled, onClick }: { spell:
   const mine = side === 'player';
   const continuous = card.spellKind === 'CONTINUOUS';
   const ready = !continuous && mine; // a staged one-time Spell, ready to resolve on Fight
-  const summary = cardEffectSummary(card);
+  const summary = useCardCombatDisplay() ? cardCombatEffectSummary(card) : cardEffectSummary(card);
 
   return (
     <button

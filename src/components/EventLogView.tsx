@@ -1,7 +1,14 @@
 import type { GameEvent } from '../game/types';
 
-function formatEvent(e: GameEvent): string {
+/** `stat` names a Unit's number: 'Power' in legacy combat, 'ATK' in card combat (where `power` holds ATK). */
+function formatEvent(e: GameEvent, stat: 'Power' | 'ATK'): string {
   switch (e.type) {
+    case 'STARTING_HP':
+      return `${e.side} Starting HP ${e.hp} (${e.units} Units${e.masteryBonus ? `, +${e.masteryBonus} from Mastery` : ''})`;
+    case 'PACIFIED':
+      return `${e.name} deals no damage this round (${e.side}, ${e.lane})`;
+    case 'RETURN_BLOCKED':
+      return `${e.name} already returned once - stays in the Graveyard (${e.side}, ${e.sourceName})`;
     case 'ROUND_START':
       return `Round ${e.round} begins`;
     case 'REVEAL':
@@ -17,7 +24,7 @@ function formatEvent(e: GameEvent): string {
     case 'TRIGGER':
       return `${e.sourceName} - ${e.label} (${e.side})`;
     case 'POWER_CHANGED':
-      return `${e.name} Power ${e.from} -> ${e.to} [${e.reason}${e.permanent ? '' : ', this round'}]`;
+      return `${e.name} ${stat} ${e.from} -> ${e.to} [${e.reason}${e.permanent ? '' : ', this round'}]`;
     case 'COMBAT': {
       const p = e.player ? `${e.player.name}(${e.player.power})` : 'empty';
       const en = e.enemy ? `${e.enemy.name}(${e.enemy.power})` : 'empty';
@@ -36,11 +43,11 @@ function formatEvent(e: GameEvent): string {
     case 'RETURNED_TO_DECK':
       return `${e.name} returned to Deck (${e.side})`;
     case 'REVIVED':
-      return `${e.name} revived into ${e.lane} at ${e.power} Power (${e.side})`;
+      return `${e.name} revived into ${e.lane} at ${e.power} ${stat} (${e.side})`;
     case 'DRAW':
       return e.fizzled ? `Draw stopped (deck empty) (${e.side})` : `${e.side} draws ${e.cardName}`;
     case 'TEMP_POWER_EXPIRED':
-      return `${e.name} loses ${e.amount} temporary Power at round end`;
+      return `${e.name} loses ${e.amount} temporary ${stat} at round end`;
     case 'EXILED':
       return `${e.name} exiled from Graveyard - gone for good (${e.side})`;
     case 'SAFEGUARD_TRIPPED':
@@ -54,12 +61,12 @@ function formatEvent(e: GameEvent): string {
   }
 }
 
-export function EventLogView({ events }: { events: GameEvent[] }) {
+export function EventLogView({ events, stat = 'Power' }: { events: GameEvent[]; stat?: 'Power' | 'ATK' }) {
   return (
     <div className="log">
       {events.map((e, i) => (
         <div key={i} className={`log-line ${e.type === 'ROUND_START' ? 'round-marker' : ''}`}>
-          <span className="idx">#{i}</span> <span className="type">{e.type}</span> {formatEvent(e)}
+          <span className="idx">#{i}</span> <span className="type">{e.type}</span> {formatEvent(e, stat)}
         </div>
       ))}
     </div>

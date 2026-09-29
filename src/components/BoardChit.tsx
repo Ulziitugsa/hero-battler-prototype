@@ -9,6 +9,8 @@ import { CardStats } from './card/CardStats';
 import { EffectIcon } from './card/CardIcons';
 import { cardEffectSummary } from '../game/cards/effectText';
 import { atkDelta, cardFaceStats } from '../game/cards/cardFace';
+import { cardCombatEffectSummary } from '../game/cardCombat/cardText';
+import { useCardCombatDisplay } from './combatDisplay';
 import '../styles/ascension.css';
 
 /** A Hero zone's filled state - a compact version of the card frame (art, gems, power coin, name),
@@ -23,8 +25,10 @@ export function BoardChit({ hero, side, anim, disabled, onClick }: { hero: HeroI
   const gemCount = RARITY_GEMS[card.rarity];
   const artUrl = cardArtUrl(hero.cardId);
   const v2 = hero.maxHp !== undefined;
-  const summary = cardEffectSummary(card);
-  const atk = cardFaceStats(card, hero.power)?.atk;
+  // Card combat: `hero.power` is the Unit's ATK and `tempPower` an ATK amount; there is no Unit HP.
+  const cardCombat = useCardCombatDisplay();
+  const summary = cardCombat ? cardCombatEffectSummary(card) : cardEffectSummary(card);
+  const atk = cardCombat ? hero.power : cardFaceStats(card, hero.power)?.atk;
 
   return (
     <button
@@ -57,7 +61,7 @@ export function BoardChit({ hero, side, anim, disabled, onClick }: { hero: HeroI
       {hero.tempPower !== 0 && (
         <span className="zone-card-buff">
           {hero.tempPower > 0 ? '+' : '\u2212'}
-          {v2 ? Math.abs(hero.tempPower) : `${Math.abs(atkDelta(hero.tempPower))}`}
+          {v2 || cardCombat ? Math.abs(hero.tempPower) : `${Math.abs(atkDelta(hero.tempPower))}`}
         </span>
       )}
       {summary ? (

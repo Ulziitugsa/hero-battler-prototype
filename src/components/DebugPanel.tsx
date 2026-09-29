@@ -97,7 +97,7 @@ export function DebugPanel({
       </div>
 
       <h3>Event log</h3>
-      <EventLogView events={fullLog} />
+      <EventLogView events={fullLog} stat={state.combatModel === 'card' ? 'ATK' : 'Power'} />
     </div>
   );
 }

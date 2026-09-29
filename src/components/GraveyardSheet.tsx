@@ -21,7 +21,8 @@ export function GraveyardSheet({
   playerGraveyard: string[];
   enemyGraveyard: string[];
   onClose: () => void;
-  onInspect: (cardId: string) => void;
+  /** `side` is whose Graveyard the card sits in (Card Inspect's owner). */
+  onInspect: (cardId: string, side: 'player' | 'enemy') => void;
 }) {
   const [side, setSide] = useState<Side>('player');
   const cardIds = side === 'player' ? playerGraveyard : enemyGraveyard;
@@ -59,7 +60,7 @@ export function GraveyardSheet({
               const artUrl = cardArtUrl(cardId);
               const typeLabel = card.type === 'hero' ? 'Unit' : card.spellKind === 'CONTINUOUS' ? 'Continuous Spell' : 'Spell';
               return (
-                <button type="button" className="graveyard-card-row" key={`${cardId}-${i}`} onClick={() => onInspect(cardId)}>
+                <button type="button" className="graveyard-card-row" key={`${cardId}-${i}`} onClick={() => onInspect(cardId, side)}>
                   <span className="graveyard-card-art">
                     <span className={`zone-card-art ${card.faction}`}>{artUrl && <CardArtwork cardId={cardId} className="zone-card-art-image" animated={false} />}</span>
                   </span>

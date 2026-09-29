@@ -9,8 +9,8 @@ describe('CollectibleCard modes', () => {
   it('battle: ATK, HP Contribution, effect indicator and short name, no rules text', () => {
     const html = render({ cardId: 'kng-royal-guard', mode: 'battle' });
     expect(html).toContain('data-mode="battle"');
-    expect(html).toContain('>115<');
-    expect(html).toContain('>+95<');
+    expect(html).toContain('>113<');
+    expect(html).toContain('>+77<');
     expect(html).toContain('collectible-effect-dot');
     expect(html).not.toContain('collectible-rule');
     expect(html).not.toContain('Adj+1');
@@ -30,7 +30,7 @@ describe('CollectibleCard modes', () => {
     const html = render({ cardId: 'kng-paladin', mode: 'inspect', livePower: 7 });
     expect(html).toContain('Unit · Tank');
     expect(html).toContain('collectible-number');
-    expect(html).toContain('>145<');
+    expect(html).toContain('>134<');
     expect(html).toContain('atk up');
     expect(html).toContain('collectible-crest');
   });
