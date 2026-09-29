@@ -665,9 +665,9 @@ function dispatchZone(ctx: Ctx, side: Side, lane: LaneId, trigger: Trigger, deat
   runAbilities(ctx, getCombatCard(zone.cardId).abilities, trigger, { owner: side, kind: 'spell', lane, name: zone.name, deathCardId: death?.cardId, deathLane: death?.lane }, { holder: zone, zone: 'spell' });
 }
 
-function dispatchAll(ctx: Ctx, trigger: Trigger): void {
+function dispatchAll(ctx: Ctx, trigger: Trigger, order: readonly Side[] = SIDES): void {
   for (const lane of LANES) {
-    for (const side of SIDES) {
+    for (const side of order) {
       dispatchUnit(ctx, side, lane, trigger);
       dispatchZone(ctx, side, lane, trigger);
     }
@@ -986,8 +986,9 @@ export function resolveCardRound(state: GameState, playerAction: PlayerAction, e
   }
   sweep(ctx);
 
-  // 4. Before Combat
-  dispatchAll(ctx, 'BEFORE_COMBAT');
+  // 4. Before Combat, in initiative order (ozi, 2026-09-29): the side with initiative resolves first in each
+  // lane, so the last word on a close contest alternates by round instead of always going to the enemy.
+  dispatchAll(ctx, 'BEFORE_COMBAT', order);
 
   // 5. Combat: higher effective ATK wins and stays; the loser is destroyed; a tie destroys both; an unopposed
   //    Unit hits the opposing player for its full ATK. No overflow, and no damage to any Unit.

@@ -179,6 +179,21 @@ describe('card combat: clashes and direct hits', () => {
     expect(r.nextState.player.heroZones.right?.power).toBe(118);
   });
 
+  it('Before Combat follows initiative: the last word on a Guard contest alternates by round', () => {
+    const WARDEN = 'und-crypt-warden'; // Guard 2: +30 ATK if it would lose its lane
+    const contest = (round: number) => {
+      const s = blankMatch(STARTER_DECKS.undead, STARTER_DECKS.undead);
+      s.round = round;
+      put(s, 'player', 'left', WARDEN, 100);
+      put(s, 'enemy', 'left', WARDEN, 115);
+      return resolveCardRound(s, NONE, NONE).events.find((e) => e.type === 'COMBAT' && e.lane === 'left');
+    };
+    // Round 1, player first: player 100 -> 130, then the enemy is losing and answers 115 -> 145.
+    expect(contest(1)).toMatchObject({ outcome: 'ENEMY_WINS' });
+    // Round 2, enemy first: the enemy is ahead so its Guard holds; the player's Guard then takes the lane 130 vs 115.
+    expect(contest(2)).toMatchObject({ outcome: 'PLAYER_WINS' });
+  });
+
   it('no Unit ever carries personal HP', () => {
     const { state, log } = autoMatch(11, STARTER_DECKS.kingdom, STARTER_DECKS.undead);
     for (const side of ['player', 'enemy'] as Side[]) for (const unit of Object.values(state[side].heroZones)) if (unit) expect(unit.hp ?? unit.maxHp).toBeUndefined();

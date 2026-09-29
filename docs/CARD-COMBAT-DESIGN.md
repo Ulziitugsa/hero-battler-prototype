@@ -266,6 +266,8 @@ The production card resolver is not implemented and no mode moves to it until oz
 
 **Phase 2 prototype (Quick Battle only).** At ozi's ask, the production card resolver now lives in `src/game/cardCombat/` (resolver, balanced AI, card data from section 14, the shared Starting HP helper) and Quick Battle can play it when `VITE_CARD_COMBAT_MODES` lists `quickBattle` or the URL carries `?combat=card`. `?combat=card` works in any build so a preview deploy can be played; it is ignored for every mode other than Quick Battle. Campaign, Ranked, Friendly Battle, the legacy resolver, Combat V2, saves and Legacy Level are unchanged.
 
+**Before Combat order (ozi, 2026-09-29).** Before Combat effects resolve in initiative order: the player first on odd rounds, the enemy first on even rounds. Resolving player-first every round gave the enemy the last word on every Guard contest (Undead mirror 32-61 over 100 AI games); with alternation it is 46-48. This departs from the simulator, which resolves player-first.
+
 ## 14. Effect and archetype balance pass
 
 Status: **approved by ozi on 2026-09-29 as the baseline card data and effect design for the new card-combat model.** Measured on the approved rules and stat model with every change below registered as a simulator override (`src/game/cardSim/balance/proposal.ts`, variant `final`). They reach `src/game/cards` with the production card resolver, which is not started. The rejected alternatives (section 14.5) stay rejected. Full report, CSVs and runs: project files `moonwater/balance/final/`.
