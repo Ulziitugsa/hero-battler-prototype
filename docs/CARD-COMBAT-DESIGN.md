@@ -2,7 +2,7 @@
 
 Status: **authoritative design, not yet implemented.** This document is the single source of truth for Moonwater's core combat direction: a premium collectible three-lane card battler where Units have **ATK** and an **HP Contribution** that sums into the player's Starting HP. It supersedes [COMBAT-V2-DESIGN.md](COMBAT-V2-DESIGN.md) (per-Unit HP, historical) for future core-combat work.
 
-Nothing here is live. Every mode still runs the legacy resolver (Power, fixed 20 HP, overflow). The model below was validated with the seeded simulator in `src/game/cardSim/` ([CARD-COMBAT-SIMULATION.md](CARD-COMBAT-SIMULATION.md)); section 12 is the plan for moving production onto it. ozi approved the stat model and the section 13 defaults on 2026-09-29; section 14 is the effect and archetype balance pass run on top of them. Its card changes are simulator overrides only: the live card files are unchanged until they are approved.
+Nothing here is live. Every mode still runs the legacy resolver (Power, fixed 20 HP, overflow). The model below was validated with the seeded simulator in `src/game/cardSim/` ([CARD-COMBAT-SIMULATION.md](CARD-COMBAT-SIMULATION.md)); section 12 is the plan for moving production onto it. ozi approved the stat model and the section 13 defaults on 2026-09-29; section 14 is the effect and archetype balance pass run on top of them, whose card changes ozi approved the same day as the baseline card data for the new model. They exist today as simulator overrides; the live card files and every game mode stay on the legacy resolver until the production card resolver is built on request.
 
 ## 1. Design goals
 
@@ -11,7 +11,7 @@ Nothing here is live. Every mode still runs the legacy resolver (Power, fixed 20
 - **Empty lanes matter.** An open lane lets a Unit hit the opposing player for its full ATK. Blocking, leaving a lane open and forcing a lane open are the core decisions.
 - **Deckbuilding tradeoffs.** Starting HP comes from the deck, so Unit count and card choice shape how long a player can survive.
 - **Bounded progression.** Mastery and rarity make cards desirable without deciding clashes. A well-played base deck must be able to beat a maxed one.
-- **Mobile pacing.** Portrait, one-handed, short matches: a median of about 9 rounds.
+- **Mobile pacing.** Portrait, one-handed, short matches: a design target of about 9–12 rounds (current balanced baseline: median 12, p90 15, accepted for playtesting; section 14.4).
 - **Safe migration.** No save rewrite, no mode switch and no removal of legacy systems until each phase in section 12 passes its gate.
 
 ## 2. Rules
@@ -153,7 +153,7 @@ What the simulation does **not** solve:
 - **Deck quality outweighs decisions.** The best study deck played randomly still beats a weaker deck played well 92% of the time; lane choice is worth 7–16 points in a mirror. Finer ATK granularity and a narrower archetype spread both raise the weight of decisions. Only a human playtest settles it.
 - The AI is a one-ply heuristic and under-plays Undead and Arcane Control.
 
-Target match length: **median 9 rounds, p90 at most 12** (the ¾ HPC scale is approved; see section 14 for where the balance pass lands). Reasoning (a judgement, not a measurement): a 15-card deck with a 3-card hand gives each player roughly that many rounds of real placement choices before the deck is spent, the winner needs about 7 direct hits so open lanes decide games without one hit ending them, and at one Fight tap plus the resolve animation per round it is a few minutes of portrait play. HPC ×0.8 on top of the baseline gives median 8 / p90 11 if faster games are wanted **(open)**.
+Target match length: **about 9–12 rounds** (median 9, p90 at most 12). The ¾ HPC scale is approved. The balanced baseline currently runs median 12 / p90 15, accepted for the next playtest (section 14.4). Reasoning (a judgement, not a measurement): a 15-card deck with a 3-card hand gives each player roughly that many rounds of real placement choices before the deck is spent, the winner needs about 7 direct hits so open lanes decide games without one hit ending them, and at one Fight tap plus the resolve animation per round it is a few minutes of portrait play. HPC ×0.8 gave median 8 / p90 11 before the balance pass, but only median 11 after it, so HPC is not the tempo lever.
 
 ## 11. Rejected models
 
@@ -250,7 +250,7 @@ The open questions of the first draft, as decided:
 2. **Graveyard return:** once per card per match, counted per physical copy (section 14).
 3. **Deck minimum:** 8 Units.
 4. **Player-HP effects:** 45 HP per legacy point, reviewed per card (section 14: every card keeps ×45; Aegis Ward prevents a whole hit and is not scaled).
-5. **Tempo:** keep the ¾ HPC scale and a median of about 9 rounds as the target.
+5. **Tempo:** keep the ¾ HPC scale. Design target about 9–12 rounds; the current baseline (median 12, p90 15) is accepted for playtesting (section 14.4).
 6. **Mastery:** HPC only, +20% at Mastery V, no ATK step.
 7. **Paladin line 3 and the Ward token:** reworked (proposals in section 14).
 8. **Legacy Level:** refund as Gold only, and only alongside a new Gold sink.
@@ -260,11 +260,13 @@ The open questions of the first draft, as decided:
 12. **Box composition:** copies fixed so Epics never Master faster than Rares (appendix).
 13. **Names:** "Tactic" and "Renown" are kept.
 
-The production card resolver is not implemented until ozi asks for it.
+14. **Balance pass (section 14):** the combined card changes, the recursion, token and growth rules, the Arcane Control and Defensive effect changes and the Moonfall Box copy split are approved as the baseline card data for the new model. The rejected alternatives stay rejected. Box prices do not change.
+
+The production card resolver is not implemented and no mode moves to it until ozi asks.
 
 ## 14. Effect and archetype balance pass
 
-Status: **proposal, simulator only.** Run on the approved rules and stat model with every card change below registered as a simulator override (`src/game/cardSim/balance/proposal.ts`, variant `final`). Nothing in `src/game/cards` changes until ozi approves. Full report, CSVs and runs: project files `moonwater/balance/final/`.
+Status: **approved by ozi on 2026-09-29 as the baseline card data and effect design for the new card-combat model.** Measured on the approved rules and stat model with every change below registered as a simulator override (`src/game/cardSim/balance/proposal.ts`, variant `final`). They reach `src/game/cards` with the production card resolver, which is not started. The rejected alternatives (section 14.5) stay rejected. Full report, CSVs and runs: project files `moonwater/balance/final/`.
 
 ### 14.1 New rules and primitives
 
@@ -320,13 +322,30 @@ Study decks: Defensive Bulwark (A) and Arcane Control with 8 Units (B) are the c
 | Weaker deck played well vs stronger deck played randomly (Aggressive vs Balanced) | 0.27 | 0.79 |
 | M5 vs M1 mirrors | 0.53–0.58 | 0.50–0.57 |
 
-### 14.4 What is not met
+### 14.4 Match length: accepted for playtesting
 
-**Match length.** Median 12 and p90 15 miss the 9 / 12 target. Lowering HPC to ×0.9 and ×0.8 of the approved scale only moved the median to 11, so Starting HP is not the cause and the global model is unchanged. Games got longer in every pairing, including Aggressive mirrors (mean 9.9 to 11.0 rounds), because the pass removed uncapped growth, turned growth lines into Guard and removed lopsided blowouts. Options for ozi: accept a median of 11–12 as the price of the balance, or buy back tempo with effects (for example more direct-damage payoffs), which is a separate pass.
+Decision (ozi, 2026-09-29): **the current length is accepted for the next playtest iteration, not locked as final.** The design target stays about 9–12 rounds; the balanced baseline is recorded as **median 12, p90 15**. No tempo pass runs until pacing has been judged in playable combat, and the balanced effects are not distorted to hit the old number before then.
 
-## Appendix: collection, Box and save rules (unchanged)
+Evidence: lowering HPC to ×0.9 and ×0.8 of the approved scale only moved the median to 11, so Starting HP is not the cause and the global model stays. Games got longer in every pairing, Aggressive mirrors included (mean 9.9 to 11.0 rounds), because the pass removed uncapped growth, turned growth lines into Guard and removed lopsided blowouts. If playtesting says games are too long, the lever is effects that add damage, in a separate pass.
+
+Locked through the playtest: the ATK/HPC model, HPC-only Mastery, no overflow, once-per-copy Graveyard return, the 8-Unit minimum and the token limits.
+
+### 14.5 Rejected alternatives (stay rejected)
+
+| Alternative | Why |
+| --- | --- |
+| Dark Priest Graveyard line +1 | Undead starter fell to 0.31 |
+| Crypt Warden Guard 1, or no Guard | Too weak; without Guard Balanced fell to 0.38 and long-game loops doubled |
+| Balanced study list v3 | Overshot to 0.67 |
+| Graveyard return counted per card name | Arcane Control fell to 0.27 |
+| Guard only on the round played ("Arrival Guard") | No length gain; Bulwark fell to 0.25 |
+| Bone Soldier capped at +45 | Low rarity fell to 0.29 |
+| HPC ×0.9 / ×0.8 for tempo | Median only 12 to 11 |
+| Hellhound −15, Power Surge +2 | Not needed |
+
+## Appendix: collection, Box and save rules
 
 - Collection is a copy count per card. Card Mastery is a read model over legacy Ascension (`cardMastery/model.ts`); only 6 Units have paths today. See [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md).
-- The Moonfall Box is a finite 100-pack pool (500 cards: 258 Common, 168 Rare, 54 Epic, 20 Legendary; per card 14-15 / 8 / 6 / 5, so Mastery V takes 1 / 2 / 2 / 3 Boxes) that shows its remaining contents. Prices are not part of this design.
+- The Moonfall Box is a finite 100-pack pool (500 cards: 258 Common, 168 Rare, 54 Epic, 20 Legendary; per card 14-15 / 8 / 6 / 5, so Mastery V takes 1 / 2 / 2 / 3 Boxes) that shows its remaining contents. The copy split is approved (section 14); prices are unchanged and not part of this design.
 - Keep card IDs, collection counts, deck definitions, `skyloom:*` storage keys and historical event names intact.
 - Before replacing Legacy Level or Ascension behaviour, ship an idempotent, versioned migration with tests for old saves, missing fields, max-rank cards, duplicate inventory and playable decks.
