@@ -13,7 +13,7 @@ import { getCard } from '../game/cards';
 import { useCollection } from '../game/collection/useCollection';
 import { daysRemaining } from '../game/events/definitions';
 import { claimEventMilestone, claimEventMission, claimLoginReward, completionRatio, isMissionComplete, loginRewardClaimable, requirementProgress, type EventClaimResult } from '../game/events/store';
-import type { EventMilestoneDef, EventReward } from '../game/events/types';
+import type { EventFeaturedProduct, EventMilestoneDef, EventReward } from '../game/events/types';
 import { useLiveEvent } from '../game/events/useLiveEvent';
 import '../styles/event.css';
 
@@ -41,7 +41,7 @@ function ProgressBar({ current, needed, label }: { current: number; needed: numb
   return <span className="event-progress" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={needed} aria-valuenow={current}><i style={{ width: `${needed ? Math.min(100, current / needed * 100) : 0}%` }} /></span>;
 }
 
-export function EventPage({ onBack, onOpenShop }: { onBack: () => void; onOpenShop: () => void }) {
+export function EventPage({ onBack, onOpenShop }: { onBack: () => void; onOpenShop: (product: EventFeaturedProduct) => void }) {
   const live = useLiveEvent();
   const owned = useCollection();
   const [inspect, setInspect] = useState<string | null>(null);
@@ -138,15 +138,15 @@ export function EventPage({ onBack, onOpenShop }: { onBack: () => void; onOpenSh
       <div className="event-section-head"><h2 id="event-product-title">Featured · {def.featuredProduct.name}</h2></div>
       <p>{def.featuredProduct.blurb}</p>
       <div className="event-product-cards">
-        {def.featuredProduct.featuredCardIds.map(id => <button type="button" key={id} onClick={() => setInspect(id)} aria-label={`Inspect ${getCard(id).name}`}><CollectibleCard cardId={id} compact /></button>)}
+        {def.featuredProduct.featuredCardIds.map(id => <button type="button" key={id} onClick={() => setInspect(id)} aria-label={`Inspect ${getCard(id).name}`}><CollectibleCard cardId={id} mode="standard" animated={false} /></button>)}
       </div>
-      <button type="button" className="event-product-cta" onClick={onOpenShop}>View in Shop <span aria-hidden="true">→</span></button>
+      <button type="button" className="event-product-cta" onClick={() => onOpenShop(def.featuredProduct!)}>{def.featuredProduct.kind === 'box' ? 'View the Box' : 'View the Structure Deck'} <span aria-hidden="true">→</span></button>
     </section>}
 
     <section className={`event-section event-final ${finalClaimed ? 'claimed' : ''}`} aria-labelledby="event-final-title">
       <div className="event-section-head"><h2 id="event-final-title">Final reward</h2><small>{final.title}</small></div>
       <div className="event-final-body">
-        {final.reward.cardIds?.[0] && <button type="button" className="event-final-card" onClick={() => setInspect(final.reward.cardIds![0])} aria-label={`Inspect ${getCard(final.reward.cardIds[0]).name}`}><CollectibleCard cardId={final.reward.cardIds[0]} compact treatment="event" /></button>}
+        {final.reward.cardIds?.[0] && <button type="button" className="event-final-card" onClick={() => setInspect(final.reward.cardIds![0])} aria-label={`Inspect ${getCard(final.reward.cardIds[0]).name}`}><CollectibleCard cardId={final.reward.cardIds[0]} mode="standard" treatment="event" /></button>}
         <div className="event-final-copy">
           <RewardChips reward={final.reward} />
           {final.reward.backgroundId && <span className="event-final-background" style={{ backgroundImage: `url(${getBackground(final.reward.backgroundId).asset})` }} role="img" aria-label={`${getBackground(final.reward.backgroundId).name} background preview`} />}
@@ -159,6 +159,6 @@ export function EventPage({ onBack, onOpenShop }: { onBack: () => void; onOpenSh
     </section>
 
     <p className="event-footnote">Event ends {new Date(def.endsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}. Unclaimed rewards cannot be claimed after it ends. Cards and cosmetics you earn are yours to keep.</p>
-    {inspect && <CardDetail cardId={inspect} onClose={() => setInspect(null)} />}
+    {inspect && <CardDetail cardId={inspect} context="event" onClose={() => setInspect(null)} />}
   </main>;
 }

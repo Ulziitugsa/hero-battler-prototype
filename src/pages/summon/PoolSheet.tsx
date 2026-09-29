@@ -67,7 +67,7 @@ export function PoolSheet({ pool, onClose }: { pool: SummonPool; onClose: () => 
           })}
         </div>
       </div>
-      {inspectId && <CardDetail cardId={inspectId} onClose={() => setInspectId(null)} />}
+      {inspectId && <CardDetail cardId={inspectId} context="pack" onClose={() => setInspectId(null)} />}
     </div>
   );
 }

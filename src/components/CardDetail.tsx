@@ -7,14 +7,16 @@ import { useDialogFocus } from './useDialogFocus';
 import { Gems, Sigil } from './CardParts';
 import { getCollection, getOwnedCount } from '../game/collection/collection';
 import { acquisitionSummary } from '../game/collection/acquisition';
+import { productAcquisitionLines } from '../game/collection/productSources';
 import { getAscensionRank } from '../game/ascension/store';
 import { getCardAscension } from '../game/ascension/definitions';
 import { ascensionAddedAbilities, effectiveAbilities } from '../game/ascension/effective';
 import { CardEffectList, CardStatsPanel } from './card/CardInspectSections';
 import { track } from '../analytics/track';
+import { getCardMasteryView } from '../game/cardMastery/model';
 
 /** Where Card Inspect was opened from. Battle views keep the sheet to what matters mid-match. */
-export type InspectContext = 'collection' | 'deck' | 'battle' | 'opponent' | 'pack' | 'shop' | 'other';
+export type InspectContext = 'collection' | 'deck' | 'battle' | 'opponent' | 'pack' | 'shop' | 'event' | 'other';
 
 const TYPE_LABEL = { hero: 'Unit', ONE_TIME: 'Spell', CONTINUOUS: 'Continuous Spell' } as const;
 const FACTION_LABEL: Record<string, string> = { kingdom: 'Kingdom', undead: 'Undead', infernal: 'Infernal', wildborn: 'Wildborn' };
@@ -77,8 +79,8 @@ export function CardDetail({ cardId, onClose, context = 'other', livePower, mast
             <h3 className="ci-heading">Collection</h3>
             <dl>
               <div><dt>Copies owned</dt><dd>{owned > 0 ? `×${owned}` : 'Not collected yet'}</dd></div>
-              {card.type === 'hero' && <div><dt>Card Mastery</dt><dd>{masteryPath ? `Stage ${STAGES[rank] ?? rank + 1} of ${masteryPath.ranks.length + 1}` : 'No Mastery path yet'}</dd></div>}
-              <div><dt>How to get it</dt><dd>{acquisitionSummary(cardId).replaceAll('Summon ·', 'Pack set ·')}</dd></div>
+              {card.type === 'hero' && <div><dt>Card Mastery</dt><dd>{masteryPath ? `${getCardMasteryView(cardId).label} of ${STAGES[masteryPath.ranks.length] ?? masteryPath.ranks.length + 1}` : 'No Mastery path yet'}</dd></div>}
+              <div><dt>How to get it</dt><dd>{[acquisitionSummary(cardId).replaceAll('Summon ·', 'Pack set ·'), ...productAcquisitionLines(cardId)].join(' / ')}</dd></div>
               <div><dt>Card style</dt><dd>{treatment === 'base' ? 'Standard' : treatment}</dd></div>
             </dl>
           </section>

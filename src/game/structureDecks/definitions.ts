@@ -1,3 +1,4 @@
+import { atkDelta, atkFromPower } from '../cards/cardFace';
 import type { StarterFaction } from '../cards/starterDecks';
 
 // Structure Decks: fixed, ready-to-play 15-card decks sold whole in the Shop. Each one teaches an
@@ -54,8 +55,8 @@ export const GRAVEBORN_RISING: StructureDeckDef = {
   exampleCombo: [
     'Put Grave Totem into a lane. The first ally that dies there each round returns to your hand.',
     'Trade Cursed Warrior and Crypt Warden into that lane. Cursed Warrior comes back to your hand, and Crypt Warden gains a Shield once your Graveyard holds 2 cards.',
-    'With 3 Undead Units in your Graveyard, cast Raise Fallen to revive one. Dark Priest now gains +2 Power each round.',
-    'Close with Vharos. When it dies it revives with 4 Power and returns another Undead Unit to your hand.',
+    `With 3 Undead Units in your Graveyard, cast Raise Fallen to revive one. Dark Priest now gains +${atkDelta(2)} ATK each round.`,
+    `Close with Vharos. When it dies it revives with ${atkFromPower(4)} ATK and returns another Undead Unit to your hand.`,
   ],
   priceGems: 600,
   purchaseLimit: 1,

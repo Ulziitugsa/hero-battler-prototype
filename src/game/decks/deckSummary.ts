@@ -1,23 +1,23 @@
 import type { CardDefinition, Faction } from '../types/index.js';
 import { getCard } from '../cards/index.js';
-import { cardStatsPreview } from '../cards/cardStatsPreview.js';
+import { cardFaceStats } from '../cards/cardFace.js';
 
 // Deck Builder summary numbers: Starting HP, Unit/Spell split, average ATK and faction mix. Pure and
 // deterministic so it can be tested and shown live while cards are added/removed.
 //
 // Starting HP is the INTENDED collectible-card value (sum of each Unit's HP Contribution) from the
-// current card-model prototype in cards/cardStatsPreview.ts. Production combat still uses its own
+// current card-model prototype in cards/cardFace.ts. Production combat still uses its own
 // starting HP until the card-combat migration is approved - this module never feeds the resolver.
 // Values use base card stats (no Level/Ascension), so a deck's number is the same for every player.
 
 /** A Unit's HP Contribution: the amount it adds to its deck's Starting HP. Spells contribute nothing. */
 export function hpContribution(card: CardDefinition): number {
-  return cardStatsPreview(card)?.lp ?? 0;
+  return cardFaceStats(card)?.hpContribution ?? 0;
 }
 
 /** A Unit's printed ATK from base Power. Spells have none. */
 export function baseAtk(card: CardDefinition): number | null {
-  return cardStatsPreview(card)?.atk ?? null;
+  return cardFaceStats(card)?.atk ?? null;
 }
 
 /** Sum of HP Contributions for every copy of every Unit in the deck. */

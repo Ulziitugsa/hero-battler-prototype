@@ -13,9 +13,8 @@ import { getActiveDeck } from '../game/engine/activeDeck';
 import { useCollection } from '../game/collection/useCollection';
 import { getOwnedCount, usableCopies } from '../game/collection/collection';
 import { CardDetail } from '../components/CardDetail';
+import { CollectibleCard } from '../components/CollectibleCard';
 import { Icon } from '../components/Icon';
-import { CardStatPair } from '../components/CardStatPair';
-import { cardStatsPreviewEnabled } from '../game/cards/cardStatsPreview';
 import { Gems, Sigil } from '../components/CardParts';
 import { countCopies, getDeckStatus, plural, sortedEntries } from './decks/deckStatus';
 import { DeckSummaryBar, STARTING_HP_HELP, StartingHpBadge } from './decks/DeckSummaryBar';
@@ -119,54 +118,37 @@ function DeckCard({
     >
       {!pool && count > 1 && <span className="dk-card-under" aria-hidden="true" />}
       <span className="dk-card-frame">
-        <span className="dk-card-face">
-          <CardArt card={card} sigil="lg" />
-          <span className="dk-card-gems">
-            <Gems rarity={card.rarity} />
+        <CollectibleCard cardId={card.id} mode="standard" owned={!unowned} masteryRank={ascension} animated={false} className="dk-card-cc" />
+        {badge && (
+          <span className={`dk-card-count ${maxed ? 'full' : ''} ${over ? 'over' : ''}`}>
+            {pool && maxed && <Icon name="lock" size={9} />}
+            {badge}
           </span>
-          {isHero && cardStatsPreviewEnabled() ? (
-          <span className="dk-card-stats"><CardStatPair card={card} compact /></span>
-          ) : isHero ? (
-            <span className="dk-card-power">{card.power}</span>
-          ) : (
-            <span className="dk-card-power spell">
-              <Icon name={card.spellKind === 'CONTINUOUS' ? 'continuousSpell' : 'spell'} size={13} />
-            </span>
-          )}
-          {badge && (
-            <span className={`dk-card-count ${maxed ? 'full' : ''} ${over ? 'over' : ''}`}>
-              {pool && maxed && <Icon name="lock" size={9} />}
-              {badge}
-            </span>
-          )}
-          {ascension > 0 && <span className="asc-mark">{ascensionNumeral(ascension)}</span>}
-          {unowned && (
-            <span className="dk-card-count full">
-              <Icon name="lock" size={9} />
-              Not owned
-            </span>
-          )}
-          {pool && !maxed && (
-            <span className="dk-card-add" aria-hidden="true">
-              <Icon name="plus" size={13} />
-            </span>
-          )}
-        </span>
-        <span className="dk-card-plate">
-          <span className="dk-card-name">{card.shortName}</span>
-          <span className="dk-card-role">
-            <Sigil faction={isHero ? card.faction : 'spell'} size="sm" />
-            {sortValue ? (
-              <span className="dk-card-sortval" title={sortValue.label}>
-                <Icon name={sortValue.icon} size={10} filled={sortValue.icon === 'lp'} />
-                {sortValue.text}
-              </span>
-            ) : (
-              <span>{unowned ? primaryAcquisitionLabel(card.id) : pool && maxed ? (ownedShort ? `Own ${ownedCount}` : card.rarity === 'legendary' ? 'Only 1' : `Max ${gameLimit}`) : role}</span>
-            )}
+        )}
+        {unowned && (
+          <span className="dk-card-count full">
+            <Icon name="lock" size={9} />
+            Not owned
           </span>
-        </span>
+        )}
+        {pool && !maxed && !unowned && (
+          <span className="dk-card-add" aria-hidden="true">
+            <Icon name="plus" size={13} />
+          </span>
+        )}
       </span>
+      {pool && (
+        <span className="dk-card-note">
+          {sortValue ? (
+            <span className="dk-card-sortval" title={sortValue.label}>
+              <Icon name={sortValue.icon} size={10} filled={sortValue.icon === 'lp'} />
+              {sortValue.text}
+            </span>
+          ) : (
+            <span>{unowned ? primaryAcquisitionLabel(card.id) : maxed ? (ownedShort ? `Own ${ownedCount}` : card.rarity === 'legendary' ? 'Only 1' : `Max ${gameLimit}`) : role}</span>
+          )}
+        </span>
+      )}
     </button>
     {pool && onInspect && <button type="button" className="dk-card-inspect" aria-label={`Inspect ${card.name}`} onClick={(event) => { event.stopPropagation(); onInspect(); }}><Icon name="help" size={12} /></button>}
     {pool && onToggleFavorite && (
@@ -529,7 +511,7 @@ export function DecksPage() {
             </div>
           )}
         </div>
-        {inspectCardId && <CardDetail cardId={inspectCardId} onClose={() => setInspectCardId(null)} />}
+        {inspectCardId && <CardDetail cardId={inspectCardId} context="deck" onClose={() => setInspectCardId(null)} />}
       </div>
     );
   }
@@ -708,7 +690,7 @@ export function DecksPage() {
         </div>
       )}
 
-      {inspectCardId && <CardDetail cardId={inspectCardId} onClose={() => setInspectCardId(null)} />}
+      {inspectCardId && <CardDetail cardId={inspectCardId} context="deck" onClose={() => setInspectCardId(null)} />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { PROTOTYPE_BOX } from '../box/prototypeBox';
+import { MOONFALL_BOX } from '../box/boxProduct';
 import type { EventDefinition, EventPhase } from './types';
 
 // Event content. Add a new event by appending an EventDefinition here - the store, page and Home entry
@@ -30,7 +30,7 @@ export const THE_LONG_VIGIL: EventDefinition = {
     { id: 'vigil-damage', title: 'Deal 400 damage to opponents', objective: { kind: 'sum', event: 'battle_completed', property: 'damageDealt' }, target: 400, reward: { gold: 100 } },
     { id: 'vigil-ranked-wins', title: 'Win 2 Ranked matches', objective: { kind: 'count', event: 'ranked_match_won' }, target: 2, reward: { tickets: 1 } },
     { id: 'vigil-campaign-wins', title: 'Win 3 Campaign battles', objective: { kind: 'count', event: 'campaign_won' }, target: 3, reward: { gold: 80 } },
-    { id: 'vigil-open-packs', title: 'Open 5 Moonfall packs', objective: { kind: 'sum', event: 'prototype_box_opened', property: 'packCount', where: { boxId: PROTOTYPE_BOX.id } }, target: 5, reward: { gems: 30 } },
+    { id: 'vigil-open-packs', title: 'Open 5 Moonfall packs', objective: { kind: 'sum', event: 'prototype_box_opened', property: 'packCount', where: { boxId: MOONFALL_BOX.id } }, target: 5, reward: { gems: 30 } },
     { id: 'vigil-shop-gift', title: 'Claim the free Shop gift 3 times', objective: { kind: 'count', event: 'shop_free_claimed' }, target: 3, reward: { tickets: 1 } },
   ],
   milestones: [
@@ -42,8 +42,8 @@ export const THE_LONG_VIGIL: EventDefinition = {
   // integration pass relinks it to C's product id.
   featuredProduct: {
     kind: 'box',
-    id: PROTOTYPE_BOX.id,
-    name: 'Moonfall Box',
+    id: MOONFALL_BOX.id,
+    name: MOONFALL_BOX.name,
     blurb: 'A finite box of 100 packs. Every copy you pull leaves the box for good.',
     featuredCardIds: ['und-wraith-prince', 'und-grave-sage', 'und-grave-knight'],
   },

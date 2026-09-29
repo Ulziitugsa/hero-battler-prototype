@@ -782,3 +782,16 @@ button.dk-hp:focus-visible { outline: 2px solid var(--ember-gold-light); outline
 .dk-card.unowned .dk-card-count { font-size: 0.64rem; padding: 0 6px; }
 .dk-card-sortval { white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; color: #f3d78c; }
 .dk-card-sortval svg:first-child { flex: none; }
+
+/* Integration: Deck Builder tiles render the shared card face (CollectibleCard mode="standard").
+   The frame, plate and stats come from the card itself; the tile only adds deck overlays and a note line. */
+.dk-card { flex-direction: column; gap: 4px; }
+.dk-card-frame { padding: 0; border-radius: 0; background: none; box-shadow: none; flex: none; }
+.dk-card.r-epic .dk-card-frame, .dk-card.r-legendary .dk-card-frame { padding: 0; box-shadow: none; }
+.dk-card-frame > .collectible.dk-card-cc { width: 100%; }
+.dk-card .dk-card-count, .dk-card .dk-card-add { z-index: 5; top: 17%; right: 5px; }
+.dk-card-note { display: flex; justify-content: center; min-height: 14px; font-size: 0.68rem; font-weight: 700; color: var(--ember-ink-3); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dk-card.maxed .dk-card-note { color: var(--ember-gold); }
+.dk-card.blocked .collectible-art { filter: saturate(0.6) brightness(0.72); }
+.dk-card.over .collectible { outline: 2px solid #f0866a; outline-offset: 1px; }
+.dk-card-wrap .dk-card-inspect, .dk-card-wrap .dk-card-fav { top: calc(17% + 30px); }

@@ -95,13 +95,13 @@
 .box-results header { text-align:center; }
 .box-results h2 { margin:4px 0; color:#f7e7bf; font:400 26px var(--moon-display,Georgia,serif); }
 .box-results header p { margin:0 0 14px; color:#b9c9be; font-size:12px; }
-.box-results-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; }
+.box-results-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px 8px; }
 .box-result { position:relative; display:grid; gap:3px; min-width:0; padding:0; border:0; background:none; color:#e8dfc6; }
 .box-result.r-legendary .collectible { box-shadow:0 0 0 1px #f0d59a,0 0 16px #f0d59a66; }
 .box-result.r-epic .collectible { box-shadow:0 0 0 1px #c79cf2aa; }
 .box-result small { font-size:9px; font-weight:900; text-align:center; color:#9fb3ae; }
 .box-result small b { color:#8ee0bd; }
-.box-results-grid .collectible.compact .collectible-name { font-size:8px; }
+.box-chase-card .collectible.mode-battle { height:auto; aspect-ratio:5 / 7; }
 .box-results-done { display:block; width:100%; min-height:48px; margin-top:16px; border:1px solid #f2d99c; border-radius:14px; color:#1b2c31; background:linear-gradient(#f4e5b8,#d8bb70); font-weight:900; font-size:14px; }
 
-@media (max-width:380px) { .box-chase,.box-inventory { gap:5px; } .box-hero-copy h1 { font-size:26px; } .box-results-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media (max-width:380px) { .box-chase,.box-inventory { gap:5px; } .box-hero-copy h1 { font-size:26px; } }

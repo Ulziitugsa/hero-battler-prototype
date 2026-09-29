@@ -24,6 +24,8 @@ import { resetMatchHistory } from './engine/localMatchHistory';
 import { resetLanternProgress } from './story/lanterns';
 import { clearPrototypeBox } from './box/prototypeBox';
 import { resetStructureDecks } from './structureDecks/store';
+import { resetEvents } from './events/store';
+import { resetEventCosmetics } from './events/cosmetics';
 import { resetFirstSeenAt } from '../analytics/context';
 import { clearQueuedEvents, track } from '../analytics/track';
 
@@ -56,6 +58,8 @@ export function resetEverything(): void {
   resetLanternProgress();
   clearPrototypeBox();
   resetStructureDecks();
+  resetEvents();
+  resetEventCosmetics();
   resetFirstSeenAt();
   clearQueuedEvents();
   track('session_started', { reset: true });

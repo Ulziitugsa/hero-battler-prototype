@@ -76,7 +76,7 @@ function applyMastery(ctx: Ctx, side: Side): void {
   const start = ctx.events.length;
   const affected = def.id === 'necromancy' ? necromancy(ctx, side, params.count, params.preferFaction) : fortification(ctx, side, params.count, !!params.preferUnshielded);
   const verb = def.id === 'necromancy' ? 'Returned' : 'Shielded';
-  const none = def.id === 'necromancy' ? 'No Hero in your Graveyard' : 'No Hero to shield';
+  const none = def.id === 'necromancy' ? 'No Unit in your Graveyard' : 'No Unit to shield';
   ctx.events.splice(start, 0, {
     type: 'MASTERY_TRIGGERED',
     side,

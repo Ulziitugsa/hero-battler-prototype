@@ -14,12 +14,12 @@ import { ascensionAddedAbilities, effectiveAbilities } from '../game/ascension/e
 import { AscensionPanel } from './heroes/AscensionPanel';
 import { HeroLevelPanel } from './heroes/HeroLevelPanel';
 import { getHeroLevel } from '../game/heroLevel/store';
-import { StarStrip } from './heroes/StarStrip';
-import { starsForCard } from '../game/ascension/stars';
+import { MasteryPips } from './heroes/MasteryPips';
+import { getOwnedCount } from '../game/collection/collection';
+import { getCardMasteryView } from '../game/cardMastery/model';
 import { track } from '../analytics/track';
 import { useDialogFocus } from '../components/useDialogFocus';
 import { getAscensionStatus } from '../game/ascension/ascend';
-import { rosterPowerForHero } from '../game/heroLevel/rosterPower';
 import { CollectibleCard } from '../components/CollectibleCard';
 import { CardEffectList, CardStatsPanel } from '../components/card/CardInspectSections';
 import { useHeroLevel } from '../game/heroLevel/useHeroLevel';
@@ -91,7 +91,6 @@ function HeroDetail({
   const rank = owned ? getAscensionRank(card.id, ascension) : 0;
   const ascensionStatus = getAscensionStatus(card.id, ownedCards, ascension);
   const primaryProgression = ascensionStatus.canAscend ? 'mastery' : null;
-  const heroRosterPower = card.power === undefined ? null : rosterPowerForHero(card.power, getHeroLevel(card.id, levels), rank);
   const abilities = effectiveAbilities(card.id, rank);
   const fromAscension = ascensionAddedAbilities(card.id, rank);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -124,19 +123,19 @@ function HeroDetail({
               <CollectibleCard cardId={card.id} mode="inspect" owned={owned} masteryRank={rank} />
             </div>
             {onPrev && (
-              <button type="button" className="hr-sheet-nav prev" onClick={onPrev} aria-label="Previous hero">
+              <button type="button" className="hr-sheet-nav prev" onClick={onPrev} aria-label="Previous card">
                 <Icon name="back" size={20} />
               </button>
             )}
             {onNext && (
-              <button type="button" className="hr-sheet-nav next" onClick={onNext} aria-label="Next hero">
+              <button type="button" className="hr-sheet-nav next" onClick={onNext} aria-label="Next card">
                 <Icon name="back" size={20} />
               </button>
             )}
           </div>
 
           <div className="hr-sheet-body">
-            <div className="hr-sheet-title"><span className="hr-sheet-overline">{owned ? 'IN YOUR COLLECTION' : 'A CARD TO DISCOVER'}</span><h2 className="hr-sheet-name">{card.name}</h2><span className="hr-sheet-powerline">{owned ? `Mastery ${['I', 'II', 'III', 'IV', 'V'][rank] ?? rank + 1} · saved Level ${getHeroLevel(card.id, levels)}` : 'Unit card'}{heroRosterPower !== null && owned ? ` · ${heroRosterPower} Deck Strength` : ''}</span></div>
+            <div className="hr-sheet-title"><span className="hr-sheet-overline">{owned ? 'IN YOUR COLLECTION' : 'A CARD TO DISCOVER'}</span><h2 className="hr-sheet-name">{card.name}</h2><span className="hr-sheet-powerline">{owned ? `${getCardMasteryView(card.id).label} · ${getOwnedCount(card.id, ownedCards)} ${getOwnedCount(card.id, ownedCards) === 1 ? 'copy' : 'copies'}` : card.type === 'hero' ? 'Unit card' : 'Spell card'}</span></div>
 
             <div className="hr-sheet-line">
               <span className={`hr-rarity-tag r-${card.rarity}`}>
@@ -147,7 +146,7 @@ function HeroDetail({
                 <Icon name={owned ? 'check' : 'lock'} size={12} />
                 {owned ? (count > 1 ? `Owned ×${count}` : 'In your collection') : 'Not yet collected'}
               </span>
-              {owned && <StarStrip stars={starsForCard(card.id)} />}
+              {owned && <MasteryPips view={getCardMasteryView(card.id)} />}
             </div>
 
             <div className="hr-sheet-line faction">

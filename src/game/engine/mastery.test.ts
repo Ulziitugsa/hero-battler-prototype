@@ -64,7 +64,7 @@ describe('Necromancy', () => {
   it('empty Graveyard: fires as a no-target and changes nothing', () => {
     const s = state(4, necro(1));
     const { nextState, events } = beginRound(s);
-    expect(triggers(events)).toEqual([expect.objectContaining({ outcome: 'no-target', detail: 'No Hero in your Graveyard' })]);
+    expect(triggers(events)).toEqual([expect.objectContaining({ outcome: 'no-target', detail: 'No Unit in your Graveyard' })]);
     expect(nextState.player.hand).toEqual([]);
     expect(nextState.player.graveyard).toEqual([]);
   });
@@ -134,7 +134,7 @@ describe('Fortification', () => {
   });
   it('no Heroes on the board: a no-target, nothing changes', () => {
     const { nextState, events } = beginRound(state(4, fort(1)));
-    expect(triggers(events)).toEqual([expect.objectContaining({ outcome: 'no-target', detail: 'No Hero to shield' })]);
+    expect(triggers(events)).toEqual([expect.objectContaining({ outcome: 'no-target', detail: 'No Unit to shield' })]);
     expect(events.some((e) => e.type === 'SHIELD_GRANTED')).toBe(false);
     expect(nextState.player.heroZones).toEqual({ left: null, center: null, right: null });
   });

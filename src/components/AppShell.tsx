@@ -55,7 +55,7 @@ export function AppShell({ active, onNavigate, children }: { active: TabId; onNa
   const homeReady = homeAttentionReady({masteryPoint:dots.home,missionReward:dailyReady,journeyReward:journey.claimableDays.length>0,idleReward:hub.note?.kind==='idle',eventReward:(liveEvent?.claimable??0)>0});
   const shopReady = !gift.claimed && getGold()<MAX_GOLD;
   const rankedReady = readyRankRewards(ranked).length>0;
-  const dotFor: Partial<Record<TabId, string>> = { home: homeReady ? 'Reward or Mastery action ready on Home' : '', heroes: dots.heroes ? 'Card Mastery available' : '', shop: shopReady ? 'Free Shop gift ready' : '', ranked: rankedReady ? 'Rank reward ready' : '' };
+  const dotFor: Partial<Record<TabId, string>> = { home: homeReady ? 'Reward or Tactic Point ready on Home' : '', heroes: dots.heroes ? 'Card Mastery available' : '', shop: shopReady ? 'Free Shop gift ready' : '', ranked: rankedReady ? 'Rank reward ready' : '' };
   const previousDots = useRef<Record<string, boolean>>({});
   useEffect(()=>{ const states={home:homeReady,heroes:dots.heroes,shop:shopReady,ranked:rankedReady};for(const [destination,visible] of Object.entries(states)){if(visible&&!previousDots.current[destination])track('attention_indicator_shown',{destination});if(!visible&&previousDots.current[destination])track('attention_indicator_cleared',{destination});previousDots.current[destination]=visible;} },[homeReady,dots.heroes,shopReady,rankedReady]);
   return (

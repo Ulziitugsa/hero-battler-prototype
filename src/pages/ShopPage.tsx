@@ -29,7 +29,7 @@ import { StructureDeckDetail } from './shop/StructureDeckDetail';
 import '../styles/shop.css';
 
 /** Which Shop surface is showing. Box and Structure Deck pages are addressed by their stable product ids. */
-type ShopView = { kind: 'main' } | { kind: 'box'; id: string } | { kind: 'structure-deck'; id: string };
+export type ShopView = { kind: 'main' } | { kind: 'box'; id: string } | { kind: 'structure-deck'; id: string };
 
 type PendingPurchase = { kind: 'offer'; id: OfferId } | { kind: 'gold' } | { kind: 'energy' };
 const GOLD_EXCHANGE_GEMS = 50;
@@ -63,7 +63,7 @@ function ShopConfirmation({ pending, energy, prices, onCancel, onConfirm }: {
   </div></div>;
 }
 
-export function ShopPage() {
+export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: ShopView } = {}) {
   const economy = useEconomy();
   const heroLevels = useHeroLevel();
   const ascensions = useAscension();
@@ -72,7 +72,7 @@ export function ShopPage() {
   const [giftResetCountdown, setGiftResetCountdown] = useState('');
   const [pending, setPending] = useState<PendingPurchase | null>(null);
   const [notice, setNotice] = useState('');
-  const [view, setView] = useState<ShopView>({ kind: 'main' });
+  const [view, setView] = useState<ShopView>(initialView);
   const structurePurchases = useSyncExternalStore(subscribeStructureDecks, getStructureDeckState, getStructureDeckState);
   const seenOffers = useRef(new Set<OfferId>());
   const prices = getConfig().offers.priceLabels;

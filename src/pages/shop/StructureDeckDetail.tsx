@@ -100,8 +100,7 @@ export function StructureDeckDetail({ deck, onBack }: { deck: StructureDeckDef; 
       <div className="box-section-heading"><h2 id="sd-featured-title">Featured cards</h2><span>Tap for details</span></div>
       <div className="box-chase sd-featured">
         {deck.featuredCardIds.map(id => <button type="button" key={id} className="box-chase-card" onClick={() => setInspect(id)}>
-          <CollectibleCard cardId={id} compact />
-          <span className="box-chase-name">{getCard(id).name}</span>
+          <CollectibleCard cardId={id} mode="standard" animated={false} />
         </button>)}
       </div>
     </section>
@@ -120,6 +119,6 @@ export function StructureDeckDetail({ deck, onBack }: { deck: StructureDeckDef; 
     </section>
 
     {confirming && <ConfirmPurchase deck={deck} onCancel={() => setConfirming(false)} onConfirm={buy} />}
-    {inspect && <CardDetail cardId={inspect} onClose={() => setInspect(null)} />}
+    {inspect && <CardDetail cardId={inspect} context="shop" onClose={() => setInspect(null)} />}
   </main>;
 }

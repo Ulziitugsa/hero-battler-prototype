@@ -51,7 +51,7 @@ export function LaneSlot({
           <span className="zone-ghost-corner br" />
           <span className="zone-ghost-hint">
             <Icon name="hero" size={targetable ? 21 : 17} />
-            {targetable && <span>Drop hero</span>}
+            {targetable && <span>Drop Unit</span>}
           </span>
         </span>
       )}
