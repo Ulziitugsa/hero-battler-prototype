@@ -26,6 +26,11 @@ describe('filterHeroes', () => {
     expect(filterHeroes(HEROES, OWNED, { ...base, query: 'paladin' }, 'name').length).toBeGreaterThan(0);
     expect(filterHeroes(HEROES, OWNED, { ...base, query: 'zzzz' }, 'name')).toEqual([]);
   });
+  it('searches effect text, as the search placeholder promises', () => {
+    const shieldCards = filterHeroes(HEROES, OWNED, { ...base, query: 'shield' }, 'name');
+    expect(shieldCards.length).toBeGreaterThan(0);
+    expect(shieldCards.some((c) => !c.name.toLowerCase().includes('shield') && c.abilities.some((ab) => ab.text.toLowerCase().includes('shield')))).toBe(true);
+  });
 });
 
 describe('tally / empty copy', () => {
