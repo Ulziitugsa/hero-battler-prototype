@@ -10,7 +10,10 @@ Moonwater, using the pixel-art direction recorded in the Moonwater design docume
 | [design/DESIGN-SOURCE-OF-TRUTH.md](design/DESIGN-SOURCE-OF-TRUTH.md) | Historical Embervale visual study; superseded for current product direction |
 | [BEHAVIORAL-UX-POLICY.md](BEHAVIORAL-UX-POLICY.md) | Current Home/navigation attention and reward-readiness rules |
 | [NATIVE-MOBILE.md](NATIVE-MOBILE.md) | Capacitor configuration, native shell behavior, sync, and device-verification status |
-| [COMBAT-V2-DESIGN.md](COMBAT-V2-DESIGN.md) | Isolated Combat V2 analysis and lab; production battles remain on legacy rules |
+| [CARD-COMBAT-DESIGN.md](CARD-COMBAT-DESIGN.md) | **Authoritative** card-combat design (ATK, HP Contribution, Starting HP), rejected models and the production migration plan |
+| [CARD-COMBAT-SIMULATION.md](CARD-COMBAT-SIMULATION.md) | Seeded card-combat simulator: methods, reproduction commands and results |
+| [COMBAT-V2-DESIGN.md](COMBAT-V2-DESIGN.md) | Historical per-Unit-HP Combat V2 experiment and lab; superseded by CARD-COMBAT-DESIGN.md |
+| [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md) | Player-facing terminology, Card Mastery, duplicates, Account Level, Renown and the legacy-progression migration plan |
 | [RANKED-MODE.md](RANKED-MODE.md) | Local Ranked rating, AI opponent selection, rewards, and prototype limits |
 | [EXTERNAL-PLAYTEST-CHECKLIST.md](EXTERNAL-PLAYTEST-CHECKLIST.md) | Manual playtest checks and known prototype limits |
 | [design/CHARACTER-ART-BIBLE.md](design/CHARACTER-ART-BIBLE.md) | Historical painterly art exploration; superseded by the current Moonwater pixel-art direction |

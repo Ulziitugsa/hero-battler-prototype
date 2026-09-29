@@ -4,6 +4,7 @@ import { maxCopiesFor } from '../engine/deckRules';
 import { buildStarterCollection } from './starterCollection';
 import { clearStoredCollection, readStoredCollection, sanitizeOwned, writeStoredCollection } from './persistence';
 import type { GrantResult, OwnedMap } from './types';
+import { recordCardObtained } from './cardMarks';
 
 // The single source of truth for what the player owns. An in-memory snapshot mirrors localStorage;
 // every write updates both and notifies subscribers, so screens that are mounted (or mount later in
@@ -69,6 +70,7 @@ export function grantCard(cardId: string, count = 1): GrantResult | null {
   const previous = getOwnedCount(cardId, current);
   commit(sanitizeOwned({ ...current, [cardId]: previous + count }));
   const owned = getOwnedCount(cardId);
+  if (owned > previous) recordCardObtained(cardId);
   return { cardId, granted: owned - previous, previous, owned, isNew: previous === 0 };
 }
 

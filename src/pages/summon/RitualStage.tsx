@@ -81,7 +81,7 @@ function GridTile({ pull, revealed, onInspect, faction, result, highlight }: { p
         )}
         {!pull.grant.isNew && <span className="tile-dup">×{pull.grant.owned}</span>}
         {pull.ascensionAvailable && (
-          <span className="tile-asc" aria-label="Ascension available">
+          <span className="tile-asc" aria-label="Mastery available">
             <Icon name="power" size={11} />
           </span>
         )}
@@ -145,14 +145,14 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, onIntroFin
                 </span>
                 <span className="ri-chips">
                   {single.grant.isNew ? <span className="chip gold">New to your collection</span> : <span className="chip">Duplicate acquired · Owned ×{single.grant.owned}</span>}
-                  {!single.grant.isNew && single.starsAfter > single.starsBefore && <span className="chip gold">Star progress +{single.starsAfter - single.starsBefore} · {single.starsAfter}/5</span>}
-                  {!single.grant.isNew && single.hasAscensionPath && <span className="chip gold">{single.ascensionAvailable ? 'Ascension ready' : 'Copy added toward Ascension'}</span>}
+                  {!single.grant.isNew && single.starsAfter > single.starsBefore && <span className="chip gold">Mastery progress +{single.starsAfter - single.starsBefore}</span>}
+                  {!single.grant.isNew && single.hasAscensionPath && <span className="chip gold">{single.ascensionAvailable ? 'Mastery ready' : 'Copy added toward Mastery'}</span>}
                   {!single.grant.isNew && !single.hasAscensionPath && single.starsAfter === single.starsBefore && <span className="chip">Collection copy added</span>}
                   {single.featured && <span className="chip gold">Featured</span>}
                   {single.pityTriggered && <span className="chip gold">Guarantee reached</span>}
                   {single.ascensionAvailable && (
                     <span className="chip">
-                      <Icon name="power" size={12} /> Ascension available
+                      <Icon name="power" size={12} /> Mastery available
                     </span>
                   )}
                 </span>
@@ -164,8 +164,8 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, onIntroFin
                   {newCount} new · {outcome.pulls.length - newCount} duplicate{outcome.pulls.length - newCount === 1 ? '' : 's'}
                 </span>
                 {newHeroCount > 0 && <span className="chip gold">{newHeroCount} new unit{newHeroCount === 1 ? '' : 's'}</span>}
-                {starProgress.length > 0 && <span className="chip gold">Star progress updated · {starProgress.map(id => getCard(id).shortName).join(', ')}</span>}
-                {ascensionCopies > 0 && <span className="chip">{ascendable.length ? `Ascension ready · ${ascendable.map(id => getCard(id).shortName).join(', ')}` : `${ascensionCopies} copy${ascensionCopies === 1 ? '' : 'ies'} added toward Ascension`}</span>}
+                {starProgress.length > 0 && <span className="chip gold">Mastery progress · {starProgress.map(id => getCard(id).shortName).join(', ')}</span>}
+                {ascensionCopies > 0 && <span className="chip">{ascendable.length ? `Mastery ready · ${ascendable.map(id => getCard(id).shortName).join(', ')}` : `${ascensionCopies} copy${ascensionCopies === 1 ? '' : 'ies'} added toward Mastery`}</span>}
                 {outcome.pulls.some((p) => p.pityTriggered) && <span className="chip gold">Guarantee reached</span>}
               </span>
             )}
@@ -222,7 +222,7 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, onIntroFin
         {!result && <button type="button" className="ritual-skip" onClick={onSkip} aria-label="Skip">Skip animation <span aria-hidden="true">↠</span></button>}
       </div>
 
-      {inspectId && <CardDetail cardId={inspectId} onClose={() => setInspectId(null)} />}
+      {inspectId && <CardDetail cardId={inspectId} context="pack" onClose={() => setInspectId(null)} />}
     </div>
   );
 }

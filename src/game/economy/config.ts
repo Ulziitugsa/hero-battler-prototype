@@ -24,7 +24,7 @@ export const GEM_REWARDS = {
 } as const;
 
 /** Where a grant came from (for the record returned to callers / future analytics; not persisted). 'offer' is always a simulated/test grant - see game/offers/store.ts. */
-export type GemSource = 'campaign' | 'chapter' | 'level' | 'starting' | 'mission' | 'journey' | 'offer' | 'ranked' | 'dev';
+export type GemSource = 'campaign' | 'chapter' | 'level' | 'starting' | 'mission' | 'journey' | 'offer' | 'ranked' | 'event' | 'dev';
 
 // ---- Gold (Commercial Prototype Phase 1) --------------------------------------------------------
 // Gold is the everyday soft currency: it funds Hero Level (game/heroLevel) and nothing else yet. Unlike
@@ -42,7 +42,7 @@ export const GOLD_REWARDS = {
   quickBattleDraw: 8,
 } as const;
 
-export type GoldSource = 'campaign' | 'quickBattle' | 'idle' | 'mission' | 'journey' | 'offer' | 'shop' | 'ranked' | 'dev';
+export type GoldSource = 'campaign' | 'quickBattle' | 'idle' | 'mission' | 'journey' | 'offer' | 'shop' | 'ranked' | 'event' | 'dev';
 
 // ---- Summon Tickets (Commercial Prototype Phase 7) -----------------------------------------------
 // Tickets perform a Summon exactly like Gems (see summon/summon.ts) but are earn-only, sourced from
@@ -52,4 +52,4 @@ export const STARTING_TICKETS = 0;
 
 export const MAX_TICKETS = 9_999;
 
-export type TicketSource = 'mission' | 'journey' | 'offer' | 'ranked' | 'dev';
+export type TicketSource = 'mission' | 'journey' | 'offer' | 'ranked' | 'event' | 'dev';

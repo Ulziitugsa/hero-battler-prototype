@@ -13,11 +13,18 @@ import { getActiveDeck } from '../game/engine/activeDeck';
 import { useCollection } from '../game/collection/useCollection';
 import { getOwnedCount, usableCopies } from '../game/collection/collection';
 import { CardDetail } from '../components/CardDetail';
+import { CollectibleCard } from '../components/CollectibleCard';
 import { Icon } from '../components/Icon';
-import { CardStatPair } from '../components/CardStatPair';
-import { cardStatsPreviewEnabled } from '../game/cards/cardStatsPreview';
 import { Gems, Sigil } from '../components/CardParts';
-import { cardOrder, countCopies, deckComposition, getDeckStatus, plural, sortedEntries } from './decks/deckStatus';
+import { countCopies, getDeckStatus, plural, sortedEntries } from './decks/deckStatus';
+import { DeckSummaryBar, STARTING_HP_HELP, StartingHpBadge } from './decks/DeckSummaryBar';
+import { FavoriteStar } from './decks/FavoriteStar';
+import { baseAtk, deckSummary, hpContribution } from '../game/decks/deckSummary';
+import { DEFAULT_POOL_OPTIONS, SORT_LABEL, activeFilterCount, availableSorts, queryCardPool, type CardPoolOptions, type CardSort, type OwnershipFilter } from '../game/decks/cardPool';
+import { getCardPopularity } from '../game/decks/cardPopularity';
+import { autoFillDeck } from '../game/decks/autoFill';
+import { useCardMarks } from '../game/collection/useCardMarks';
+import { toggleFavorite } from '../game/collection/cardMarks';
 import { getDeckPresentation, type DeckPresentation } from './decks/deckPresentation';
 import { primaryAcquisitionLabel } from '../game/collection/acquisition';
 import type { StarterRequirement } from '../game/collection/starterUnlock';
@@ -41,7 +48,8 @@ const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
 const RARITY_LABEL: Record<Rarity, string> = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
 const NAME_MAX = 32;
 
-type TypeFilter = 'all' | 'hero' | 'spell';
+type TypeFilter = CardPoolOptions['type'];
+const OWNERSHIP_LABEL: Record<OwnershipFilter, string> = { owned: 'Owned', all: 'All', missing: 'Missing' };
 
 const isSaved = (id: string) => id.startsWith('deck-');
 
@@ -66,6 +74,9 @@ function DeckCard({
   ascension = 0,
   pool,
   deckFull,
+  sortKey,
+  favorite = false,
+  onToggleFavorite,
   onClick,
   onInspect,
 }: {
@@ -77,6 +88,10 @@ function DeckCard({
   ascension?: number;
   pool?: boolean;
   deckFull?: boolean;
+  /** Pool sort in effect - ATK / HP Contribution sorts show that value on the tile so the order reads. */
+  sortKey?: CardSort;
+  favorite?: boolean;
+  onToggleFavorite?: () => void;
   onClick?: () => void;
   onInspect?: () => void;
 }) {
@@ -87,56 +102,60 @@ function DeckCard({
   const over = count > limit;
   const maxed = count >= limit && count > 0;
   const ownedShort = ownedCount < gameLimit;
+  const unowned = pool && ownedCount === 0;
   const role = isHero ? card.role : card.spellKind === 'CONTINUOUS' ? 'Continuous' : 'One use';
-  const badge = pool ? (count > 0 ? `${count}/${limit}` : null) : over && ownedShort ? `Own ${ownedCount}` : count > 1 ? `×${count}` : null;
+  const badge = unowned ? null : pool ? (count > 0 ? `${count}/${limit}` : null) : over && ownedShort ? `Own ${ownedCount}` : count > 1 ? `×${count}` : null;
+  const atk = baseAtk(card);
+  const sortValue = isHero && sortKey === 'atk' && atk !== null ? { icon: 'attack' as const, text: `${atk}`, label: `${atk} ATK` } : isHero && sortKey === 'hp' ? { icon: 'lp' as const, text: `+${hpContribution(card)}`, label: `HP Contribution +${hpContribution(card)}` } : null;
 
   return (
     <span className="dk-card-wrap">
     <button
       type="button"
-      className={`dk-card r-${card.rarity} ${pool && (maxed || deckFull) ? 'blocked' : ''} ${pool && maxed ? 'maxed' : ''} ${!pool && count > 1 ? 'stacked' : ''} ${over ? 'over' : ''}`}
-      onClick={onClick}
-      aria-label={pool ? `Add ${card.name}${maxed ? ' (at copy limit)' : ''}` : `Inspect ${card.name}`}
+      className={`dk-card r-${card.rarity} ${unowned ? 'unowned' : ''} ${pool && (maxed || deckFull) ? 'blocked' : ''} ${pool && maxed && !unowned ? 'maxed' : ''} ${!pool && count > 1 ? 'stacked' : ''} ${over ? 'over' : ''}`}
+      onClick={unowned ? onInspect : onClick}
+      aria-label={unowned ? `Inspect ${card.name} (not owned)` : pool ? `Add ${card.name}${maxed ? ' (at copy limit)' : ''}` : `Inspect ${card.name}`}
     >
       {!pool && count > 1 && <span className="dk-card-under" aria-hidden="true" />}
       <span className="dk-card-frame">
-        <span className="dk-card-face">
-          <CardArt card={card} sigil="lg" />
-          <span className="dk-card-gems">
-            <Gems rarity={card.rarity} />
+        <CollectibleCard cardId={card.id} mode="standard" owned={!unowned} masteryRank={ascension} animated={false} className="dk-card-cc" />
+        {badge && (
+          <span className={`dk-card-count ${maxed ? 'full' : ''} ${over ? 'over' : ''}`}>
+            {pool && maxed && <Icon name="lock" size={9} />}
+            {badge}
           </span>
-          {isHero && cardStatsPreviewEnabled() ? (
-          <span className="dk-card-stats"><CardStatPair card={card} compact /></span>
-          ) : isHero ? (
-            <span className="dk-card-power">{card.power}</span>
-          ) : (
-            <span className="dk-card-power spell">
-              <Icon name={card.spellKind === 'CONTINUOUS' ? 'continuousSpell' : 'spell'} size={13} />
-            </span>
-          )}
-          {badge && (
-            <span className={`dk-card-count ${maxed ? 'full' : ''} ${over ? 'over' : ''}`}>
-              {pool && maxed && <Icon name="lock" size={9} />}
-              {badge}
-            </span>
-          )}
-          {ascension > 0 && <span className="asc-mark">{ascensionNumeral(ascension)}</span>}
-          {pool && !maxed && (
-            <span className="dk-card-add" aria-hidden="true">
-              <Icon name="plus" size={13} />
-            </span>
-          )}
-        </span>
-        <span className="dk-card-plate">
-          <span className="dk-card-name">{card.shortName}</span>
-          <span className="dk-card-role">
-            <Sigil faction={isHero ? card.faction : 'spell'} size="sm" />
-            <span>{pool && maxed ? (ownedShort ? `Own ${ownedCount}` : card.rarity === 'legendary' ? 'Only 1' : `Max ${gameLimit}`) : role}</span>
+        )}
+        {unowned && (
+          <span className="dk-card-count full">
+            <Icon name="lock" size={9} />
+            Not owned
           </span>
-        </span>
+        )}
+        {pool && !maxed && !unowned && (
+          <span className="dk-card-add" aria-hidden="true">
+            <Icon name="plus" size={13} />
+          </span>
+        )}
       </span>
+      {pool && (
+        <span className="dk-card-note">
+          {sortValue ? (
+            <span className="dk-card-sortval" title={sortValue.label}>
+              <Icon name={sortValue.icon} size={10} filled={sortValue.icon === 'lp'} />
+              {sortValue.text}
+            </span>
+          ) : (
+            <span>{unowned ? primaryAcquisitionLabel(card.id) : maxed ? (ownedShort ? `Own ${ownedCount}` : card.rarity === 'legendary' ? 'Only 1' : `Max ${gameLimit}`) : role}</span>
+          )}
+        </span>
+      )}
     </button>
     {pool && onInspect && <button type="button" className="dk-card-inspect" aria-label={`Inspect ${card.name}`} onClick={(event) => { event.stopPropagation(); onInspect(); }}><Icon name="help" size={12} /></button>}
+    {pool && onToggleFavorite && (
+      <button type="button" className={`dk-card-fav ${favorite ? 'on' : ''}`} aria-label={favorite ? `Unfavorite ${card.name}` : `Favorite ${card.name}`} aria-pressed={favorite} onClick={(event) => { event.stopPropagation(); onToggleFavorite(); }}>
+        <FavoriteStar filled={favorite} size={12} />
+      </button>
+    )}
     </span>
   );
 }
@@ -184,9 +203,9 @@ export function DecksPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
-  const [factionFilter, setFactionFilter] = useState<Faction | 'all'>('all');
-  const [rarityFilter, setRarityFilter] = useState<Rarity | 'all'>('all');
+  const [poolOpts, setPoolOpts] = useState<CardPoolOptions>(DEFAULT_POOL_OPTIONS);
+  const setPool = (patch: Partial<CardPoolOptions>) => setPoolOpts((prev) => ({ ...prev, ...patch }));
+  const marks = useCardMarks();
   const [inspectCardId, setInspectCardId] = useState<string | null>(null);
 
   const shelfRef = useRef<HTMLDivElement>(null);
@@ -209,11 +228,12 @@ export function DecksPage() {
 
   useEffect(() => {
     if (!notice) return;
-    const t = window.setTimeout(() => setNotice(null), 2400);
+    const t = window.setTimeout(() => setNotice(null), Math.max(2400, notice.length * 45));
     return () => window.clearTimeout(t);
   }, [notice]);
 
   const copies = useMemo(() => countCopies(cardIds), [cardIds]);
+  const summary = useMemo(() => deckSummary(cardIds), [cardIds]);
   const status = useMemo(() => getDeckStatus(cardIds, owned), [cardIds, owned]);
   const dirty = mode === 'edit' && JSON.stringify([name, cardIds]) !== baseline;
 
@@ -242,9 +262,7 @@ export function DecksPage() {
     setDeckFaction(deck.faction);
     setCardIds(nextCards);
     setBaseline(JSON.stringify([nextName, nextCards]));
-    setTypeFilter('all');
-    setFactionFilter('all');
-    setRarityFilter('all');
+    setPoolOpts(DEFAULT_POOL_OPTIONS);
     setNotice(null);
     setConfirmDiscard(false);
     setMode('edit');
@@ -287,6 +305,18 @@ export function DecksPage() {
     });
   }
 
+  /** Deterministic completion from owned cards (game/decks/autoFill.ts) - never touches cards already chosen. */
+  function fillDeck() {
+    const add = autoFillDeck(cardIds, PLAYTEST_ROSTER, (id) => getOwnedCount(id, owned), deckFaction);
+    if (add.length === 0) {
+      setNotice('No more owned cards fit this deck');
+      return;
+    }
+    setConfirmDiscard(false);
+    setNotice(`Added ${plural(add.length, 'card')} — tap any to swap it out`);
+    setCardIds((prev) => [...prev, ...add]);
+  }
+
   /** Incomplete decks save as drafts - only a legal deck can ever be made active or fought with. */
   function saveDeck() {
     const id = editingId ?? makeDeckId();
@@ -311,12 +341,18 @@ export function DecksPage() {
   // ---- Editor ------------------------------------------------------------------------------------
   if (mode === 'edit') {
     const entries = sortedEntries(cardIds);
-    const factionOk = (c: CardDefinition) => factionFilter === 'all' || c.faction === factionFilter;
-    const pool = PLAYTEST_ROSTER.map(getCard)
-      .filter((c) => getOwnedCount(c.id, owned) > 0 && (typeFilter === 'all' || c.type === typeFilter) && factionOk(c) && (rarityFilter === 'all' || c.rarity === rarityFilter))
-      .sort(cardOrder);
-    const filtered = typeFilter !== 'all' || factionFilter !== 'all' || rarityFilter !== 'all';
+    const popularity = getCardPopularity();
+    const sorts = availableSorts(popularity);
+    const pool = queryCardPool(PLAYTEST_ROSTER.map(getCard), poolOpts, {
+      ownedCount: (id) => getOwnedCount(id, owned),
+      favorites: marks.favorites,
+      obtainedAt: marks.obtainedAt,
+      masteryRank: (id) => getAscensionRank(id, ascensions),
+      popularity,
+    });
+    const filtered = activeFilterCount(poolOpts) > 0 || poolOpts.search.trim() !== '';
     const full = cardIds.length >= DECK_SIZE;
+    const { type: typeFilter, faction: factionFilter, rarity: rarityFilter } = poolOpts;
 
     return (
       <div className="decks-screen dk-edit">
@@ -337,7 +373,9 @@ export function DecksPage() {
               <small>/{DECK_SIZE}</small>
             </span>
             <span className="dk-dock-msg">{notice ?? status.message}</span>
+            <StartingHpBadge value={summary.startingHp} onExplain={() => setNotice(STARTING_HP_HELP)} />
           </div>
+          <DeckSummaryBar summary={summary} />
 
           <div className="dk-strip" aria-label="Current deck">
             {entries.map(({ card, count }) => (
@@ -369,53 +407,103 @@ export function DecksPage() {
           <div className="dk-pool-head">
             <span className="dk-pool-title">Available cards</span>
             <span className="dk-pool-count">{plural(pool.length, 'card')}</span>
+            {!full && (
+              <button type="button" className="dk-plate-btn dk-fill-btn" onClick={fillDeck}>
+                <Icon name="plus" size={13} />
+                Fill deck
+              </button>
+            )}
+          </div>
+
+          <div className="dk-search-row">
+            <label className="dk-search">
+              <Icon name="search" size={15} />
+              <input type="search" value={poolOpts.search} onChange={(e) => setPool({ search: e.target.value })} placeholder="Search name or effect" aria-label="Search cards by name or effect" enterKeyHint="search" />
+              {poolOpts.search && (
+                <button type="button" className="dk-search-clear" onClick={() => setPool({ search: '' })} aria-label="Clear search">
+                  <Icon name="close" size={13} />
+                </button>
+              )}
+            </label>
+            <button type="button" className={`dk-fav-filter ${poolOpts.favoritesOnly ? 'on' : ''}`} onClick={() => setPool({ favoritesOnly: !poolOpts.favoritesOnly })} aria-pressed={poolOpts.favoritesOnly} aria-label="Show favorites only">
+              <FavoriteStar filled={poolOpts.favoritesOnly} size={17} />
+            </button>
           </div>
 
           <div className="dk-filters">
             <div className="dk-seg" role="group" aria-label="Card type">
               {(['all', 'hero', 'spell'] as TypeFilter[]).map((t) => (
-                <button type="button" key={t} className={`dk-seg-btn ${typeFilter === t ? 'on' : ''}`} onClick={() => setTypeFilter(t)}>
+                <button type="button" key={t} className={`dk-seg-btn ${typeFilter === t ? 'on' : ''}`} onClick={() => setPool({ type: t })}>
                   {t === 'all' ? 'All' : t === 'hero' ? 'Units' : 'Spells'}
                 </button>
               ))}
             </div>
             <div className="dk-crests" role="group" aria-label="Faction">
               {(['all', ...STARTER_FACTIONS] as (Faction | 'all')[]).map((f) => (
-                <button type="button" key={f} className={`dk-crest ${factionFilter === f ? 'on' : ''}`} onClick={() => setFactionFilter(f)} aria-label={f === 'all' ? 'All factions' : FACTION_LABEL[f as StarterFaction]} aria-pressed={factionFilter === f}>
+                <button type="button" key={f} className={`dk-crest ${factionFilter === f ? 'on' : ''}`} onClick={() => setPool({ faction: f })} aria-label={f === 'all' ? 'All factions' : FACTION_LABEL[f as StarterFaction]} aria-pressed={factionFilter === f}>
                   {f === 'all' ? <Icon name="cards" size={16} /> : <Sigil faction={f} size="md" />}
                 </button>
               ))}
             </div>
           </div>
           <div className="dk-rarity-row" role="group" aria-label="Rarity">
-            <button type="button" className={`dk-rar-btn ${rarityFilter === 'all' ? 'on' : ''}`} onClick={() => setRarityFilter('all')}>
+            <button type="button" className={`dk-rar-btn ${rarityFilter === 'all' ? 'on' : ''}`} onClick={() => setPool({ rarity: 'all' })}>
               Any
             </button>
             {RARITIES.map((r) => (
-              <button type="button" key={r} className={`dk-rar-btn gems ${rarityFilter === r ? 'on' : ''}`} onClick={() => setRarityFilter(rarityFilter === r ? 'all' : r)} aria-label={RARITY_LABEL[r]} aria-pressed={rarityFilter === r}>
+              <button type="button" key={r} className={`dk-rar-btn gems ${rarityFilter === r ? 'on' : ''}`} onClick={() => setPool({ rarity: rarityFilter === r ? 'all' : r })} aria-label={RARITY_LABEL[r]} aria-pressed={rarityFilter === r}>
                 <Gems rarity={r} />
               </button>
             ))}
           </div>
 
+          <div className="dk-order-row">
+            <div className="dk-seg compact" role="group" aria-label="Ownership">
+              {(['owned', 'all', 'missing'] as OwnershipFilter[]).map((o) => (
+                <button type="button" key={o} className={`dk-seg-btn ${poolOpts.ownership === o ? 'on' : ''}`} onClick={() => setPool({ ownership: o })} aria-pressed={poolOpts.ownership === o}>
+                  {OWNERSHIP_LABEL[o]}
+                </button>
+              ))}
+            </div>
+            <label className="dk-sort">
+              <Icon name="sort" size={14} />
+              <select value={poolOpts.sort} onChange={(e) => setPool({ sort: e.target.value as CardSort })} aria-label="Sort cards">
+                {sorts.map((k) => (
+                  <option key={k} value={k}>
+                    {SORT_LABEL[k]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <div className="dk-grid">
             {pool.map((c) => (
-              <DeckCard key={c.id} card={c} count={copies.get(c.id) ?? 0} ownedCount={getOwnedCount(c.id, owned)} ascension={getAscensionRank(c.id, ascensions)} pool deckFull={full} onClick={() => addCard(c)} onInspect={() => setInspectCardId(c.id)} />
+              <DeckCard
+                key={c.id}
+                card={c}
+                count={copies.get(c.id) ?? 0}
+                ownedCount={getOwnedCount(c.id, owned)}
+                ascension={getAscensionRank(c.id, ascensions)}
+                pool
+                deckFull={full}
+                sortKey={poolOpts.sort}
+                favorite={marks.favorites.includes(c.id)}
+                onToggleFavorite={() => toggleFavorite(c.id)}
+                onClick={() => addCard(c)}
+                onInspect={() => setInspectCardId(c.id)}
+              />
             ))}
           </div>
           {pool.length === 0 && (
             <div className="dk-empty">
               <Icon name="search" size={20} />
-              <span>Nothing here matches.</span>
+              <span>{poolOpts.favoritesOnly && marks.favorites.length === 0 ? 'No favorites yet. Tap the star on a card to keep it handy.' : 'Nothing here matches.'}</span>
               {filtered && (
                 <button
                   type="button"
                   className="dk-plate-btn"
-                  onClick={() => {
-                    setTypeFilter('all');
-                    setFactionFilter('all');
-                    setRarityFilter('all');
-                  }}
+                  onClick={() => setPoolOpts({ ...DEFAULT_POOL_OPTIONS, sort: poolOpts.sort })}
                 >
                   Clear filters
                 </button>
@@ -423,6 +511,7 @@ export function DecksPage() {
             </div>
           )}
         </div>
+        {inspectCardId && <CardDetail cardId={inspectCardId} context="deck" onClose={() => setInspectCardId(null)} />}
       </div>
     );
   }
@@ -469,7 +558,7 @@ export function DecksPage() {
   const locked = pres.kind === 'starter-locked';
   const isActive = sel.id === activeId;
   const entries = sortedEntries(sel.cardIds);
-  const comp = deckComposition(sel.cardIds);
+  const selSummary = deckSummary(sel.cardIds);
   const saved = isSaved(sel.id);
   const hasCustom = decks.some((d) => isSaved(d.id));
 
@@ -518,7 +607,9 @@ export function DecksPage() {
               {locked ? 'Locked starter' : pres.message}
             </span>
           </div>
+          {!locked && <StartingHpBadge value={selSummary.startingHp} />}
         </div>
+        {!locked && <DeckSummaryBar summary={selSummary} />}
         <div className="dk-banner-actions">
           {locked ? (
             <button type="button" className="dk-plate-btn gold wide" onClick={() => setMode('requirements')}>
@@ -562,9 +653,6 @@ export function DecksPage() {
       <div className="dk-rail-label">
         <span>In this deck</span>
         <span className="dk-rail-rule" />
-        <span className="dk-rail-meta">
-          {plural(comp.heroes, 'hero')} · {plural(comp.spells, 'spell')}
-        </span>
       </div>
 
       <div className="dk-grid">
@@ -602,7 +690,7 @@ export function DecksPage() {
         </div>
       )}
 
-      {inspectCardId && <CardDetail cardId={inspectCardId} onClose={() => setInspectCardId(null)} />}
+      {inspectCardId && <CardDetail cardId={inspectCardId} context="deck" onClose={() => setInspectCardId(null)} />}
     </div>
   );
 }

@@ -8,9 +8,10 @@ import { DecksPage } from './pages/DecksPage';
 import { HeroesPage } from './pages/HeroesPage';
 import { StatsPage } from './pages/StatsPage';
 import { ProfilePage } from './pages/ProfilePage';
-import { ShopPage } from './pages/ShopPage';
+import { ShopPage, type ShopView } from './pages/ShopPage';
 import { SummonPage } from './pages/SummonPage';
 import { LanternsPage } from './pages/LanternsPage';
+import { EventPage } from './pages/EventPage';
 import { completeLanternTrial } from './game/story/lanterns';
 import { CampaignPage } from './pages/campaign/CampaignPage';
 import { AppShell, type TabId } from './components/AppShell';
@@ -26,6 +27,7 @@ import { isDebugPanelEnabled, track } from './analytics/track';
 import './styles/moonwaterGame.css';
 import { installLifecycleBridge } from './platform/lifecycle';
 import { registerBackButton } from './platform/backButton';
+import { runBackInterceptor } from './platform/backInterceptors';
 import { configureStatusBar } from './platform/statusBar';
 import { App as NativeApp } from '@capacitor/app';
 import './styles/moonwaterPolish.css';
@@ -42,7 +44,7 @@ export default function App() {
 }
 
 function GameApp() {
-  const [tab, setTab] = useState<TabId>('home');
+  const [tab, setTabState] = useState<TabId>('home');
   const [showPixelPreview, setShowPixelPreview] = useState(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('pixelPreview'));
   const [showFriendly, setShowFriendly] = useState(() => new URLSearchParams(window.location.search).has('friendly'));
   const [showStats, setShowStats] = useState(false);
@@ -53,6 +55,14 @@ function GameApp() {
   const [campaignOnMap, setCampaignOnMap] = useState(false);
   const [showSummon, setShowSummon] = useState(false);
   const [showLanterns, setShowLanterns] = useState(false);
+  const [showEvent, setShowEvent] = useState(false);
+  // Shop sub-view to open on the next visit (an event's featured Box or Structure Deck). Keyed so it remounts.
+  const [shopEntry, setShopEntry] = useState<{ view: ShopView; key: number }>({ view: { kind: 'main' }, key: 0 });
+  // Leaving the Shop forgets the event's entry view, so the next Shop visit opens on the main page.
+  const setTab = (next: TabId) => {
+    if (next !== 'shop') setShopEntry(prev => (prev.view.kind === 'main' ? prev : { view: { kind: 'main' }, key: prev.key }));
+    setTabState(next);
+  };
   const [lanternTrialId, setLanternTrialId] = useState<string | null>(null);
   const [storySaveFailed, setStorySaveFailed] = useState(false);
   const [storyResult, setStoryResult] = useState<string | null>(null);
@@ -95,6 +105,9 @@ function GameApp() {
     if (showCampaign) { setShowCampaign(false); setCampaignOnMap(false); return; }
     if (showSummon) { setShowSummon(false); return; }
     if (showLanterns) { setShowLanterns(false); return; }
+    if (showEvent) { setShowEvent(false); return; }
+    // A tab's own sub-view (Shop → Box / Structure Deck) steps back inside the tab first.
+    if (runBackInterceptor()) return;
     if (tab !== 'home') { setTab('home'); return; }
     void NativeApp.exitApp();
   };
@@ -124,6 +137,7 @@ function GameApp() {
         playerHeroLevels={battleSetup.heroLevels}
         enemyHeroLevels={battleSetup.enemyHeroLevels}
         combatModel={battleSetup.combatModel}
+        battleMode={battleSetup.rankedOpponentLabel ? 'ranked' : campaignNodeId ? 'campaign' : lanternTrialId ? 'story' : 'quick'}
         onMatchEnd={
           battleSetup.rankedOpponentLabel
             ? (status) => {
@@ -189,6 +203,8 @@ function GameApp() {
 
   // Summon, like Campaign, is a full-screen destination reached from Home - the player picks what to open in Heroes/Decks afterwards.
   if (showSummon) return <SummonPage onBack={() => setShowSummon(false)} />;
+  // The live event page, like Summon, is a full-screen destination reached from Home's event banner.
+  if (showEvent) return <EventPage onBack={() => setShowEvent(false)} onOpenShop={(product) => { setShowEvent(false); setShopEntry(prev => ({ view: product.kind === 'box' ? { kind: 'box', id: product.id } : { kind: 'structure-deck', id: product.id }, key: prev.key + 1 })); setTab('shop'); }} />;
   if (showLanterns) return <><LanternsPage result={storyResult} initialTrialId={lastStoryTrial} onBack={() => setShowLanterns(false)} onFight={(id, deck, label) => {
     const active = getActiveDeck();
     setStorySaveFailed(false);
@@ -229,13 +245,14 @@ function GameApp() {
         onOpenShop={() => setTab('shop')}
         onOpenSummon={() => setShowSummon(true)}
         onOpenLanterns={() => setShowLanterns(true)}
+        onOpenEvent={() => setShowEvent(true)}
         onOpenPixelPreview={() => setShowPixelPreview(true)}
       />
     );
   } else if (tab === 'heroes') {
     screen = <HeroesPage onOpenDecks={() => setTab('decks')} />;
   } else if (tab === 'shop') {
-    screen = <ShopPage />;
+    screen = <ShopPage key={shopEntry.key} initialView={shopEntry.view} />;
   } else if (tab === 'decks') {
     screen = <DecksPage />;
   } else if (tab === 'ranked') {

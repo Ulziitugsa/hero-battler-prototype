@@ -8,6 +8,7 @@
 // to remember - or discover the hard way - which dozen keys make up "the save."
 
 import { resetCollection } from './collection/collection';
+import { resetCardMarks } from './collection/cardMarks';
 import { resetEconomy } from './economy/economy';
 import { resetProgression } from './progression/account';
 import { resetHeroLevels } from './heroLevel/store';
@@ -21,6 +22,10 @@ import { resetSavedDecks } from './engine/localDecks';
 import { resetPreferences } from './engine/preferences';
 import { resetMatchHistory } from './engine/localMatchHistory';
 import { resetLanternProgress } from './story/lanterns';
+import { clearPrototypeBox } from './box/prototypeBox';
+import { resetStructureDecks } from './structureDecks/store';
+import { resetEvents } from './events/store';
+import { resetEventCosmetics } from './events/cosmetics';
 import { resetFirstSeenAt } from '../analytics/context';
 import { clearQueuedEvents, track } from '../analytics/track';
 
@@ -37,6 +42,7 @@ import { clearQueuedEvents, track } from '../analytics/track';
  */
 export function resetEverything(): void {
   resetCollection();
+  resetCardMarks();
   resetEconomy();
   resetProgression();
   resetHeroLevels();
@@ -50,6 +56,10 @@ export function resetEverything(): void {
   resetPreferences();
   resetMatchHistory();
   resetLanternProgress();
+  clearPrototypeBox();
+  resetStructureDecks();
+  resetEvents();
+  resetEventCosmetics();
   resetFirstSeenAt();
   clearQueuedEvents();
   track('session_started', { reset: true });

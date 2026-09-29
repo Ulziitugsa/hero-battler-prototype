@@ -91,7 +91,7 @@ export function StagePreviewSheet({ node, cleared, onFight, onClose }: { node: C
           {encounter.objectives.length > 0 && (
             <>
               <div className="campaign-sheet-mastery-label">
-                <span>Mastery seals · optional</span>
+                <span>Bonus seals · optional</span>
                 <span className="campaign-sheet-mastery-rule" />
               </div>
               {encounter.objectives.map((o) => (

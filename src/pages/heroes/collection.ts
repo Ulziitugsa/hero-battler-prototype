@@ -1,6 +1,6 @@
 import type { CardDefinition, Faction, Rarity } from '../../game/types';
 
-// Pure collection-browsing logic for the Heroes screen: filtering, stable sorting, the contextual
+// Pure collection-browsing logic for the Cards (Collection) screen: filtering, stable sorting, the contextual
 // tally and the empty-state copy. No ownership rules live here - the owned set is passed in.
 
 export type OwnedFilter = 'all' | 'owned' | 'missing';
@@ -34,7 +34,8 @@ export function displayRole(card: CardDefinition): string {
 export function matchesQuery(card: CardDefinition, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  return [card.name, card.role, FACTION_LABEL[card.faction], ...card.tags].some((s) => s.toLowerCase().includes(q));
+  // The search box promises "name or effect", so rules text is searched too, plus the card type ("spell").
+  return [card.name, card.role, FACTION_LABEL[card.faction], card.type === 'hero' ? 'Unit' : 'Spell', ...card.tags, ...card.abilities.map((a) => a.text)].some((s) => s.toLowerCase().includes(q));
 }
 
 /** Every sort is total (ties fall through to rarity, faction, name), so order never jitters between renders. */

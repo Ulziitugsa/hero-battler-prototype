@@ -14,7 +14,7 @@ import { SideHeader } from '../components/SideHeader';
 import { Battlefield } from '../components/Battlefield';
 import { OpponentHand } from '../components/OpponentHand';
 import { Hand } from '../components/Hand';
-import { CardDetail } from '../components/CardDetail';
+import { CardDetail, type InspectContext } from '../components/CardDetail';
 import { GraveyardSheet } from '../components/GraveyardSheet';
 import { DebugPanel } from '../components/DebugPanel';
 import { TopControls } from '../components/TopControls';
@@ -28,6 +28,8 @@ import { quickBattleGold } from '../game/economy/rewards';
 import { battlePowerBonusForLevel } from '../game/heroLevel/battlePower';
 import { Icon } from '../components/Icon';
 import { useAnimationController } from '../components/animation/useAnimationController';
+import { summarizeBattle, type BattleMode } from '../game/events/battleSummary';
+import { track } from '../analytics/track';
 import { resolveDuration } from '../components/animation/timing';
 import type { AnimationSpeed } from '../components/animation/types';
 import type { FriendlyRematchActions } from '../components/MatchSummary';
@@ -70,6 +72,8 @@ export interface GamePageProps {
   initialEvents?: GameEvent[];
   /** Friendly Battle only - swaps MatchSummary's "Play again"/"Back to menu" for room-aware Rematch/Leave. */
   friendlyRematch?: FriendlyRematchActions;
+  /** Which local mode this match belongs to, reported on the battle_completed analytics event. Omit for Quick Battle. */
+  battleMode?: BattleMode;
 }
 
 /** Overlays this round's not-yet-locked plays onto the real board, Deploy-phase display only. A
@@ -120,7 +124,7 @@ function buildPreviewZones(
   return { heroZones: previewHero, spellZones: previewSpell };
 }
 
-export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel = 'legacy' }: GamePageProps) {
+export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel = 'legacy', battleMode = 'quick' }: GamePageProps) {
   function buildMatch(matchSeed: number) {
     return createMatch({
       seed: matchSeed,
@@ -144,7 +148,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
 
   const [pendingPlays, setPendingPlays] = useState<DeployPlay[]>([]);
   const [selectedHand, setSelectedHand] = useState<HandCardModel | null>(null);
-  const [inspectCardId, setInspectCardId] = useState<string | null>(null);
+  const [inspect, setInspect] = useState<{ cardId: string; context: InspectContext; livePower?: number; masteryRank?: number } | null>(null);
+  const setInspectCardId = (cardId: string | null) => setInspect(cardId ? { cardId, context: 'battle' } : null);
 
   const [revealEvents, setRevealEvents] = useState<GameEvent[]>([]);
   const [baseStateForReveal, setBaseStateForReveal] = useState<GameState | null>(null);
@@ -207,6 +212,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
       // Friendly Battle grants 0 XP/rewards and isn't tracked in local match history - it's an isolated
       // networking experiment, not a progression-affecting mode (see docs/FRIENDLY-BATTLE.md).
       if (!remoteOpponent) saveRecentMatch(seed, stats);
+      // Event missions count local battles from this one summary (game/events); Friendly Battle stays out.
+      if (!remoteOpponent) track('battle_completed', summarizeBattle(next.status, merged, battleMode));
       setFullLog(merged);
       setMatchStats(stats);
       setGameState(next);
@@ -350,7 +357,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   function handlePlayerChitClick(hero: HeroInstance) {
     if (isRevealing) return;
     if (hero.instanceId.startsWith('pending-')) handleRemovePending(hero.instanceId.replace('pending-', ''));
-    else setInspectCardId(hero.cardId);
+    else setInspect({ cardId: hero.cardId, context: 'battle', livePower: hero.maxHp === undefined ? hero.power : undefined, masteryRank: hero.ascension ?? 0 });
   }
 
   function handlePlayerSpellChitClick(spell: SpellZoneInstance) {
@@ -359,9 +366,9 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     else setInspectCardId(spell.cardId);
   }
 
-  function handleEnemyChitClick(cardId: string) {
+  function handleEnemyChitClick(cardId: string, hero?: HeroInstance) {
     if (isRevealing) return;
-    setInspectCardId(cardId);
+    setInspect({ cardId, context: 'opponent', livePower: hero && hero.maxHp === undefined ? hero.power : undefined, masteryRank: hero?.ascension ?? 0 });
   }
 
   function handleDragStart(hand: HandCardModel) {
@@ -428,7 +435,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             onHeroChitClick={handlePlayerChitClick}
             onSpellSlotClick={handleSpellLaneClick}
             onSpellChitClick={handlePlayerSpellChitClick}
-            onEnemyHeroChitClick={(h) => handleEnemyChitClick(h.cardId)}
+            onEnemyHeroChitClick={(h) => handleEnemyChitClick(h.cardId, h)}
             onEnemySpellChitClick={(s) => handleEnemyChitClick(s.cardId)}
             canFight={phase === 'DEPLOY'}
             fighting={isRevealing}
@@ -487,7 +494,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             />
           )}
 
-          {inspectCardId && <CardDetail cardId={inspectCardId} onClose={() => setInspectCardId(null)} />}
+          {inspect && <CardDetail {...inspect} onClose={() => setInspect(null)} />}
           {phase === 'MATCH_END' && matchStats && <MatchSummary stats={matchStats} xp={xpResult} gold={goldResult} onPlayAgain={() => restartWithSeed(makeSeed())} onExit={onExit} friendlyRematch={friendlyRematch} />}
 
           {/* Friendly Battle only - deliberately minimal/unstyled (see docs/FRIENDLY-BATTLE.md: "keep

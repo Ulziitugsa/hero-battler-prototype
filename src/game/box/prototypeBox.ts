@@ -5,15 +5,20 @@ import { PLAYTEST_ROSTER } from '../cards/roster.js';
 
 export const PROTOTYPE_BOX = {
   id: 'moonfall-test-v1',
-  name: 'Moonfall Box · Test',
+  name: 'Moonfall Box',
   packCount: 100,
   cardsPerPack: 5,
-  cardCounts: { common: 250, rare: 150, epic: 75, legendary: 25 } satisfies Record<Rarity, number>,
+  // Per card: Common 14-15, Rare 8, Epic 6, Legendary 5, so rarer cards always take longer to reach Mastery V
+  // (Common 1 Box, Rare and Epic 2, Legendary 3) and one full Box maxes only the Commons.
+  cardCounts: { common: 258, rare: 168, epic: 54, legendary: 20 } satisfies Record<Rarity, number>,
 } as const;
 
-export const PROTOTYPE_BOX_STORAGE_KEY = 'moonwater:testBox:moonfall-v1';
+/** v2: rarity copies rebalanced (a v1 save holds the old per-card counts, so it is not carried over). */
+export const PROTOTYPE_BOX_STORAGE_KEY = 'moonwater:testBox:moonfall-v2';
 export type BoxRemaining = Record<string, number>;
-export interface PrototypeBoxState { version: 1; openedPacks: number; randomState: number; remaining: BoxRemaining }
+/** `resetCount` was added after v1 shipped; older saves simply lack it and read as 0. */
+export interface PrototypeBoxState { version: 1; openedPacks: number; randomState: number; remaining: BoxRemaining; resetCount?: number }
+export interface PrototypeBoxContentLine { cardId: string; rarity: Rarity; remaining: number; total: number }
 export interface PrototypeBoxPull { cardId: string; rarity: Rarity; previousCopies: number; ownedCopies: number; isNew: boolean }
 export interface OpenBoxResult { state: PrototypeBoxState; packs: PrototypeBoxPull[][] }
 
@@ -33,8 +38,8 @@ function initialRemaining(): BoxRemaining {
   return result;
 }
 
-function freshState(): PrototypeBoxState {
-  return { version: 1, openedPacks: 0, randomState: 0x4d4f4f4, remaining: initialRemaining() };
+function freshState(resetCount = 0): PrototypeBoxState {
+  return { version: 1, openedPacks: 0, randomState: 0x4d4f4f4, remaining: initialRemaining(), resetCount };
 }
 
 function save(state: PrototypeBoxState): PrototypeBoxState {
@@ -71,6 +76,28 @@ export function prototypeBoxRarityCounts(state = getPrototypeBoxState()): Record
   const counts: Record<Rarity, number> = { common: 0, rare: 0, epic: 0, legendary: 0 };
   for (const [id, remaining] of Object.entries(state.remaining)) counts[getCard(id).rarity] += Math.max(0, remaining);
   return counts;
+}
+
+/** Probability that the NEXT card drawn is each rarity. Exact, because every remaining copy is equally likely. */
+export function prototypeBoxNextCardOdds(state = getPrototypeBoxState()): Record<Rarity, number> {
+  const counts = prototypeBoxRarityCounts(state);
+  const total = counts.common + counts.rare + counts.epic + counts.legendary;
+  const odds: Record<Rarity, number> = { common: 0, rare: 0, epic: 0, legendary: 0 };
+  if (total > 0) for (const rarity of rarityOrder) odds[rarity] = counts[rarity] / total;
+  return odds;
+}
+
+/** Every card in the Box with its full-Box and remaining copy counts, rarest first. */
+export function prototypeBoxContents(state = getPrototypeBoxState()): PrototypeBoxContentLine[] {
+  const totals = initialRemaining();
+  return Object.keys(totals)
+    .map(cardId => ({ cardId, rarity: getCard(cardId).rarity, remaining: Math.max(0, state.remaining[cardId] ?? 0), total: totals[cardId] }))
+    .sort((a, b) => rarityOrder.indexOf(b.rarity) - rarityOrder.indexOf(a.rarity) || getCard(a.cardId).name.localeCompare(getCard(b.cardId).name));
+}
+
+/** The Box can be refilled once at least one pack has been opened; a full Box has nothing to refill. */
+export function canResetPrototypeBox(state = getPrototypeBoxState()): boolean {
+  return state.openedPacks > 0;
 }
 
 function nextRandom(state: number): { state: number; value: number } {
@@ -116,16 +143,27 @@ export function openPrototypeBox(packCount: 1 | 10): OpenBoxResult {
     }
     packs.push(pulls);
   }
-  const next = save({ version: 1, openedPacks: before.openedPacks + packCount, randomState, remaining });
+  const next = save({ ...before, openedPacks: before.openedPacks + packCount, randomState, remaining });
   return { state: next, packs };
 }
 
-/** Test-only reset; it restores this Box's finite pool and never modifies collection ownership. */
+/**
+ * Refills this Box's finite pool to its full composition. It never modifies collection ownership: cards
+ * already opened stay owned, and copies still sealed in the old Box are replaced by the fresh full set.
+ * Player-facing callers must confirm first (see BoxDetail's reset dialog) - a Box never resets silently.
+ */
 export function resetPrototypeBox(): PrototypeBoxState {
+  const previousResets = getPrototypeBoxState().resetCount ?? 0;
   snapshot = null;
   try { localStorage.removeItem(PROTOTYPE_BOX_STORAGE_KEY); } catch { /* best effort */ }
-  snapshot = freshState();
+  snapshot = freshState(previousResets + 1);
   return save(snapshot);
 }
 
 export function reloadPrototypeBox(): void { snapshot = null; }
+
+/** Dev/playtest full wipe (game/devReset.ts): a factory-fresh Box, including the reset count. */
+export function clearPrototypeBox(): void {
+  snapshot = null;
+  try { localStorage.removeItem(PROTOTYPE_BOX_STORAGE_KEY); } catch { /* best effort */ }
+}

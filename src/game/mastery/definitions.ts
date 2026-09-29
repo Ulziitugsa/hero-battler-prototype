@@ -1,6 +1,8 @@
 import type { Faction } from '../types/index.js';
 
-// Mastery: the player's one equipped strategic passive. Pure data - the battle engine reads the
+// Mastery: the player's one equipped strategic passive. Player-facing name: "Tactic" ("Mastery" now
+// means per-card Card Mastery - see docs/COLLECTION-PROGRESSION.md). Ids, types and the save keep the old name.
+// Pure data - the battle engine reads the
 // per-rank parameters (engine/mastery.ts), the progression layer reads unlock levels and rank caps, the
 // UI reads names and text. Nothing here has any behaviour of its own.
 //
@@ -41,7 +43,7 @@ export const MASTERIES: Record<MasteryId, MasteryDef> = {
   fortification: {
     id: 'fortification',
     name: 'Fortification',
-    blurb: 'A defensive formation - your Heroes are shielded as the battle drags on.',
+    blurb: 'A defensive formation - your Units are shielded as the battle drags on.',
     unlockLevel: 1,
     implemented: true,
     ranks: [
@@ -54,7 +56,7 @@ export const MASTERIES: Record<MasteryId, MasteryDef> = {
   necromancy: {
     id: 'necromancy',
     name: 'Necromancy',
-    blurb: 'Graveyard recursion - your fallen Heroes keep coming back.',
+    blurb: 'Graveyard recursion - your fallen Units keep coming back.',
     unlockLevel: 3,
     implemented: true,
     ranks: [
@@ -67,7 +69,7 @@ export const MASTERIES: Record<MasteryId, MasteryDef> = {
   'blood-pact': {
     id: 'blood-pact',
     name: 'Blood Pact',
-    blurb: 'Aggression at a price - pain makes your strongest Hero hit harder.',
+    blurb: 'Aggression at a price - pain makes your strongest Unit hit harder.',
     unlockLevel: 6,
     implemented: false,
     ranks: [{ interval: 1, count: 1 }],
@@ -97,17 +99,17 @@ export function masteryEffectText(id: MasteryId, rank: number): string {
   const every = p.interval === 1 ? 'Every round' : `Every ${p.interval} rounds`;
   switch (id) {
     case 'necromancy': {
-      const what = p.count > 1 ? `${p.count} Heroes` : 'a Hero';
+      const what = p.count > 1 ? `${p.count} Units` : 'a Unit';
       const pref = p.preferFaction ? `, Undead first` : '';
       return `${every}, return ${what} from your Graveyard to your hand${pref}.`;
     }
     case 'fortification': {
-      const what = p.count > 1 ? `${p.count} allied Heroes` : 'an allied Hero';
+      const what = p.count > 1 ? `${p.count} allied Units` : 'an allied Unit';
       const pref = p.preferUnshielded ? ', unshielded first' : '';
       return `${every}, shield ${what}${pref}.`;
     }
     default:
-      return 'After you take direct damage, your strongest Hero gains +1 Power this round.';
+      return 'After you take direct damage, your strongest Unit gains +1 Power this round.';
   }
 }
 
@@ -118,8 +120,8 @@ export function masteryNextRankText(id: MasteryId, rank: number): string | null 
   const next = getMasteryRankParams(id, rank + 1);
   const changes: string[] = [];
   if (next.interval !== cur.interval) changes.push(`triggers every ${next.interval} rounds`);
-  if (next.count !== cur.count) changes.push(`affects ${next.count} Heroes`);
-  if (next.preferFaction && next.preferFaction !== cur.preferFaction) changes.push('Undead Heroes come first');
-  if (next.preferUnshielded && !cur.preferUnshielded) changes.push('prefers Heroes without a Shield');
+  if (next.count !== cur.count) changes.push(`affects ${next.count} Units`);
+  if (next.preferFaction && next.preferFaction !== cur.preferFaction) changes.push('Undead Units come first');
+  if (next.preferUnshielded && !cur.preferUnshielded) changes.push('prefers Units without a Shield');
   return changes.length ? changes.join(', ').replace(/^./, (c) => c.toUpperCase()) + '.' : null;
 }

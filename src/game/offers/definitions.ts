@@ -36,7 +36,7 @@ export const OFFERS: OfferDef[] = [
   {
     id: 'starter-pack',
     title: 'Starter Pack',
-    subtitle: 'A generous first step - Gold, Gems, Tickets and a Hero.',
+    subtitle: 'A generous first step - Gold, Gems, Tickets and a card.',
     reward: { gold: 500, gems: 300, tickets: 5, cardId: 'kng-battle-captain', cardCount: 1 },
   },
   {

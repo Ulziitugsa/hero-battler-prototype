@@ -26,6 +26,11 @@ describe('filterHeroes', () => {
     expect(filterHeroes(HEROES, OWNED, { ...base, query: 'paladin' }, 'name').length).toBeGreaterThan(0);
     expect(filterHeroes(HEROES, OWNED, { ...base, query: 'zzzz' }, 'name')).toEqual([]);
   });
+  it('searches effect text, as the search placeholder promises', () => {
+    const shieldCards = filterHeroes(HEROES, OWNED, { ...base, query: 'shield' }, 'name');
+    expect(shieldCards.length).toBeGreaterThan(0);
+    expect(shieldCards.some((c) => !c.name.toLowerCase().includes('shield') && c.abilities.some((ab) => ab.text.toLowerCase().includes('shield')))).toBe(true);
+  });
 });
 
 describe('tally / empty copy', () => {
@@ -54,5 +59,20 @@ describe('driven by real collection state', () => {
     expect(filterHeroes(HEROES, owned, { ...base, owned: 'owned' }, 'rarity').map((c) => c.id)).toEqual(['und-mira']);
     expect(filterHeroes(HEROES, owned, { ...base, owned: 'missing' }, 'rarity').some((c) => c.id === 'und-mira')).toBe(false);
     expect(tally(HEROES.filter((c) => c.faction === 'undead'), owned)).toMatchObject({ have: 1 });
+  });
+});
+
+describe('Spells in the collection', () => {
+  const ALL = PLAYTEST_ROSTER.map(getCard);
+  it('lists every roster Spell alongside the Units', () => {
+    const spells = filterHeroes(ALL, new Set(), base, 'rarity').filter((c) => c.type === 'spell');
+    expect(spells.length).toBe(ALL.filter((c) => c.type === 'spell').length);
+    expect(spells.length).toBeGreaterThan(0);
+  });
+  it('finds Spells by searching "spell" and Units by "unit"', () => {
+    const spells = filterHeroes(ALL, new Set(), { ...base, query: 'spell' }, 'name');
+    expect(spells.filter((c) => c.type === 'spell').length).toBe(ALL.filter((c) => c.type === 'spell').length);
+    const units = filterHeroes(ALL, new Set(), { ...base, query: 'unit' }, 'name');
+    expect(units.filter((c) => c.type === 'hero').length).toBe(ALL.filter((c) => c.type === 'hero').length);
   });
 });

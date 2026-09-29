@@ -1,0 +1,31 @@
+/* Structure Deck page (Shop > Structure Decks). Builds on the .box-* primitives in box.css. */
+
+.sd-hero { position:relative; display:grid; grid-template-columns:118px 1fr; align-items:end; gap:12px; overflow:hidden; min-height:170px; padding:14px; border:1px solid #9fc7b155; border-radius:20px; background:radial-gradient(90% 120% at 10% 100%,#3d5a4a 0%,#1a3440 45%,#0c1d28 100%); box-shadow:0 14px 30px #020a1080; }
+.sd-hero.undead { border-color:#8fd0b366; background:radial-gradient(90% 120% at 10% 100%,#2f5a4c 0%,#16303a 45%,#0a1a23 100%); }
+.sd-hero.kingdom { border-color:#e2c47f66; }
+.sd-hero.infernal { border-color:#e0876b66; background:radial-gradient(90% 120% at 10% 100%,#5a3027 0%,#2a2130 45%,#0c1a24 100%); }
+.sd-hero-art { display:flex; align-items:flex-end; justify-content:center; height:150px; }
+.sd-hero-art img,.sd-hero-art canvas { max-width:100%; max-height:100%; object-fit:contain; image-rendering:pixelated; filter:drop-shadow(0 8px 12px #000c); }
+.sd-hero-copy h1 { margin:4px 0; color:#f3ead0; font:400 27px/1.05 var(--moon-display,Georgia,serif); }
+.sd-faction { display:flex; align-items:center; gap:6px; margin:0 0 6px; color:#bcd9cb; font-size:12px; font-weight:800; }
+.sd-tagline { margin:0; color:#c5d1c9; font-size:12px; line-height:1.4; }
+
+.sd-buy { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:12px; padding:10px 10px 10px 14px; border:1px solid #f0d59a55; border-radius:16px; background:#122a34; }
+.sd-buy strong { display:block; color:#f5e8c8; font:400 16px var(--moon-display,Georgia,serif); }
+.sd-buy small { color:#9fb3ae; font-size:11px; }
+.sd-buy button { display:inline-flex; align-items:center; gap:6px; min-width:108px; min-height:46px; justify-content:center; padding:0 14px; border:1px solid #f2d99c; border-radius:13px; color:#1b2c31; background:linear-gradient(#f4e5b8,#d8bb70); font-size:15px; font-weight:900; }
+.sd-buy button:disabled { color:#a5b3aa; border-color:#637b78; background:#253b41; }
+
+.sd-body { margin:8px 0 0; color:#c4d2cb; font-size:13px; line-height:1.55; }
+.sd-featured { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.sd-combo { margin:10px 0 0; padding:0; list-style:none; counter-reset:combo; }
+.sd-combo li { position:relative; margin-top:8px; padding:10px 12px 10px 42px; border:1px solid #aecac122; border-radius:12px; color:#d5ddd3; background:#0e222d; font-size:12px; line-height:1.45; counter-increment:combo; }
+.sd-combo li::before { content:counter(combo); position:absolute; left:11px; top:10px; display:grid; place-items:center; width:22px; height:22px; border-radius:50%; color:#1b2c31; background:#d8bb70; font-weight:900; font-size:12px; }
+.sd-group { margin:12px 0 6px; color:#a6c1b9; font:800 10px var(--moon-ui,system-ui,sans-serif); letter-spacing:.14em; text-transform:uppercase; }
+.sd-list { display:grid; gap:5px; }
+.sd-line { display:grid; grid-template-columns:30px 1fr auto auto; align-items:center; gap:8px; min-height:40px; padding:0 10px; border:1px solid #aecac11f; border-radius:10px; color:#eee2ca; background:#0c1d27; font-size:13px; text-align:left; }
+.sd-line-count { color:#f0d59a; font-weight:900; }
+.sd-line-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sd-line-rarity { color:#c9c2b0; font-size:10px; font-weight:800; text-transform:capitalize; }
+.sd-line.r-rare .sd-line-rarity { color:#9ac9ef; }.sd-line.r-epic .sd-line-rarity { color:#d3a9f4; }.sd-line.r-legendary .sd-line-rarity { color:#f1cf83; }
+.sd-line-owned { min-width:44px; color:#8fa6a2; font-size:10px; text-align:right; }

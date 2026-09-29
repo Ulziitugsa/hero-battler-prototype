@@ -33,11 +33,14 @@ import { MASTERIES, rankNumeral } from '../game/mastery/definitions';
 import { MAX_LEVEL, xpToNextLevel } from '../game/progression/config';
 import { CardArtwork } from '../components/CardArtwork';
 import { getDailyShopGiftState, subscribeDailyShopGift } from '../game/shop/dailyGift';
+import { HomeEventBanner } from '../components/HomeEventBanner';
 
 interface HomeProps {
   onOpenBattleSetup: () => void; onOpenCampaign: () => void; onOpenDecks: () => void;
   onOpenHeroes: () => void; onOpenProfile: () => void; onOpenShop: () => void; onOpenSummon: () => void;
   onOpenFriendly: () => void; onOpenLanterns: () => void; onOpenPixelPreview: () => void;
+  /** Opens the live event page; Home shows its single event banner only while an event is running. */
+  onOpenEvent?: () => void;
 }
 
 function claimableCount(state: MissionsState, period: 'daily' | 'weekly'): number {
@@ -150,7 +153,7 @@ export function HomePage(props: HomeProps) {
     <header className="moon-home-header">
       <button type="button" className="moon-player-identity" onClick={props.onOpenProfile} aria-label={`Wanderer, account level ${account.level}. Open profile`}>
         <span className="moon-player-avatar">{mastery ? <MasteryCrest id={mastery.id} size={23} /> : <span aria-hidden="true">☾</span>}<i>{account.level}</i></span>
-        <span className="moon-player-copy"><strong>Wanderer</strong><small>{mastery ? `${mastery.name} ${rankNumeral(account.unlockedMasteries[mastery.id] ?? 1)}` : `Wayfarer · Level ${account.level}`}</small><span className="moon-xp-track" role="progressbar" aria-valuemin={0} aria-valuemax={xpNeed} aria-valuenow={account.xp} aria-label="Account experience"><i style={{ width: `${xpPct}%` }} /></span></span>
+        <span className="moon-player-copy"><strong>Wanderer</strong><small>{mastery ? `${mastery.name} ${rankNumeral(account.unlockedMasteries[mastery.id] ?? 1)}` : `Wayfarer · Account Level ${account.level}`}</small><span className="moon-xp-track" role="progressbar" aria-valuemin={0} aria-valuemax={xpNeed} aria-valuenow={account.xp} aria-label="Account experience"><i style={{ width: `${xpPct}%` }} /></span></span>
       </button>
       <div className="moon-home-tools" role="group" aria-label="Balances">{economy.tickets > 0 && <TicketBalance />}<GoldBalance /><GemBalance /><button className="moon-help-button" onClick={() => setHelp(true)} aria-label="How to play">?</button></div>
     </header>
@@ -158,7 +161,7 @@ export function HomePage(props: HomeProps) {
     <section className="home-campaign" aria-labelledby="home-campaign-title">
       <div className="home-campaign-scene" aria-hidden="true" />
       <div className="home-campaign-top"><div className="home-campaign-heading"><span className="home-kicker">{hub.campaign.chapterLine.replace(/^The /, '').replace(' · Chapter ', ' · Ch. ')}</span><h1 id="home-campaign-title">{currentNode?.name ?? hub.campaign.region}</h1><span className="home-stage-count">Step {Math.min(currentStep, mainRoadNodes.length)} <i>of</i> {mainRoadNodes.length}</span></div>
-        {featureCard && featureDefinition && <button type="button" className={`home-feature-card ${featureDefinition.faction}`} onClick={() => setInspect(featureCard)} aria-label={`View ${featureDefinition.name}, featured card`}><span className="home-feature-wash"/><CardArtwork cardId={featureCard} className="home-feature-art"/><span className="home-feature-caption"><small>YOUR VANGUARD</small><strong>{featureDefinition.shortName}</strong></span></button>}
+        {featureCard && featureDefinition && <button type="button" className={`home-feature-card ${featureDefinition.faction}`} onClick={() => setInspect(featureCard)} aria-label={`View ${featureDefinition.name}, featured card`}><span className="home-feature-wash"/><CardArtwork cardId={featureCard} className="home-feature-art"/><span className="home-feature-caption"><small>FEATURED CARD</small><strong>{featureDefinition.shortName}</strong></span></button>}
       </div>
       <div className="home-progress" role="progressbar" aria-label="Campaign chapter progress" aria-valuemin={0} aria-valuemax={mainRoadNodes.length} aria-valuenow={mainRoadCleared}><span style={{ width: `${mainRoadNodes.length ? mainRoadCleared / mainRoadNodes.length * 100 : 0}%` }} /></div>
       <div className="home-power-line"><span>Deck Strength <strong>{currentPower}</strong>{powerRead && <b className={`home-power-read ${powerRead.toLowerCase()}`}>{powerRead}</b>}</span>{recommended !== undefined && <span>Recommended <strong>{recommended}</strong></span>}<span className="home-energy">Energy {hub.energy.current}/{hub.energy.max}</span></div>
@@ -171,7 +174,9 @@ export function HomePage(props: HomeProps) {
 
     <section className="home-secondary-actions" aria-label="Other battles"><button onClick={props.onOpenBattleSetup}><span aria-hidden="true">⚔</span><strong>Quick Battle</strong><small>Practice</small></button><span className="home-action-divider" aria-hidden="true"/><button onClick={props.onOpenFriendly}><span aria-hidden="true">◇</span><strong>Friendly Battle</strong><small>Play with a friend</small></button></section>
 
-    <button className="home-formation" onClick={props.onOpenDecks}><span className="home-formation-icon" aria-hidden="true">▤</span><span><small>ACTIVE FORMATION</small><strong>{deck.label}</strong></span><span className="home-formation-meta">{deck.cardIds.length} cards · Edit →</span></button>
+    <button className="home-formation" onClick={props.onOpenDecks}><span className="home-formation-icon" aria-hidden="true">▤</span><span><small>ACTIVE DECK</small><strong>{deck.label}</strong></span><span className="home-formation-meta">{deck.cardIds.length} cards · Edit →</span></button>
+
+    {props.onOpenEvent && <HomeEventBanner onOpen={props.onOpenEvent} />}
 
     <section className="home-reward-rail" aria-label="Rewards and destinations">
       <button className={dailyReady + weeklyReady > 0 ? 'is-ready' : 'is-passive'} onClick={() => setMissionsOpen(true)}><span className="home-rail-icon">✦</span><strong>Missions</strong><small>{dailyReady + weeklyReady ? `${dailyReady + weeklyReady} ready` : 'Daily · Weekly'}</small>{dailyReady + weeklyReady > 0 && <i>READY</i>}</button>
@@ -183,7 +188,7 @@ export function HomePage(props: HomeProps) {
 
     {idleClaimedGold > 0 && <div className="moon-claim-feedback" role="status">+{idleClaimedGold.toLocaleString()} Gold collected</div>}
 
-    <nav className="home-quiet-links" aria-label="More"><small>MORE</small><span>{!dailyShopGift.claimed && <button className="home-shop-gift-link" onClick={props.onOpenShop}>Free Shop gift · Ready</button>}<button className="home-collection-link" onClick={props.onOpenHeroes}>Collection</button>{import.meta.env.DEV && <button className="home-dev-link" onClick={props.onOpenPixelPreview}>Character studies</button>}</span></nav>
+    <nav className="home-quiet-links" aria-label="More"><small>MORE</small><span>{!dailyShopGift.claimed && <button className="home-shop-gift-link" onClick={props.onOpenShop}>Free Shop gift · Ready</button>}<button className="home-collection-link" onClick={props.onOpenHeroes}>Collection</button>{import.meta.env.DEV && <button className="home-dev-link" onClick={props.onOpenPixelPreview}>Pixel art preview · dev</button>}</span></nav>
     <footer className="moon-home-footer"><span>☾ Moonwater village</span><span>{hub.campaign.chapterLine}</span></footer>
     {inspect && <CardDetail cardId={inspect} onClose={() => setInspect(null)} />}{help && <HowToPlaySheet onClose={() => setHelp(false)} />}{missionsOpen && <MissionsSheet onClose={closeMissions} />}{journeyOpen && <JourneySheet onClose={closeJourney} />}
   </main>;

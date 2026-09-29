@@ -1,0 +1,80 @@
+/* Live event page + Home event banner (Moonwater batch 1, Thread E). Uses the moonlit --moon-* tokens
+   from moonwaterPolish.css; --event-accent is set per event from its theme. */
+
+.event-screen { --event-accent: #b193d6; position: relative; max-width: 620px; margin: 0 auto; padding: 0 16px 36px; color: var(--moon-ivory); font-family: var(--moon-ui); }
+.event-screen h1, .event-screen h2 { font-family: var(--moon-display); }
+.event-screen-empty { padding-top: 72px; text-align: center; }
+.event-screen-empty p { color: var(--moon-muted); }
+.event-back { position: absolute; top: 14px; left: 14px; z-index: 2; display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid rgba(240, 213, 154, .45); border-radius: 50%; background: rgba(8, 23, 35, .78); color: var(--moon-prestige); }
+
+.event-hero { position: relative; margin: 0 -16px; min-height: 250px; display: flex; flex-direction: column; justify-content: flex-end; padding: 64px 18px 14px; overflow: hidden; border-bottom: 1px solid color-mix(in srgb, var(--event-accent) 45%, transparent); }
+.event-hero-art { position: absolute; inset: 0; opacity: .62; }
+.event-hero-art img, .event-hero-art .card-artwork, .event-hero-art > * { width: 100%; height: 100%; object-fit: cover; object-position: center 22%; image-rendering: pixelated; }
+.event-hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, var(--moon-night) 4%, rgba(8, 23, 35, .55) 55%, rgba(8, 23, 35, .2)); pointer-events: none; }
+.event-hero-copy, .event-completion { position: relative; z-index: 1; }
+.event-hero-copy .moon-eyebrow { color: color-mix(in srgb, var(--event-accent) 60%, #f7f0de); }
+.event-hero-copy h1 { margin: 6px 0 4px; font-size: clamp(30px, 8.5vw, 42px); line-height: 1.05; color: #fbf1d8; text-shadow: 0 2px 12px #050e16; }
+.event-hero-copy p { margin: 0; color: var(--moon-muted); font-size: 14px; }
+.event-completion { margin-top: 14px; display: grid; gap: 5px; }
+.event-completion > span:first-child { display: flex; justify-content: space-between; color: var(--moon-dim); font-size: 12px; }
+.event-completion strong { color: var(--moon-prestige); }
+.event-lore { margin: 14px 2px 4px; color: var(--moon-muted); font-size: 13px; line-height: 1.5; font-style: italic; }
+
+.event-progress { display: block; height: 6px; border-radius: 3px; background: rgba(4, 13, 20, .8); border: 1px solid rgba(174, 202, 193, .18); overflow: hidden; }
+.event-progress i { display: block; height: 100%; background: linear-gradient(90deg, color-mix(in srgb, var(--event-accent) 70%, #1a3641), var(--event-accent)); }
+
+.event-section { margin-top: 20px; }
+.event-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.event-section-head h2 { margin: 0; font-size: 19px; color: #f5e6c1; }
+.event-section-head small { color: var(--moon-dim); font-size: 12px; text-align: right; }
+.event-note { margin: 6px 2px 0; color: var(--moon-dim); font-size: 12px; }
+
+.event-reward-chips { display: inline-flex; flex-wrap: wrap; gap: 4px 9px; align-items: center; font-size: 12px; font-weight: 700; color: #ecdcb6; }
+.event-reward-chips > span { display: inline-flex; align-items: center; gap: 3px; }
+.event-reward-card, .event-reward-cosmetic { padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--event-accent) 20%, transparent); color: #efe3ff; }
+
+.event-login-track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.event-login-track li { position: relative; min-height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 4px; padding: 7px 2px 6px; border: 1px solid var(--moon-line); border-radius: 10px; background: rgba(20, 44, 56, .78); text-align: center; }
+.event-login-track li small { color: var(--moon-dim); font-size: 10px; font-weight: 800; }
+.event-login-track .event-reward-chips { justify-content: center; font-size: 11px; }
+.event-login-track .event-reward-card { padding: 1px 3px; font-size: 9px; line-height: 1.2; }
+.event-login-track li.claimed { opacity: .55; }
+.event-login-track li.claimed svg { color: #8fd3a4; }
+.event-login-track li.ready { border-color: var(--moon-prestige); background: rgba(61, 50, 32, .8); }
+.event-login-track button, .event-row-state button, .event-final-claim { border: 1px solid #e8cc86; border-radius: 8px; background: #dfbd73; color: #29251d; font-weight: 800; }
+.event-login-track button { padding: 3px 5px; font-size: 10px; }
+
+.event-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.event-row { display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 9px 11px; border: 1px solid var(--moon-line); border-radius: 12px; background: rgba(20, 44, 56, .72); }
+.event-row-copy { flex: 1; min-width: 0; display: grid; gap: 5px; }
+.event-row-copy strong { font-size: 14px; color: var(--moon-ivory); }
+.event-row-state { flex: 0 0 auto; min-width: 54px; text-align: right; color: var(--moon-dim); font-size: 12px; font-weight: 700; }
+.event-row-state button { min-height: 36px; padding: 0 14px; font-size: 12px; }
+.event-row.ready { border-color: rgba(240, 213, 154, .6); background: rgba(61, 50, 32, .72); }
+.event-row.claimed { opacity: .6; }
+
+.event-product > p { margin: 0 2px 10px; color: var(--moon-muted); font-size: 13px; }
+.event-product-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.event-product-cards button, .event-final-card { padding: 0; border: 0; background: none; }
+.event-product-cards .collectible, .event-final-card .collectible { width: 100%; }
+.event-product-cta { width: 100%; min-height: 44px; margin-top: 10px; border: 1px solid rgba(240, 213, 154, .45); border-radius: 12px; background: rgba(26, 54, 65, .9); color: var(--moon-prestige); font-weight: 800; }
+
+.event-final { padding: 12px; border: 1px solid color-mix(in srgb, var(--event-accent) 55%, transparent); border-radius: 16px; background: radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--event-accent) 22%, transparent), transparent 60%), rgba(16, 36, 47, .9); }
+.event-final-body { display: grid; grid-template-columns: 112px 1fr; gap: 12px; align-items: start; }
+.event-final-copy { display: grid; gap: 8px; }
+.event-final-background { display: block; height: 62px; border-radius: 10px; border: 1px solid var(--moon-line); background-size: cover; background-position: center; image-rendering: pixelated; }
+.event-final-state { color: var(--moon-dim); font-size: 12px; font-weight: 700; }
+.event-final-claim { min-height: 42px; font-size: 13px; }
+.event-final.claimed { opacity: .75; }
+.event-footnote { margin: 18px 2px 0; color: var(--moon-dim); font-size: 11px; line-height: 1.5; }
+
+/* Home: one slim banner between the active deck row and the reward rail. */
+.home-event-banner { --event-accent: #b193d6; position: relative; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 4px 12px 4px 4px; text-align: left; color: var(--moon-ivory); border: 1px solid color-mix(in srgb, var(--event-accent) 40%, transparent); border-radius: 14px; background: linear-gradient(90deg, color-mix(in srgb, var(--event-accent) 20%, rgba(10, 27, 37, .8)), rgba(10, 27, 37, .65) 70%); }
+.home-event-art { flex: 0 0 40px; width: 40px; height: 40px; overflow: hidden; border-radius: 10px; background: #0d202d; }
+.home-event-art > *, .home-event-art img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; image-rendering: pixelated; }
+.home-event-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.home-event-copy small { color: color-mix(in srgb, var(--event-accent) 55%, #f7f0de); font: 800 9px/1.25 var(--moon-ui); letter-spacing: .1em; }
+.home-event-copy strong { overflow: hidden; font: 16px/1.2 var(--moon-display); text-overflow: ellipsis; white-space: nowrap; }
+.home-event-status { flex: 0 0 auto; color: var(--moon-muted); font-size: 11px; font-weight: 700; }
+.home-event-status.is-ready { color: var(--moon-prestige); }
+.home-event-banner .attention-dot { top: 4px; right: 4px; }
