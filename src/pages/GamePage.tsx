@@ -28,6 +28,8 @@ import { quickBattleGold } from '../game/economy/rewards';
 import { battlePowerBonusForLevel } from '../game/heroLevel/battlePower';
 import { Icon } from '../components/Icon';
 import { useAnimationController } from '../components/animation/useAnimationController';
+import { summarizeBattle, type BattleMode } from '../game/events/battleSummary';
+import { track } from '../analytics/track';
 import { resolveDuration } from '../components/animation/timing';
 import type { AnimationSpeed } from '../components/animation/types';
 import type { FriendlyRematchActions } from '../components/MatchSummary';
@@ -70,6 +72,8 @@ export interface GamePageProps {
   initialEvents?: GameEvent[];
   /** Friendly Battle only - swaps MatchSummary's "Play again"/"Back to menu" for room-aware Rematch/Leave. */
   friendlyRematch?: FriendlyRematchActions;
+  /** Which local mode this match belongs to, reported on the battle_completed analytics event. Omit for Quick Battle. */
+  battleMode?: BattleMode;
 }
 
 /** Overlays this round's not-yet-locked plays onto the real board, Deploy-phase display only. A
@@ -120,7 +124,7 @@ function buildPreviewZones(
   return { heroZones: previewHero, spellZones: previewSpell };
 }
 
-export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel = 'legacy' }: GamePageProps) {
+export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel = 'legacy', battleMode = 'quick' }: GamePageProps) {
   function buildMatch(matchSeed: number) {
     return createMatch({
       seed: matchSeed,
@@ -207,6 +211,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
       // Friendly Battle grants 0 XP/rewards and isn't tracked in local match history - it's an isolated
       // networking experiment, not a progression-affecting mode (see docs/FRIENDLY-BATTLE.md).
       if (!remoteOpponent) saveRecentMatch(seed, stats);
+      // Event missions count local battles from this one summary (game/events); Friendly Battle stays out.
+      if (!remoteOpponent) track('battle_completed', summarizeBattle(next.status, merged, battleMode));
       setFullLog(merged);
       setMatchStats(stats);
       setGameState(next);

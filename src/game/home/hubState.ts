@@ -125,6 +125,6 @@ export function navDots(a: AttentionState): { heroes: boolean; home: boolean } {
 }
 
 /** One Home destination marker aggregates its genuinely actionable sub-items. */
-export function homeAttentionReady(input: { masteryPoint: boolean; missionReward: boolean; journeyReward: boolean; idleReward: boolean }): boolean {
-  return input.masteryPoint || input.missionReward || input.journeyReward || input.idleReward;
+export function homeAttentionReady(input: { masteryPoint: boolean; missionReward: boolean; journeyReward: boolean; idleReward: boolean; eventReward?: boolean }): boolean {
+  return input.masteryPoint || input.missionReward || input.journeyReward || input.idleReward || input.eventReward === true;
 }

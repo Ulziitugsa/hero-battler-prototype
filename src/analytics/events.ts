@@ -99,7 +99,16 @@ export type AnalyticsEventName =
   | 'boss_attempt_result'
   | 'hero_detail_opened'
   | 'app_loading_started'
-  | 'app_loading_completed';
+  | 'app_loading_completed'
+  // Local battles (any non-Friendly mode) - one summary per finished match, see game/events/battleSummary.ts
+  | 'battle_completed'
+  // Live events (Moonwater batch 1, game/events/)
+  | 'event_opened'
+  | 'event_login_claimed'
+  | 'event_mission_progressed'
+  | 'event_mission_completed'
+  | 'event_reward_claimed'
+  | 'event_completed';
 
 /** A plain, JSON-serialisable properties bag - deliberately not typed per event (see file header). */
 export type AnalyticsProperties = Record<string, string | number | boolean | null | undefined>;
