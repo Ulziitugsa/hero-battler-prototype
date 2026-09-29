@@ -2,7 +2,7 @@
 
 Status: **authoritative design, not yet implemented.** This document is the single source of truth for Moonwater's core combat direction: a premium collectible three-lane card battler where Units have **ATK** and an **HP Contribution** that sums into the player's Starting HP. It supersedes [COMBAT-V2-DESIGN.md](COMBAT-V2-DESIGN.md) (per-Unit HP, historical) for future core-combat work.
 
-Nothing here is live. Every mode still runs the legacy resolver (Power, fixed 20 HP, overflow). The model below was validated with the seeded simulator in `src/game/cardSim/` ([CARD-COMBAT-SIMULATION.md](CARD-COMBAT-SIMULATION.md)); section 12 is the plan for moving production onto it. Items marked **(open)** are recommended defaults awaiting a product decision; they are collected in section 13 and must not be treated as settled.
+Nothing here is live. Every mode still runs the legacy resolver (Power, fixed 20 HP, overflow). The model below was validated with the seeded simulator in `src/game/cardSim/` ([CARD-COMBAT-SIMULATION.md](CARD-COMBAT-SIMULATION.md)); section 12 is the plan for moving production onto it. ozi approved the stat model and the section 13 defaults on 2026-09-29; section 14 is the effect and archetype balance pass run on top of them. Its card changes are simulator overrides only: the live card files are unchanged until they are approved.
 
 ## 1. Design goals
 
@@ -18,14 +18,15 @@ Nothing here is live. Every mode still runs the legacy resolver (Power, fixed 20
 
 | Rule | Card model |
 | --- | --- |
-| Deck | 15 cards. 2 copies per card, 1 for a Legendary (unchanged). **At least 8 Units (open).** |
+| Deck | 15 cards. 2 copies per card, 1 for a Legendary (unchanged). **At least 8 Units (approved).** |
 | Starting HP | Sum of the deck's Unit HP Contributions. Spells and battle tokens contribute 0. |
 | Round | Hand refills to 3, simultaneous deploy into 3 Unit lanes and 3 Spell slots, then the live phase order: Reveal → Spells left to right → Unit On Play → Before Combat → Combat → death chains → After Combat → Round End → temporary effects expire. Initiative alternates by round. An empty deck just stops drawing. |
 | Clash | Opposed Units compare effective ATK. Higher wins and stays unchanged; lower is destroyed. |
 | Tie | Equal ATK destroys both Units. |
 | Direct attack | An unopposed Unit deals its full effective ATK to the opposing player. No cap, no scaling. |
-| Overflow | **None (open).** Losing a clash costs the Unit, not HP. |
-| Graveyard | **Each card may return from the Graveyard once per match (open)** (return to hand or deck, or revive). |
+| Overflow | **None (approved).** Losing a clash costs the Unit, not HP. |
+| Graveyard | **Each card may return from the Graveyard once per match (approved)**, counted per physical copy: a copy that has returned is marked Returned (section 14). Covers return to hand or deck and revive. |
+| Growth cap | Permanent effects raise a Unit at most **+45 ATK** above the ATK it entered with; cards that grow print "up to +45" (section 14). |
 | Win | A player at 0 HP loses. Both at 0 in the same step is a draw. A hard round cap (40 in the simulator) ends a stalled match as a draw. |
 
 ## 3. Stat model
@@ -68,14 +69,14 @@ Why this shape:
 
 - The spread is about 1.3× between ordinary decks and 1.8× at the extremes, which keeps the scale readable (no 600 against 2,500).
 - Starting HP is still mostly **Unit count**: each Unit adds 60–103, each Spell adds 0.
-- **8-Unit minimum (open).** Below 7 Units matches collapse to 2–4 rounds. At 8 Units Starting HP is about 680 and the median reaches the target. Arcane Control (7 Units) would need a rebuild before the floor is enforced.
+- **8-Unit minimum (approved).** Below 7 Units matches collapse to 2–4 rounds. At 8 Units Starting HP is about 680 and the median reaches the target. Arcane Control was rebuilt with 8 Units in the balance pass (section 14).
 - The fixed 20 HP (`engine/constants.ts STARTING_HP`) disappears for every mode on the card resolver. Production must never show a board of 100+ ATK cards against a 20 HP bar (section 12.4).
 
 ## 5. Clash resolution
 
 - Compare effective ATK after Spells, On Play and Before Combat effects. Higher wins; the loser is destroyed; the winner keeps its ATK and stays in the lane.
 - **Tie: both destroyed.** "Neither destroyed" was tested and rejected: it tripled board locks (tie rate 9.5%), raised stalls and pushed p90 to 16 rounds.
-- **No overflow (open).** The live engine makes the losing side's player take the ATK difference. Without it, a blocker fully absorbs any attacker, which is what makes the lane game about blocking. With it, games run 2 rounds shorter, 35–40% of kills come from overflow, a clash loss hurts twice and chump-blocking decks collapse (Undead starter 0.44 → 0.31).
+- **No overflow (approved).** The live engine makes the losing side's player take the ATK difference. Without it, a blocker fully absorbs any attacker, which is what makes the lane game about blocking. With it, games run 2 rounds shorter, 35–40% of kills come from overflow, a clash loss hurts twice and chump-blocking decks collapse (Undead starter 0.44 → 0.31).
 - A Unit reduced to or below the Power 0 line (35 ATK on the baseline) is destroyed, preserving the legacy "Power ≤ 0 dies" rule.
 
 ## 6. Direct attacks
@@ -93,13 +94,13 @@ Why this shape:
 - **Effect stages (III and V) must never flip a clash.** Even a +10% ATK once-per-match stand-in reached 0.77. Effect stages should be HPC, cosmetic, or once-per-match utility without ATK.
 - Ladder unchanged: 1 / 2 / 4 / 7 / 11 copies owned for I–V (a card run at 2 copies needs 12 in practice, because deck copies are protected).
 - Spells get a Mastery path so duplicates are never dead: II and IV cosmetic, III and V raise the Spell's own number about 10% each, subject to the same "never flips a clash on its own" review.
-- **Legacy Level** (+15 / +30 ATK at Levels 30 / 60) is bigger than the whole Mastery budget. The card resolver never reads it; it retires for combat at the moment a mode moves to the card resolver. **Recommended save treatment: refund invested Gold (Thread D option C), only together with a new Gold sink (open).**
+- **Legacy Level** (+15 / +30 ATK at Levels 30 / 60) is bigger than the whole Mastery budget. The card resolver never reads it; it retires for combat at the moment a mode moves to the card resolver. **Approved save treatment: refund invested Gold only, and only in the same release as a new Gold sink.**
 
 ## 8. Rarity philosophy
 
 - Rarity buys **effect depth and a small HPC premium (0 / 4 / 8 / 11), never ATK.** ATK is the high-leverage axis: +3% ATK wins 59–78% of mirrors.
 - Common: simple and efficient. Rare: specialised. Epic: synergy and stronger effects. Legendary: a build-around rule or unique effect.
-- Today's Legendary edge is Power, not rarity: Vharos and Infernal Lord are Power 7. **Re-band the Power 7 Legendaries to Power 6** and spend their budget on effects.
+- Today's Legendary edge is Power, not rarity: Vharos and Infernal Lord are Power 7. **Re-band the Power 7 Legendaries to Power 6 (approved)** and spend their budget on effects.
 - Measured: high rarity against low rarity is 0.47 head-to-head on the recommended rules (0.69 without the Graveyard cap, most of it Mira and Vharos recursion). Against the whole field the high-rarity deck is still the best deck (0.85, low rarity 0.72), so rarity is desirable without being a wall.
 
 ## 9. Effects
@@ -110,20 +111,20 @@ Conversion rules:
 
 - **1 Power = 15 ATK.** Every ±Power effect already prints this way.
 - **Absolute thresholds are stored as ATK values, not Power.** Execute (≤ Power 3), Blood Pact (≤ 6), Vharos revive (4), Fireball set (1) and Bone Soldier Mastery rank 2 (≤ 4) convert through the ATK formula. Execute's shown copy ("45 ATK or less") is a text-converter bug; the engine value is 85 today and 80 on the baseline.
-- **Player-HP effects scale by 45 HP per legacy point (open).** That is a typical deck's ~900 HP over the legacy 20. The effect audit proposed ×25 (keeps each effect the size of a Unit hit); ×55 was also run. ×25 leaves burn decks weakest (0.13 floor), ×55 helps them most (0.21). Examples at ×45: Arcane Bolt 135 (+90), Light Priest heal 135, Pit Fiend 90, Siege Fire 45 per round.
+- **Player-HP effects scale by 45 HP per legacy point (approved; every card reviewed in section 14).** That is a typical deck's ~900 HP over the legacy 20. The effect audit proposed ×25 (keeps each effect the size of a Unit hit); ×55 was also run. ×25 leaves burn decks weakest (0.13 floor), ×55 helps them most (0.21). Examples at ×45: Arcane Bolt 135 (+90), Light Priest heal 135, Pit Fiend 90, Siege Fire 45 per round.
 
 Breakages to fix before production:
 
 | Card | Problem | Recommended fix |
 | --- | --- | --- |
-| Legendary Paladin, line 3 | Reduces overflow damage; no overflow exists | **(open)** "When this Unit is destroyed, prevent the next damage you would take this round" (existing ON_DEATH + PREVENT_NEXT_DAMAGE), or drop the line |
-| Ward token | Same overflow reduction | **(open)** Becomes a plain blocker, or gains a different line |
+| Legendary Paladin, line 3 | Reduces overflow damage; no overflow exists | **Proposed (section 14):** "When the enemy Unit in this lane is destroyed, restore 45 HP to your player (once per round)" |
+| Ward token | Same overflow reduction | **Proposed (section 14):** a plain 70-ATK blocker with no text |
 | Fireball | Uses per-Unit HP (`DAMAGE_HERO`) | Keep only the legacy branch as data: −60 ATK permanent, or set ATK to the Power 1 line |
 | Execute, Bone Soldier M2 | Wrong threshold in copy | Store the threshold as ATK and derive the copy from it |
 | Flame Imp, Pit Fiend, Runebreaker, Alpha Hound, Vael, Arcane Bolt, Siege Fire, Grave Knight, Light Priest + 5 Mastery lines | 20 HP scale | Rescale at the chosen HP unit |
 | Recursion (Cursed Warrior, Mira, Grave Totem, Bone Soldier, Vharos) | Without overflow they chump-block forever (4.5% stalls) | Once-per-match Graveyard return (0.1% stalls) |
-| Blood Demon, Bone Soldier scaling, Titanroot (off-roster) | Unbounded permanent growth into uncapped direct damage | Per-card growth cap |
-| Tokens | Free chump blockers with no HPC cost | Accept, or give tokens an HP cost |
+| Blood Demon, Bone Soldier scaling, Titanroot (off-roster) | Unbounded permanent growth into uncapped direct damage | +45 growth cap rule, Bone Soldier up to +60 (section 14) |
+| Tokens | Free chump blockers with no HPC cost | Battle-only tokens, and every token effect is once per card played or once per round (section 14) |
 | Weak spells: Blood Pact, Soul Burn, Siege Fire, Dispel | 0.36–0.43 inclusion win share | Retune after the HP unit is chosen |
 
 No Spell restores HP today; Growth Totem (off-roster, duplicates Fortify) is the natural candidate to become a heal Spell. Nothing moves or swaps Units between lanes and the engine has no primitive for it; that is a later mechanic, not a conversion.
@@ -152,7 +153,7 @@ What the simulation does **not** solve:
 - **Deck quality outweighs decisions.** The best study deck played randomly still beats a weaker deck played well 92% of the time; lane choice is worth 7–16 points in a mirror. Finer ATK granularity and a narrower archetype spread both raise the weight of decisions. Only a human playtest settles it.
 - The AI is a one-ply heuristic and under-plays Undead and Arcane Control.
 
-Target match length: **median 9 rounds, p90 at most 12.** Reasoning (a judgement, not a measurement): a 15-card deck with a 3-card hand gives each player roughly that many rounds of real placement choices before the deck is spent, the winner needs about 7 direct hits so open lanes decide games without one hit ending them, and at one Fight tap plus the resolve animation per round it is a few minutes of portrait play. HPC ×0.8 on top of the baseline gives median 8 / p90 11 if faster games are wanted **(open)**.
+Target match length: **median 9 rounds, p90 at most 12** (the ¾ HPC scale is approved; see section 14 for where the balance pass lands). Reasoning (a judgement, not a measurement): a 15-card deck with a 3-card hand gives each player roughly that many rounds of real placement choices before the deck is spent, the winner needs about 7 direct hits so open lanes decide games without one hit ending them, and at one Fight tap plus the resolve animation per round it is a few minutes of portrait play. HPC ×0.8 on top of the baseline gives median 8 / p90 11 if faster games are wanted **(open)**.
 
 ## 11. Rejected models
 
@@ -241,26 +242,91 @@ The model supports bosses without giving Units personal HP: a boss is a player-l
 - **Phase at 50% HP:** the Warden's minions gain +15 ATK for the rest of the battle, and Tide floods two lanes.
 - Target: 10–12 rounds, win through lane control and burst rather than a longer grind. Tuning belongs to Phase 3.
 
-## 13. Open questions
+## 13. Decisions (ozi, 2026-09-29)
 
-Each has a recommended default used in this document. None is settled.
+The open questions of the first draft, as decided:
 
-1. **Overflow:** drop it (default) or keep it (games 2 rounds shorter, Undead 0.31).
-2. **Graveyard return limit:** once per card per match (default).
-3. **8-Unit deck minimum** (default), which forces an Arcane Control rebuild.
-4. **Player-HP effect scale:** 45 HP per legacy point (default) versus the effect audit's ×25 or ×55.
-5. **Tempo:** ¾ HPC scale, median 9 (default), or ×0.8, median 8.
-6. **Mastery:** HPC-only, +20% at V, no ATK step (default); MA is rejected by the simulation.
-7. **Paladin line 3 and the Ward token rework** (section 9 proposals are defaults).
-8. **Legacy Level:** refund invested Gold (default), which requires a Gold sink in the same release.
-9. **How defensive and spell-heavy decks win:** effect design, or Spells contributing HPC. No default; stats alone cannot fix it.
-10. **Re-band Power 7 Legendaries to 6** (default).
-11. **Tokens:** free blockers (default) or an HP cost.
-12. **Box composition:** Epics currently get 8–9 copies each per Box against 7 for Rares, so Epics master faster.
+1. **Overflow:** none.
+2. **Graveyard return:** once per card per match, counted per physical copy (section 14).
+3. **Deck minimum:** 8 Units.
+4. **Player-HP effects:** 45 HP per legacy point, reviewed per card (section 14: every card keeps ×45; Aegis Ward prevents a whole hit and is not scaled).
+5. **Tempo:** keep the ¾ HPC scale and a median of about 9 rounds as the target.
+6. **Mastery:** HPC only, +20% at Mastery V, no ATK step.
+7. **Paladin line 3 and the Ward token:** reworked (proposals in section 14).
+8. **Legacy Level:** refund as Gold only, and only alongside a new Gold sink.
+9. **Defensive and control decks:** made viable through effects, not Spell HPC. Spells give no Starting HP.
+10. **Power 7 Legendaries:** re-banded to Power 6.
+11. **Tokens:** must not be free unlimited blockers (policy in section 14).
+12. **Box composition:** copies fixed so Epics never Master faster than Rares (appendix).
+13. **Names:** "Tactic" and "Renown" are kept.
+
+The production card resolver is not implemented until ozi asks for it.
+
+## 14. Effect and archetype balance pass
+
+Status: **proposal, simulator only.** Run on the approved rules and stat model with every card change below registered as a simulator override (`src/game/cardSim/balance/proposal.ts`, variant `final`). Nothing in `src/game/cards` changes until ozi approves. Full report, CSVs and runs: project files `moonwater/balance/final/`.
+
+### 14.1 New rules and primitives
+
+- **Guard N:** "Before Combat: if this Unit would lose its lane, gain +N Power this round." Guard only works when blocking or contesting, so it holds lanes without raising direct damage.
+- **Growth cap:** permanent effects raise a Unit at most +45 ATK above its entry ATK. Cards that grow print "up to +45".
+- **Graveyard return per copy:** a copy that has returned is marked Returned and can't return again. Counting per card name was tested and cut Arcane Control to 0.27.
+- **Token policy:** tokens stay battle-only, and every token effect is once per card played or once per round. No token printer can fill lanes every round for free.
+- **PACIFY (new primitive):** a Unit deals no damage this round, in a clash or directly. Used by Stasis Field.
+
+### 14.2 Card changes
+
+| Card | Change | From |
+| --- | --- | --- |
+| Dark Priest | Permanent growth line becomes Guard 2 | A |
+| Grave Knight | Permanent growth line becomes Guard 2; heal 90 kept | A |
+| Crypt Warden | Gains Guard 2 | E |
+| Legendary Paladin | Guard 4 becomes Guard 3; line 3 becomes "when the lane enemy is destroyed, restore 45 HP (once per round)" | D line 3, E Guard |
+| Ward token | Plain 70-ATK blocker, no text | D |
+| Stasis Field | Enemy Unit in this lane deals no damage this round and gets −15 ATK for the battle | B |
+| Aegis Ward | Also gives your Unit in this lane a Shield | B |
+| Grave Sage, Apprentice Mage, Archmage Vael | Return a Spell from the Graveyard (subject to the once-per-copy return) | B |
+| Arcane Bolt | 135 damage, +90 after a Spell | B |
+| Battle Captain | Aura goes from all allies to adjacent allies | C |
+| Bone Soldier | Graveyard bonus capped at +60; returns once | D, cap raised by E |
+| Blood Demon | +15 per allied death up to +45; +30 if an ally died this round | D |
+| Battle Banner | +2 Power becomes +1 | E |
+| War Cry | All allies +2 becomes +1 (Kingdom line unchanged) | E |
+| Vharos, Infernal Lord | Power 6 | approved |
+
+Study decks: Defensive Bulwark (A) and Arcane Control with 8 Units (B) are the core defensive and control decks; the Balanced list lost its dead Spells and orphan Beasts (E). Every Player-HP card keeps ×45; Aegis Ward prevents a whole hit and is not scaled.
+
+### 14.3 Results (search pilot, 200 games per pair, nine core decks)
+
+| Deck | Before | After |
+| --- | ---: | ---: |
+| Aggressive | 0.71 | 0.55 |
+| Balanced | 0.29 | 0.50 |
+| Defensive Bulwark | 0.23 | 0.57 |
+| Arcane Control | 0.11 | 0.43 |
+| Kingdom starter | 0.63 | 0.43 |
+| Undead starter | 0.49 | 0.64 |
+| Infernal starter | 0.64 | 0.35 |
+| High rarity | 0.73 | 0.48 |
+| Low rarity | 0.66 | 0.56 |
+
+| Metric | Before | After |
+| --- | --- | --- |
+| Spread (core decks) | 0.11–0.73 | 0.35–0.64 |
+| Pairings at 0.85 or more | 20 | 0 (search), 1 (heuristic: Bulwark over Arcane Control 0.91) |
+| Rounds median / p90 | 10 / 13 | **12 / 15** |
+| Draws / stalls | 4.1% / 0% | 3.9% / 0% |
+| Direct hits per match (winner) | 9.3 (7.2) | 11.2 (8.3) |
+| Weaker deck played well vs stronger deck played randomly (Aggressive vs Balanced) | 0.27 | 0.79 |
+| M5 vs M1 mirrors | 0.53–0.58 | 0.50–0.57 |
+
+### 14.4 What is not met
+
+**Match length.** Median 12 and p90 15 miss the 9 / 12 target. Lowering HPC to ×0.9 and ×0.8 of the approved scale only moved the median to 11, so Starting HP is not the cause and the global model is unchanged. Games got longer in every pairing, including Aggressive mirrors (mean 9.9 to 11.0 rounds), because the pass removed uncapped growth, turned growth lines into Guard and removed lopsided blowouts. Options for ozi: accept a median of 11–12 as the price of the balance, or buy back tempo with effects (for example more direct-damage payoffs), which is a separate pass.
 
 ## Appendix: collection, Box and save rules (unchanged)
 
 - Collection is a copy count per card. Card Mastery is a read model over legacy Ascension (`cardMastery/model.ts`); only 6 Units have paths today. See [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md).
-- The Moonfall Box is a finite 100-pack pool (500 cards: 250 Common, 150 Rare, 75 Epic, 25 Legendary) that shows its remaining contents. Prices are not part of this design.
+- The Moonfall Box is a finite 100-pack pool (500 cards: 258 Common, 168 Rare, 54 Epic, 20 Legendary; per card 14-15 / 8 / 6 / 5, so Mastery V takes 1 / 2 / 2 / 3 Boxes) that shows its remaining contents. Prices are not part of this design.
 - Keep card IDs, collection counts, deck definitions, `skyloom:*` storage keys and historical event names intact.
 - Before replacing Legacy Level or Ascension behaviour, ship an idempotent, versioned migration with tests for old saves, missing fields, max-rank cards, duplicate inventory and playable decks.

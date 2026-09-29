@@ -1,5 +1,6 @@
-import { getCard } from '../cards/index.js';
-import { type Play, type PolicyId, type SideIndex, type SimState, HAND_TARGET, canPlay, cloneState, continuousBonus, effectiveAtk, rand, resolveRound, statsOf } from './engine.js';
+import { nextRandom } from '../engine/rng.js';
+import { getCard } from './cardSource.js';
+import { type Play, type PolicyId, type SideIndex, type SimState, HAND_TARGET, beginRound, canPlay, cloneState, continuousBonus, effectiveAtk, isExhausted, rand, resolveRound, statsOf } from './engine.js';
 
 // Simple, consistent AI policies for balance comparisons. They are not meant to be smart; they are meant
 // to behave the same way every time so two stat models can be compared on equal terms.
@@ -11,6 +12,11 @@ import { type Play, type PolicyId, type SideIndex, type SimState, HAND_TARGET, c
 // A Spell that barely helps is held while the hand is at or under the refill target, like the live AI.
 // 'random' places Units in random empty lanes and casts every castable Spell in a random legal lane: the
 // "poor decisions" pilot for the deck-quality vs decision-quality experiment.
+// 'expert' searches: it scores a handful of candidate plays (the three styles' choices, a few random legal
+// plays, passing) by playing the round out against sampled opponent hands and then rolling the match
+// forward with the balanced heuristic. It never sees hidden cards: both decks and the opponent's hand are
+// re-dealt from what is unseen before every sample. It is the "good decisions" pilot for measuring how
+// much decisions are worth, because the heuristics can be worse than random on some decks.
 
 type Lane = 0 | 1 | 2;
 const LANES: Lane[] = [0, 1, 2];
@@ -29,7 +35,7 @@ interface Style {
   spellThreshold: number;
 }
 
-export const STYLES: Record<Exclude<PolicyId, 'random'>, Style> = {
+export const STYLES: Record<Exclude<PolicyId, 'random' | 'expert'>, Style> = {
   aggressive: { face: 1.0, kill: 0.8, block: 0.3, card: 0.6, enemyHp: 1.3, myHp: 0.6, board: 0.8, danger: 0.3, spellThreshold: 0.15 },
   balanced: { face: 0.6, kill: 1.0, block: 0.7, card: 0.7, enemyHp: 1.0, myHp: 1.0, board: 1.0, danger: 0.3, spellThreshold: 0.2 },
   defensive: { face: 0.3, kill: 1.0, block: 1.2, card: 0.5, enemyHp: 0.7, myHp: 1.4, board: 1.0, danger: 0.5, spellThreshold: 0.2 },
@@ -37,6 +43,7 @@ export const STYLES: Record<Exclude<PolicyId, 'random'>, Style> = {
 
 export function choosePlays(s: SimState, side: SideIndex, policy: PolicyId = s.cfg.sides[side].policy): Play[] {
   if (policy === 'random') return randomPlays(s, side);
+  if (policy === 'expert') return expertPlays(s, side);
   const style = STYLES[policy];
   const units = chooseUnits(s, side, style);
   return chooseSpells(s, side, style, units);
@@ -75,10 +82,13 @@ function chooseUnits(s: SimState, side: SideIndex, style: Style): Play[] {
   const tieKills = s.cfg.rules.tie === 'both';
 
   const laneScore = (cardId: string, lane: Lane): number => {
-    const mine = statsOf(s, side, cardId).atk + continuousBonus(s, side, lane);
+    let mine = statsOf(s, side, cardId).atk + continuousBonus(s, side, lane);
     const foeUnit = foe.units[lane];
     if (!foeUnit) return style.face * mine * (foeCanAnswer ? 0.4 : 1) + 0.2 * mine;
-    const theirs = effectiveAtk(s, foeSide, lane);
+    let theirs = effectiveAtk(s, foeSide, lane);
+    // Guard (Before Combat: +N if this Unit would lose its lane) is printed on the card, so a good pilot counts it.
+    if (mine < theirs) mine += guardBonus(s, cardId);
+    if (!foeUnit.silenced && theirs < mine) theirs += guardBonus(s, foeUnit.cardId);
     if (mine > theirs) return (style.kill + block) * theirs + 0.2 * mine;
     if (mine === theirs) return tieKills ? 0.5 * style.kill * theirs + block * theirs - 0.5 * style.card * mine : block * theirs;
     return block * theirs - style.card * mine;
@@ -108,6 +118,16 @@ function chooseUnits(s: SimState, side: SideIndex, style: Style): Play[] {
   };
   recurse(0, 0);
   return best.plan;
+}
+
+/** ATK a Unit gains Before Combat when it would lose its lane (Paladin's line 2, the Guard keyword). */
+export function guardBonus(s: SimState, cardId: string): number {
+  let bonus = 0;
+  for (const ability of getCard(cardId).abilities) {
+    if (ability.trigger !== 'BEFORE_COMBAT' || ability.conditions?.length !== 1 || ability.conditions[0].type !== 'SELF_LOSING_LANE') continue;
+    for (const action of ability.actions) if (action.type === 'CHANGE_POWER' && action.target === 'SELF') bonus += action.amount;
+  }
+  return bonus * s.cfg.model.atkStep;
 }
 
 function evaluate(s: SimState, side: SideIndex, style: Style): number {
@@ -168,4 +188,84 @@ function chooseSpells(s: SimState, side: SideIndex, style: Style, unitPlays: Pla
     break;
   }
   return plays;
+}
+
+// ---------------------------------------------------------------------------
+// Expert pilot (search)
+// ---------------------------------------------------------------------------
+
+export const EXPERT = { samples: 6, randomPlans: 5, rolloutRounds: 5 };
+
+const planKey = (plays: Play[]): string => plays.map((p) => `${p.cardId}@${p.lane}`).sort().join(' ');
+
+function sampleRng(seed: number, k: number): number {
+  let r = (seed ^ Math.imul(k + 1, 0x9e3779b1)) | 0;
+  for (let i = 0; i < 3; i++) r = nextRandom(r).nextState;
+  return r;
+}
+
+function shuffleWith(copy: SimState, items: string[]): string[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand(copy) * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/** A copy of the position with every card this side cannot see re-dealt at random. */
+function determinize(s: SimState, side: SideIndex, k: number): SimState {
+  const copy = cloneState(s);
+  copy.rng = sampleRng(s.rng, k);
+  const me = copy.players[side];
+  const foe = copy.players[side === 0 ? 1 : 0];
+  me.deck = shuffleWith(copy, me.deck);
+  const unseen = shuffleWith(copy, [...foe.hand, ...foe.deck]);
+  foe.hand = unseen.slice(0, foe.hand.length);
+  foe.deck = unseen.slice(foe.hand.length);
+  return copy;
+}
+
+function positionValue(s: SimState, side: SideIndex): number {
+  const me = s.players[side];
+  const foe = s.players[side === 0 ? 1 : 0];
+  if (me.hp <= 0 && foe.hp <= 0) return 0.5;
+  if (foe.hp <= 0) return 1;
+  if (me.hp <= 0) return 0;
+  // Unfinished rollout: HP share, nudged by board ATK, squashed well inside (0, 1).
+  let board = 0;
+  for (const lane of LANES) board += effectiveAtk(s, side, lane) - effectiveAtk(s, side === 0 ? 1 : 0, lane);
+  const share = (me.hp / me.maxHp - foe.hp / foe.maxHp + board / (2 * Math.max(me.maxHp, foe.maxHp))) / 2;
+  return 0.5 + 0.8 * Math.max(-0.5, Math.min(0.5, share));
+}
+
+function rollout(copy: SimState, side: SideIndex, plays: Play[]): number {
+  const foeSide: SideIndex = side === 0 ? 1 : 0;
+  const foePlays = choosePlays(copy, foeSide, 'balanced');
+  resolveRound(copy, side === 0 ? [plays, foePlays] : [foePlays, plays]);
+  for (let r = 0; r < EXPERT.rolloutRounds; r++) {
+    if (copy.players[0].hp <= 0 || copy.players[1].hp <= 0 || isExhausted(copy) || copy.round > copy.cfg.rules.maxRounds) break;
+    beginRound(copy);
+    resolveRound(copy, [choosePlays(copy, 0, 'balanced'), choosePlays(copy, 1, 'balanced')]);
+  }
+  return positionValue(copy, side);
+}
+
+function expertPlays(s: SimState, side: SideIndex): Play[] {
+  const candidates = new Map<string, Play[]>();
+  const add = (plays: Play[]) => {
+    const key = planKey(plays);
+    if (!candidates.has(key)) candidates.set(key, plays);
+  };
+  for (const style of ['balanced', 'aggressive', 'defensive'] as const) add(choosePlays(s, side, style));
+  add([]);
+  for (let i = 0; i < EXPERT.randomPlans; i++) add(randomPlays(s, side));
+  if (candidates.size === 1) return [...candidates.values()][0];
+  let best: { plays: Play[]; value: number } | null = null;
+  for (const plays of candidates.values()) {
+    let value = 0;
+    for (let k = 0; k < EXPERT.samples; k++) value += rollout(determinize(s, side, k), side, plays);
+    if (!best || value > best.value) best = { plays, value };
+  }
+  return best!.plays;
 }

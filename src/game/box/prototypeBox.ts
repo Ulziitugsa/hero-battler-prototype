@@ -8,10 +8,13 @@ export const PROTOTYPE_BOX = {
   name: 'Moonfall Box',
   packCount: 100,
   cardsPerPack: 5,
-  cardCounts: { common: 250, rare: 150, epic: 75, legendary: 25 } satisfies Record<Rarity, number>,
+  // Per card: Common 14-15, Rare 8, Epic 6, Legendary 5, so rarer cards always take longer to reach Mastery V
+  // (Common 1 Box, Rare and Epic 2, Legendary 3) and one full Box maxes only the Commons.
+  cardCounts: { common: 258, rare: 168, epic: 54, legendary: 20 } satisfies Record<Rarity, number>,
 } as const;
 
-export const PROTOTYPE_BOX_STORAGE_KEY = 'moonwater:testBox:moonfall-v1';
+/** v2: rarity copies rebalanced (a v1 save holds the old per-card counts, so it is not carried over). */
+export const PROTOTYPE_BOX_STORAGE_KEY = 'moonwater:testBox:moonfall-v2';
 export type BoxRemaining = Record<string, number>;
 /** `resetCount` was added after v1 shipped; older saves simply lack it and read as 0. */
 export interface PrototypeBoxState { version: 1; openedPacks: number; randomState: number; remaining: BoxRemaining; resetCount?: number }

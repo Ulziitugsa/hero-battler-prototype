@@ -1,4 +1,4 @@
-import { getCard } from '../cards/index.js';
+import { getCard } from './cardSource.js';
 import { PLAYTEST_ROSTER } from '../cards/roster.js';
 import { choosePlays } from './ai.js';
 import { type CardCounters, type MatchResult, type PolicyId, type Rules, type SideSetup, BASE_RULES, playMatch, sideStatTable, startingHp } from './engine.js';

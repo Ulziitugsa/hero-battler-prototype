@@ -1,7 +1,8 @@
 import type { AbilityDefinition, ActionDef, CardDefinition, ConditionDef, CountBasis, Faction, GraveyardPick, TargetScope, Trigger } from '../types/index.js';
-import { getCard } from '../cards/index.js';
+import { getCard } from './cardSource.js';
 import { nextRandom } from '../engine/rng.js';
 import { type CardStats, type MasterySetup, type StatModel, masteredStats, masteryEffectCharges } from './statModels.js';
+import { type SimAction, asSimAction } from './simActions.js';
 
 // Seeded, deterministic resolver for the card-combat model under test (docs/CARD-COMBAT-SIMULATION.md).
 // It is a design tool, not the production resolver, and nothing in the game imports it.
@@ -23,7 +24,8 @@ const LANES = [0, 1, 2] as const;
 type Lane = 0 | 1 | 2;
 export type SideIndex = 0 | 1;
 
-export type PolicyId = 'aggressive' | 'balanced' | 'defensive' | 'random';
+/** 'expert' is the search pilot in ai.ts (rollouts over candidate plays); the others are single-pass heuristics. */
+export type PolicyId = 'aggressive' | 'balanced' | 'defensive' | 'random' | 'expert';
 
 export interface Rules {
   tie: 'both' | 'none';
@@ -35,6 +37,12 @@ export interface Rules {
   maxRounds: number;
   /** Times each card id may come back from the Graveyard per side per match (return to hand/deck, revive). null = unlimited, as printed. */
   recursionCap: number | null;
+  /** How recursionCap is counted: 'name' (default) per card id, 'copy' per physical copy (cap x copies of that card in the deck). */
+  recursionScope?: 'name' | 'copy';
+  /** Most ATK a Unit can gain above the ATK it entered with from PERMANENT effects. null/undefined = unlimited, as printed. */
+  growthCap?: number | null;
+  /** 'persist' (default): tokens stay until destroyed. 'oneCombat': a token fades at Round End after the first Combat it was on the board for. */
+  tokenLifetime?: 'persist' | 'oneCombat';
 }
 
 export const BASE_RULES: Rules = { tie: 'both', directScale: 1, overflow: false, deathAtk: 'power0', maxRounds: 40, recursionCap: null };
@@ -78,6 +86,12 @@ export interface Unit {
   used: boolean;
   entered: number;
   token: boolean;
+  /** Sim-only PACIFY: deals no damage this round (no clash, no direct hit). */
+  pacified?: boolean;
+  /** ATK on entry, the reference for Rules.growthCap. */
+  baseAtk: number;
+  /** A token that was on the board during a Combat (Rules.tokenLifetime 'oneCombat'). */
+  fought: boolean;
 }
 
 interface ZoneSpell {
@@ -94,6 +108,8 @@ export interface SidePlayer {
   units: (Unit | null)[];
   spells: (ZoneSpell | null)[];
   barrier: number;
+  /** Sim-only PLAYER_SHIELD: HP of damage still preventable this round. */
+  shield: number;
   charges: Record<string, number>;
   /** Graveyard recursions used per card id (for Rules.recursionCap). */
   returns: Record<string, number>;
@@ -106,6 +122,8 @@ export interface SideTotals {
   overflowDamage: number;
   effectDamage: number;
   healed: number;
+  /** Damage this side's PLAYER_SHIELD / barrier prevented. */
+  prevented: number;
   clashWins: number;
   unitsLost: number;
   spellsPlayed: number;
@@ -114,6 +132,16 @@ export interface SideTotals {
   /** Rounds in which this side hit the opponent through exactly 1/2/3 open lanes. */
   openLaneRounds: [number, number, number];
   openLaneDamagePct: [number, number, number];
+  /** Graveyard recursions (return to hand/deck, revive) this side made. */
+  returns: number;
+  /** Largest permanent ATK gain above entry ATK any of this side's Units reached. */
+  peakGain: number;
+  /** Times Rules.growthCap clipped a permanent gain. */
+  growthClipped: number;
+  tokensSummoned: number;
+  /** Clashes a token of this side took part in (it blocked an enemy Unit). */
+  tokenClashes: number;
+  tokensFaded: number;
 }
 
 export interface SimState {
@@ -159,7 +187,7 @@ const other = (side: SideIndex): SideIndex => (side === 0 ? 1 : 0);
 const adjacent = (lane: Lane): Lane[] => (lane === 1 ? [0, 2] : [1]);
 
 function emptyTotals(): SideTotals {
-  return { directHits: 0, directDamage: 0, overflowDamage: 0, effectDamage: 0, healed: 0, clashWins: 0, unitsLost: 0, spellsPlayed: 0, unitsPlayed: 0, maxHitPct: 0, openLaneRounds: [0, 0, 0], openLaneDamagePct: [0, 0, 0] };
+  return { directHits: 0, directDamage: 0, overflowDamage: 0, effectDamage: 0, healed: 0, prevented: 0, clashWins: 0, unitsLost: 0, spellsPlayed: 0, unitsPlayed: 0, maxHitPct: 0, openLaneRounds: [0, 0, 0], openLaneDamagePct: [0, 0, 0], returns: 0, peakGain: 0, growthClipped: 0, tokensSummoned: 0, tokenClashes: 0, tokensFaded: 0 };
 }
 
 function bumpCard(s: SimState, cardId: string, key: keyof CardCounters, amount = 1): void {
@@ -263,6 +291,7 @@ export function createSimState(cfg: MatchConfig): SimState {
       units: [null, null, null],
       spells: [null, null, null],
       barrier: 0,
+      shield: 0,
       charges,
       returns: {},
       stats,
@@ -408,6 +437,8 @@ function spellEcho(s: SimState, side: SideIndex): boolean {
 }
 
 function isHostile(action: ActionDef): boolean {
+  const sim = asSimAction(action);
+  if (sim) return sim.type === 'PACIFY';
   switch (action.type) {
     case 'DESTROY':
     case 'SILENCE':
@@ -531,8 +562,17 @@ function countBasis(s: SimState, exec: Exec, basis: CountBasis, faction: Faction
 function changeAtk(s: SimState, side: SideIndex, lane: Lane, delta: number, duration: 'PERMANENT' | 'UNTIL_ROUND_END'): void {
   const unit = s.players[side].units[lane];
   if (!unit) return;
+  const cap = s.cfg.rules.growthCap;
+  if (duration === 'PERMANENT' && delta > 0 && cap !== null && cap !== undefined) {
+    const room = Math.max(0, unit.baseAtk + cap - (unit.atk - unit.temp));
+    if (delta > room) {
+      delta = room;
+      s.totals[side].growthClipped++;
+    }
+  }
   unit.atk += delta;
   if (duration === 'UNTIL_ROUND_END') unit.temp += delta;
+  else s.totals[side].peakGain = Math.max(s.totals[side].peakGain, unit.atk - unit.temp - unit.baseAtk);
 }
 
 function setAtk(s: SimState, side: SideIndex, lane: Lane, value: number, duration: 'PERMANENT' | 'UNTIL_ROUND_END'): void {
@@ -546,8 +586,16 @@ function damagePlayer(s: SimState, target: SideIndex, amount: number, kind: Dama
   if (amount <= 0) return false;
   if (p.barrier > 0) {
     p.barrier -= 1;
+    s.totals[target].prevented += amount;
     note(s, `${target === 0 ? 'A' : 'B'} barrier absorbs ${amount}`);
     return false;
+  }
+  if (p.shield > 0) {
+    const absorbed = Math.min(p.shield, amount);
+    p.shield -= absorbed;
+    s.totals[target].prevented += absorbed;
+    amount -= absorbed;
+    if (amount <= 0) return false;
   }
   p.hp = Math.max(0, p.hp - amount);
   s.lastDamage[target] = kind;
@@ -573,7 +621,8 @@ function healPlayer(s: SimState, side: SideIndex, amount: number, sourceCardId: 
 }
 
 function makeUnit(s: SimState, side: SideIndex, cardId: string, atk?: number, token = false): Unit {
-  return { uid: s.uid++, cardId, atk: atk ?? statsOf(s, side, cardId).atk, temp: 0, shielded: false, silenced: false, stalled: false, used: false, entered: s.round, token };
+  const entry = atk ?? statsOf(s, side, cardId).atk;
+  return { uid: s.uid++, cardId, atk: entry, temp: 0, shielded: false, silenced: false, stalled: false, used: false, entered: s.round, token, baseAtk: entry, fought: false };
 }
 
 function pickFromGrave(s: SimState, side: SideIndex, grave: string[], maxPower: number | null | undefined, pick: GraveyardPick, faction?: Faction, cardType: 'hero' | 'spell' = 'hero'): number {
@@ -592,14 +641,32 @@ function pickFromGrave(s: SimState, side: SideIndex, grave: string[], maxPower: 
 
 /** Spends one Graveyard recursion for `cardId`; false when Rules.recursionCap is reached. */
 function mayRecur(s: SimState, side: SideIndex, cardId: string): boolean {
-  const cap = s.cfg.rules.recursionCap;
+  const perName = s.cfg.rules.recursionCap;
   const p = s.players[side];
+  const cap = perName === null || s.cfg.rules.recursionScope !== 'copy' ? perName : perName * Math.max(1, s.cfg.sides[side].deck.filter((id) => id === cardId).length);
   if (cap !== null && (p.returns[cardId] ?? 0) >= cap) return false;
   p.returns[cardId] = (p.returns[cardId] ?? 0) + 1;
+  s.totals[side].returns++;
   return true;
 }
 
+function executeSim(s: SimState, action: SimAction, exec: Exec): void {
+  switch (action.type) {
+    case 'PACIFY':
+      for (const loc of hostileFilter(s, exec, action as unknown as ActionDef, locations(s, exec, action.target))) {
+        const unit = s.players[loc.side].units[loc.lane];
+        if (unit) unit.pacified = true;
+      }
+      return;
+    case 'PLAYER_SHIELD':
+      s.players[exec.owner].shield += Math.round(action.amount * s.cfg.model.hpUnit);
+      return;
+  }
+}
+
 function execute(s: SimState, action: ActionDef, exec: Exec): void {
+  const sim = asSimAction(action);
+  if (sim) return executeSim(s, sim, exec);
   const step = s.cfg.model.atkStep;
   const me = s.players[exec.owner];
   switch (action.type) {
@@ -739,6 +806,7 @@ function execute(s: SimState, action: ActionDef, exec: Exec): void {
         if (remaining <= 0) break;
         if (me.units[lane]) continue;
         me.units[lane] = makeUnit(s, exec.owner, action.tokenId, s.cfg.model.atkFromPower(getCard(action.tokenId).power ?? 2), true);
+        s.totals[exec.owner].tokensSummoned++;
         remaining--;
       }
       return;
@@ -855,6 +923,8 @@ export function spellHasTarget(s: SimState, side: SideIndex, card: CardDefinitio
       }
       if (action.type === 'STALL_COMBAT' && action.target === 'ENEMY_SAME_LANE' && !s.players[other(side)].units[lane]) return false;
       if (action.type === 'DESTROY_SPELL_ZONE' && action.target === 'ENEMY_SAME_LANE' && !s.players[other(side)].spells[lane]) return false;
+      const sim = asSimAction(action);
+      if (sim?.type === 'PACIFY' && sim.target === 'ENEMY_SAME_LANE' && !s.players[other(side)].units[lane]) return false;
     }
   }
   return true;
@@ -968,6 +1038,7 @@ export function resolveRound(s: SimState, plays: [Play[], Play[]]): void {
   }
 
   // 5. Combat
+  for (const p of s.players) for (const unit of p.units) if (unit?.token) unit.fought = true;
   const losers: { side: SideIndex; lane: Lane }[] = [];
   const directLanes: [number, number] = [0, 0];
   const directDamage: [number, number] = [0, 0];
@@ -986,6 +1057,12 @@ export function resolveRound(s: SimState, plays: [Play[], Play[]]): void {
     const atkA = effectiveAtk(s, 0, lane);
     const atkB = effectiveAtk(s, 1, lane);
     if (a && b && (a.stalled || b.stalled)) continue;
+    if ((a && a.pacified) || (b && b.pacified)) {
+      // Sim-only PACIFY: the pacified Unit neither clashes nor hits; an unpacified Unit facing it is blocked too.
+      if (a && !a.pacified && !b) direct(0, lane, atkA);
+      if (b && !b.pacified && !a) direct(1, lane, atkB);
+      continue;
+    }
     if (a && b) {
       const byA = bypassReduction(s, 0, lane);
       const byB = bypassReduction(s, 1, lane);
@@ -995,6 +1072,8 @@ export function resolveRound(s: SimState, plays: [Play[], Play[]]): void {
         continue;
       }
       s.clashes++;
+      if (a.token) s.totals[0].tokenClashes++;
+      if (b.token) s.totals[1].tokenClashes++;
       if (atkA === atkB) {
         s.ties++;
         bumpCard(s, a.cardId, 'clashTies');
@@ -1027,16 +1106,25 @@ export function resolveRound(s: SimState, plays: [Play[], Play[]]): void {
   // 6-8. After Combat, Round End, temporary cleanup
   dispatchAll(s, 'AFTER_COMBAT');
   dispatchAll(s, 'ROUND_END');
-  for (const p of s.players) {
+  const fade = s.cfg.rules.tokenLifetime === 'oneCombat';
+  for (const side of [0, 1] as SideIndex[]) {
+    const p = s.players[side];
     p.barrier = 0;
+    p.shield = 0;
     for (const lane of LANES) {
       const unit = p.units[lane];
       if (!unit) continue;
+      if (fade && unit.token && unit.fought) {
+        p.units[lane] = null;
+        s.totals[side].tokensFaded++;
+        continue;
+      }
       if (unit.temp !== 0) {
         unit.atk -= unit.temp;
         unit.temp = 0;
       }
       unit.stalled = false;
+      unit.pacified = false;
     }
   }
   sweep(s);
