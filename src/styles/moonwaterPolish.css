@@ -268,7 +268,7 @@
 .moon-game .hr-sheet-window .hr-art canvas,.moon-game .hr-sheet-window .hr-art img { object-fit:contain; object-position:center bottom; image-rendering:pixelated; }
 .moon-game .hr-sheet-body { width:min(100%,680px); margin:0 auto; padding:18px 22px 30px; }
 .moon-game .hr-sheet-close { position:fixed; z-index:3; top:calc(env(safe-area-inset-top) + 10px); left:14px; right:auto; width:auto; min-width:44px; height:42px; display:flex; align-items:center; justify-content:center; gap:7px; padding:0 12px; border-radius:22px; }
-.moon-game .hr-sheet-close::after { content:"Heroes"; font:800 12px/1 var(--moon-ui); }
+.moon-game .hr-sheet-close::after { content:"Cards"; font:800 12px/1 var(--moon-ui); }
 .moon-game .hr-sheet-nav { top:24dvh; }
 .moon-game .hr-sheet-line { flex-wrap:wrap; }
 .moon-game .hr-sheet-line.faction { justify-content:center; }
