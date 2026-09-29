@@ -696,3 +696,89 @@
 .dk-req.blocked .dk-art { filter: saturate(0.55) brightness(0.8); }
 .dk-req-source { font-size: 0.74rem; font-weight: 700; line-height: 1.25; color: var(--ember-ink-3); overflow-wrap: break-word; }
 .dk-req.met .dk-req-source { color: var(--ember-gold); }
+
+/* ---- Deck Builder: Starting HP, summary, search / sort / favorites (Moonwater card-game pass) ---- */
+
+.dk-hp {
+  flex: none;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  padding: 4px 10px;
+  border: 1px solid rgba(240, 200, 150, 0.35);
+  border-radius: 10px;
+  background: rgba(8, 20, 28, 0.6);
+  color: #f6dfad;
+  font: inherit;
+  text-align: right;
+}
+button.dk-hp { cursor: pointer; }
+button.dk-hp:focus-visible { outline: 2px solid var(--ember-gold-light); outline-offset: 2px; }
+.dk-hp-label { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #b9c7bb; }
+.dk-hp-value { display: inline-flex; align-items: center; gap: 5px; font-family: var(--ember-font-display); font-size: 1.2rem; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.dk-hp-value svg { color: #ee7d78; }
+.dk-banner .dk-hp { align-self: center; }
+
+.dk-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 6px; font-size: 0.78rem; font-weight: 700; color: #b9c7bb; }
+.dk-summary-dot { width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: 0.6; }
+.dk-summary-atk { display: inline-flex; align-items: center; gap: 4px; }
+.dk-summary-atk svg { color: #f3d78c; }
+.dk-summary-factions { display: inline-flex; gap: 6px; margin-left: auto; }
+.dk-summary-faction { display: inline-flex; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
+.dk-banner .dk-summary { margin-top: -4px; }
+
+.dk-pool-head .dk-fill-btn { margin-left: auto; min-height: 34px; padding: 0 10px; font-size: 0.78rem; }
+
+.dk-search-row { display: flex; gap: 8px; }
+.dk-search {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 6px 0 12px;
+  border: 1px solid rgba(214, 222, 195, 0.25);
+  border-radius: 12px;
+  background: rgba(8, 20, 28, 0.6);
+  color: #b9c7bb;
+}
+.dk-search:focus-within { border-color: rgba(243, 215, 140, 0.7); }
+.dk-search input { flex: 1; min-width: 0; height: 40px; border: 0; background: transparent; color: #eadfc6; font: inherit; font-size: 0.9rem; font-weight: 700; outline: none; }
+.dk-search input::placeholder { color: #8fa39a; }
+.dk-search input::-webkit-search-cancel-button { display: none; }
+.dk-search-clear { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.06); color: #b9c7bb; cursor: pointer; }
+.dk-fav-filter { flex: none; width: 46px; min-height: 44px; display: grid; place-items: center; padding: 0; border: 1px solid rgba(214, 222, 195, 0.25); border-radius: 12px; background: rgba(8, 20, 28, 0.6); color: #b9c7bb; cursor: pointer; }
+.dk-fav-filter.on { border-color: #f3d78c; color: #f3d78c; background: rgba(243, 215, 140, 0.12); }
+
+.dk-order-row { display: flex; gap: 8px; align-items: stretch; }
+.dk-seg.compact { flex: 1 1 auto; min-width: 0; }
+.dk-seg.compact .dk-seg-btn { min-height: 34px; font-size: 0.76rem; padding: 0 4px; }
+.dk-sort {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid rgba(214, 222, 195, 0.25);
+  border-radius: 12px;
+  background: rgba(8, 20, 28, 0.6);
+  color: #b9c7bb;
+}
+.dk-sort select { min-width: 0; width: 100%; max-width: 132px; min-height: 38px; border: 0; background: transparent; color: #eadfc6; font: inherit; font-size: 0.78rem; font-weight: 800; outline: none; }
+.dk-sort select option { background: #122632; color: #eadfc6; }
+.dk-sort:focus-within { border-color: rgba(243, 215, 140, 0.7); }
+
+.dk-card-fav { position: absolute; z-index: 4; top: 31px; left: 5px; width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border: 1px solid rgba(255, 226, 180, 0.42); border-radius: 50%; background: rgba(8, 17, 22, 0.82); color: #b9c7bb; cursor: pointer; }
+.dk-card-fav::after { content: ''; position: absolute; inset: -8px; }
+.dk-card-fav.on { color: #f3d78c; border-color: #f3d78c; }
+.dk-card-fav:focus-visible { outline: 2px solid var(--ember-gold-light); outline-offset: 2px; }
+.dk-card-inspect::after { content: ''; position: absolute; inset: -8px; }
+
+.dk-card.unowned .dk-art { filter: grayscale(0.85) brightness(0.6); }
+.dk-card.unowned .dk-card-count { font-size: 0.64rem; padding: 0 6px; }
+.dk-card-sortval { white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; color: #f3d78c; }
+.dk-card-sortval svg:first-child { flex: none; }

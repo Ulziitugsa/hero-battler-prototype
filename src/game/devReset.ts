@@ -8,6 +8,7 @@
 // to remember - or discover the hard way - which dozen keys make up "the save."
 
 import { resetCollection } from './collection/collection';
+import { resetCardMarks } from './collection/cardMarks';
 import { resetEconomy } from './economy/economy';
 import { resetProgression } from './progression/account';
 import { resetHeroLevels } from './heroLevel/store';
@@ -37,6 +38,7 @@ import { clearQueuedEvents, track } from '../analytics/track';
  */
 export function resetEverything(): void {
   resetCollection();
+  resetCardMarks();
   resetEconomy();
   resetProgression();
   resetHeroLevels();
