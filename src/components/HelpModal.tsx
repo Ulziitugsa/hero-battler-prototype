@@ -1,4 +1,5 @@
 import { Icon } from './Icon';
+import { useCardCombatDisplay } from './combatDisplay';
 
 const RULES: { icon: Parameters<typeof Icon>[0]['name']; text: string }[] = [
   { icon: 'hero', text: '3 unit lanes and 3 Spell lanes face off, side by side.' },
@@ -12,7 +13,21 @@ const RULES: { icon: Parameters<typeof Icon>[0]['name']; text: string }[] = [
   { icon: 'battle', text: 'When you’re ready, press FIGHT to lock in and resolve the round.' },
 ];
 
+/** Card combat (ATK + HP Contribution): the same list with the clash and HP lines in its own terms. */
+const CARD_COMBAT_RULES: typeof RULES = RULES.flatMap((rule) => {
+  if (rule.text.startsWith('Higher Power')) return [{ icon: 'power' as const, text: 'Higher ATK wins a lane - the loser is destroyed, the winner is untouched. The difference is not dealt to anyone.' }];
+  if (rule.text.startsWith('Equal Power')) return [{ icon: 'warning' as const, text: 'Equal ATK destroys both units in that lane.' }];
+  if (rule.text.startsWith('An empty lane')) {
+    return [
+      { icon: 'hp' as const, text: 'Your HP starts at your deck’s Starting HP: the HP Contribution of all its Units added up. Units have no HP of their own.' },
+      { icon: 'hp' as const, text: 'An empty lane lets the enemy unit hit your HP for its full ATK.' },
+    ];
+  }
+  return [rule];
+});
+
 export function HelpModal({ onClose }: { onClose: () => void }) {
+  const cardCombat = !!useCardCombatDisplay();
   return (
     <div className="overlay-backdrop" onClick={onClose}>
       <div className="modal-panel help-modal" onClick={(e) => e.stopPropagation()}>
@@ -23,7 +38,7 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <ul className="help-modal-list">
-          {RULES.map((rule, i) => (
+          {(cardCombat ? CARD_COMBAT_RULES : RULES).map((rule, i) => (
             <li key={i}>
               <Icon name={rule.icon} size={18} />
               <span>{rule.text}</span>

@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import type { DeployPlay, GameEvent, GameState, HandCard as HandCardModel, HeroInstance, LaneId, MasteryLoadout, PlayerAction, SpellZoneInstance } from '../game/types';
+import type { CombatModelId, DeployPlay, GameEvent, GameState, HandCard as HandCardModel, HeroInstance, LaneId, MasteryLoadout, PlayerAction, SpellZoneInstance } from '../game/types';
 import { LANES } from '../game/types';
 import { getCard } from '../game/cards';
 import { createMatch } from '../game/engine/match';
@@ -8,6 +8,12 @@ import { withEffectivePowers } from '../game/engine/power';
 import { makeSeed } from '../game/engine/rng';
 import { combatStats } from '../game/combatV2/model';
 import { chooseAiAction } from '../game/ai/simpleAI';
+import { beginCardRound, cardAtk, cardSpellHasTarget, createCardMatch, matchHpContribution, resolveCardRound, validateCardDeployment, withEffectiveAtk } from '../game/cardCombat/engine';
+import { chooseCardAiAction } from '../game/cardCombat/ai';
+import { getCombatCard } from '../game/cardCombat/cards';
+import { stagesFromAscensionRanks } from '../game/cardCombat/mastery';
+import { CombatDisplayContext, type CardCombatDisplay } from '../components/combatDisplay';
+import { clashCalloutForStep } from '../components/animation/chitEffects';
 import { computeMatchStats, type MatchStats } from '../game/engine/stats';
 import { saveRecentMatch } from '../game/engine/localMatchHistory';
 import { SideHeader } from '../components/SideHeader';
@@ -52,7 +58,8 @@ export interface GamePageProps {
   /** The player's Hero Levels for the cards in their deck (cardId -> level), captured at setup. Omit for all Level 1. */
   playerHeroLevels?: Record<string, number>;
   enemyHeroLevels?: Record<string, number>;
-  combatModel?: 'legacy' | 'v2';
+  /** 'card' plays the ATK + HP Contribution card-combat resolver (src/game/cardCombat); Quick Battle only. */
+  combatModel?: CombatModelId;
   /** Overrides the match's starting HP (both sides) - used by Campaign's challenge nodes. Omit for the default STARTING_HP. */
   startingHp?: number;
   /** Fires once, the instant this match reaches MATCH_END - before the player dismisses the summary
@@ -85,7 +92,7 @@ function buildPreviewZones(
   pendingPlays: DeployPlay[],
   heroLevels: Record<string, number> = {},
   heroAscensions: Record<string, number> = {},
-  combatModel: 'legacy' | 'v2' = 'legacy',
+  combatModel: CombatModelId = 'legacy',
 ): { heroZones: GameState['player']['heroZones']; spellZones: GameState['player']['spellZones'] } {
   const previewHero = { ...heroZones };
   const previewSpell = { ...spellZones };
@@ -93,6 +100,8 @@ function buildPreviewZones(
     const card = getCard(play.cardId);
     if (card.type === 'hero') {
       const v2Stats = combatModel === 'v2' ? combatStats(play.cardId, heroLevels[play.cardId] ?? 1, heroAscensions[play.cardId] ?? 0) : null;
+      // Card combat: a Unit enters at its printed ATK (Level and Mastery never change ATK there).
+      const cardModeAtk = combatModel === 'card' ? cardAtk(play.cardId) : null;
       const pendingHero: HeroInstance = {
         instanceId: `pending-${play.handId}`,
         cardId: play.cardId,
@@ -101,7 +110,7 @@ function buildPreviewZones(
         shortName: card.shortName,
         // Matches makeHeroInstance's own Battle Power calculation, so the Deploy-phase preview never
         // shows a number Reveal is about to contradict for a levelled Hero.
-        power: v2Stats?.attack ?? (card.power ?? 0) + battlePowerBonusForLevel(heroLevels[play.cardId] ?? 1),
+        power: cardModeAtk ?? v2Stats?.attack ?? (card.power ?? 0) + battlePowerBonusForLevel(heroLevels[play.cardId] ?? 1),
         ...(v2Stats ? { hp: v2Stats.maxHp, maxHp: v2Stats.maxHp, combatShield: 0 } : {}),
         tempPower: 0,
         shielded: false,
@@ -125,7 +134,16 @@ function buildPreviewZones(
 }
 
 export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel = 'legacy', battleMode = 'quick' }: GamePageProps) {
-  function buildMatch(matchSeed: number) {
+  const cardMode = combatModel === 'card';
+
+  function buildMatch(matchSeed: number): { state: GameState; events: GameEvent[] } {
+    if (cardMode) {
+      // Card combat: Starting HP is each deck's own Unit HP Contributions (cardCombat/stats.ts deckStartingHp, the
+      // Deck Builder's helper). The player's Card Mastery raises their HP Contribution only; the opponent plays
+      // its own deck at Mastery I and never copies the player's Mastery, Levels or HP.
+      const built = createCardMatch({ seed: matchSeed, playerDeck, enemyDeck, playerMastery: stagesFromAscensionRanks(playerAscensions) });
+      return { state: built.nextState, events: built.events };
+    }
     return createMatch({
       seed: matchSeed,
       playerDeck,
@@ -233,7 +251,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
         onExit();
       }
     } else {
-      const begun = beginRound(next);
+      const begun = cardMode ? beginCardRound(next) : beginRound(next);
       const toast = masteryToastFrom(begun.events);
       if (toast) setMasteryToast(toast);
       setFullLog([...fullLog, ...revealEvents, ...begun.events]);
@@ -248,7 +266,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   function handleFight() {
     if (phase !== 'DEPLOY') return;
     const localAction = { plays: pendingPlays };
-    const validation = validateDeployment(gameState, 'player', localAction);
+    const validation = cardMode ? validateCardDeployment(gameState, 'player', localAction) : validateDeployment(gameState, 'player', localAction);
     if (!validation.legal) {
       console.warn('Blocked an illegal deployment:', validation.reason);
       return;
@@ -281,8 +299,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
       return;
     }
 
-    const ai = chooseAiAction(gameState, 'enemy', gameState.rngState);
-    const result = resolveRound(gameState, localAction, ai.action, ai.nextRngState);
+    const ai = cardMode ? chooseCardAiAction(gameState, 'enemy', gameState.rngState) : chooseAiAction(gameState, 'enemy', gameState.rngState);
+    const result = cardMode ? resolveCardRound(gameState, localAction, ai.action, ai.nextRngState) : resolveRound(gameState, localAction, ai.action, ai.nextRngState);
     setLastAiAction(ai.action);
     setBaseStateForReveal(gameState);
     setRevealEvents(result.events);
@@ -320,12 +338,17 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     if (card.type !== 'spell') return;
     if (card.spellKind === 'CONTINUOUS' && gameState.player.spellZones[lane] !== null) return;
     if (pendingPlays.some((p) => p.lane === lane && getCard(p.cardId).type === 'spell')) return;
-    if (!spellHasAValidTarget(gameState, 'player', card, lane)) return;
+    if (!spellTargetOk(card.id, lane)) return;
     commitPlacement(lane);
   }
 
   function handleRemovePending(handId: string) {
     setPendingPlays((prev) => prev.filter((p) => p.handId !== handId));
+  }
+
+  // Card combat checks the card-combat definition against ATK (Stasis Field, Execute's threshold, ...).
+  function spellTargetOk(cardId: string, lane: LaneId): boolean {
+    return cardMode ? cardSpellHasTarget(gameState, 'player', getCombatCard(cardId), lane) : spellHasAValidTarget(gameState, 'player', getCard(cardId), lane);
   }
 
   const selectedCard = selectedHand ? getCard(selectedHand.cardId) : null;
@@ -341,7 +364,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
           LANES.filter((l) => {
             if (pendingPlays.some((p) => p.lane === l && getCard(p.cardId).type === 'spell')) return false;
             if (selectedCard.spellKind === 'CONTINUOUS' && gameState.player.spellZones[l] !== null) return false;
-            if (!spellHasAValidTarget(gameState, 'player', selectedCard, l)) return false;
+            if (!spellTargetOk(selectedCard.id, l)) return false;
             return true;
           }),
         )
@@ -384,8 +407,9 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   // Banner) - never the raw stored value - computed fresh against whatever's currently shown,
   // preview included, so a pending Hero already reflects a Continuous Spell sitting in its lane.
   const playerZonesForDisplay = preview ? { ...displayState.player, heroZones: preview.heroZones, spellZones: preview.spellZones } : displayState.player;
-  const playerBoardState = withEffectivePowers({ ...displayState, player: playerZonesForDisplay }, 'player');
-  const enemyBoardState = withEffectivePowers(displayState, 'enemy');
+  const playerBoardState = cardMode ? withEffectiveAtk({ ...displayState, player: playerZonesForDisplay }, 'player') : withEffectivePowers({ ...displayState, player: playerZonesForDisplay }, 'player');
+  const enemyBoardState = cardMode ? withEffectiveAtk(displayState, 'enemy') : withEffectivePowers(displayState, 'enemy');
+  const clashCallout = isRevealing ? clashCalloutForStep(anim.currentStep, revealEvents, displayState) : null;
 
   // Status band above the hand (Battle Screen v8 / design source of truth section 9): during
   // resolution it's a static "Resolving", never a scrolling play-by-play of each event.
@@ -401,7 +425,16 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   // (speed setting + reduced motion, both handled in timing.ts) reaches the DOM.
   const stepMs = anim.currentStep ? resolveDuration(anim.currentStep.timingCategory, animationSpeed, anim.reducedMotion) : 300;
 
+  // Card combat: hand cards, board chits and Card Inspect read ATK from the board and HP Contribution from this match.
+  const cardDisplay: CardCombatDisplay | null = cardMode
+    ? {
+        hpContribution: (cardId, owner) => matchHpContribution(gameState, owner, cardId),
+        masteryStage: (cardId, owner) => gameState.cardCombat?.masteryStage[owner][cardId] ?? 1,
+      }
+    : null;
+
   return (
+    <CombatDisplayContext.Provider value={cardDisplay}>
     <div className="app-shell">
       <div className="battle-stage" style={{ '--step-ms': `${Math.max(stepMs, 1)}ms` } as CSSProperties}>
         <div className="battle-scene">
@@ -428,6 +461,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             heroAnimById={anim.visuals.heroChit}
             spellAnimById={anim.visuals.spellChit}
             clashLane={anim.visuals.clashLane}
+            clashCallout={clashCallout}
             vfxCues={anim.visuals.vfx}
             stageShake={anim.visuals.stageShake && !anim.reducedMotion}
             interactionDisabled={isRevealing}
@@ -454,7 +488,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             graveyardCount={displayState.player.graveyard.length}
             graveyardDisabled={isRevealing}
             onGraveyardClick={() => setGraveyardOpen(true)}
-            badge={playerMastery ? <MasteryBadge loadout={playerMastery} toast={masteryToast} /> : undefined}
+            badge={playerMastery && !cardMode ? <MasteryBadge loadout={playerMastery} toast={masteryToast} /> : undefined}
           />
 
           <div className="hand-apron">
@@ -490,7 +524,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
               playerGraveyard={displayState.player.graveyard}
               enemyGraveyard={displayState.enemy.graveyard}
               onClose={() => setGraveyardOpen(false)}
-              onInspect={(cardId) => setInspectCardId(cardId)}
+              onInspect={(cardId, side) => setInspect({ cardId, context: cardMode && side === 'enemy' ? 'opponent' : 'battle' })}
             />
           )}
 
@@ -521,5 +555,6 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
 
       <DebugPanel seed={seed} state={gameState} lastAiAction={lastAiAction} fullLog={fullLog} />
     </div>
+    </CombatDisplayContext.Provider>
   );
 }

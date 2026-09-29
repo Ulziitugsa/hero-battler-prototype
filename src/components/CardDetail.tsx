@@ -14,6 +14,7 @@ import { ascensionAddedAbilities, effectiveAbilities } from '../game/ascension/e
 import { CardEffectList, CardStatsPanel } from './card/CardInspectSections';
 import { track } from '../analytics/track';
 import { getCardMasteryView } from '../game/cardMastery/model';
+import { useCardCombatDisplay } from './combatDisplay';
 
 /** Where Card Inspect was opened from. Battle views keep the sheet to what matters mid-match. */
 export type InspectContext = 'collection' | 'deck' | 'battle' | 'opponent' | 'pack' | 'shop' | 'event' | 'other';
@@ -44,8 +45,13 @@ export function CardDetail({ cardId, onClose, context = 'other', livePower, mast
   const owned = getOwnedCount(cardId, getCollection());
   const masteryPath = getCardAscension(cardId);
   const rank = masteryRank ?? (context === 'opponent' ? 0 : getAscensionRank(cardId));
-  const abilities = effectiveAbilities(cardId, rank);
-  const added = ascensionAddedAbilities(cardId, rank);
+  // A card-combat battle plays the approved card-combat definition: no Ascension-added lines, Mastery is HP only.
+  const cardCombat = useCardCombatDisplay();
+  const combatInfo = cardCombat && inBattle && card.type === 'hero' && card.role !== 'Token'
+    ? { owner: context === 'opponent' ? ('enemy' as const) : ('player' as const), hpContribution: cardCombat.hpContribution(cardId, context === 'opponent' ? 'enemy' : 'player'), masteryStage: cardCombat.masteryStage(cardId, context === 'opponent' ? 'enemy' : 'player') }
+    : undefined;
+  const abilities = cardCombat ? card.abilities : effectiveAbilities(cardId, rank);
+  const added = cardCombat ? undefined : ascensionAddedAbilities(cardId, rank);
 
   useEffect(() => {
     track('card_inspect_opened', { cardId, context, rarity: card.rarity });
@@ -58,7 +64,7 @@ export function CardDetail({ cardId, onClose, context = 'other', livePower, mast
           <Icon name="close" />
         </button>
         <div className="ci-card">
-          <CollectibleCard cardId={cardId} mode="inspect" livePower={livePower} masteryRank={rank} treatment={treatment} />
+          <CollectibleCard cardId={cardId} mode="inspect" livePower={livePower} masteryRank={combatInfo ? combatInfo.masteryStage : rank} treatment={treatment} />
         </div>
 
         <header className="ci-header">
@@ -71,8 +77,8 @@ export function CardDetail({ cardId, onClose, context = 'other', livePower, mast
           {card.tags.length > 0 && <p className="ci-traits">{card.tags.join(' · ')}</p>}
         </header>
 
-        <CardStatsPanel card={card} livePower={livePower} />
-        <CardEffectList card={card} abilities={abilities} masteryAdded={added} />
+        <CardStatsPanel card={card} livePower={livePower} cardCombat={combatInfo} />
+        <CardEffectList card={card} abilities={abilities} masteryAdded={added} cardCombat={!!cardCombat} />
 
         {!inBattle && (
           <section className="ci-collection" aria-label="Collection">

@@ -1,5 +1,7 @@
 import { getCard } from '../game/cards';
 import { cardEffectSummary } from '../game/cards/effectText';
+import { cardCombatEffectSummary } from '../game/cardCombat/cardText';
+import { useCardCombatDisplay } from './combatDisplay';
 import { CardArtwork } from './CardArtwork';
 import { Gems, Sigil } from './CardParts';
 import { Icon } from './Icon';
@@ -31,7 +33,7 @@ export interface CollectibleCardProps {
   treatment?: CardTreatment;
   /** Art to paint instead of the card's own (alternate art). Defaults to `cardId`. */
   artId?: string;
-  /** Current battle Power; shows live ATK against the printed value. */
+  /** Current battle Power (legacy) or ATK (card combat); shows live ATK against the printed value. */
   livePower?: number;
   /** false veils the art and shows a lock (Collection "missing"). */
   owned?: boolean;
@@ -53,7 +55,8 @@ export function CollectibleCard({ cardId, mode, compact = false, treatment = 'ba
   const view: CardMode = mode ?? (compact ? 'battle' : 'standard');
   const unit = card.type === 'hero';
   const continuous = card.spellKind === 'CONTINUOUS';
-  const summary = cardEffectSummary(card);
+  const cardCombat = useCardCombatDisplay();
+  const summary = cardCombat ? cardCombatEffectSummary(card) : cardEffectSummary(card);
   const typeLabel = unit ? `${card.role === 'Token' ? 'Token' : 'Unit'}${card.role && card.role !== 'Token' ? ` · ${card.role}` : ''}` : continuous ? 'Continuous Spell' : 'Spell';
   return (
     <span

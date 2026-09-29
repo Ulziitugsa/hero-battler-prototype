@@ -20,6 +20,7 @@ import { countCopies, getDeckStatus, plural, sortedEntries } from './decks/deckS
 import { DeckSummaryBar, STARTING_HP_HELP, StartingHpBadge } from './decks/DeckSummaryBar';
 import { FavoriteStar } from './decks/FavoriteStar';
 import { baseAtk, deckSummary, hpContribution } from '../game/decks/deckSummary';
+import { playerMasteryStages } from '../game/cardCombat/mastery';
 import { DEFAULT_POOL_OPTIONS, SORT_LABEL, activeFilterCount, availableSorts, queryCardPool, type CardPoolOptions, type CardSort, type OwnershipFilter } from '../game/decks/cardPool';
 import { getCardPopularity } from '../game/decks/cardPopularity';
 import { autoFillDeck } from '../game/decks/autoFill';
@@ -233,7 +234,8 @@ export function DecksPage() {
   }, [notice]);
 
   const copies = useMemo(() => countCopies(cardIds), [cardIds]);
-  const summary = useMemo(() => deckSummary(cardIds), [cardIds]);
+  // Starting HP includes the player's Card Mastery, through the same helper a card-combat battle starts with.
+  const summary = useMemo(() => deckSummary(cardIds, playerMasteryStages(cardIds, ascensions)), [cardIds, ascensions]);
   const status = useMemo(() => getDeckStatus(cardIds, owned), [cardIds, owned]);
   const dirty = mode === 'edit' && JSON.stringify([name, cardIds]) !== baseline;
 
@@ -558,7 +560,7 @@ export function DecksPage() {
   const locked = pres.kind === 'starter-locked';
   const isActive = sel.id === activeId;
   const entries = sortedEntries(sel.cardIds);
-  const selSummary = deckSummary(sel.cardIds);
+  const selSummary = deckSummary(sel.cardIds, playerMasteryStages(sel.cardIds, ascensions));
   const saved = isSaved(sel.id);
   const hasCustom = decks.some((d) => isSaved(d.id));
 

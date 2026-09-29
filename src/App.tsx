@@ -37,7 +37,7 @@ import { chooseRankedOpponent, getRanked, recordRankedMatch } from './game/ranke
 import { listDeckOptions } from './game/engine/deckOptions';
 import { CombatV2LabPage } from './pages/CombatV2LabPage';
 import { getCard } from './game/cards';
-import { combatModelForMode } from './game/combatV2/featureFlag';
+import { type CombatModel, combatModelForMode } from './game/combatV2/featureFlag';
 
 export default function App() {
   return <div className="moon-game"><WorldBackdrop /><Suspense fallback={<MoonwaterLoading />}><GameApp /></Suspense>{isDebugPanelEnabled() && <AnalyticsDebugPanel />}</div>;
@@ -67,7 +67,7 @@ function GameApp() {
   const [storySaveFailed, setStorySaveFailed] = useState(false);
   const [storyResult, setStoryResult] = useState<string | null>(null);
   const [lastStoryTrial, setLastStoryTrial] = useState<string | null>(null);
-  const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; startingHp?: number; mastery: MasteryLoadout | null; ascensions: Record<string, number>; enemyAscensions?: Record<string, number>; heroLevels: Record<string, number>; enemyHeroLevels?: Record<string, number>; rankedOpponentLabel?: string; combatModel: 'legacy' | 'v2' } | null>(null);
+  const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; startingHp?: number; mastery: MasteryLoadout | null; ascensions: Record<string, number>; enemyAscensions?: Record<string, number>; heroLevels: Record<string, number>; enemyHeroLevels?: Record<string, number>; rankedOpponentLabel?: string; combatModel: CombatModel } | null>(null);
   // Which Campaign node the in-progress battle belongs to, if any - set only by startCampaignBattle,
   // never by Quick Battle, so Quick Battle can never touch Campaign state (see progress.ts's own note).
   const [campaignNodeId, setCampaignNodeId] = useState<string | null>(null);
@@ -215,7 +215,7 @@ function GameApp() {
     startBattle({ label: active.label, cardIds: active.cardIds }, { label, cardIds: deck }, undefined, undefined, 'legacy');
   }} />{storySaveFailed && <p role="alert">Your browser could not save this story result. Enable local storage before replaying.</p>}</>;
 
-  function startBattle(player: DeckChoice, enemy: DeckChoice, rankedOpponentLabel?: string, enemyHeroLevels?: Record<string, number>, combatModel: 'legacy' | 'v2' = combatModelForMode('quickBattle'), enemyAscensions?: Record<string, number>) {
+  function startBattle(player: DeckChoice, enemy: DeckChoice, rankedOpponentLabel?: string, enemyHeroLevels?: Record<string, number>, combatModel: CombatModel = combatModelForMode('quickBattle'), enemyAscensions?: Record<string, number>) {
     battleCounter.current += 1;
     setShowBattleSetup(false);
     setBattleSetup({ player, enemy, id: battleCounter.current, mastery: getEquippedLoadout(), ascensions: ascensionRanksFor(player.cardIds), enemyAscensions, heroLevels: heroLevelsFor(player.cardIds), enemyHeroLevels, rankedOpponentLabel, combatModel });

@@ -32,9 +32,15 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
       for (const placement of event.placements) {
         const side = placement.side === 'player' ? p : e;
         if (placement.zone === 'hero') {
-          side.heroZones[placement.lane] = makeHeroInstance(placement.side, placement.lane, next.round, placement.cardId, ascensionRank(next, placement.side, placement.cardId), heroLevelOf(next, placement.side, placement.cardId), next.combatModel);
+          const hero = makeHeroInstance(placement.side, placement.lane, next.round, placement.cardId, ascensionRank(next, placement.side, placement.cardId), heroLevelOf(next, placement.side, placement.cardId), next.combatModel);
+          // The card resolver records the exact ATK a Unit entered with and its own instance id.
+          if (placement.power !== undefined) hero.power = placement.power;
+          hero.instanceId = placement.instanceId;
+          side.heroZones[placement.lane] = hero;
         } else {
-          side.spellZones[placement.lane] = makeSpellZoneInstance(placement.side, placement.lane, next.round, placement.cardId);
+          const spell = makeSpellZoneInstance(placement.side, placement.lane, next.round, placement.cardId);
+          spell.instanceId = placement.instanceId;
+          side.spellZones[placement.lane] = spell;
         }
       }
       return next;
@@ -127,6 +133,7 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
       side.graveyard.splice(event.graveyardIndex, 1);
       const instance = makeHeroInstance(event.side, event.lane, next.round, event.cardId, ascensionRank(next, event.side, event.cardId), heroLevelOf(next, event.side, event.cardId), next.combatModel);
       instance.power = event.power; // may differ from the card's base Power (e.g. Vharos's reduced self-revival)
+      instance.instanceId = event.instanceId;
       side.heroZones[event.lane] = instance;
       return next;
     }

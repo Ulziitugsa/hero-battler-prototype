@@ -309,6 +309,12 @@ export interface HeroInstance {
   maxHp?: number;
   /** Numeric V2 shield points, distinct from the legacy one-time destruction shield. */
   combatShield?: number;
+  /** Card combat only (`combatModel: 'card'`, where `power` is ATK): the ATK this Unit entered with, the base of the +45 growth cap. */
+  entryAtk?: number;
+  /** Card combat only: this Unit deals no damage this round, in a clash or directly (Stasis Field). Cleared at Round End. */
+  pacified?: boolean;
+  /** Card combat only: this physical copy has already come back from the Graveyard once this match and can't again. */
+  returned?: boolean;
 }
 
 export interface SpellZoneInstance {
@@ -319,11 +325,15 @@ export interface SpellZoneInstance {
   shortName: string;
   /** For once-per-round reactions (e.g. Grave Totem). Reset to false for every Spell zone at Round Start. */
   usedThisRound: boolean;
+  /** Card combat only: this copy already came back from the Graveyard once this match. */
+  returned?: boolean;
 }
 
 export interface HandCard {
   handId: string;
   cardId: string;
+  /** Card combat only: this copy already came back from the Graveyard once this match. */
+  returned?: boolean;
 }
 
 export interface PlayerState {
@@ -346,14 +356,44 @@ export interface MasteryLoadout {
   rank: number;
 }
 
+/** Which resolver a match runs on. 'card' is the ATK + HP Contribution model (docs/CARD-COMBAT-DESIGN.md). */
+export type CombatModelId = 'legacy' | 'v2' | 'card';
+
+/**
+ * Match state that only the card resolver reads. In a card match `HeroInstance.power` is the Unit's ATK and
+ * `PlayerState.hp / maxHp` are deck-derived Player HP; nothing here is per-Unit health.
+ */
+export interface CardCombatMeta {
+  /** Resolver/rules version, so a replay or a remote client can reject a mismatch. */
+  version: number;
+  /** Starting HP per side: the sum of the deck's Unit HP Contributions, Mastery included. */
+  startingHp: Record<Side, number>;
+  /** Card Mastery stage (1..5) per card id per side, fixed at match start. Changes HP Contribution only. */
+  masteryStage: Record<Side, Record<string, number>>;
+  /** Parallel to PlayerState.deck / graveyard: true where that copy has already returned from the Graveyard. */
+  deckMarks: Record<Side, boolean[]>;
+  graveMarks: Record<Side, boolean[]>;
+  /** Round-scoped facts that conditions read. Reset at Round Start. */
+  died: Record<Side, boolean>;
+  spellsThisRound: Record<Side, number>;
+  contDestroyed: Record<Side, boolean>;
+  playsThisRound: number;
+  /** Instance id counter, kept in state so ids are deterministic per match. */
+  seq: number;
+  /** Why the match ended, once it has. */
+  endReason?: 'hp' | 'exhausted' | 'round-cap';
+}
+
 export interface GameState {
   round: number;
   rngState: number;
   player: PlayerState;
   enemy: PlayerState;
   status: 'IN_PROGRESS' | 'PLAYER_WIN' | 'ENEMY_WIN' | 'DRAW';
-  /** Omitted means legacy; V2 remains explicitly selected per local PvE match. */
-  combatModel?: 'legacy' | 'v2';
+  /** Omitted means legacy; V2 and the card model are explicitly selected per local PvE match. */
+  combatModel?: CombatModelId;
+  /** Card combat only (src/game/cardCombat): per-match bookkeeping the legacy resolver has no use for. */
+  cardCombat?: CardCombatMeta;
   /** Equipped Masteries per side; absent/undefined side = none. Read by beginRound (engine/mastery.ts). */
   masteries?: Partial<Record<Side, MasteryLoadout>>;
   /**
@@ -399,6 +439,10 @@ export interface Placement {
   zone: 'hero' | 'spell';
   instanceId: string;
   cardId: string;
+  /** Card combat: the ATK the Unit entered with (replay places it as-is instead of deriving it from Power). */
+  power?: number;
+  /** Card combat: this copy already returned from the Graveyard once. */
+  returned?: boolean;
 }
 
 /** PLAYER_DIRECT/ENEMY_DIRECT: an unopposed hit, or (with `bypass` set on the COMBAT event) a bypass attack past an opposing Hero. STALLED: combat in this lane was negated (STALL_COMBAT). */
@@ -483,6 +527,12 @@ export type GameEvent =
   | { type: 'DAMAGE_PREVENTED'; side: Side; amount: number; sourceName: string }
   /** STALL_COMBAT froze this Hero: no combat will happen in its lane this round. */
   | { type: 'COMBAT_STALLED'; side: Side; instanceId: string; name: string; lane: LaneId }
+  /** Card combat: a side's Starting HP, derived from its deck at match start (Units' HP Contributions, Mastery included). */
+  | { type: 'STARTING_HP'; side: Side; hp: number; units: number; masteryBonus: number }
+  /** Card combat: Stasis Field - this Unit deals no damage this round. */
+  | { type: 'PACIFIED'; side: Side; instanceId: string; name: string; lane: LaneId }
+  /** Card combat: a Graveyard return found only copies that already returned once this match, so nothing came back. */
+  | { type: 'RETURN_BLOCKED'; side: Side; cardId: string; name: string; sourceName: string }
   | { type: 'ROUND_END'; round: number }
   | { type: 'MATCH_END'; winner: Side | 'draw'; reason: string };
 

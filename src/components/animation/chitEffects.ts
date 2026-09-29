@@ -53,8 +53,41 @@ export interface StepVisuals {
   stageShake: boolean;
 }
 
+/**
+ * Card combat only: a lane's clash spelled out in ATK ("ATK 120 vs 104", "120 wins"). Legacy matches never get
+ * one, because their COMBAT events carry Power, which the battle UI does not show.
+ */
+export interface ClashCallout {
+  lane: LaneId;
+  kind: 'win' | 'tie' | 'direct';
+  /** Winner's side for 'win', the attacker for 'direct'. */
+  side?: Side;
+  line1: string;
+  line2: string;
+}
+
 function empty(): StepVisuals {
   return { heroChit: new Map(), spellChit: new Map(), hpFx: [], clashLane: null, handPulse: false, graveyardPulse: null, vfx: [], stageShake: false };
+}
+
+/** The ATK read-out for one card-combat COMBAT event (exported for tests). */
+export function clashCalloutFor(e: Extract<GameEvent, { type: 'COMBAT' }>): ClashCallout | null {
+  const p = e.player?.power;
+  const en = e.enemy?.power;
+  switch (e.outcome) {
+    case 'PLAYER_WINS':
+      return p !== undefined && en !== undefined ? { lane: e.lane, kind: 'win', side: 'player', line1: `ATK ${p} vs ${en}`, line2: `${p} wins` } : null;
+    case 'ENEMY_WINS':
+      return p !== undefined && en !== undefined ? { lane: e.lane, kind: 'win', side: 'enemy', line1: `ATK ${p} vs ${en}`, line2: `${en} wins` } : null;
+    case 'TIE':
+      return p !== undefined ? { lane: e.lane, kind: 'tie', line1: `ATK ${p} vs ${en ?? p}`, line2: 'Tie: both destroyed' } : null;
+    case 'PLAYER_DIRECT':
+      return p !== undefined ? { lane: e.lane, kind: 'direct', side: 'player', line1: `ATK ${p}`, line2: 'Direct hit' } : null;
+    case 'ENEMY_DIRECT':
+      return en !== undefined ? { lane: e.lane, kind: 'direct', side: 'enemy', line1: `ATK ${en}`, line2: 'Direct hit' } : null;
+    default:
+      return null;
+  }
 }
 
 function addHeroClass(v: StepVisuals, instanceId: string, cls: string) {
@@ -94,6 +127,23 @@ function findSpellInstanceByName(state: GameState, side: Side, name: string): st
     if (s && s.name === name) out.push(s.instanceId);
   }
   return out;
+}
+
+const CALLOUT_STEPS = new Set(['combat-clash', 'hero-destroyed', 'shield-save', 'direct-damage']);
+
+/**
+ * The clash callout to show during `step` of a card-combat round: from the lane's clash until its loser is gone
+ * or its direct hit has landed. Null in legacy matches and for every non-combat beat.
+ */
+export function clashCalloutForStep(step: AnimationStep | null, events: readonly GameEvent[], state: GameState): ClashCallout | null {
+  if (!step || state.combatModel !== 'card' || !step.lane || !CALLOUT_STEPS.has(step.visualType)) return null;
+  for (let i = events.indexOf(step.events[0]); i >= 0; i--) {
+    const e = events[i];
+    // Anything after the combat phase (After Combat, Round End, expiry) is not part of a clash.
+    if (e.type === 'TEMP_POWER_EXPIRED' || e.type === 'ROUND_END' || (e.type === 'TRIGGER' && (e.trigger === 'AFTER_COMBAT' || e.trigger === 'ROUND_END'))) return null;
+    if (e.type === 'COMBAT' && e.lane === step.lane) return clashCalloutFor(e);
+  }
+  return null;
 }
 
 /** `state` must be the board as displayed BEFORE this step's own effects commit - see useAnimationController's commit model. Name-based lookups resolve against it, so a card already removed by an earlier step is correctly no longer found. */

@@ -32,20 +32,20 @@ function expectedAtk(action: ActionDef): string | null {
 }
 
 describe('card face stats', () => {
-  it('prints ATK and HP Contribution from the existing Power band', () => {
-    expect(cardFaceStats(getCard('kng-light-priest'))).toEqual({ atk: 85, hpContribution: 115 });
-    expect(cardFaceStats(getCard('kng-common-knight'))).toEqual({ atk: 130, hpContribution: 85 });
+  it('prints the approved card-combat ATK and HP Contribution', () => {
+    expect(cardFaceStats(getCard('kng-light-priest'))).toEqual({ atk: 78, hpContribution: 103 });
+    expect(cardFaceStats(getCard('kng-common-knight'))).toEqual({ atk: 128, hpContribution: 62 });
     expect(cardFaceStats(getCard('spl-fireball'))).toBeNull();
   });
 
   it('live Power changes ATK only, and keeps the same lane winner as Power', () => {
     const knight = getCard('kng-common-knight');
-    expect(cardFaceStats(knight, 8)).toEqual({ atk: 160, hpContribution: 85 });
+    expect(cardFaceStats(knight, 8)).toEqual({ atk: 158, hpContribution: 62 });
     for (let a = 1; a < 12; a++) for (let b = 1; b < 12; b++) expect(Math.sign(atkFromPower(a) - atkFromPower(b))).toBe(Math.sign(a - b));
   });
 
   it('starting HP is the sum of Unit HP Contributions; Spells add nothing', () => {
-    expect(deckStartingHp(['kng-light-priest', 'spl-fireball', 'kng-common-knight'].map(getCard))).toBe(200);
+    expect(deckStartingHp(['kng-light-priest', 'spl-fireball', 'kng-common-knight'].map(getCard))).toBe(165);
     expect(HP_CONTRIBUTION_HELP).toBe('HP Contribution — adds this amount to your starting HP.');
   });
 });

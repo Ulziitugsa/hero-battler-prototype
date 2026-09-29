@@ -4,7 +4,7 @@ import { LaneSlot } from './LaneSlot';
 import { SpellLaneSlot } from './SpellLaneSlot';
 import { FightSeal } from './FightSeal';
 import { CombatVfxLayer } from './animation/CombatVfxLayer';
-import type { ChitVisual, StepVisuals, VfxCue } from './animation/chitEffects';
+import type { ChitVisual, ClashCallout, StepVisuals, VfxCue } from './animation/chitEffects';
 
 const LANE_TICKS = ['18.98%', '44.55%', '56.20%', '81.58%'];
 
@@ -23,6 +23,7 @@ export function Battlefield({
   heroAnimById,
   spellAnimById,
   clashLane,
+  clashCallout = null,
   vfxCues,
   stageShake,
   interactionDisabled,
@@ -44,6 +45,8 @@ export function Battlefield({
   heroAnimById: Map<string, ChitVisual>;
   spellAnimById: Map<string, ChitVisual>;
   clashLane: StepVisuals['clashLane'];
+  /** Card combat: the current clash in ATK numbers, drawn on the clash line of its lane. */
+  clashCallout?: ClashCallout | null;
   vfxCues: VfxCue[];
   /** A subtle whole-battlefield shake for the current step - see chitEffects.ts's `stageShake`. */
   stageShake: boolean;
@@ -132,6 +135,14 @@ export function Battlefield({
       <CombatVfxLayer cues={vfxCues} />
 
       <FightSeal canFight={canFight} fighting={fighting} onFight={onFight} />
+
+      {/* Above the lanes and the Fight seal, so the centre lane's read-out is never covered. */}
+      {clashCallout && (
+        <span className={`clash-callout lane-${clashCallout.lane} ${clashCallout.kind} ${clashCallout.side ?? ''}`} role="status">
+          <b>{clashCallout.line1}</b>
+          <small>{clashCallout.line2}</small>
+        </span>
+      )}
     </div>
   );
 }
