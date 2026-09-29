@@ -81,6 +81,12 @@ export type AnalyticsEventName =
   | 'shop_product_viewed'
   | 'shop_purchase_simulated'
   | 'energy_refilled'
+  // Card products (finite Boxes, Structure Decks) - simulated in-game Gem purchases, no real money
+  | 'box_viewed'
+  | 'box_contents_viewed'
+  | 'box_reset'
+  | 'structure_deck_viewed'
+  | 'structure_deck_purchased'
   | 'background_customization_opened'
   | 'background_selected'
   | 'ranked_opened'

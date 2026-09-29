@@ -57,3 +57,36 @@
 .shop-confirm-backdrop { position:fixed; z-index:80; inset:0; display:grid; place-items:center; padding:20px; background:#030c12c9; backdrop-filter:blur(5px); }.shop-confirm { position:relative; width:min(100%,420px); padding:24px 20px 18px; border:1px solid #b6c9a94a; border-radius:20px; color:#f5ecd9; background:linear-gradient(160deg,#1b3b46,#0d202b); box-shadow:0 22px 70px #0009; }.shop-confirm-close { position:absolute; top:12px; right:12px; padding:7px; }.shop-confirm h2 { margin:7px 32px 8px 0; font:400 25px/1.12 var(--moon-display,Georgia,serif); }.shop-confirm p { color:#b9c9c1; font-size:12px; line-height:1.45; }.shop-confirm-test { color:#d6c58f!important; }.shop-confirm-reward { padding:10px; border-radius:11px; background:#07192288; }.shop-confirm-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:18px; }.shop-confirm-actions button { min-height:42px; padding:0 14px; border:1px solid #78918a55; border-radius:11px; color:#e4e2d3; background:#1a343d; font-weight:800; }.shop-confirm-actions button.confirm { color:#14282d; border-color:#ecd99e; background:linear-gradient(#f1e2b9,#cfb36d); }
 @media(max-width:380px) { .shop-screen { padding-inline:12px; }.shop-gift { grid-template-columns:42px 1fr; }.shop-gift-art { width:40px; }.shop-gift-claim { grid-column:2; justify-self:start; min-height:34px; }.shop-featured-art { height:96px; }.shop-featured-card { grid-template-rows:96px 1fr auto; }.shop-gem-row { gap:5px; }.shop-gem-card { padding-inline:3px; }.shop-trade-card { grid-template-columns:34px 1fr auto; gap:7px; padding:9px; }.shop-trade-icon { width:33px; height:33px; } }
 @media(prefers-reduced-motion:reduce) { .shop-gem-card.recommended { transform:none; } }
+
+/* Card products first: featured Box, then Structure Decks. Currency sits below as the means of buying them. */
+.shop-first-section { margin-top:4px; }
+.shop-box-feature { position:relative; display:grid; grid-template-columns:44% 1fr; width:100%; min-height:176px; overflow:hidden; padding:0; border:1px solid rgba(232,207,143,.5); border-radius:19px; color:inherit; text-align:left; background:radial-gradient(110% 120% at 0% 0%,#34566a 0%,#173241 48%,#0c1e2a 100%); box-shadow:inset 0 1px rgba(255,255,255,.1),0 12px 28px #020a1080,0 0 26px #e0c47d14; }
+.shop-box-art { position:relative; overflow:hidden; }
+.shop-box-moon { position:absolute; left:50%; top:18px; width:120px; height:120px; transform:translateX(-50%); border-radius:50%; background:radial-gradient(circle,#f0d59a55 0%,#f0d59a1c 45%,transparent 70%); }
+.shop-box-figure { overflow:hidden; border:1px solid #f0d59a88; border-radius:8px; background:#0b1a24; }
+.shop-box-figure img,.shop-box-figure canvas { width:100%; height:100%; object-fit:cover; }
+.shop-box-figure.f0 { z-index:2; left:50%; bottom:22px; width:78px; height:108px; transform:translateX(-50%); border-color:#f0d59a; box-shadow:0 10px 22px #000a,0 0 18px #f0d59a44; }
+.shop-box-figure.f1 { z-index:1; left:10px; bottom:30px; width:64px; height:90px; transform:rotate(-11deg); opacity:.9; }
+.shop-box-figure.f2 { z-index:1; right:10px; bottom:30px; width:64px; height:90px; transform:rotate(11deg); opacity:.9; }
+.shop-box-copy { display:flex; flex-direction:column; gap:4px; min-width:0; padding:14px 13px 12px 4px; }
+.shop-box-copy > strong { color:#f7e7bf; font:400 24px/1.05 var(--moon-display,Georgia,serif); }
+.shop-box-theme { color:#b9cbc3; font-size:11px; line-height:1.35; }
+.shop-box-status { display:flex; flex-direction:column; gap:1px; margin-top:4px; color:#b9c9be; font-size:11px; }
+.shop-box-status b { color:#f6e3ae; font-size:14px; }
+.shop-box-meter { margin-top:4px; }
+.shop-box-cta { display:flex; justify-content:space-between; align-items:center; gap:6px; margin-top:auto; padding-top:8px; }
+.shop-box-cta > span { white-space:nowrap; }
+.shop-box-cta > span:first-child { display:inline-flex; align-items:center; gap:4px; color:#e2cd94; font-size:11px; font-weight:900; }
+.shop-box-cta > span:last-child { display:inline-flex; align-items:center; gap:4px; min-height:32px; padding:0 10px; border-radius:10px; color:#1b2c31; background:linear-gradient(#f4e5b8,#d8bb70); font-size:11px; font-weight:900; }
+.shop-box-cta svg { transform:rotate(180deg); }
+.shop-gift.shop-section { margin-top:12px; }
+.shop-deck-card { display:grid; grid-template-columns:92px 1fr; gap:10px; width:100%; min-height:118px; overflow:hidden; padding:0 12px 0 0; border:1px solid rgba(143,208,179,.3); border-radius:17px; color:inherit; text-align:left; background:linear-gradient(110deg,#23443d,#132b36 55%,#0e222d); box-shadow:0 9px 22px #020a1055; }
+.shop-deck-card + .shop-deck-card { margin-top:9px; }
+.shop-deck-art { display:flex; align-items:flex-end; justify-content:center; padding:8px 4px 6px; background:radial-gradient(ellipse at 50% 90%,#4b7a66aa,transparent 70%); }
+.shop-deck-art img,.shop-deck-art canvas { max-width:100%; max-height:100px; object-fit:contain; image-rendering:pixelated; filter:drop-shadow(0 5px 8px #000b); }
+.shop-deck-copy { display:flex; flex-direction:column; gap:3px; min-width:0; padding:12px 0 11px; }
+.shop-deck-copy > strong { color:#f3ead0; font:400 19px/1.1 var(--moon-display,Georgia,serif); }
+.shop-deck-tagline { color:#b5c7bf; font-size:11px; line-height:1.35; }
+.shop-deck-price { display:inline-flex; align-items:center; gap:4px; margin-top:auto; padding-top:6px; color:#e2cd94; font-size:11px; font-weight:900; }
+.shop-secondary .shop-section-heading h2 { font-size:18px; }
+.shop-secondary .shop-gem-card { min-height:108px; }
