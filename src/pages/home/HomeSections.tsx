@@ -57,7 +57,7 @@ export function PlayerIdentity({ account, onOpen }: { account: AccountState; onO
               </span>
             </>
           ) : (
-            <span>No Mastery equipped</span>
+            <span>No Tactic equipped</span>
           )}
         </span>
       </span>
@@ -80,7 +80,7 @@ export function GemPlate({ trailing }: { trailing?: ReactNode }) {
 
 // ---- Visual anchor ----------------------------------------------------------------------------
 
-/** The featured Hero (the active deck's Legendary): a framed portrait leaning on the terrace wall. Tap to inspect. */
+/** The featured card (the active deck's Legendary): a framed portrait leaning on the terrace wall. Tap to inspect. */
 export function HeroAnchor({ cardId, faction, onInspect }: { cardId: string | null; faction: StarterFaction; onInspect: (id: string) => void }) {
   if (!cardId) return <span className={`hh-hero empty ${faction}`} aria-hidden="true" />;
   const card = getCard(cardId);
@@ -269,7 +269,7 @@ export function HubNoteLine({ note, onOpenProfile, onOpenDecks, onOpenHeroes, on
       <button type="button" className="hh-note" onClick={onOpenProfile}>
         <WaxDot label="Attention" />
         <span>
-          <strong>Mastery Point ready</strong> — spend it in Profile
+          <strong>Tactic Point ready</strong> — spend it in Profile
         </span>
       </button>
     );

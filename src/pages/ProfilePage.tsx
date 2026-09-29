@@ -15,8 +15,9 @@ import { isNodeCleared, loadProgress } from '../game/campaign/progress';
 import { track } from '../analytics/track';
 
 /**
- * Profile: the home of account progression - Account Level + XP, and the one equipped Mastery (which
- * ones are unlocked, their rank, spending Mastery Points, equipping). Also keeps the Support and
+ * Profile: the home of account progression - Account Level + XP, and the one equipped Tactic (which
+ * ones are unlocked, their rank, spending Tactic Points, equipping). Tactics are stored as "masteries"
+ * internally; the player-facing name changed so "Mastery" can mean per-card Card Mastery only. Also keeps the Support and
  * Developer Tools rows. Progression state comes from game/progression/account.ts and updates live.
  */
 export function ProfilePage({ onOpenStats, onOpenCombatLab }: { onOpenStats: () => void; onOpenCombatLab?: () => void }) {
@@ -56,7 +57,7 @@ export function ProfilePage({ onOpenStats, onOpenCombatLab }: { onOpenStats: () 
         <div className="pf-account-body">
           <span className="pf-account-kicker">MOONWATER ACCOUNT</span>
           <span className="pf-name">Wanderer</span>
-          <span className="pf-level-line">{account.equippedMasteryId ? `${MASTERIES[account.equippedMasteryId].name} · ` : 'Wayfarer · '}Level {account.level}</span>
+          <span className="pf-level-line">{account.equippedMasteryId ? `${MASTERIES[account.equippedMasteryId].name} · ` : 'Wayfarer · '}Account Level {account.level}</span>
           <span className="pf-xp-bar" role="progressbar" aria-valuemin={0} aria-valuemax={need} aria-valuenow={account.xp}>
             <span style={{ width: `${pct}%` }} />
           </span>
@@ -65,13 +66,13 @@ export function ProfilePage({ onOpenStats, onOpenCombatLab }: { onOpenStats: () 
       </section>
 
       <div className="pf-section-head">
-        <h2>Mastery</h2>
+        <h2>Tactic</h2>
         <span className={`pf-points ${points > 0 ? 'has' : ''}`}>
-          {points} Mastery Point{points === 1 ? '' : 's'}
+          {points} Tactic Point{points === 1 ? '' : 's'}
         </span>
       </div>
 
-      <div className="pf-masteries" role="listbox" aria-label="Masteries">
+      <div className="pf-masteries" role="listbox" aria-label="Tactics">
         {MASTERY_ORDER.map((id) => {
           const d = MASTERIES[id];
           const r = account.unlockedMasteries[id] ?? 0;
@@ -83,7 +84,7 @@ export function ProfilePage({ onOpenStats, onOpenCombatLab }: { onOpenStats: () 
               <span className="pf-mastery-text">
                 <span className="pf-mastery-name">{d.name}</span>
                 <span className="pf-mastery-sub">
-                  {state === 'soon' ? 'Coming soon' : state === 'locked' ? `Unlocks at Level ${d.unlockLevel}` : `Rank ${rankNumeral(r)}`}
+                  {state === 'soon' ? 'Coming soon' : state === 'locked' ? `Unlocks at Account Level ${d.unlockLevel}` : `Rank ${rankNumeral(r)}`}
                 </span>
               </span>
               {state === 'open' && (
@@ -130,10 +131,10 @@ export function ProfilePage({ onOpenStats, onOpenCombatLab }: { onOpenStats: () 
                 </button>
               )}
             </div>
-            {next && !canUpgrade && <p className="pf-hint">Earn a Mastery Point at even-numbered levels.</p>}
+            {next && !canUpgrade && <p className="pf-hint">Earn a Tactic Point at even-numbered Account Levels.</p>}
           </>
         ) : (
-          <p className="pf-effect locked">{def.implemented ? `Reach Level ${def.unlockLevel} to unlock this Mastery.` : 'This Mastery is still being forged.'}</p>
+          <p className="pf-effect locked">{def.implemented ? `Reach Account Level ${def.unlockLevel} to unlock this Tactic.` : 'This Tactic is still being forged.'}</p>
         )}
       </section>
 

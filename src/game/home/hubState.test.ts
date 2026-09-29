@@ -103,7 +103,7 @@ describe('the one contextual note', () => {
   });
   it('renders one line per kind', () => {
     const noop = () => {};
-    expect(renderToStaticMarkup(createElement(HubNoteLine, { note: { kind: 'mastery', points: 1 }, onOpenProfile: noop, onOpenDecks: noop, onOpenHeroes: noop }))).toContain('Mastery Point ready');
+    expect(renderToStaticMarkup(createElement(HubNoteLine, { note: { kind: 'mastery', points: 1 }, onOpenProfile: noop, onOpenDecks: noop, onOpenHeroes: noop }))).toContain('Tactic Point ready');
     expect(renderToStaticMarkup(createElement(HubNoteLine, { note: { kind: 'starter', deckId: 'starter-undead', name: 'Undead Starter', collected: 12, total: 15 }, onOpenProfile: noop, onOpenDecks: noop, onOpenHeroes: noop }))).toContain('3 to go');
   });
 });

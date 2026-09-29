@@ -11,6 +11,7 @@ Moonwater, using the pixel-art direction recorded in the Moonwater design docume
 | [BEHAVIORAL-UX-POLICY.md](BEHAVIORAL-UX-POLICY.md) | Current Home/navigation attention and reward-readiness rules |
 | [NATIVE-MOBILE.md](NATIVE-MOBILE.md) | Capacitor configuration, native shell behavior, sync, and device-verification status |
 | [COMBAT-V2-DESIGN.md](COMBAT-V2-DESIGN.md) | Isolated Combat V2 analysis and lab; production battles remain on legacy rules |
+| [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md) | Player-facing terminology, Card Mastery, duplicates, Account Level, Renown and the legacy-progression migration plan |
 | [RANKED-MODE.md](RANKED-MODE.md) | Local Ranked rating, AI opponent selection, rewards, and prototype limits |
 | [EXTERNAL-PLAYTEST-CHECKLIST.md](EXTERNAL-PLAYTEST-CHECKLIST.md) | Manual playtest checks and known prototype limits |
 | [design/CHARACTER-ART-BIBLE.md](design/CHARACTER-ART-BIBLE.md) | Historical painterly art exploration; superseded by the current Moonwater pixel-art direction |
