@@ -23,3 +23,34 @@
 .card-inspect-effect-label { display: block; margin-bottom: 8px; color: var(--px-gold-strong, #e5c477); font: 700 11px var(--px-font-label, sans-serif); text-transform: uppercase; letter-spacing: .08em; }
 .card-effect-keyword { display: block; margin: 0 0 4px; color: #e3c879; font: 800 9px var(--px-font-label, sans-serif); text-transform: uppercase; letter-spacing: .08em; }
 .card-inspect .text > p { margin-block: 8px; line-height: 1.5; }
+
+/* ---- CardStats (card/CardStats.tsx): the production ATK / HP Contribution pair ----------------- */
+.card-stats { display: flex; align-items: stretch; gap: 5px; width: 100%; min-width: 0; }
+.card-stats-chip {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid rgba(214, 196, 150, 0.5);
+  border-radius: 4px;
+  background: linear-gradient(180deg, #1d3241, #0a1620);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 2px 5px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+.card-stats-chip svg { flex: 0 0 auto; }
+.card-stats-chip.atk svg { color: #f0c46a; }
+.card-stats-chip.hp svg { color: #ec7b86; }
+.card-stats-chip strong { color: #fff4d8; font: 800 13px/1 var(--font, system-ui, sans-serif); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.card-stats-chip small { color: #c9c0a8; font: 800 9px/1 var(--font, system-ui, sans-serif); letter-spacing: 0.08em; }
+.card-stats-chip.atk.up strong { color: #9ff0a6; }
+.card-stats-chip.atk.down strong { color: #ff9c8e; }
+.card-stats.size-compact { gap: 3px; }
+.card-stats.size-compact .card-stats-chip { gap: 2px; padding: 2px 3px; }
+.card-stats.size-compact .card-stats-chip strong { font-size: 11px; }
+.card-stats.size-full { gap: 8px; }
+.card-stats.size-full .card-stats-chip { gap: 6px; padding: 8px 10px; }
+.card-stats.size-full .card-stats-chip strong { font-size: 20px; }
+.card-stats.size-full .card-stats-chip small { font-size: 11px; }

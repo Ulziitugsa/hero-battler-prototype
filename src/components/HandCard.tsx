@@ -1,16 +1,10 @@
-import type { CSSProperties } from 'react';
-import { CardArtwork } from './CardArtwork';
+import { useRef, type CSSProperties } from 'react';
 import type { HandCard as HandCardModel } from '../game/types';
 import { getCard } from '../game/cards';
-import { cardArtUrl } from '../game/cards/art';
 import { Icon } from './Icon';
-import { RARITY_GEMS } from './cardVisuals';
-import { CardStatPair } from './CardStatPair';
-import { cardStatsPreviewEnabled } from '../game/cards/cardStatsPreview';
+import { CollectibleCard } from './CollectibleCard';
 
-function capitalize(s: string): string {
-  return s[0].toUpperCase() + s.slice(1);
-}
+const LONG_PRESS_MS = 450;
 
 export function HandCard({
   hand,
@@ -30,19 +24,41 @@ export function HandCard({
   onDragEnd: () => void;
 }) {
   const card = getCard(hand.cardId);
-  const isSpell = card.type === 'spell';
-  const continuous = card.spellKind === 'CONTINUOUS';
-  const gemCount = RARITY_GEMS[card.rarity];
-  const artUrl = cardArtUrl(card.id);
+  // Long-press anywhere on the card opens Card Inspect (the (i) button does the same in one tap).
+  const pressTimer = useRef<number | null>(null);
+  const longPressed = useRef(false);
+  const clearPress = () => {
+    if (pressTimer.current !== null) window.clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+  };
 
   return (
     <div
       role="button"
       tabIndex={0}
       aria-pressed={selected}
-      className={`hand-card ${selected ? 'selected' : ''}`}
+      aria-label={`${card.name}. Long-press or use the info button to inspect.`}
+      className={`hand-card r-${card.rarity} ${selected ? 'selected' : ''}`}
       style={style}
-      onClick={onSelect}
+      onClick={() => {
+        if (longPressed.current) {
+          longPressed.current = false;
+          return;
+        }
+        onSelect();
+      }}
+      onPointerDown={() => {
+        longPressed.current = false;
+        clearPress();
+        pressTimer.current = window.setTimeout(() => {
+          longPressed.current = true;
+          onInspect();
+        }, LONG_PRESS_MS);
+      }}
+      onPointerUp={clearPress}
+      onPointerLeave={clearPress}
+      onPointerCancel={clearPress}
+      onContextMenu={(e) => e.preventDefault()}
       onKeyDown={(event) => {
         if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
         event.preventDefault();
@@ -50,54 +66,25 @@ export function HandCard({
       }}
       draggable
       onDragStart={(e) => {
+        clearPress();
         e.dataTransfer.setData('text/plain', hand.handId);
         e.dataTransfer.effectAllowed = 'move';
         onDragStart();
       }}
       onDragEnd={onDragEnd}
     >
-      <span className={`hand-card-art ${card.faction} ${isSpell ? 'spell' : 'hero'}`}>
-        {artUrl && <CardArtwork cardId={card.id} className="hand-card-art-image" animated={false} />}
-        {!isSpell && !artUrl && (
-          <>
-            <span className="hand-card-figure-head" />
-            <span className="hand-card-figure-body" />
-          </>
-        )}
-        {isSpell && !artUrl && <span className={`hand-card-sigil ${continuous ? 'cont' : 'once'}`} />}
-        <span className="hand-card-gems">
-          {Array.from({ length: 4 }, (_, i) => (
-            <span key={i} className={`gem ${i < gemCount ? 'on' : ''}`} />
-          ))}
-        </span>
-      </span>
-
-      {!isSpell && (cardStatsPreviewEnabled() ? <span className="hand-card-stats"><CardStatPair card={card} compact /></span> : <span className="hand-card-power">{card.power}</span>)}
-      {isSpell && (
-        <span className="hand-card-token">
-          <Icon name={continuous ? 'continuousSpell' : 'spell'} size={14} />
-        </span>
-      )}
-
-      <span className="hand-card-plate">
-        <span className="hand-card-plate-name">{card.name}</span>
-      </span>
-      <span className="hand-card-sub">
-        <span className={`battle-sigil ${card.faction}`} />
-        <span>{isSpell ? `${capitalize(card.faction)} spell` : `${capitalize(card.faction)} · ${card.role}`}</span>
-      </span>
-      <span className="hand-card-ability">{card.abilities[0]?.text ?? 'No ability.'}</span>
-
+      <CollectibleCard cardId={card.id} mode="battle" animated={false} />
       <button
         type="button"
         className="hand-card-inspect"
-        aria-label="Inspect card"
+        aria-label={`Inspect ${card.name}`}
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
           onInspect();
         }}
       >
-        <Icon name="help" size={12} />
+        <Icon name="help" size={14} />
       </button>
     </div>
   );

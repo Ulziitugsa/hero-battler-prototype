@@ -1,6 +1,7 @@
 import type { SpellZoneInstance, Side } from '../game/types';
 import { getCard } from '../game/cards';
 import { Icon } from './Icon';
+import { cardEffectSummary } from '../game/cards/effectText';
 import type { ChitVisual } from './animation/chitEffects';
 
 /**
@@ -16,6 +17,7 @@ export function SpellZoneChit({ spell, side, anim, disabled, onClick }: { spell:
   const mine = side === 'player';
   const continuous = card.spellKind === 'CONTINUOUS';
   const ready = !continuous && mine; // a staged one-time Spell, ready to resolve on Fight
+  const summary = cardEffectSummary(card);
 
   return (
     <button
@@ -23,7 +25,7 @@ export function SpellZoneChit({ spell, side, anim, disabled, onClick }: { spell:
       className={`zone-card spell-zone-card ${mine ? 'mine' : 'theirs'} ${continuous ? 'clamped' : 'floating'} ${anim?.className ?? ''}`}
       onClick={onClick}
       disabled={disabled}
-      aria-label={continuous ? `${card.name}, Continuous` : `${card.name}, staged`}
+      aria-label={`${card.name}, ${continuous ? 'Continuous' : 'staged'}${summary ? `: ${summary}` : ''}`}
     >
       {continuous && (
         <>
@@ -36,13 +38,13 @@ export function SpellZoneChit({ spell, side, anim, disabled, onClick }: { spell:
         {continuous && <span className="spell-rune-ring" />}
       </span>
       {ready && <span className="zone-card-ready">Ready</span>}
-      {card.boardText ? (
+      {summary ? (
         <span className="zone-card-footer">
           <span className="zone-card-name">
             <Icon name={continuous ? 'continuousSpell' : 'spell'} size={11} />
             {spell.shortName}
           </span>
-          <span className="zone-card-effect">{card.boardText}</span>
+          <span className="zone-card-effect">{summary}</span>
         </span>
       ) : (
         <span className="zone-card-name bare">

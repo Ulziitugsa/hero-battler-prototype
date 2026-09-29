@@ -1,0 +1,103 @@
+/* Card Inspect (CardDetail.tsx) and its sections, also reused by the Collection sheet. */
+
+.card-inspect {
+  position: relative;
+  width: min(420px, calc(100vw - 20px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  padding: 18px 18px 22px;
+  background: linear-gradient(180deg, #102030, #0b1620) !important;
+  border: 1px solid rgba(160, 172, 131, 0.45) !important;
+  border-radius: 10px !important;
+  color: #efe6cf;
+  font-family: var(--font, system-ui, sans-serif);
+}
+.ci-close {
+  position: sticky;
+  z-index: 6;
+  top: 0;
+  float: right;
+  width: 44px;
+  height: 44px;
+  margin: -6px -6px 0 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(160, 172, 131, 0.45);
+  border-radius: 50%;
+  background: #0d1b25;
+  color: #ebc989;
+}
+.ci-card { width: min(236px, 62vw); margin: 4px auto 16px; }
+.ci-battle .ci-card,
+.ci-opponent .ci-card { width: min(190px, 50vw); }
+
+.ci-header { text-align: center; }
+.ci-header h2 { margin: 0 0 8px; color: #fbeccb; font: 400 25px/1.15 var(--px-font-display, Georgia, serif); }
+.ci-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.ci-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 3px 10px;
+  border: 1px solid rgba(214, 196, 150, 0.28);
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #ddd2b9;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.ci-pill.rarity.r-rare { color: #a9d3f5; }
+.ci-pill.rarity.r-epic { color: #d7b3f6; }
+.ci-pill.rarity.r-legendary { color: #f5d489; border-color: rgba(245, 212, 137, 0.5); }
+.ci-traits { margin: 8px 0 0; color: #98a39a; font-size: 11.5px; letter-spacing: 0.04em; }
+
+.ci-heading { margin: 0 0 8px; color: #e8c877; font: 800 11px/1 var(--font, sans-serif); letter-spacing: 0.12em; text-transform: uppercase; }
+
+.ci-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+.ci-stat {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(214, 196, 150, 0.3);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #172b3a, #0d1a24);
+}
+.ci-stat > svg { flex: 0 0 auto; margin-top: 2px; }
+.ci-stat.atk > svg { color: #f0c46a; }
+.ci-stat.hp > svg { color: #ec7b86; }
+.ci-stat strong { display: block; color: #fff4d8; font: 800 22px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; }
+.ci-stat strong small { color: #c9c0a8; font-size: 11px; letter-spacing: 0.08em; }
+.ci-stat p { margin: 5px 0 0; color: #b9b19c; font-size: 11.5px; line-height: 1.35; }
+
+.ci-effects,
+.ci-collection,
+.ci-lore { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(214, 196, 150, 0.16); }
+.ci-effect { padding: 10px 12px; border-radius: 8px; background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(214, 196, 150, 0.14); }
+.ci-effect + .ci-effect { margin-top: 8px; }
+.ci-effect-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 5px; }
+.ci-timing { color: #f2cf7e; font: 800 11px/1.3 var(--font, sans-serif); letter-spacing: 0.1em; text-transform: uppercase; }
+.ci-tag { padding: 1px 7px; border-radius: 99px; background: rgba(143, 182, 222, 0.15); color: #a9c9e8; font-size: 10.5px; font-weight: 700; }
+.ci-tag.mastery { background: rgba(242, 207, 126, 0.14); color: #f2cf7e; }
+.ci-effect p { margin: 0; color: #f1e8d3; font-size: 15px; line-height: 1.42; }
+.ci-effect-none { margin: 0; color: #a79f8c; font-style: italic; }
+.ci-keywords { margin: 10px 0 0; display: grid; gap: 6px; }
+.ci-keywords div { display: flex; gap: 8px; font-size: 12px; line-height: 1.35; }
+.ci-keywords dt { flex: 0 0 auto; color: #d6c9a8; font-weight: 800; }
+.ci-keywords dd { margin: 0; color: #a9a391; }
+
+.ci-collection dl { margin: 0; display: grid; gap: 1px; border-radius: 8px; overflow: hidden; }
+.ci-collection dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 12px; background: rgba(255, 255, 255, 0.035); font-size: 13px; }
+.ci-collection dt { color: #a9a391; }
+.ci-collection dd { margin: 0; color: #f1e8d3; font-weight: 700; text-align: right; }
+
+.ci-lore blockquote { margin: 0 0 8px; color: #eee0c4; font: italic 15px/1.55 var(--px-font-display, Georgia, serif); }
+.ci-lore p { margin: 0; color: #b8ae96; font-size: 12.5px; line-height: 1.65; }
+.ci-stat p b { color: #e9dfc6; font-weight: 700; }
+
+/* Collection sheet: the inspect face replaces the old portrait window. */
+.hr-sheet .hr-sheet-frame.hr-sheet-card { width: min(60vw, 250px); max-width: none; margin: 0 auto; padding: 0; overflow: visible; border: 0 !important; outline: 0; border-radius: 0; background: transparent !important; box-shadow: none !important; filter: none; }
+.hr-sheet .ci-stats { max-width: 420px; margin: 14px auto 0; }
+.hr-sheet .ci-effects { max-width: 420px; margin-inline: auto; }
+.hr-card.hr-card-face { border-radius: 6px; }

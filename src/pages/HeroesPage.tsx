@@ -1,9 +1,6 @@
-import { CardArtwork } from '../components/CardArtwork';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardDefinition, Faction, Rarity } from '../game/types';
-import { TRIGGER_LABEL } from '../game/types';
 import { getCard } from '../game/cards';
-import { cardArtUrl } from '../game/cards/art';
 import { PLAYTEST_ROSTER } from '../game/cards/roster';
 import { listDeckOptions } from '../game/engine/deckOptions';
 import { loadPreferences } from '../game/engine/preferences';
@@ -13,7 +10,6 @@ import { useCollection } from '../game/collection/useCollection';
 import { acquisitionSummary, getCardAcquisitionSources } from '../game/collection/acquisition';
 import { useAscension } from '../game/ascension/useAscension';
 import { getAscensionRank } from '../game/ascension/store';
-import { ascensionNumeral } from '../game/ascension/ascend';
 import { ascensionAddedAbilities, effectiveAbilities } from '../game/ascension/effective';
 import { AscensionPanel } from './heroes/AscensionPanel';
 import { HeroLevelPanel } from './heroes/HeroLevelPanel';
@@ -24,8 +20,8 @@ import { track } from '../analytics/track';
 import { useDialogFocus } from '../components/useDialogFocus';
 import { getAscensionStatus } from '../game/ascension/ascend';
 import { rosterPowerForHero } from '../game/heroLevel/rosterPower';
-import { CardStatPair } from '../components/CardStatPair';
-import { cardStatsPreviewEnabled } from '../game/cards/cardStatsPreview';
+import { CollectibleCard } from '../components/CollectibleCard';
+import { CardEffectList, CardStatsPanel } from '../components/card/CardInspectSections';
 import { useHeroLevel } from '../game/heroLevel/useHeroLevel';
 import { displayRole, emptyCopy, FACTION_LABEL, FACTION_ORDER, filterHeroes, isFiltered, scopeOf, SORT_LABEL, tally, type HeroFilters, type OwnedFilter, type SortMode } from './heroes/collection';
 import '../styles/heroes.css';
@@ -42,12 +38,6 @@ import '../styles/heroes.css';
 
 const HERO_IDS: string[] = PLAYTEST_ROSTER.filter((id) => getCard(id).type === 'hero');
 const HEROES: CardDefinition[] = HERO_IDS.map(getCard);
-
-/** Ability text often opens with its own trigger ("On Play: ..."); the sheet already headlines the trigger, so drop the repeat. */
-function ruleText(text: string, trigger: string): string {
-  const m = text.match(/^([^:]{1,24}):\s+(.+)$/s);
-  return m && m[1].toLowerCase() === trigger.toLowerCase() ? m[2].charAt(0).toUpperCase() + m[2].slice(1) : text;
-}
 
 /** One quiet line: where the card comes from. Parked / unobtainable cards say so plainly rather than promising a stage. */
 function sourceLine(cardId: string, owned: boolean): string {
@@ -69,47 +59,10 @@ function findDeckFor(cardId: string): string | null {
   return decks.find((d) => d.cardIds.includes(cardId))?.label ?? null;
 }
 
-/** Card art with the existing fallback: real art when the card has it, otherwise a faction-tinted field with a large sigil. Missing cards get a desaturating veil either way. */
-function HeroArt({ card, owned, large }: { card: CardDefinition; owned: boolean; large?: boolean }) {
-  const url = cardArtUrl(card.id);
-  return (
-    <span className={`hr-art ${card.faction} ${large ? 'large' : ''} ${owned ? '' : 'veiled'} ${url ? 'has-img' : 'fallback'}`}>
-      {url ? (
-        <CardArtwork cardId={card.id} />
-      ) : (
-        <span className="hr-art-emblem" aria-hidden="true">
-          <Sigil faction={card.faction} size="lg" />
-        </span>
-      )}
-      {!owned && <span className="hr-art-veil" aria-hidden="true" />}
-    </span>
-  );
-}
-
 function HeroTile({ card, owned, count, rank, onClick }: { card: CardDefinition; owned: boolean; count: number; rank: number; onClick: () => void }) {
   return (
-    <button type="button" className={`hr-card r-${card.rarity} ${owned ? '' : 'missing'}`} onClick={onClick} aria-label={`${card.name}, ${RARITY_LABEL[card.rarity]}, ${owned ? 'owned' : 'not collected'}`}>
-      {card.rarity === 'legendary' && <span className="hr-crown" aria-hidden="true" />}
-      <span className="hr-card-frame">
-        <span className="hr-card-window">
-          <HeroArt card={card} owned={owned} />
-          <span className="hr-card-gems">
-            <Gems rarity={card.rarity} dim={!owned} />
-          </span>
-          {!owned && (
-            <span className="hr-lock" aria-hidden="true">
-              <Icon name="lock" size={13} />
-            </span>
-          )}
-          {count > 1 && <span className="hr-copies">×{count}</span>}
-          {owned && rank > 0 && <span className="asc-mark" title="Card Mastery">{ascensionNumeral(rank)}</span>}
-          {cardStatsPreviewEnabled() ? <span className="hr-card-stats"><CardStatPair card={card} compact /></span> : <span className="hr-power">{card.power}</span>}
-        </span>
-        <span className="hr-card-plate">
-          <Sigil faction={card.faction} size="sm" />
-          <span className="hr-card-name">{card.name}</span>
-        </span>
-      </span>
+    <button type="button" className={`hr-card hr-card-face r-${card.rarity} ${owned ? '' : 'missing'}`} onClick={onClick} aria-label={`${card.name}, ${RARITY_LABEL[card.rarity]}, ${owned ? 'owned' : 'not collected'}. Inspect.`}>
+      <CollectibleCard cardId={card.id} mode="standard" owned={owned} copies={count} masteryRank={owned ? rank : 0} animated={false} />
     </button>
   );
 }
@@ -167,16 +120,8 @@ function HeroDetail({
       <div ref={dialogRef} className={`hr-sheet r-${card.rarity} ${owned ? '' : 'missing'}`} role="dialog" aria-modal="true" aria-label={card.name} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="hr-sheet-scroll" ref={bodyRef}>
           <div className="hr-sheet-stage">
-            <div className="hr-sheet-frame">
-              <span className="hr-sheet-window">
-                <HeroArt card={card} owned={owned} large />
-                <span className="hr-power big">{card.power}</span>
-                {!owned && (
-                  <span className="hr-lock big" aria-hidden="true">
-                    <Icon name="lock" size={16} />
-                  </span>
-                )}
-              </span>
+            <div className="hr-sheet-frame hr-sheet-card">
+              <CollectibleCard cardId={card.id} mode="inspect" owned={owned} masteryRank={rank} />
             </div>
             {onPrev && (
               <button type="button" className="hr-sheet-nav prev" onClick={onPrev} aria-label="Previous hero">
@@ -211,7 +156,7 @@ function HeroDetail({
                 {[`${FACTION_LABEL[card.faction]} Unit`, displayRole(card)].filter(Boolean).join(' · ')}
               </span>
             </div>
-            {cardStatsPreviewEnabled() ? <div className="hr-card-stat-summary"><CardStatPair card={card} /><small>LP Contribution adds to starting Life. These frame values are a local design preview.</small></div> : <div className="hr-battle-power-note"><Icon name="battle" size={13} /><span>Legacy lane value {card.power} · production combat is still on the existing rules</span>{owned && heroRosterPower !== null && <strong>Deck Strength {heroRosterPower}</strong>}</div>}
+            <CardStatsPanel card={card} />
 
             {owned && <AscensionPanel card={card} priority={primaryProgression === 'mastery'} />}
             {owned && <details className="legacy-growth"><summary>Legacy Level · saved at {getHeroLevel(card.id, levels)}</summary><p>Earlier Level progress is preserved while the bounded card progression migration is designed.</p><HeroLevelPanel card={card} /></details>}
@@ -231,18 +176,7 @@ function HeroDetail({
               </div>
             )}
 
-            <div className="hr-rules">
-              {abilities.length === 0 && <p className="hr-rules-none">No ability — plain steel.</p>}
-              {abilities.map((a, i) => (
-                <div className="hr-rule" key={i}>
-                  <span className="hr-rule-trigger">
-                    {TRIGGER_LABEL[a.trigger]}
-                    {fromAscension.has(a) && <span className="asc-rule-tag">Ascension</span>}
-                  </span>
-                  <span className="hr-rule-text">{ruleText(a.text, TRIGGER_LABEL[a.trigger])}</span>
-                </div>
-              ))}
-            </div>
+            <CardEffectList card={card} abilities={abilities} masteryAdded={fromAscension} />
 
             {deckLabel && (
               <button type="button" className="hr-deck-link" onClick={onOpenDecks}>

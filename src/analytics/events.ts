@@ -49,6 +49,8 @@ export type AnalyticsEventName =
   | 'summon_duplicate_progression_shown'
   | 'legendary_pulled'
   | 'prototype_box_opened'
+  // Card Inspect (context: collection / deck / battle / opponent / pack / shop / other)
+  | 'card_inspect_opened'
   // Idle rewards
   | 'idle_reward_available'
   | 'idle_reward_claimed'

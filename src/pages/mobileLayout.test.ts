@@ -67,10 +67,11 @@ describe('Heroes grid', () => {
   it('is three columns, matching Decks density', () => {
     expect(css('heroes.css')).toMatch(/\.hr-grid \{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
   });
-  it('the tile shows the name only - no role/faction wording line', () => {
+  it('the tile is the shared standard card face - no separate role/faction wording line', () => {
     const tile = heroesPageSrc.slice(heroesPageSrc.indexOf('function HeroTile'), heroesPageSrc.indexOf('function HeroDetail'));
     expect(tile).not.toContain('hr-card-role');
-    expect(tile).toContain('hr-card-name');
+    expect(tile).toContain('<CollectibleCard');
+    expect(tile).toContain('mode="standard"');
   });
 });
 
