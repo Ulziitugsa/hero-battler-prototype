@@ -33,11 +33,14 @@ import { MASTERIES, rankNumeral } from '../game/mastery/definitions';
 import { MAX_LEVEL, xpToNextLevel } from '../game/progression/config';
 import { CardArtwork } from '../components/CardArtwork';
 import { getDailyShopGiftState, subscribeDailyShopGift } from '../game/shop/dailyGift';
+import { HomeEventBanner } from '../components/HomeEventBanner';
 
 interface HomeProps {
   onOpenBattleSetup: () => void; onOpenCampaign: () => void; onOpenDecks: () => void;
   onOpenHeroes: () => void; onOpenProfile: () => void; onOpenShop: () => void; onOpenSummon: () => void;
   onOpenFriendly: () => void; onOpenLanterns: () => void; onOpenPixelPreview: () => void;
+  /** Opens the live event page; Home shows its single event banner only while an event is running. */
+  onOpenEvent?: () => void;
 }
 
 function claimableCount(state: MissionsState, period: 'daily' | 'weekly'): number {
@@ -172,6 +175,8 @@ export function HomePage(props: HomeProps) {
     <section className="home-secondary-actions" aria-label="Other battles"><button onClick={props.onOpenBattleSetup}><span aria-hidden="true">⚔</span><strong>Quick Battle</strong><small>Practice</small></button><span className="home-action-divider" aria-hidden="true"/><button onClick={props.onOpenFriendly}><span aria-hidden="true">◇</span><strong>Friendly Battle</strong><small>Play with a friend</small></button></section>
 
     <button className="home-formation" onClick={props.onOpenDecks}><span className="home-formation-icon" aria-hidden="true">▤</span><span><small>ACTIVE DECK</small><strong>{deck.label}</strong></span><span className="home-formation-meta">{deck.cardIds.length} cards · Edit →</span></button>
+
+    {props.onOpenEvent && <HomeEventBanner onOpen={props.onOpenEvent} />}
 
     <section className="home-reward-rail" aria-label="Rewards and destinations">
       <button className={dailyReady + weeklyReady > 0 ? 'is-ready' : 'is-passive'} onClick={() => setMissionsOpen(true)}><span className="home-rail-icon">✦</span><strong>Missions</strong><small>{dailyReady + weeklyReady ? `${dailyReady + weeklyReady} ready` : 'Daily · Weekly'}</small>{dailyReady + weeklyReady > 0 && <i>READY</i>}</button>

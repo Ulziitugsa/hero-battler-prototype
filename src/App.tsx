@@ -11,6 +11,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { ShopPage } from './pages/ShopPage';
 import { SummonPage } from './pages/SummonPage';
 import { LanternsPage } from './pages/LanternsPage';
+import { EventPage } from './pages/EventPage';
 import { completeLanternTrial } from './game/story/lanterns';
 import { CampaignPage } from './pages/campaign/CampaignPage';
 import { AppShell, type TabId } from './components/AppShell';
@@ -53,6 +54,7 @@ function GameApp() {
   const [campaignOnMap, setCampaignOnMap] = useState(false);
   const [showSummon, setShowSummon] = useState(false);
   const [showLanterns, setShowLanterns] = useState(false);
+  const [showEvent, setShowEvent] = useState(false);
   const [lanternTrialId, setLanternTrialId] = useState<string | null>(null);
   const [storySaveFailed, setStorySaveFailed] = useState(false);
   const [storyResult, setStoryResult] = useState<string | null>(null);
@@ -95,6 +97,7 @@ function GameApp() {
     if (showCampaign) { setShowCampaign(false); setCampaignOnMap(false); return; }
     if (showSummon) { setShowSummon(false); return; }
     if (showLanterns) { setShowLanterns(false); return; }
+    if (showEvent) { setShowEvent(false); return; }
     if (tab !== 'home') { setTab('home'); return; }
     void NativeApp.exitApp();
   };
@@ -124,6 +127,7 @@ function GameApp() {
         playerHeroLevels={battleSetup.heroLevels}
         enemyHeroLevels={battleSetup.enemyHeroLevels}
         combatModel={battleSetup.combatModel}
+        battleMode={battleSetup.rankedOpponentLabel ? 'ranked' : campaignNodeId ? 'campaign' : lanternTrialId ? 'story' : 'quick'}
         onMatchEnd={
           battleSetup.rankedOpponentLabel
             ? (status) => {
@@ -189,6 +193,8 @@ function GameApp() {
 
   // Summon, like Campaign, is a full-screen destination reached from Home - the player picks what to open in Heroes/Decks afterwards.
   if (showSummon) return <SummonPage onBack={() => setShowSummon(false)} />;
+  // The live event page, like Summon, is a full-screen destination reached from Home's event banner.
+  if (showEvent) return <EventPage onBack={() => setShowEvent(false)} onOpenShop={() => { setShowEvent(false); setTab('shop'); }} />;
   if (showLanterns) return <><LanternsPage result={storyResult} initialTrialId={lastStoryTrial} onBack={() => setShowLanterns(false)} onFight={(id, deck, label) => {
     const active = getActiveDeck();
     setStorySaveFailed(false);
@@ -229,6 +235,7 @@ function GameApp() {
         onOpenShop={() => setTab('shop')}
         onOpenSummon={() => setShowSummon(true)}
         onOpenLanterns={() => setShowLanterns(true)}
+        onOpenEvent={() => setShowEvent(true)}
         onOpenPixelPreview={() => setShowPixelPreview(true)}
       />
     );

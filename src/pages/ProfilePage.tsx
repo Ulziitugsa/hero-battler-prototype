@@ -151,7 +151,7 @@ export function ProfilePage({ onOpenStats, onOpenCombatLab }: { onOpenStats: () 
             const normallyUnlocked = backgroundIsUnlocked(background, clearedNodes);
             const unlocked = normallyUnlocked || testBackgrounds;
             const selected = selectedBackgroundId === background.id;
-            const unlockText = background.unlockType === 'future' ? 'Future cosmetic reward' : background.unlockType === 'progression' ? `Clear ${background.clearedNodesRequired} Campaign stages` : 'Available';
+            const unlockText = background.unlockType === 'future' ? 'Future cosmetic reward' : background.unlockType === 'event' ? `${background.eventName ?? 'Event'} reward` : background.unlockType === 'progression' ? `Clear ${background.clearedNodesRequired} Campaign stages` : 'Available';
             return <button type="button" key={background.id} className={`pf-background-option ${selected ? 'selected' : ''} ${unlocked ? '' : 'locked'}`} disabled={!unlocked} aria-pressed={selected} onClick={() => selectBackground(background.id, clearedNodes, testBackgrounds)}>
               <span className="pf-background-thumb" style={{ backgroundImage: `url("${background.asset}")` }} />
               <span className="pf-background-option-copy"><strong>{background.name}</strong><small>{selected ? 'Selected' : testBackgrounds && !normallyUnlocked ? `Available for testing · normally ${unlockText.toLowerCase()}` : unlockText}</small></span>
