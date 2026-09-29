@@ -36,7 +36,8 @@ import '../styles/heroes.css';
 // cards to it and this screen re-renders the moment that happens. Filtering / sorting / empty copy live
 // in ./heroes/collection.ts and take the owned set as an argument.
 
-const HERO_IDS: string[] = PLAYTEST_ROSTER.filter((id) => getCard(id).type === 'hero');
+// Every collectible card, Units and Spells alike: Spells are pulled from Boxes and owned as copies too.
+const HERO_IDS: string[] = [...PLAYTEST_ROSTER];
 const HEROES: CardDefinition[] = HERO_IDS.map(getCard);
 
 /** One quiet line: where the card comes from. Parked / unobtainable cards say so plainly rather than promising a stage. */
@@ -152,13 +153,13 @@ function HeroDetail({
             <div className="hr-sheet-line faction">
               <Sigil faction={card.faction} size="md" />
               <span>
-                {[`${FACTION_LABEL[card.faction]} Unit`, displayRole(card)].filter(Boolean).join(' · ')}
+                {card.type === 'hero' ? [`${FACTION_LABEL[card.faction]} Unit`, displayRole(card)].filter(Boolean).join(' · ') : `${FACTION_LABEL[card.faction]} Spell · ${card.spellKind === 'CONTINUOUS' ? 'Continuous' : 'One-time'}`}
               </span>
             </div>
             <CardStatsPanel card={card} />
 
             {owned && <AscensionPanel card={card} priority={primaryProgression === 'mastery'} />}
-            {owned && <details className="legacy-growth"><summary>Legacy Level · saved at {getHeroLevel(card.id, levels)}</summary><p>Earlier Level progress is preserved while the bounded card progression migration is designed.</p><HeroLevelPanel card={card} /></details>}
+            {owned && card.type === 'hero' && <details className="legacy-growth"><summary>Legacy Level · saved at {getHeroLevel(card.id, levels)}</summary><p>Earlier Level progress is preserved while the bounded card progression migration is designed.</p><HeroLevelPanel card={card} /></details>}
 
             <div className={`hr-source ${owned ? '' : 'missing'}`}>
               <Icon name={owned ? 'check' : 'lock'} size={13} />

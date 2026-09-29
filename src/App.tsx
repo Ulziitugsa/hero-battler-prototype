@@ -27,6 +27,7 @@ import { isDebugPanelEnabled, track } from './analytics/track';
 import './styles/moonwaterGame.css';
 import { installLifecycleBridge } from './platform/lifecycle';
 import { registerBackButton } from './platform/backButton';
+import { runBackInterceptor } from './platform/backInterceptors';
 import { configureStatusBar } from './platform/statusBar';
 import { App as NativeApp } from '@capacitor/app';
 import './styles/moonwaterPolish.css';
@@ -105,6 +106,8 @@ function GameApp() {
     if (showSummon) { setShowSummon(false); return; }
     if (showLanterns) { setShowLanterns(false); return; }
     if (showEvent) { setShowEvent(false); return; }
+    // A tab's own sub-view (Shop → Box / Structure Deck) steps back inside the tab first.
+    if (runBackInterceptor()) return;
     if (tab !== 'home') { setTab('home'); return; }
     void NativeApp.exitApp();
   };

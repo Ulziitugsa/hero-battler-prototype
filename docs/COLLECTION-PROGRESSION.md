@@ -75,6 +75,7 @@ The costs for II–IV are exactly today's `ASCENSION_DUPLICATE_COST` (1, 2, 3), 
 
 ### Bounds
 
+- *Superseded by the simulation:* [CARD-COMBAT-DESIGN.md](CARD-COMBAT-DESIGN.md) section 7 recommends HP Contribution only (+5/10/15/20% at II–V) with no ATK step, because any ATK step wins same-card clashes outright. The original proposal follows.
 - Numeric steps total about **+10% ATK and +10% HP Contribution at Mastery V**, never a multiplier. With the preview numbers in CARD-COMBAT-DESIGN.md (ATK 85–145), that is roughly +8 to +15 ATK. The exact values are a balance-review decision.
 - Effect refinements follow the existing Ascension rule: they add reach, reliability or a condition to the card's own identity, never a new archetype.
 - The six existing paths keep their authored content. Today every one of their ranks is an effect refinement, which is acceptable: those cards simply have no stat step until the combat migration. New paths use the template above.
