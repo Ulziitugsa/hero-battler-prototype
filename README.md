@@ -20,7 +20,7 @@ Run `npm run dev`. On Home, choose **Lanterns of the Lost** for the story or **S
 
 Collection, currency, and progression remain local. Private multiplayer is available once Supabase and Vercel are configured; checkout and permanent accounts are not implemented. Existing saves and previous art files are retained.
 
-The current prototype also includes a test-only Shop with a daily Gold gift, attention marks only for ready value, optional pixel-art Home backgrounds, local AI Ranked matches, and a developer-only Combat V2 lab. See [Ranked mode](docs/RANKED-MODE.md), [the Combat V2 design record](docs/COMBAT-V2-DESIGN.md), and [native/mobile notes](docs/NATIVE-MOBILE.md). Combat V2 remains isolated from live match rules.
+The current prototype also includes a test-only Shop with a daily Gold gift, attention marks only for ready value, optional pixel-art Home backgrounds, local AI Ranked matches, and a developer-only Combat V2 lab. See [Ranked mode](docs/RANKED-MODE.md), [the card combat design](docs/CARD-COMBAT-DESIGN.md) (authoritative), [the historical Combat V2 record](docs/COMBAT-V2-DESIGN.md), and [native/mobile notes](docs/NATIVE-MOBILE.md). Combat V2 remains isolated from live match rules.
 
 ## Historical phase notes
 

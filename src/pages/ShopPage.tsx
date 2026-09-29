@@ -26,6 +26,7 @@ import { STRUCTURE_DECKS, getStructureDeck } from '../game/structureDecks/defini
 import { getStructureDeckState, structureDeckPurchases, subscribeStructureDecks } from '../game/structureDecks/store';
 import { BoxDetail } from './shop/BoxDetail';
 import { StructureDeckDetail } from './shop/StructureDeckDetail';
+import { pushBackInterceptor } from '../platform/backInterceptors';
 import '../styles/shop.css';
 
 /** Which Shop surface is showing. Box and Structure Deck pages are addressed by their stable product ids. */
@@ -73,6 +74,8 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
   const [pending, setPending] = useState<PendingPurchase | null>(null);
   const [notice, setNotice] = useState('');
   const [view, setView] = useState<ShopView>(initialView);
+  // Android Back from a Box or Structure Deck returns to the Shop, not Home.
+  useEffect(() => (view.kind === 'main' ? undefined : pushBackInterceptor(() => setView({ kind: 'main' }))), [view.kind]);
   const structurePurchases = useSyncExternalStore(subscribeStructureDecks, getStructureDeckState, getStructureDeckState);
   const seenOffers = useRef(new Set<OfferId>());
   const prices = getConfig().offers.priceLabels;

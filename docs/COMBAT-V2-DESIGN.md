@@ -1,4 +1,6 @@
-# Combat V2 experiment (superseded)
+# Combat V2 experiment (historical, superseded)
+
+> **Historical / experimental.** Superseded for future core-combat direction by [CARD-COMBAT-DESIGN.md](CARD-COMBAT-DESIGN.md), which is the authoritative design. Moonwater Units have ATK and an HP Contribution to the player's Starting HP, never per-Unit HP. This record and the `?combat=v2` lab are kept for reference and are not deleted.
 
 Status: **not promoted**. This document records a historical experiment in per-unit HP and combat stats. Normal modes use the legacy resolver; local development may opt into the experiment with `?combat=v2`. The proposed rules are not production rules. The current card-combat direction and simulation brief live in [CARD-COMBAT-DESIGN.md](CARD-COMBAT-DESIGN.md).
 
