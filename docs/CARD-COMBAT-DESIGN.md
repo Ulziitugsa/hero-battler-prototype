@@ -17,12 +17,12 @@ The curated `PLAYTEST_ROSTER` contains **52 cards: 31 units and 21 spells**, acr
 
 Current card records use `type: 'hero' | 'spell'`, `power` on units, `spellKind` on spells, rarity, faction, tags, data-driven triggered abilities, and player-facing ability text. The term **Hero** survives in internal type names, storage keys, event names, and code APIs. The visible navigation and primary Collection surfaces now say **Cards**. Keep serialized IDs, analytics/event names, and save keys stable during future terminology work; update user-facing copy in small, auditable passes.
 
-The shared `CardDetail` now presents a full inspect surface with card identity, rarity, faction, effect trigger labels and text, ownership, acquisition, and existing duplicate-funded progression. Unit faces can show the experimental stat pair behind the local `?cardPreview=1` flag. The preview uses the existing card art and does not change battle resolution. The numbers are a translation for layout review only:
+The shared `CardDetail` now presents a full inspect surface with card identity, rarity, faction, effect trigger labels and text, ownership, acquisition, and existing duplicate-funded progression. Every Unit face now prints **ATK** and **HP Contribution** (see [design/CARD-FACE.md](design/CARD-FACE.md)); the old `?cardPreview=1` flag only gates a few page-level experiments. The faces do not change battle resolution. The numbers are a translation of Power, not tuned values:
 
 ```text
 ATK = 40 + 15 × current Power
-LP  = max(45, 145 − 10 × base Power)
-Deck Life = sum of LP for unit cards in the deck
+HP Contribution = max(45, 145 − 10 × base Power)
+Starting HP (card model) = sum of HP Contribution for unit cards in the deck
 ```
 
 This yields ATK values 85, 100, 115, 130, 145 and LP values 115, 105, 95, 85, 75 for Power 3–7. Buffed Power changes preview ATK; LP is fixed by base Power. Do not interpret these as tuned or approved production values.
@@ -83,7 +83,7 @@ This is a development proof of concept, not a live offer. It displays the exact 
 - Keep current card IDs, collection copy counts, deck definitions, `skyloom:*` storage keys, and historical event names intact.
 - Do not rewrite historical Embervale/Skyloom provenance or save-compatibility identifiers.
 - Keep the current resolver as the default. Per-unit HP Combat V2 stays experimental and is not promoted by this card-frame work.
-- Keep `?cardPreview=1` and the finite Box panel development-only. Do not treat their preview values or pools as production economy data.
+- Keep the finite Box panel development-only. Card-face ATK / HP Contribution values are presentation over the current Power bands, not production economy or balance data.
 - Before replacing Hero Level/Ascension behavior, implement an idempotent, versioned migration and tests for old saves, missing fields, max-rank cards, duplicate inventory, and playable decks.
 
 ## Current work boundaries
