@@ -29,11 +29,7 @@ This yields ATK values 85, 100, 115, 130, 145 and LP values 115, 105, 95, 85, 75
 
 ## Combat prototype and simulation
 
-Run `node scripts/simulate-card-combat.mjs` to load the live curated roster, starter decks, and archetype decks through Vite and run a deterministic 100-seed matchup sweep. The prototype uses three lanes, simultaneous clashes, ATK direct damage, and deck starting Life equal to the unit LP sum. It reports deck shape and Life as well as matchup results.
-
-The current run gives starter decks 11 units / 4 spells and 1,085–1,145 Life. The deliberately constructed spell-heavy example is 8 units / 7 spells and 840 Life. Aggressive and defensive 12-unit examples have 1,080 and 1,310 Life respectively. These are formula outputs, not recommendations.
-
-The baseline excludes spell effects and all triggered unit effects. Its simple lane refill/attrition loop also generated extreme matchup outcomes (many 100–0 sweeps), making its win rates unsuitable for balance decisions. This is a failure signal for the baseline, not evidence that one strategy is balanced or dominant. Use the script for reproducible range checks only, then replace the match loop with a rule-complete prototype before using win rate, time-to-lethal, or effect power to tune values.
+`node scripts/simulate-card-combat.mjs` now runs a rule-complete, seeded card-combat simulator (`src/game/cardSim/`) that models every live effect, simultaneous lane clashes, ATK direct damage and Starting HP as the sum of Unit HP Contribution. It is a study tool only and is not wired into any game mode. Methods, reproduction commands, results and the recommended baseline are in [CARD-COMBAT-SIMULATION.md](CARD-COMBAT-SIMULATION.md). The earlier attrition-only loop and its 100–0 sweeps are gone.
 
 ### Rules to compare in the next prototype
 

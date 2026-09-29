@@ -1,117 +1,202 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { createServer } from 'vite';
 
-// Design-only model for comparing deck shapes under the proposed ATK/LP card frame.
-// No production resolver or saved player data is modified by this script.
+// Card-combat simulation runner (docs/CARD-COMBAT-SIMULATION.md). Design tool only: it loads the live card
+// data and the simulator in src/game/cardSim through Vite, runs every experiment with fixed seeds, and writes
+// raw tables. Nothing in the game reads these files and no saved player data is touched.
+//
+//   node scripts/simulate-card-combat.mjs                    full run (~10 min), results in ./card-sim-results
+//   node scripts/simulate-card-combat.mjs --out DIR          choose the output folder
+//   node scripts/simulate-card-combat.mjs --games 200        games per deck pair in each matrix (default 200)
+//   node scripts/simulate-card-combat.mjs --quick            small smoke run (~20 s)
+// Same arguments -> byte-identical output.
+
+const args = process.argv.slice(2);
+const flag = (name) => args.includes(name);
+const option = (name, fallback) => {
+  const i = args.indexOf(name);
+  return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
+};
+const quick = flag('--quick');
+const outDir = resolve(option('--out', 'card-sim-results'));
+const pairGames = Number(option('--games', quick ? 12 : 200));
+const controlGames = quick ? 60 : 1000;
+const SEED = 20260929;
+
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
 try {
-  const { PLAYTEST_ROSTER } = await server.ssrLoadModule('/src/game/cards/roster.ts');
-  const { STARTER_DECKS } = await server.ssrLoadModule('/src/game/cards/starterDecks.ts');
-  const { ARCHETYPE_DECKS } = await server.ssrLoadModule('/src/game/cards/archetypeDecks.ts');
-  const { getCard } = await server.ssrLoadModule('/src/game/cards/index.ts');
-  const { cardStatsPreview } = await server.ssrLoadModule('/src/game/cards/cardStatsPreview.ts');
+  const X = await server.ssrLoadModule('/src/game/cardSim/experiments.ts');
+  const E = await server.ssrLoadModule('/src/game/cardSim/engine.ts');
+  const M = await server.ssrLoadModule('/src/game/cardSim/statModels.ts');
+  const D = await server.ssrLoadModule('/src/game/cardSim/decks.ts');
+  mkdirSync(outDir, { recursive: true });
 
-  const unique = [...new Set(PLAYTEST_ROSTER)].map(getCard);
-  const units = unique.filter(card => card.type === 'hero');
-  const spells = unique.filter(card => card.type === 'spell');
-  const stats = card => cardStatsPreview(card);
-  const mean = values => values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
-  const seeded = seed => () => {
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    return seed / 0x100000000;
+  const started = Date.now();
+  const log = (msg) => console.error(`[${((Date.now() - started) / 1000).toFixed(0)}s] ${msg}`);
+  const csv = (name, rows) => {
+    if (rows.length === 0) return;
+    const flat = rows.map((row) => flatten(row));
+    const cols = [...new Set(flat.flatMap((row) => Object.keys(row)))];
+    const cell = (v) => (v === undefined || v === null ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+    writeFileSync(join(outDir, name), [cols.join(','), ...flat.map((row) => cols.map((c) => cell(row[c])).join(','))].join('\n') + '\n');
   };
-  const shuffle = (items, random) => {
-    const copy = [...items];
-    for (let i = copy.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(random() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
+  const flatten = (obj, prefix = '') => {
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (v && typeof v === 'object' && !Array.isArray(v)) Object.assign(out, flatten(v, `${prefix}${k}.`));
+      else out[`${prefix}${k}`] = Array.isArray(v) ? v.join('|') : v;
     }
-    return copy;
+    return out;
   };
-  const select = (cards, count, score) => [...cards].sort((a, b) => score(b) - score(a)).slice(0, count);
-  const repeatTo = (cards, size) => Array.from({ length: size }, (_, i) => cards[i % cards.length]);
-  const spread = (label, unitCount, unitScore, spellScore) => {
-    const chosenUnits = select(units, unitCount, unitScore);
-    const chosenSpells = select(spells, 15 - unitCount, spellScore);
-    return { label, ids: [...repeatTo(chosenUnits, unitCount), ...repeatTo(chosenSpells, 15 - unitCount)].map(card => card.id) };
-  };
-  const atkMean = mean(units.map(card => stats(card).atk));
-  const lpMean = mean(units.map(card => stats(card).lp));
-  const scenarios = [
-    ...Object.entries(STARTER_DECKS).map(([label, ids]) => ({ label: `Starter: ${label}`, ids })),
-    ...Object.entries(ARCHETYPE_DECKS).map(([label, ids]) => ({ label: `Archetype: ${label}`, ids })),
-    spread('Aggressive (12 Units)', 12, card => stats(card).atk, _card => 0),
-    spread('Balanced (12 Units)', 12, card => -Math.abs(stats(card).atk - atkMean) - Math.abs(stats(card).lp - lpMean), _card => 0),
-    spread('Defensive (12 Units)', 12, card => stats(card).lp, _card => 0),
-    spread('Spell-heavy (8 Units)', 8, card => -Math.abs(stats(card).atk - atkMean) - Math.abs(stats(card).lp - lpMean), _card => 1),
+
+  const decks = D.SIM_DECKS;
+  const baseline = M.getStatModel('baseline');
+  // The recommended baseline: stat model H with the spec's clash rules plus one Graveyard return per card.
+  const recommendedModel = baseline;
+  const RECOMMENDED_RULES = { ...E.BASE_RULES, recursionCap: 1 };
+  const summary = { meta: { seed: SEED, pairGames, controlGames, quick, decks: decks.map((d) => ({ id: d.id, label: d.label, pilot: d.pilot, cards: d.cards })) } };
+
+  // 1. Roster stats and deck profiles per model
+  const rosterRows = [];
+  const profileRows = [];
+  const tieChance = [];
+  for (const model of M.STAT_MODELS) {
+    for (const row of X.rosterStats(model)) rosterRows.push({ model: model.id, ...row });
+    profileRows.push(...X.deckProfiles(model));
+    tieChance.push({ model: model.id, printedAtkTieChance: X.rosterTieChance(model) });
+  }
+  csv('roster-stats.csv', rosterRows);
+  csv('deck-profiles.csv', profileRows);
+
+  // 2. Archetype matrix per candidate model (natural pilots)
+  const modelRows = [];
+  const matchupRows = [];
+  const standingRows = [];
+  for (const model of M.STAT_MODELS) {
+    log(`matrix ${model.id}`);
+    const { rows, pooled } = X.runMatrix(model, decks, pairGames, SEED, { includeMirrors: true });
+    matchupRows.push(...rows);
+    const standings = X.deckStandings(rows);
+    for (const s of standings) standingRows.push({ model: model.id, variant: 'base', ...s });
+    const hp = X.deckProfiles(model).map((p) => p.startingHp);
+    const mirrors = rows.filter((r) => r.deckA === r.deckB);
+    const mirrorSeat0 = mirrors.reduce((a, r) => a + r.summary.seat0WinRate * r.summary.games, 0) / Math.max(1, mirrors.reduce((a, r) => a + r.summary.games, 0));
+    const spread = standings.map((s) => s.winShare);
+    const hiLo = rows.find((r) => r.deckA === 'high-rarity' && r.deckB === 'low-rarity');
+    modelRows.push({
+      model: model.id,
+      label: model.label,
+      variant: 'base',
+      startingHpMin: Math.min(...hp),
+      startingHpMax: Math.max(...hp),
+      printedAtkTieChance: X.rosterTieChance(model),
+      mirrorSeat0WinRate: Math.round(mirrorSeat0 * 1000) / 1000,
+      deckWinShareMin: Math.min(...spread),
+      deckWinShareMax: Math.max(...spread),
+      highVsLowRarity: hiLo ? hiLo.summary.winShareA : null,
+      ...X.summarize(pooled),
+    });
+  }
+
+  // 3. Rule and scale variants on stat model H (baseline)
+  const variants = [
+    ['tie-none', { rules: { ...E.BASE_RULES, tie: 'none' } }],
+    ['overflow-on', { rules: { ...E.BASE_RULES, overflow: true } }],
+    ['death-at-0-atk', { rules: { ...E.BASE_RULES, deathAtk: 0 } }],
+    ['direct-75pct', { rules: { ...E.BASE_RULES, directScale: 0.75 } }],
+    ['overflow+recursion-once', { rules: { ...E.BASE_RULES, overflow: true, recursionCap: 1 } }],
+    ['recommended', { rules: RECOMMENDED_RULES, model: recommendedModel }],
+    ['recommended+hp-unit-25', { rules: RECOMMENDED_RULES, model: M.scaledModel(baseline, { hpUnit: 25, suffix: '+hpUnit25' }) }],
+    ['recommended+hp-unit-55', { rules: RECOMMENDED_RULES, model: M.scaledModel(baseline, { hpUnit: 55, suffix: '+hpUnit55' }) }],
+    // Starting HP scale sweep, on the recommended rules
+    ...[0.8, 1.2, 1.33, 1.6].map((k) => [`recommended+hpc-x${k}`, { rules: RECOMMENDED_RULES, model: M.scaledModel(recommendedModel, { hpcScale: k, suffix: `+hpc x${k}` }) }]),
   ];
-
-  function deckInfo(ids) {
-    const cards = ids.map(getCard);
-    const playerUnits = cards.filter(card => card.type === 'hero');
-    const unitStats = playerUnits.map(stats);
-    return {
-      units: playerUnits.length,
-      spells: cards.length - playerUnits.length,
-      deckLife: unitStats.reduce((sum, item) => sum + item.lp, 0),
-      avgAtk: mean(unitStats.map(item => item.atk)),
-      avgLp: mean(unitStats.map(item => item.lp)),
-    };
+  for (const [variant, v] of variants) {
+    log(`variant ${variant}`);
+    const model = v.model ?? baseline;
+    const { rows, pooled } = X.runMatrix(model, decks, pairGames, SEED, { rules: v.rules, variant, includeMirrors: true });
+    matchupRows.push(...rows);
+    const standings = X.deckStandings(rows);
+    for (const s of standings) standingRows.push({ model: model.id, variant, ...s });
+    const hp = X.deckProfiles(model).map((p) => p.startingHp);
+    const spread = standings.map((s) => s.winShare);
+    const hiLo = rows.find((r) => r.deckA === 'high-rarity' && r.deckB === 'low-rarity');
+    modelRows.push({ model: model.id, label: model.label, variant, startingHpMin: Math.min(...hp), startingHpMax: Math.max(...hp), printedAtkTieChance: X.rosterTieChance(model), deckWinShareMin: Math.min(...spread), deckWinShareMax: Math.max(...spread), highVsLowRarity: hiLo ? hiLo.summary.winShareA : null, ...X.summarize(pooled) });
   }
+  csv('model-summary.csv', modelRows);
+  csv('matchups.csv', matchupRows.map((r) => ({ model: r.model, variant: r.variant, deckA: r.deckA, deckB: r.deckB, pilotA: r.pilotA, pilotB: r.pilotB, startHpA: r.startHpA, startHpB: r.startHpB, ...r.summary })));
+  csv('deck-standings.csv', standingRows);
+  summary.models = modelRows;
+  summary.tieChance = tieChance;
 
-  // Simplified three-lane attrition: both players deploy the next unit to each open lane, clashes
-  // resolve simultaneously, surviving units deal their ATK directly each subsequent round. Spells
-  // contribute neither body nor effects in this baseline; their counts are reported separately.
-  function battle(deckA, deckB, seed) {
-    const random = seeded(seed);
-    const a = shuffle(deckA.ids.filter(id => getCard(id).type === 'hero'), random).map(id => ({ ...stats(getCard(id)), id }));
-    const b = shuffle(deckB.ids.filter(id => getCard(id).type === 'hero'), random).map(id => ({ ...stats(getCard(id)), id }));
-    let lifeA = a.reduce((sum, unit) => sum + unit.lp, 0);
-    let lifeB = b.reduce((sum, unit) => sum + unit.lp, 0);
-    const lanes = Array.from({ length: 3 }, () => ({ a: null, b: null }));
-    let nextA = 0;
-    let nextB = 0;
-    for (let round = 1; round <= 120; round += 1) {
-      for (const lane of lanes) {
-        if (!lane.a && nextA < a.length) lane.a = a[nextA++];
-        if (!lane.b && nextB < b.length) lane.b = b[nextB++];
+  // 4. Controlled experiments on model H under three rule sets: the spec's rules, the live overflow rule, and the recommended baseline
+  const RULESETS = [['no-overflow', E.BASE_RULES, baseline], ['overflow', { ...E.BASE_RULES, overflow: true }, baseline], ['recommended', RECOMMENDED_RULES, recommendedModel]];
+  const tag = (ruleset, rows) => rows.map((row) => ({ rules: ruleset, ...row }));
+  const premiumRows = [];
+  const masteryRows = [];
+  const masteryCrossRows = [];
+  const skillRows = [];
+  const styleRows = [];
+  const unitRows = [];
+  const premiums = [{ atk: 0, hpc: 0 }, { atk: 1, hpc: 0 }, { atk: 3, hpc: 0 }, { atk: 5, hpc: 0 }, { atk: 8, hpc: 0 }, { atk: 15, hpc: 0 }, { atk: 0, hpc: 5 }, { atk: 0, hpc: 10 }, { atk: 0, hpc: 20 }, { atk: 0, hpc: 40 }, { atk: 0, hpc: 80 }];
+  const crossDecks = ['starter-kingdom', 'starter-undead', 'starter-infernal', 'balanced', 'aggressive', 'arch-general'];
+  for (const [ruleset, rules, model] of RULESETS) {
+    log(`stat premium sweep (${ruleset})`);
+    premiumRows.push(...tag(ruleset, X.statPremiumSweep(model, ['balanced', 'starter-kingdom', 'aggressive'], premiums, controlGames, SEED, rules)));
+    log(`mastery mirrors (${ruleset})`);
+    masteryRows.push(...tag(ruleset, X.masteryMirrors(model, ['balanced', 'starter-kingdom', 'aggressive'], controlGames, SEED, M.MASTERY_OPTIONS, rules)));
+    log(`mastery cross-deck (${ruleset})`);
+    masteryCrossRows.push(...tag(ruleset, X.masteryCross(model, crossDecks, quick ? 20 : 200, SEED, M.MASTERY_OPTIONS, rules)));
+    log(`skill proxy (${ruleset})`);
+    skillRows.push(...tag(ruleset, [...X.skillProxy(model, 'high-rarity', 'low-rarity', controlGames, SEED, rules), ...X.skillProxy(model, 'aggressive', 'balanced', controlGames, SEED, rules), ...X.skillProxy(model, 'starter-infernal', 'starter-undead', controlGames, SEED, rules)]));
+    log(`style matrix (${ruleset})`);
+    styleRows.push(...tag(ruleset, [...X.styleMatrix(model, 'balanced', controlGames, SEED, rules), ...X.styleMatrix(model, 'starter-kingdom', controlGames, SEED, rules)]));
+    log(`unit count sweep (${ruleset})`);
+    unitRows.push(...tag(ruleset, X.unitCountSweep(model, controlGames, SEED, rules)));
+  }
+  csv('stat-premium.csv', premiumRows);
+  csv('mastery.csv', masteryRows);
+  csv('mastery-cross.csv', masteryCrossRows);
+  csv('skill-proxy.csv', skillRows);
+  csv('style-matrix.csv', styleRows);
+  csv('unit-count.csv', unitRows);
+
+  // Clash-level band crossing: does M5 of a Power-N card reach an M1 Power-(N+1) card?
+  const bandRows = [];
+  for (const model of [M.getStatModel('preview'), baseline]) {
+    const units = X.rosterStats(model);
+    for (const option of M.MASTERY_OPTIONS) {
+      let crossings = 0;
+      let pairs = 0;
+      for (const lo of units) for (const hi of units) {
+        if (hi.power !== lo.power + 1) continue;
+        pairs++;
+        const m5 = M.masteredStats({ atk: lo.atk, hpc: lo.hpc }, { option, stage: 5 });
+        if (m5.atk >= hi.atk) crossings++;
       }
-      let hitA = 0;
-      let hitB = 0;
-      for (const lane of lanes) {
-        if (lane.a && lane.b) {
-          if (lane.a.atk > lane.b.atk) lane.b = null;
-          else if (lane.b.atk > lane.a.atk) lane.a = null;
-          else { lane.a = null; lane.b = null; }
-        } else if (lane.a) hitB += lane.a.atk;
-        else if (lane.b) hitA += lane.b.atk;
-      }
-      lifeA -= hitA;
-      lifeB -= hitB;
-      if (lifeA <= 0 || lifeB <= 0 || (nextA >= a.length && nextB >= b.length && lanes.every(lane => !lane.a && !lane.b))) {
-        return { rounds: round, winner: lifeA <= 0 && lifeB <= 0 ? 'draw' : lifeA <= 0 ? 'b' : lifeB <= 0 ? 'a' : 'draw' };
-      }
+      bandRows.push({ model: model.id, option: option.id, pairsPowerNvsNplus1: pairs, m5ReachesNextBand: crossings, share: Math.round((crossings / Math.max(1, pairs)) * 1000) / 1000 });
     }
-    return { rounds: 120, winner: 'draw' };
   }
+  csv('mastery-band-crossing.csv', bandRows);
 
-  const results = [];
-  for (let i = 0; i < scenarios.length; i += 1) {
-    for (let j = i + 1; j < scenarios.length; j += 1) {
-      const left = scenarios[i];
-      const right = scenarios[j];
-      const games = Array.from({ length: 100 }, (_, run) => battle(left, right, 1000 + i * 10000 + j * 100 + run));
-      const winsA = games.filter(game => game.winner === 'a').length;
-      const winsB = games.filter(game => game.winner === 'b').length;
-      results.push({ matchup: `${left.label} vs ${right.label}`, aWin: winsA, bWin: winsB, draws: games.length - winsA - winsB, avgRounds: +mean(games.map(game => game.rounds)).toFixed(1) });
-    }
+  const outlierRows = [];
+  for (const [ruleset, rules, model] of RULESETS) {
+    log(`random-deck outliers (${ruleset})`);
+    outlierRows.push(...tag(ruleset, X.randomDeckOutliers(model, quick ? 12 : 120, quick ? 2 : 6, SEED, rules)));
   }
-  console.log(JSON.stringify({
-    model: 'design-only ATK/LP attrition baseline; spell effects omitted',
-    roster: { cards: unique.length, units: units.length, spells: spells.length, atks: [...new Set(units.map(card => stats(card).atk))].sort((a, b) => a - b), lps: [...new Set(units.map(card => stats(card).lp))].sort((a, b) => a - b) },
-    deckProfiles: scenarios.map(deck => ({ label: deck.label, ...deckInfo(deck.ids) })),
-    matchups: results,
-    spellEffectLimit: 'Spell cards currently have heterogeneous triggers/actions. This baseline counts spell slots but applies no spell effects; do not use its win rates to tune live balance.',
-  }, null, 2));
+  csv('card-outliers.csv', outlierRows);
+
+  summary.premium = premiumRows;
+  summary.mastery = masteryRows;
+  summary.masteryCross = masteryCrossRows;
+  summary.bandCrossing = bandRows;
+  summary.skill = skillRows;
+  summary.style = styleRows;
+  summary.unitCount = unitRows;
+  summary.outliers = outlierRows;
+  writeFileSync(join(outDir, 'summary.json'), JSON.stringify(summary, null, 2) + '\n');
+  log(`done -> ${outDir}`);
 } finally {
   await server.close();
 }
