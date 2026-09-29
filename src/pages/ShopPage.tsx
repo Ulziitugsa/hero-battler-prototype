@@ -20,7 +20,16 @@ import { PLAYTEST_ROSTER } from '../game/cards/roster';
 import { useDialogFocus } from '../components/useDialogFocus';
 import { getCard } from '../game/cards';
 import { track } from '../analytics/track';
+import { MOONFALL_BOX, getBoxProduct } from '../game/box/boxProduct';
+import { getPrototypeBoxState, prototypeBoxPacksRemaining, prototypeBoxRarityCounts, PROTOTYPE_BOX } from '../game/box/prototypeBox';
+import { STRUCTURE_DECKS, getStructureDeck } from '../game/structureDecks/definitions';
+import { getStructureDeckState, structureDeckPurchases, subscribeStructureDecks } from '../game/structureDecks/store';
+import { BoxDetail } from './shop/BoxDetail';
+import { StructureDeckDetail } from './shop/StructureDeckDetail';
 import '../styles/shop.css';
+
+/** Which Shop surface is showing. Box and Structure Deck pages are addressed by their stable product ids. */
+type ShopView = { kind: 'main' } | { kind: 'box'; id: string } | { kind: 'structure-deck'; id: string };
 
 type PendingPurchase = { kind: 'offer'; id: OfferId } | { kind: 'gold' } | { kind: 'energy' };
 const GOLD_EXCHANGE_GEMS = 50;
@@ -63,6 +72,8 @@ export function ShopPage() {
   const [giftResetCountdown, setGiftResetCountdown] = useState('');
   const [pending, setPending] = useState<PendingPurchase | null>(null);
   const [notice, setNotice] = useState('');
+  const [view, setView] = useState<ShopView>({ kind: 'main' });
+  const structurePurchases = useSyncExternalStore(subscribeStructureDecks, getStructureDeckState, getStructureDeckState);
   const seenOffers = useRef(new Set<OfferId>());
   const prices = getConfig().offers.priceLabels;
   const offersEnabled = getConfig().flags.offersEnabled;
@@ -160,22 +171,62 @@ export function ShopPage() {
     return () => window.clearInterval(interval);
   }, [gift]);
 
+  const openBox = getBoxProduct(view.kind === 'box' ? view.id : '');
+  if (openBox) return <BoxDetail box={openBox} onBack={() => setView({ kind: 'main' })} />;
+  const openDeck = getStructureDeck(view.kind === 'structure-deck' ? view.id : '');
+  if (openDeck) return <StructureDeckDetail deck={openDeck} onBack={() => setView({ kind: 'main' })} />;
+
+  const boxState = getPrototypeBoxState();
+  const boxPacksLeft = prototypeBoxPacksRemaining(boxState);
+  const boxLegendariesLeft = prototypeBoxRarityCounts(boxState).legendary;
+
   return <main className="shop-screen">
     <header className="shop-header">
-      <div><span className="shop-kicker">THE MOONWATER MARKET</span><h1>Shop</h1><p>Useful things for the road ahead.</p></div>
+      <div><span className="shop-kicker">THE MOONWATER MARKET</span><h1>Shop</h1><p>Card Boxes, Structure Decks and supplies.</p></div>
       <div className="shop-balances"><span><GemIcon size={16} />{economy.gems.toLocaleString()}</span><span><GoldIcon size={16} />{economy.gold.toLocaleString()}</span></div>
     </header>
 
-    <div className="shop-test-note"><Icon name="check" size={14} /> Prototype store · bundles and Gem packs are simulated test purchases. No real money is charged.</div>
+    <div className="shop-test-note"><Icon name="check" size={14} /> Prototype store · Boxes and Structure Decks use in-game Gems; bundles and Gem packs are simulated test purchases. No real money is charged.</div>
 
-    <section className={`shop-gift ${gift.claimed || economy.gold >= MAX_GOLD ? 'claimed' : 'ready'}`} aria-labelledby="shop-gift-title">
+    <section className="shop-section shop-first-section" aria-labelledby="shop-box-title">
+      <div className="shop-section-heading"><div><span className="shop-section-eyebrow">NEWEST BOX</span><h2 id="shop-box-title">Card Boxes</h2></div><span className="shop-section-note">Exact contents shown</span></div>
+      <button type="button" className="shop-box-feature" onClick={() => setView({ kind: 'box', id: MOONFALL_BOX.id })} aria-label={`${MOONFALL_BOX.name}: ${boxPacksLeft} of ${PROTOTYPE_BOX.packCount} packs remaining. View Box`}>
+        <span className="shop-box-art" aria-hidden="true"><span className="shop-box-moon" />{MOONFALL_BOX.bannerCardIds.map((id, index) => <span key={id} className={`shop-box-figure f${index}`}><CardArtwork cardId={id} /></span>)}</span>
+        <span className="shop-box-copy">
+          <span className="shop-product-type">MAIN BOX · {PROTOTYPE_BOX.cardsPerPack} CARDS PER PACK</span>
+          <strong>{MOONFALL_BOX.name}</strong>
+          <span className="shop-box-theme">{MOONFALL_BOX.theme}</span>
+          <span className="shop-box-status"><span><b>{boxPacksLeft}</b> / {PROTOTYPE_BOX.packCount} packs left</span><span>{boxLegendariesLeft} Legendary {boxLegendariesLeft === 1 ? 'copy' : 'copies'} inside</span></span>
+          <span className="shop-box-meter"><span style={{ width: `${(boxPacksLeft / PROTOTYPE_BOX.packCount) * 100}%` }} /></span>
+          <span className="shop-box-cta"><span><GemIcon size={14} />{MOONFALL_BOX.gemsPerPack} / pack</span><span>View<Icon name="back" size={14} /></span></span>
+        </span>
+      </button>
+    </section>
+
+    <section className={`shop-gift shop-section ${gift.claimed || economy.gold >= MAX_GOLD ? 'claimed' : 'ready'}`} aria-labelledby="shop-gift-title">
       <div className="shop-gift-art" aria-hidden="true"><span>✦</span><GoldIcon size={24} /></div>
       <div className="shop-gift-copy"><span className="shop-section-eyebrow">DAILY GIFT</span><h2 id="shop-gift-title">A little Gold for the journey</h2><p>{gift.claimed ? `Claimed · resets in ${giftResetCountdown || '…'} (daily UTC reset)` : `${DAILY_SHOP_GIFT_GOLD} Gold · free to claim`}</p></div>
       <button type="button" className="shop-gift-claim" onClick={claimGift} disabled={gift.claimed || economy.gold >= MAX_GOLD}>{economy.gold >= MAX_GOLD ? 'Gold full' : gift.claimed ? 'Claimed' : 'FREE · Ready'}</button>
     </section>
 
+    <section className="shop-section" aria-labelledby="shop-structure-title">
+      <div className="shop-section-heading"><div><span className="shop-section-eyebrow">READY TO PLAY</span><h2 id="shop-structure-title">Structure Decks</h2></div><span className="shop-section-note">Full decklist shown</span></div>
+      {STRUCTURE_DECKS.map(deck => {
+        const owned = structureDeckPurchases(deck.id, structurePurchases) >= deck.purchaseLimit;
+        return <button type="button" key={deck.id} className={`shop-deck-card ${deck.faction}`} onClick={() => setView({ kind: 'structure-deck', id: deck.id })}>
+          <span className="shop-deck-art" aria-hidden="true"><CardArtwork cardId={deck.featuredCardIds[0]} /></span>
+          <span className="shop-deck-copy">
+            <span className="shop-product-type">{deck.faction.toUpperCase()} · {deck.style.toUpperCase()}</span>
+            <strong>{deck.name}</strong>
+            <span className="shop-deck-tagline">{deck.tagline}</span>
+            <span className="shop-deck-price">{owned ? 'Owned · in Decks' : <><GemIcon size={14} />{deck.priceGems.toLocaleString()} · {deck.cardIds.length} cards</>}</span>
+          </span>
+        </button>;
+      })}
+    </section>
+
     <section className="shop-section" aria-labelledby="shop-featured-title">
-      <div className="shop-section-heading"><div><span className="shop-section-eyebrow">FOR YOUR ADVENTURE</span><h2 id="shop-featured-title">Featured bundles</h2></div><span className="shop-section-note">Test offers</span></div>
+      <div className="shop-section-heading"><div><span className="shop-section-eyebrow">BUNDLES</span><h2 id="shop-featured-title">Featured bundles</h2></div><span className="shop-section-note">Test offers</span></div>
       {featured.length > 0 ? <div className="shop-featured-grid">
         {featured.map((offer, index) => <article key={offer.id} className={`shop-featured-card ${index === 0 ? 'lead' : ''}`}>
           <div className="shop-featured-art"><div className="shop-art-halo" />{offer.reward.cardId ? <CardArtwork cardId={offer.reward.cardId} className="shop-hero-art" /> : <span className="shop-bundle-mark">✧</span>}</div>
@@ -185,14 +236,14 @@ export function ShopPage() {
       </div> : <div className="shop-unlock-note"><Icon name="lock" size={18} /><span>Featured bundles appear as you progress and visit the Moonwell.</span></div>}
     </section>
 
-    <section className="shop-section" aria-labelledby="shop-gems-title">
+    <section className="shop-section shop-secondary" aria-labelledby="shop-gems-title">
       <div className="shop-section-heading"><div><span className="shop-section-eyebrow">MOONWELL CURRENCY</span><h2 id="shop-gems-title">Gem packs</h2></div><span className="shop-section-note">Simulated</span></div>
       {gemPacks.length > 0 ? <div className="shop-gem-row">{gemPacks.map((offer) => <button type="button" key={offer.id} className={`shop-gem-card ${offer.id === 'gem-pack-medium' ? 'recommended' : ''}`} onClick={() => chooseOffer(offer.id)}>
         <span className="shop-gem-crystal"><GemIcon size={27} /></span><strong>{offer.reward.gems?.toLocaleString()}</strong><span className="shop-gem-name">{offer.title.replace('Small Gem Pouch', 'Small Pouch').replace('Gem Purse', 'Gem Purse').replace('Gem Chest', 'Large Chest')}</span><span className="shop-gem-price">{prices[offer.id] ?? 'Test'} · Test</span>
       </button>)}</div> : <div className="shop-unlock-note"><Icon name="lock" size={18} /><span>Gem packs become available after your first Moonwell summon.</span></div>}
     </section>
 
-    <section className="shop-section shop-trade-section" aria-labelledby="shop-trade-title">
+    <section className="shop-section shop-secondary shop-trade-section" aria-labelledby="shop-trade-title">
       <div className="shop-section-heading"><div><span className="shop-section-eyebrow">RESOURCE EXCHANGE</span><h2 id="shop-trade-title">For the road</h2></div></div>
       <div className="shop-trades">
         <article className="shop-trade-card"><span className="shop-trade-icon gold"><GoldIcon size={23} /></span><div className="shop-trade-copy"><h3>Gold exchange</h3><p><GemIcon size={14} />{GOLD_EXCHANGE_GEMS} Gems <span aria-hidden="true">→</span> <GoldIcon size={14} />{GOLD_EXCHANGE_AMOUNT} Gold</p></div><button type="button" onClick={() => { track('shop_product_viewed', { productId: 'gold-for-gems', productType: 'gold' }); setPending({ kind: 'gold' }); }} disabled={economy.gems < GOLD_EXCHANGE_GEMS || economy.gold >= MAX_GOLD}>{economy.gold >= MAX_GOLD ? 'Gold full' : 'Exchange'}</button></article>
