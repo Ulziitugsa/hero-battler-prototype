@@ -5,31 +5,33 @@ import { cardCombatBattleEffects } from '../../game/cardCombat/cardText';
 import { CardArtwork } from '../CardArtwork';
 import { Gems, Sigil } from '../CardParts';
 import { Icon } from '../Icon';
-import { AtkIcon } from './CardIcons';
 import '../../styles/collectible.css';
 import '../../styles/battleCard.css';
 
 /**
- * A card-combat card as it reads in battle (Battle UX pass): large artwork, name and current ATK on one line, then
- * every combat effect as a compact row: a small timing chip and a short battle phrase (cardText.ts BATTLE_LINES).
- * Card Inspect keeps the full sentences, HP Contribution, Mastery and keyword help, but no rule lives only there.
- * Legacy battles, Collection and Deck Builder keep CollectibleCard.
+ * A card-combat card as it reads in battle (Battle UX pass), laid out as a collectible card in four zones inside the
+ * rarity frame: a name bar, a framed art box (about half the card), a stats and identity row with ATK set into the
+ * frame, and a text box with every combat effect under a small-caps timing label (cardText.ts BATTLE_LINES).
  *
- * hand:  the largest battle version, full name.
- * board: the Unit in a Hero zone, short name; also shows whether conditional Passives are active.
- * spell: a Spell in a Spell zone (a Continuous Spell, or a one-time Spell staged for this round); no art.
+ * hand:    most readable; full name.
+ * board:   compact but complete; short name; shows whether conditional Passives are active.
+ * spell:   a Spell in a Spell zone (a Continuous Spell, or a one-time Spell staged for this round): name and text only.
+ * inspect: the large face at the top of in-battle Card Inspect: the same card, larger, with HP Contribution beside
+ *          ATK. Card Inspect lists the full rules wording under it.
  *
- * Text never ellipsizes and the card body never scrolls. If the effects don't fit, `useFitRules` tightens spacing,
- * then type (never below 9px), then gives up some artwork, and QA lists any card that needs the last levels.
+ * Text never ellipsizes and the card body never scrolls. If the effects don't fit, `useFitCard` tightens spacing,
+ * then gives the text box what it needs from the art box (down to a floor), then steps the type down (never below
+ * 9px), and sets the very longest text slightly condensed. Legacy battles, Collection and Deck Builder keep
+ * CollectibleCard.
  */
-export type BattleCardVariant = 'hand' | 'board' | 'spell';
+export type BattleCardVariant = 'hand' | 'board' | 'spell' | 'inspect';
 
 export interface BattleCardProps {
   cardId: string;
   variant: BattleCardVariant;
   /** Current ATK on the board (effective: base, this-round changes and Continuous Spells). Defaults to the printed ATK. */
   atk?: number;
-  /** This-round ATK change, shown as a small chip. */
+  /** This-round ATK change, shown as a small flag on the art. */
   tempAtk?: number;
   silenced?: boolean;
   shielded?: boolean;
@@ -37,56 +39,117 @@ export interface BattleCardProps {
   passiveState?: ReadonlyMap<number, boolean>;
   /** Short name on the board; full name in hand. */
   name?: string;
+  /** Inspect only: this copy's HP Contribution. */
+  hpContribution?: number;
 }
 
 /**
- * Presentation levels, tried in order until every effect shows: extra artwork when the effects are short, the
- * standard card (about half artwork), tighter spacing, 9.5px type, then less artwork and 9px type for the few
- * cards with the most text. There is no scrolling level.
+ * Presentation levels, tried in order until every effect shows (battleCard.css): a little extra art when the text is
+ * short; the standard card; tighter spacing. A card with more text then keeps as much art as its effects leave
+ * ("fill"), first at full type, then half a pixel smaller, then at 9px, then at 9px set 8% narrower, each with a floor
+ * on the art box (a share of the card's height). No level scrolls.
  */
-const CARD_LEVELS = ['roomy', 'base', 'tight', 'sm', 'art-md', 'art-sm', 'art-xs'] as const;
-const SPELL_LEVELS = ['base', 'sm', 'xs'] as const;
-/**
- * Name + ATK: on one row where the standard artwork allows; otherwise ATK moves to the artwork's corner so the name has
- * the full row, then (hand only) the short name. A name that still wraps is accepted at the last level.
- */
-const HEADS = ['row', 'overlay', 'short'] as const;
+const CARD_LEVELS = ['roomy', 'base', 'tight'] as const;
+const FILL_LEVELS = [
+  ['fill', 44],
+  ['sm-fill', 41],
+  ['xs-fill', 30],
+  ['xxs-fill', 26],
+] as const;
+/** Text is never cut off: the last level takes the art box below its floor if the effects still need it. */
+const MIN_ART = 10;
+/** Spell zones have no art to give, so their last level sets the 9px text slightly condensed, as long card text is. */
+const SPELL_LEVELS = ['base', 'sm', 'xs', 'xxs'] as const;
+/** The name stays on one line: full name, then a smaller size, then (hand) the short name. */
+const NAME_FITS = ['full', 'full-sm', 'short', 'short-sm'] as const;
 
-/** Picks the first presentation level at which every effect shows, with the name on one line where possible. */
-function useFitRules(levels: readonly string[], key: string) {
+/** A number stays on the line with its unit ("+15 ATK", "90 damage", "Guard 2"), as on a printed card. */
+const keepTogether = (text: string) => text.replace(/(\d) (ATK|HP|damage|more)\b/g, '$1\u00a0$2').replace(/\bGuard (\d)/g, 'Guard\u00a0$1');
+
+function useFitCard(variant: BattleCardVariant, key: string) {
   const ref = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     const root = ref.current;
-    const el = root?.querySelector<HTMLElement>('.bc-rules');
-    if (!root || !el) return;
-    const name = root.querySelector<HTMLElement>('.bc-head .bc-name');
-    const heads = name ? HEADS.filter((h) => h !== 'short' || name.querySelector('.bc-name-short')) : (['row'] as const);
-    const rulesFit = () => el.scrollHeight <= el.clientHeight + 1;
-    const nameFits = () => !name || name.clientHeight <= parseFloat(getComputedStyle(name).fontSize) * 1.6;
-    // Name and ATK on one row wins over extra artwork, but not over giving up the standard artwork size.
-    const steps: [string, string][] = [
-      ...levels.filter((l) => !l.startsWith('art')).map((l): [string, string] => [l, 'row']),
-      ...levels.flatMap((l) => heads.filter((h) => h !== 'row' || l.startsWith('art')).map((h): [string, string] => [l, h])),
-    ];
+    const rules = root?.querySelector<HTMLElement>('.bc-rules');
+    if (!root || !rules) return;
+    const name = root.querySelector<HTMLElement>('.bc-namebar .bc-name');
+    const names = NAME_FITS.filter((n) => !n.startsWith('short') || root.querySelector('.bc-name-short'));
+    const fits = () => rules.scrollHeight <= rules.clientHeight + 1;
     const fit = () => {
-      for (const [level, head] of steps) {
-        root.dataset.fit = level;
-        root.dataset.head = head;
-        if (rulesFit() && nameFits()) return;
+      root.style.removeProperty('--bc-art');
+      root.style.removeProperty('--bc-art-top');
+      if (name) {
+        for (const n of names) {
+          root.dataset.name = n;
+          if (name.scrollWidth <= name.clientWidth + 1) break;
+        }
+        // A name that still doesn't fit wraps rather than clips.
+        if (name.scrollWidth > name.clientWidth + 1) root.dataset.name = `${root.dataset.name} wrap`;
       }
-      // Nothing fit completely: keep the smallest level with the name on the fewest lines.
-      root.dataset.head = heads[heads.length - 1];
+      if (variant === 'spell') {
+        for (const level of SPELL_LEVELS) {
+          root.dataset.fit = level;
+          if (fits()) return;
+        }
+        return;
+      }
+      for (const level of CARD_LEVELS) {
+        root.dataset.fit = level;
+        if (fits()) return;
+      }
+      // The effects need more room than the standard art box leaves: measure them and give the rest to the art.
+      const body = rules.parentElement?.clientHeight ?? 0;
+      const card = root.clientHeight;
+      const art = root.querySelector<HTMLElement>('.bc-art');
+      if (!body || !card || !art) return;
+      const setArt = (px: number) => {
+        const pct = (px / body) * 100;
+        root.style.setProperty('--bc-art', `${pct.toFixed(2)}%`);
+        root.style.setProperty('--bc-art-top', `${Math.min(0, (pct - 56) * 0.7).toFixed(1)}%`);
+      };
+      for (const [level, floor] of FILL_LEVELS) {
+        root.dataset.fit = level;
+        rules.style.flex = '0 0 auto';
+        const need = rules.offsetHeight;
+        rules.style.removeProperty('flex');
+        const artNow = art.offsetHeight;
+        // The art box once the text box has exactly what it needs.
+        const artPx = Math.floor(artNow - (need - rules.offsetHeight));
+        const last = level === 'xxs-fill';
+        const floorPx = Math.ceil(((last && artPx < (floor / 100) * card ? MIN_ART : floor) / 100) * card);
+        if (artPx >= floorPx || last) {
+          let px = Math.min(artNow, Math.max(floorPx, artPx));
+          setArt(px);
+          // Heights round to whole pixels, so the estimate can be a pixel out: settle on the largest box that fits.
+          for (let i = 0; i < 3 && px > floorPx && !fits(); i++) setArt(--px);
+          for (let i = 0; i < 3 && px < artNow && fits(); i++) {
+            setArt(px + 1);
+            if (!fits()) break;
+            px++;
+          }
+          setArt(px);
+          return;
+        }
+      }
     };
     fit();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(fit);
-    observer.observe(root);
-    return () => observer.disconnect();
-  }, [levels, key]);
+    // Web fonts change the measurements once they arrive; refit then too.
+    const fonts = typeof document !== 'undefined' ? document.fonts : undefined;
+    let live = true;
+    fonts?.ready.then(() => live && fit());
+    fonts?.addEventListener?.('loadingdone', fit);
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(fit);
+    observer?.observe(root);
+    return () => {
+      live = false;
+      fonts?.removeEventListener?.('loadingdone', fit);
+      observer?.disconnect();
+    };
+  }, [variant, key]);
   return ref;
 }
 
-export function BattleCard({ cardId, variant, atk, tempAtk = 0, silenced = false, shielded = false, passiveState, name }: BattleCardProps) {
+export function BattleCard({ cardId, variant, atk, tempAtk = 0, silenced = false, shielded = false, passiveState, name, hpContribution }: BattleCardProps) {
   const card = getCard(cardId);
   const unit = card.type === 'hero';
   const continuous = card.spellKind === 'CONTINUOUS';
@@ -94,83 +157,116 @@ export function BattleCard({ cardId, variant, atk, tempAtk = 0, silenced = false
   const printed = unit ? cardAtk(cardId) : 0;
   const current = atk ?? printed;
   const shift = current > printed ? 'up' : current < printed ? 'down' : '';
-  const levels = variant === 'spell' ? SPELL_LEVELS : CARD_LEVELS;
-  // Re-fit whenever something that changes the rules panel's length changes (the Silenced line, flags, states).
+  const title = name ?? (variant === 'board' || variant === 'spell' ? card.shortName : card.name);
+  // Re-fit whenever something that changes the name or the text box's length changes (the Silenced line, state tags).
   const passiveKey = passiveState ? [...passiveState].map(([i, on]) => `${i}${on ? '+' : '-'}`).join(',') : '';
-  const fitRef = useFitRules(levels, `${cardId}|${variant}|${silenced}|${shielded}|${tempAtk !== 0}|${passiveKey}`);
-  const title = name ?? (variant === 'hand' ? card.name : card.shortName);
+  const fitRef = useFitCard(variant, `${cardId}|${variant}|${title}|${silenced}|${passiveKey}`);
+  const hasShort = variant === 'hand' && !name && card.shortName !== card.name;
+  const inspect = variant === 'inspect';
+  // A Spell names its kind where a Unit shows ATK. (Card Inspect lists a Unit's role under the card.)
+  const spellKind = continuous ? (inspect ? 'Continuous Spell' : 'Continuous') : 'Spell';
 
-  return (
-    <span className={`collectible battle-card v-${variant} r-${card.rarity} ${card.faction} ${unit ? 'is-unit' : 'is-spell'} ${silenced ? 'is-silenced' : ''}`} data-mode={`battle-${variant}`} data-fit={levels[0]} data-head="row" ref={fitRef}>
-      <span className="collectible-frame" aria-hidden="true" />
-      {card.rarity === 'legendary' && variant !== 'spell' && <span className="collectible-crest" aria-hidden="true" />}
-      <span className="bc-body">
-        {variant !== 'spell' && (
-          <span className="bc-art">
-            <CardArtwork cardId={cardId} animated={false} />
-            <span className="bc-identity" aria-hidden="true">
-              <Sigil faction={card.faction} size="sm" />
-              <Gems rarity={card.rarity} />
-            </span>
-            {!unit && (
-              <span className="bc-kind">
-                <Icon name={continuous ? 'continuousSpell' : 'spell'} size={11} />
-                {continuous ? 'Continuous' : 'Spell'}
-              </span>
-            )}
-            {unit && tempAtk !== 0 && (
-              <span className={`bc-temp ${tempAtk > 0 ? 'up' : 'down'}`} title="Until the end of this round">
-                {tempAtk > 0 ? '+' : '−'}
-                {Math.abs(tempAtk)} this round
-              </span>
-            )}
-            {shielded && (
-              <span className="bc-flag shield" title="Shield: survives the first time it would be destroyed">
-                Shield
-              </span>
-            )}
-          </span>
-        )}
-        {variant !== 'spell' && (
-          <span className="bc-head">
-            <span className="bc-name">
-              {title}
-              {/* A long full name gives way to the short name in hand when it would wrap (data-head="short"). */}
-              {variant === 'hand' && !name && card.shortName !== card.name && <span className="bc-name-short">{card.shortName}</span>}
-            </span>
-            {unit && (
-              <span className={`bc-atk ${shift}`} aria-label={`${current} ATK${shift ? `, printed ${printed}` : ''}`}>
-                <AtkIcon size={10} />
-                <strong>{current}</strong>
-                {shift && <s className="bc-atk-printed">{printed}</s>}
-              </span>
-            )}
-          </span>
-        )}
-        <span className="bc-rules">
-          {variant === 'spell' && (
-            <span className="bc-name">
-              <Icon name={continuous ? 'continuousSpell' : 'spell'} size={10} />
-              {title}
-            </span>
-          )}
-          {silenced && <span className="bc-silenced">Silenced this round</span>}
-          {effects.length === 0 && <span className="bc-none">No effect</span>}
-          {effects.map((effect, i) => {
-            const state = passiveState?.get(effect.abilityIndex);
-            const live = state !== undefined && !silenced;
-            return (
-              <span className={`bc-effect ${state === false || silenced ? 'is-off' : ''}`} key={i} data-trigger={effect.trigger}>
-                {/* A one-time Spell in its zone is being cast this round, so "On Play" goes without saying there. */}
-                <span className={`bc-when ${variant === 'spell' && !continuous && effect.trigger === 'ON_PLAY' ? 'bc-when-implied' : ''}`}>
+  const rules = (
+    <span className="bc-rules">
+      {variant === 'spell' && (
+        <span className="bc-name bc-name-inline">
+          <Icon name={continuous ? 'continuousSpell' : 'spell'} size={10} />
+          {title}
+        </span>
+      )}
+      {silenced && <span className="bc-silenced">Silenced this round</span>}
+      {effects.length === 0 && <span className="bc-none">No effect</span>}
+      {effects.map((effect, i) => {
+        const state = passiveState?.get(effect.abilityIndex);
+        const live = state !== undefined && !silenced;
+        // A one-time Spell happens when it is played, so "On Play" goes without saying on it (as on a printed card).
+        const implied = !unit && !continuous && effect.trigger === 'ON_PLAY';
+        return (
+          <span className={`bc-effect ${state === false || silenced ? 'is-off' : ''}`} key={i} data-trigger={effect.trigger}>
+            {!implied && (
+              <>
+                <span className="bc-when">
                   {live && <span className={`bc-state ${state ? 'on' : 'off'}`} role="img" aria-label={state ? 'active now' : 'inactive now'} title={state ? 'Active now' : 'Not active now'} />}
                   {effect.chip}
                 </span>{' '}
-                <span className="bc-text">{effect.compact}</span>
+              </>
+            )}
+            <span className="bc-text">{keepTogether(effect.compact)}</span>
+          </span>
+        );
+      })}
+    </span>
+  );
+
+  return (
+    <span
+      className={`collectible battle-card v-${variant} r-${card.rarity} ${card.faction} ${unit ? 'is-unit' : 'is-spell'} ${silenced ? 'is-silenced' : ''}`}
+      data-mode={`battle-${variant}`}
+      data-fit={variant === 'spell' ? SPELL_LEVELS[0] : CARD_LEVELS[0]}
+      data-name="full"
+      ref={fitRef}
+    >
+      <span className="collectible-frame" aria-hidden="true" />
+      <span className="bc-body">
+        {variant !== 'spell' && (
+          <>
+            <span className="bc-namebar">
+              <span className="bc-name">
+                {hasShort ? (
+                  <>
+                    <span className="bc-name-full">{title}</span>
+                    <span className="bc-name-short">{card.shortName}</span>
+                  </>
+                ) : (
+                  title
+                )}
               </span>
-            );
-          })}
-        </span>
+            </span>
+            <span className="bc-art">
+              <CardArtwork cardId={cardId} animated={false} />
+              {(shielded || (unit && tempAtk !== 0)) && (
+                <span className="bc-flags">
+                  {shielded && (
+                    <span className="bc-flag shield" title="Shield: survives the first time it would be destroyed">
+                      Shield
+                    </span>
+                  )}
+                  {unit && tempAtk !== 0 && (
+                    <span className={`bc-flag bc-temp ${tempAtk > 0 ? 'up' : 'down'}`} title="Until the end of this round">
+                      {tempAtk > 0 ? '+' : '−'}
+                      {Math.abs(tempAtk)} this round
+                    </span>
+                  )}
+                </span>
+              )}
+            </span>
+            <span className="bc-statrow">
+              <span className="bc-identity" aria-hidden="true">
+                <Sigil faction={card.faction} size="sm" />
+                <Gems rarity={card.rarity} />
+              </span>
+              {!unit && (
+                <span className="bc-stat bc-kind-stat">
+                  <span className="bc-stat-label">{spellKind}</span>
+                </span>
+              )}
+              {unit && inspect && hpContribution !== undefined && (
+                <span className="bc-stat bc-hpc" aria-label={`HP Contribution +${hpContribution}`}>
+                  <span className="bc-stat-label">HP</span>
+                  <strong>+{hpContribution}</strong>
+                </span>
+              )}
+              {unit && (
+                <span className={`bc-stat bc-atk ${shift}`} aria-label={`${current} ATK${shift ? `, printed ${printed}` : ''}`}>
+                  <span className="bc-stat-label">ATK</span>
+                  <strong>{current}</strong>
+                  {shift && <s className="bc-atk-printed">{printed}</s>}
+                </span>
+              )}
+            </span>
+          </>
+        )}
+        {rules}
       </span>
     </span>
   );

@@ -38,9 +38,9 @@ describe('Battle UX: Royal Guard is readable without Card Inspect', () => {
   it('5. in hand: name, ATK and both effects in battle copy with their timing chips, and no HP Contribution', () => {
     const html = inCardCombat(createElement(HandCard, handProps(ROYAL_GUARD)));
     const t = text(html);
-    expect(t).toContain('Royal Guard 113');
-    expect(t).toContain('On Play Adjacent allies +15 ATK');
-    expect(t).toContain('Passive Spell Immune with Kingdom ally');
+    expect(t).toContain('Royal Guard ATK 113');
+    expect(t).toContain('On Play Adjacent allies gain +15 ATK.');
+    expect(t).toContain('Passive Spell Immune while a Kingdom ally is in play.');
     expect(t).not.toContain('+77');
     expect(html).toContain('battle-card v-hand');
     // The full sentences stay in Card Inspect (and the card's accessible label).
@@ -51,9 +51,9 @@ describe('Battle UX: Royal Guard is readable without Card Inspect', () => {
     const guard = unit(ROYAL_GUARD);
     const html = inCardCombat(createElement(BoardChit, { hero: guard, side: 'player', onClick: () => {} }), new Map([[guard.instanceId, new Map([[1, true]])]]));
     const t = text(html);
-    expect(t).toContain('Royal Guard 113');
-    expect(t).toContain('On Play Adjacent allies +15 ATK');
-    expect(t).toContain('Passive Spell Immune with Kingdom ally');
+    expect(t).toContain('Royal Guard ATK 113');
+    expect(t).toContain('On Play Adjacent allies gain +15 ATK.');
+    expect(t).toContain('Passive Spell Immune while a Kingdom ally is in play.');
     expect(html).toContain('bc-state on');
     expect(html).toContain('aria-label="active now"');
     expect(t).not.toContain('Adj+1');
@@ -97,10 +97,10 @@ describe('Battle UX: multi-effect cards never drop an effect', () => {
       const hand = text(renderToStaticMarkup(createElement(BattleCard, { cardId: card.id, variant: 'hand' })));
       const board = text(renderToStaticMarkup(createElement(BattleCard, { cardId: card.id, variant: card.type === 'hero' ? 'board' : 'spell' })));
       for (const e of effects) {
-        expect(hand, card.id).toContain(e.compact.replace(/\s+/g, ' '));
-        expect(hand, card.id).toContain(e.chip);
-        expect(board, card.id).toContain(e.compact.replace(/\s+/g, ' '));
-        if (card.type === 'hero' || card.spellKind === 'CONTINUOUS') expect(board, card.id).toContain(e.chip);
+        // A one-time Spell's On Play is what the card is (it happens when played), so it carries no timing chip.
+        const chip = card.type === 'hero' || card.spellKind === 'CONTINUOUS' || e.trigger !== 'ON_PLAY' ? `${e.chip} ` : '';
+        expect(hand, card.id).toContain(`${chip}${e.compact.replace(/\s+/g, ' ')}`);
+        expect(board, card.id).toContain(`${chip}${e.compact.replace(/\s+/g, ' ')}`);
       }
       if (effects.length === 0) expect(board, card.id).toContain('No effect');
     }
@@ -109,14 +109,26 @@ describe('Battle UX: multi-effect cards never drop an effect', () => {
 
   it('the Legendary Paladin shows Shield, Guard 3 and its heal, each with its timing', () => {
     const t = text(renderToStaticMarkup(createElement(BattleCard, { cardId: 'kng-paladin', variant: 'board' })));
-    expect(t).toContain('On Play Gain Shield');
-    expect(t).toContain('Clash Guard 3: +45 ATK if losing');
-    expect(t).toContain('Enemy Falls Enemy here: restore 45 HP');
+    expect(t).toContain('On Play Gain a Shield.');
+    expect(t).toContain('Clash Guard 3: +45 ATK this round if it would lose.');
+    expect(t).toContain('Enemy Falls If it was in this lane, restore 45 HP.');
   });
 
   it('a Continuous Spell on the board shows its rule in its Spell zone', () => {
     const html = inCardCombat(createElement(SpellZoneChit, { spell: { instanceId: 's1', cardId: 'spl-burning-ground', faction: 'infernal', name: 'Burning Ground', shortName: 'Burning Ground', usedThisRound: false } as never, side: 'enemy', onClick: () => {} }));
-    expect(text(html)).toContain('Burning Ground Round End Enemy here −15 ATK');
+    expect(text(html)).toContain('Burning Ground Round End The enemy Unit here gets −15 ATK.');
+  });
+
+  it('a Spell names its kind where a Unit shows ATK, and a one-time Spell reads without an "On Play" label', () => {
+    const fireballHtml = renderToStaticMarkup(createElement(BattleCard, { cardId: 'spl-fireball', variant: 'hand' }));
+    const fireball = text(fireballHtml);
+    expect(fireball).toContain('Fireball Spell The enemy Unit here gets −60 ATK. With their Continuous Spell here, its ATK becomes 50 instead.');
+    expect(fireball).not.toContain('On Play');
+    expect(fireballHtml).not.toContain('bc-atk');
+    const ground = renderToStaticMarkup(createElement(BattleCard, { cardId: 'spl-cursed-ground', variant: 'hand' }));
+    expect(ground).toMatch(/class="bc-stat bc-kind-stat"><span class="bc-stat-label">Continuous<\/span>/);
+    expect(text(ground)).toContain('Enemy Falls Your Unit here gains +15 ATK.');
+    expect(text(renderToStaticMarkup(createElement(BattleCard, { cardId: 'spl-cursed-ground', variant: 'inspect' })))).toContain('Continuous Spell');
   });
 
   it('battle wording drops a timing phrase the label already shows, and keeps Guard', () => {
@@ -172,7 +184,20 @@ describe('Battle UX: live ATK and effect state', () => {
   it('a silenced Unit keeps its rules visible and says they are off', () => {
     const t = text(renderToStaticMarkup(createElement(BattleCard, { cardId: 'kng-royal-guard', variant: 'board', silenced: true })));
     expect(t).toContain('Silenced this round');
-    expect(t).toContain('Spell Immune with Kingdom ally');
+    expect(t).toContain('Spell Immune while a Kingdom ally is in play.');
+  });
+});
+
+describe('Battle UX: Card Inspect density', () => {
+  it('the Inspect face is the same card with HP Contribution beside ATK, and Card Inspect lists the full wording under it', () => {
+    const face = text(renderToStaticMarkup(createElement(BattleCard, { cardId: 'kng-royal-guard', variant: 'inspect', hpContribution: 77 })));
+    expect(face).toContain('Royal Guard HP +77 ATK 113');
+    expect(face).toContain('On Play Adjacent allies gain +15 ATK. Passive Spell Immune while a Kingdom ally is in play.');
+    const full = cardCombatBattleEffects('kng-royal-guard').map((e) => `${e.label} ${e.text}`);
+    expect(full).toEqual(['On Play Adjacent allied Units gain +15 ATK for the rest of the battle.', 'Passive While another Kingdom Unit is in play, enemy Spells can’t affect this Unit.']);
+    for (const variant of ['hand', 'board'] as const) {
+      expect(text(renderToStaticMarkup(createElement(BattleCard, { cardId: 'kng-royal-guard', variant }))), variant).not.toContain('+77');
+    }
   });
 });
 

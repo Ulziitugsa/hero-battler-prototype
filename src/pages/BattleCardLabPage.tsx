@@ -4,7 +4,8 @@ import { BattleCard } from '../components/card/BattleCard';
 /**
  * Dev-only QA sheet (?battleCardLab): every card as a card-combat battle face, at the sizes the 390x844 battle screen
  * gives them (hand 117x176, board 118x168, Spell zone 118x66). Each face reports the fit level it needed in
- * `data-fit` and `data-head`, so layout QA can list the cards that need smaller type or less artwork.
+ * `data-fit` (and its art share in the inline `--bc-art`) and how its name fits in `data-name`, so layout QA can list
+ * the cards that need smaller type or less artwork.
  */
 export function BattleCardLabPage({ onBack }: { onBack: () => void }) {
   // ?battleCardLab&width=360 sizes the faces as a 360px-wide phone would (the battle scene scales with the viewport).

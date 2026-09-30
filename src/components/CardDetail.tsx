@@ -15,6 +15,7 @@ import { CardEffectList, CardStatsPanel } from './card/CardInspectSections';
 import { track } from '../analytics/track';
 import { getCardMasteryView } from '../game/cardMastery/model';
 import { useCardCombatDisplay } from './combatDisplay';
+import { BattleCard } from './card/BattleCard';
 
 /** Where Card Inspect was opened from. Battle views keep the sheet to what matters mid-match. */
 export type InspectContext = 'collection' | 'deck' | 'battle' | 'opponent' | 'pack' | 'shop' | 'event' | 'other';
@@ -64,7 +65,12 @@ export function CardDetail({ cardId, onClose, context = 'other', livePower, mast
           <Icon name="close" />
         </button>
         <div className="ci-card">
-          <CollectibleCard cardId={cardId} mode="inspect" livePower={livePower} masteryRank={combatInfo ? combatInfo.masteryStage : rank} treatment={treatment} />
+          {/* In a card-combat battle, the same battle card as in hand and on the board, larger and with HP Contribution. The Effect list below gives the full wording. */}
+          {cardCombat && inBattle ? (
+            <BattleCard cardId={cardId} variant="inspect" atk={card.type === 'hero' ? livePower : undefined} hpContribution={combatInfo?.hpContribution} />
+          ) : (
+            <CollectibleCard cardId={cardId} mode="inspect" livePower={livePower} masteryRank={combatInfo ? combatInfo.masteryStage : rank} treatment={treatment} />
+          )}
         </div>
 
         <header className="ci-header">
