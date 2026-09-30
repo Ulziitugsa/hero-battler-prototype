@@ -20,11 +20,11 @@ Nothing here is live. Every mode still runs the legacy resolver (Power, fixed 20
 | --- | --- |
 | Deck | 15 cards. 2 copies per card, 1 for a Legendary (unchanged). **At least 8 Units (approved).** |
 | Starting HP | Sum of the deck's Unit HP Contributions. Spells and battle tokens contribute 0. |
-| Round | Hand refills to 3, simultaneous deploy into 3 Unit lanes and 3 Spell slots, then the live phase order: Reveal → Spells left to right → Unit On Play → Before Combat → Combat → death chains → After Combat → Round End → temporary effects expire. Initiative alternates by round. An empty deck just stops drawing (section 15.5). |
+| Round | Hand refills to 3, simultaneous deploy into 3 Unit lanes and 3 Spell slots, then the live phase order: Reveal → Spells left to right → Unit On Play → Before Combat → Combat → death chains → After Combat → Round End → temporary effects expire. Initiative alternates by round. An empty deck just stops drawing; there is no deck-out loss (approved, section 15.7). |
 | Clash | Opposed Units compare effective ATK. Higher wins and stays unchanged; lower is destroyed; **the loser's player takes winner ATK − loser ATK as Clash Damage (section 15).** |
 | Tie | Equal ATK destroys both Units. No Player damage. |
 | Direct attack | An unopposed Unit deals its full effective ATK to the opposing player. No cap, no scaling. |
-| Overflow | Replaced by **Clash Damage** (ozi, 2026-09-29, section 15). Until then: none. |
+| Overflow | Replaced by **Clash Damage** (approved, section 15): the losing Unit's player takes winner ATK − loser ATK. |
 | Graveyard | **Each card may return from the Graveyard once per match (approved)**, counted per physical copy: a copy that has returned is marked Returned (section 14). Covers return to hand or deck and revive. |
 | Growth cap | Permanent effects raise a Unit at most **+45 ATK** above the ATK it entered with; cards that grow print "up to +45" (section 14). |
 | Win | A player at 0 HP loses. Both at 0 in the same step is a draw. A hard round cap (40 in the simulator) ends a stalled match as a draw. |
@@ -349,7 +349,7 @@ Locked through the playtest: the ATK/HPC model, HPC-only Mastery, no overflow (s
 
 ## 15. Clash Damage (ATK difference damage)
 
-Status: **rule approved by ozi on 2026-09-29; implementation and balance results waiting for review.** Resolver (`src/game/cardCombat/`) and simulator (`src/game/cardSim/`, variant `dd-final` in `balance/differenceDamage.ts`) implement it identically; the parity test replays the same matches through both. Full report, CSVs, runs and screens: project files `moonwater/difference-damage/`. Card-by-card audit: `card-changes-difference-damage.csv` (the batch 3 `card-changes.csv` stays as history).
+Status: **approved by ozi on 2026-09-30 as the current card-combat prototype baseline (section 15.7).** Resolver (`src/game/cardCombat/`) and simulator (`src/game/cardSim/`, variant `dd-final` in `balance/differenceDamage.ts`) implement it identically; the parity test replays the same matches through both. Full report, CSVs, runs and screens: project files `moonwater/difference-damage/`. Card-by-card audit: `card-changes-difference-damage.csv` (the batch 3 `card-changes.csv` stays as history).
 
 ### 15.1 The rule
 
@@ -400,6 +400,19 @@ There is no deck-out loss. When a player's deck is empty, the draw at the start 
 ### 15.6 Blocking quality
 
 Attackers 145 / 110 / 85 against blockers 130 / 95 / 70: the six placements cost the defender 45, 55, 65, 75, 90 and 90 HP (no blockers: 340; old rule: 0 for every placement). The placement that takes the least damage loses all three blockers; the others trade HP for kills, so placement is a real choice. Over 2000 random boards from real card ATKs, best / random / worst placement take 24 / 32 / 38 HP, and the net HP swing gap between best and worst is 60 or more in 23% of boards.
+
+### 15.7 Decisions (ozi, 2026-09-30)
+
+Locked for the current card-combat baseline:
+
+1. **Clash Damage rule accepted:** winner ATK − loser ATK is dealt to the losing Unit's player.
+2. **No card balance changes from this pass.** All approved card-combat effects stay. Guard stays an ATK modification. The Aegis Ward wording update is kept.
+3. **Pacing accepted:** median about 10 rounds, p90 about 14. No artificial HP scaling, damage caps or extra damage to force another target.
+4. **No deck-out loss.** An empty deck stops drawing; the player keeps using cards in hand and on board; the primary victory stays Player HP reaching 0. The exhausted-board draw and the round-cap draw remain the fallbacks.
+5. **Undead starter vs Bulwark (0.96) is a known matchup outlier.** Bulwark is a study deck, not a shipped deck, so production card balance is not changed to correct it. **Review it when real starter and archetype decks are authored.**
+6. **Approved prototype baseline:** core archetype spread about 0.39–0.61, first-seat win rate about 0.50, no stalls, Clash Damage on, HPC unchanged, Mastery HPC-only, no Unit HP, an empty lane still takes full ATK, ties destroy both for 0 Player damage.
+
+Campaign, Ranked and Friendly Battle stay on the legacy resolver until ozi asks. No further balance pass is scheduled.
 
 ## Appendix: collection, Box and save rules
 
