@@ -20,11 +20,11 @@ Nothing here is live. Every mode still runs the legacy resolver (Power, fixed 20
 | --- | --- |
 | Deck | 15 cards. 2 copies per card, 1 for a Legendary (unchanged). **At least 8 Units (approved).** |
 | Starting HP | Sum of the deck's Unit HP Contributions. Spells and battle tokens contribute 0. |
-| Round | Hand refills to 3, simultaneous deploy into 3 Unit lanes and 3 Spell slots, then the live phase order: Reveal → Spells left to right → Unit On Play → Before Combat → Combat → death chains → After Combat → Round End → temporary effects expire. Initiative alternates by round. An empty deck just stops drawing. |
-| Clash | Opposed Units compare effective ATK. Higher wins and stays unchanged; lower is destroyed. |
-| Tie | Equal ATK destroys both Units. |
+| Round | Hand refills to 3, simultaneous deploy into 3 Unit lanes and 3 Spell slots, then the live phase order: Reveal → Spells left to right → Unit On Play → Before Combat → Combat → death chains → After Combat → Round End → temporary effects expire. Initiative alternates by round. An empty deck just stops drawing; there is no deck-out loss (approved, section 15.7). |
+| Clash | Opposed Units compare effective ATK. Higher wins and stays unchanged; lower is destroyed; **the loser's player takes winner ATK − loser ATK as Clash Damage (section 15).** |
+| Tie | Equal ATK destroys both Units. No Player damage. |
 | Direct attack | An unopposed Unit deals its full effective ATK to the opposing player. No cap, no scaling. |
-| Overflow | **None (approved).** Losing a clash costs the Unit, not HP. |
+| Overflow | Replaced by **Clash Damage** (approved, section 15): the losing Unit's player takes winner ATK − loser ATK. |
 | Graveyard | **Each card may return from the Graveyard once per match (approved)**, counted per physical copy: a copy that has returned is marked Returned (section 14). Covers return to hand or deck and revive. |
 | Growth cap | Permanent effects raise a Unit at most **+45 ATK** above the ATK it entered with; cards that grow print "up to +45" (section 14). |
 | Win | A player at 0 HP loses. Both at 0 in the same step is a draw. A hard round cap (40 in the simulator) ends a stalled match as a draw. |
@@ -74,9 +74,9 @@ Why this shape:
 
 ## 5. Clash resolution
 
-- Compare effective ATK after Spells, On Play and Before Combat effects. Higher wins; the loser is destroyed; the winner keeps its ATK and stays in the lane.
+- Compare effective ATK after Spells, On Play and Before Combat effects. Higher wins; the loser is destroyed; the winner keeps its ATK and stays in the lane. **Since section 15 the loser's player also takes the ATK difference as Clash Damage.**
 - **Tie: both destroyed.** "Neither destroyed" was tested and rejected: it tripled board locks (tie rate 9.5%), raised stalls and pushed p90 to 16 rounds.
-- **No overflow (approved).** The live engine makes the losing side's player take the ATK difference. Without it, a blocker fully absorbs any attacker, which is what makes the lane game about blocking. With it, games run 2 rounds shorter, 35–40% of kills come from overflow, a clash loss hurts twice and chump-blocking decks collapse (Undead starter 0.44 → 0.31).
+- **No overflow (approved, superseded by section 15).** The live engine makes the losing side's player take the ATK difference. Without it, a blocker fully absorbs any attacker, which is what makes the lane game about blocking. With it, games run 2 rounds shorter, 35–40% of kills come from overflow, a clash loss hurts twice and chump-blocking decks collapse (Undead starter 0.44 → 0.31).
 - A Unit reduced to or below the Power 0 line (35 ATK on the baseline) is destroyed, preserving the legacy "Power ≤ 0 dies" rule.
 
 ## 6. Direct attacks
@@ -246,7 +246,7 @@ The model supports bosses without giving Units personal HP: a boss is a player-l
 
 The open questions of the first draft, as decided:
 
-1. **Overflow:** none.
+1. **Overflow:** none. *Superseded 2026-09-29 by Clash Damage (section 15).*
 2. **Graveyard return:** once per card per match, counted per physical copy (section 14).
 3. **Deck minimum:** 8 Units.
 4. **Player-HP effects:** 45 HP per legacy point, reviewed per card (section 14: every card keeps ×45; Aegis Ward prevents a whole hit and is not scaled).
@@ -332,7 +332,7 @@ Decision (ozi, 2026-09-29): **the current length is accepted for the next playte
 
 Evidence: lowering HPC to ×0.9 and ×0.8 of the approved scale only moved the median to 11, so Starting HP is not the cause and the global model stays. Games got longer in every pairing, Aggressive mirrors included (mean 9.9 to 11.0 rounds), because the pass removed uncapped growth, turned growth lines into Guard and removed lopsided blowouts. If playtesting says games are too long, the lever is effects that add damage, in a separate pass.
 
-Locked through the playtest: the ATK/HPC model, HPC-only Mastery, no overflow, once-per-copy Graveyard return, the 8-Unit minimum and the token limits.
+Locked through the playtest: the ATK/HPC model, HPC-only Mastery, no overflow (since replaced by Clash Damage, section 15), once-per-copy Graveyard return, the 8-Unit minimum and the token limits.
 
 ### 14.5 Rejected alternatives (stay rejected)
 
@@ -346,6 +346,73 @@ Locked through the playtest: the ATK/HPC model, HPC-only Mastery, no overflow, o
 | Bone Soldier capped at +45 | Low rarity fell to 0.29 |
 | HPC ×0.9 / ×0.8 for tempo | Median only 12 to 11 |
 | Hellhound −15, Power Surge +2 | Not needed |
+
+## 15. Clash Damage (ATK difference damage)
+
+Status: **approved by ozi on 2026-09-30 as the current card-combat prototype baseline (section 15.7).** Resolver (`src/game/cardCombat/`) and simulator (`src/game/cardSim/`, variant `dd-final` in `balance/differenceDamage.ts`) implement it identically; the parity test replays the same matches through both. Full report, CSVs, runs and screens: project files `moonwater/difference-damage/`. Card-by-card audit: `card-changes-difference-damage.csv` (the batch 3 `card-changes.csv` stays as history).
+
+### 15.1 The rule
+
+| Case | Result |
+| --- | --- |
+| Unit vs Unit, different ATK | Higher ATK wins and stays in its lane unchanged. Lower ATK is destroyed. **The losing Unit's player takes winner ATK − loser ATK as Clash Damage.** |
+| Unit vs Unit, equal ATK | Both destroyed. No Player damage. |
+| Unit vs empty lane | Direct hit for the Unit's full ATK (unchanged). |
+
+Why: without it a 60 ATK chump blocker stopped a 145 ATK Unit for 0 damage, so the cheapest blocker was always right.
+
+### 15.2 What ATK does now
+
+ATK has two jobs in a clash. It decides **who wins the lane**, and the loser's ATK is **how much of the winner's attack it absorbs** for its player. Example: a 145 ATK Unit beats an 85 ATK Unit. The 85 ATK blocker is destroyed and absorbs 85 of the attack; the remaining **60 reaches the defending Player as Clash Damage**. A 140 ATK blocker would absorb 140 and let 5 through; an empty lane lets all 145 through.
+
+This is **not Unit HP**. Units still have no HP of their own, damage never stays on a Unit, the winner is never damaged, and the loser is destroyed regardless of the difference. Clash Damage is Player damage, like a direct hit, just reduced by the blocker's ATK. Nothing from Combat V2 comes back.
+
+- Clash Damage is never negative and needs no cap: it is at most the winner's ATK, which is what an empty lane would have dealt.
+- ATK buffs and debuffs change Clash Damage because they change ATK (Power Surge on a 115 ATK Unit against 130: it wins 130 vs 115 and deals 15). Mastery changes HP Contribution only, so it never changes Clash Damage.
+- Shield saves the Unit, not the Player: a shielded loser survives, but its player still takes the difference.
+- Pacify (Stasis Field): the pacified Unit does not clash, so no Clash Damage in that lane.
+- Aegis Ward: "The next damage your player would take this round, **including Clash Damage**, is prevented." Same effect as before; the text now says so.
+- Bypass (Mirage Imp, Shade Thief, Wraith Prince) is still a direct hit past the blocker, not a clash.
+
+### 15.3 Guard: one meaning
+
+**Guard N stays "+N × 15 ATK this round when this Unit would lose its lane".** Under Clash Damage that does two things at once, both through ATK: it may flip the lane, and when it doesn't, it shrinks the difference its player takes. Guard as Clash Damage reduction (30, 45 or 60 off) was simulated and collapsed Bulwark and Undead to about 0.05; Guard 3 on Dark Priest, Grave Knight and Crypt Warden created near-auto-wins. Both are rejected. No card changes in this batch: every card either works unchanged or needed a wording update (Aegis Ward).
+
+### 15.4 Results (expert pilot, 200 games per pair, eleven study decks, seed 20260929)
+
+| Metric | Batch 3 (no overflow) | Clash Damage |
+| --- | --- | --- |
+| Rounds mean / median / p90 | 11.5 / 12 / 15 | **10.3 / 10 / 14** |
+| Draws / stalls | 3.9% / 0% | 5.7% / 0% |
+| Player damage per match: direct / Clash / effect | 1356 / 0 / 257 | 994 / 524 / 251 |
+| Direct hits per match | 11.2 | 8.4 |
+| Kill shot: direct / Clash / effect | 92% / 0% / 8% | 81% / 13% / 6% |
+| First-seat win rate | 0.41 | 0.50 |
+| Core deck spread | 0.34–0.66 | 0.39–0.61 |
+| Core pairings at 0.85 or more | 0 (Undead over Bulwark was 0.73) | 1: Undead starter over Bulwark 0.96 |
+
+First-seat rate moved because the simulator now resolves Before Combat in initiative order like the resolver (section 13); it was player-first. Mastery V vs Mastery I mirrors: 0.49–0.60 (batch 3: 0.50–0.57). Weaker deck played well vs stronger deck played randomly (Aggressive vs Balanced): 0.80 (batch 3: 0.79). High rarity vs low rarity, both played well: 0.29 (unchanged; the study high-rarity list is not the stronger deck).
+
+### 15.5 Deck exhaustion
+
+There is no deck-out loss. When a player's deck is empty, the draw at the start of the round does nothing and play continues with the hand and board. A match ends: at 0 HP (both at 0 in the same step is a draw); as an **exhausted draw** when both decks, hands and boards are empty and nothing can be played; or as a draw at the round cap (40). Under Clash Damage, 100% of expert matches and 99.8% of heuristic matches end by HP; 0.2% end exhausted; none reach the cap. At least one deck runs out in 85% of expert matches, on average 3.4 rounds before the end, so the last rounds are played from hand and board.
+
+### 15.6 Blocking quality
+
+Attackers 145 / 110 / 85 against blockers 130 / 95 / 70: the six placements cost the defender 45, 55, 65, 75, 90 and 90 HP (no blockers: 340; old rule: 0 for every placement). The placement that takes the least damage loses all three blockers; the others trade HP for kills, so placement is a real choice. Over 2000 random boards from real card ATKs, best / random / worst placement take 24 / 32 / 38 HP, and the net HP swing gap between best and worst is 60 or more in 23% of boards.
+
+### 15.7 Decisions (ozi, 2026-09-30)
+
+Locked for the current card-combat baseline:
+
+1. **Clash Damage rule accepted:** winner ATK − loser ATK is dealt to the losing Unit's player.
+2. **No card balance changes from this pass.** All approved card-combat effects stay. Guard stays an ATK modification. The Aegis Ward wording update is kept.
+3. **Pacing accepted:** median about 10 rounds, p90 about 14. No artificial HP scaling, damage caps or extra damage to force another target.
+4. **No deck-out loss.** An empty deck stops drawing; the player keeps using cards in hand and on board; the primary victory stays Player HP reaching 0. The exhausted-board draw and the round-cap draw remain the fallbacks.
+5. **Undead starter vs Bulwark (0.96) is a known matchup outlier.** Bulwark is a study deck, not a shipped deck, so production card balance is not changed to correct it. **Review it when real starter and archetype decks are authored.**
+6. **Approved prototype baseline:** core archetype spread about 0.39–0.61, first-seat win rate about 0.50, no stalls, Clash Damage on, HPC unchanged, Mastery HPC-only, no Unit HP, an empty lane still takes full ATK, ties destroy both for 0 Player damage.
+
+Campaign, Ranked and Friendly Battle stay on the legacy resolver until ozi asks. No further balance pass is scheduled.
 
 ## Appendix: collection, Box and save rules
 

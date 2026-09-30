@@ -40,7 +40,7 @@ function makeStep(visualType: VisualType, timingCategory: TimingCategory, events
  * straight into the next step with no gap, so the pause reads as emphasis on the moments that matter
  * rather than a uniform drag on every step.
  */
-const PAUSE_AFTER_VISUAL_TYPES = new Set<VisualType>(['combat-clash', 'hero-destroyed', 'shield-save', 'overflow-damage', 'direct-damage', 'spell-zone-destroyed', 'revived']);
+const PAUSE_AFTER_VISUAL_TYPES = new Set<VisualType>(['combat-clash', 'hero-destroyed', 'shield-save', 'overflow-damage', 'clash-damage', 'direct-damage', 'spell-zone-destroyed', 'revived']);
 
 function categoryFor(visualType: VisualType): TimingCategory {
   switch (visualType) {
@@ -49,6 +49,7 @@ function categoryFor(visualType: VisualType): TimingCategory {
     case 'hero-destroyed':
     case 'shield-save':
     case 'overflow-damage':
+    case 'clash-damage':
     case 'revived':
     case 'match-end':
       return 'major';
@@ -101,7 +102,7 @@ export function buildAnimationSteps(events: GameEvent[]): AnimationStep[] {
 
   /**
    * Combat's constituent events are NOT adjacent in the raw log - all three lanes' COMBAT +
-   * OVERFLOW_DAMAGE/DIRECT_DAMAGE events are pushed first, then a separate later phase destroys every
+   * OVERFLOW_DAMAGE/CLASH_DAMAGE/DIRECT_DAMAGE events are pushed first, then a separate later phase destroys every
    * lane's loser (see resolveRound.ts step 6/9). To play "clash -> loser dies -> damage lands" per
    * lane, as the brief asks for, this pulls the later HERO_DESTROYED/SHIELD_CONSUMED forward into the
    * same lane's mini-sequence - a deliberate PRESENTATION reorder, never a state reorder (see
@@ -137,6 +138,25 @@ export function buildAnimationSteps(events: GameEvent[]): AnimationStep[] {
           trailStep.maxEventIndex = ddIdx + trail.length;
           out.push(trailStep);
         }
+      }
+      return out;
+    }
+
+    // Card combat: the lane's Clash Damage (winner ATK - loser ATK) lands on the losing player's HP straight after the
+    // clash. The losers are destroyed later, in their own steps, exactly where the log has them: all three lanes
+    // clash before anyone dies, and pulling a death forward would commit the other lanes' HP changes early.
+    const cdIdx = findNext(combatIndex, (e) => e.type === 'CLASH_DAMAGE' && e.lane === combat.lane);
+    if (cdIdx >= 0) {
+      consumed.add(cdIdx);
+      const cd = events[cdIdx] as Extract<GameEvent, { type: 'CLASH_DAMAGE' }>;
+      if (cd.side === null) {
+        // A tie moves no HP: its record rides on the clash beat (it only feeds the callout).
+        clash.events = [...clash.events, cd];
+        clash.maxEventIndex = cdIdx;
+      } else {
+        const step = makeStep('clash-damage', categoryFor('clash-damage'), [cd], cdIdx, combat.lane);
+        step.maxEventIndex = cdIdx;
+        out.push(step);
       }
       return out;
     }

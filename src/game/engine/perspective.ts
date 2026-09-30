@@ -36,6 +36,8 @@ function flipCombatOutcome(outcome: CombatOutcome): CombatOutcome {
  *    ('PLAYER_WINS', 'PLAYER_DIRECT', ...) semantically encodes a side, which drives which side's
  *    board flashes/streaks in the animation layer (see buildAnimationSteps.ts) - both must flip together.
  *  - MATCH_END's `winner` is `Side | 'draw'` - flip the Side case, leave 'draw' alone.
+ *  - CLASH_DAMAGE (card combat) carries a nullable `side`, a `winner` that may be 'tie', per-side ATKs and
+ *    the destroyed Units' sides - all flip together.
  *  - ROUND_START, ROUND_END, SAFEGUARD_TRIPPED carry no side at all.
  */
 function flipEvent(event: GameEvent): GameEvent {
@@ -54,6 +56,15 @@ function flipEvent(event: GameEvent): GameEvent {
       return { ...event, player: event.enemy, enemy: event.player, outcome: flipCombatOutcome(event.outcome) };
     case 'MATCH_END':
       return { ...event, winner: event.winner === 'draw' ? 'draw' : opposite(event.winner) };
+    case 'CLASH_DAMAGE':
+      return {
+        ...event,
+        side: event.side === null ? null : opposite(event.side),
+        winner: event.winner === 'tie' ? 'tie' : opposite(event.winner),
+        playerAtk: event.enemyAtk,
+        enemyAtk: event.playerAtk,
+        destroyed: event.destroyed.map((d) => ({ ...d, side: opposite(d.side) })),
+      };
     default:
       return { ...event, side: opposite(event.side) };
   }

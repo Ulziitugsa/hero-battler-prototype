@@ -9,7 +9,8 @@ import { ATK_PER_POWER, atkFromPower } from './stats.js';
 // balance number was measured with, moved onto GameState.
 //
 // Units: every way of assigning hand Units to empty lanes is scored with lane heuristics (win the clash, block
-// an attacker, hit an open lane, don't waste a card), counting printed Guard lines.
+// an attacker, hit an open lane, don't waste a card), counting printed Guard lines. Under Clash Damage a losing
+// blocker is worth the ATK it absorbs, so the pilot matches blockers to threats instead of throwing any Unit in.
 // Spells: greedy one-ply look-ahead. Each legal (Spell, lane) is resolved on a copy of the round (with the Units
 // just chosen, the opponent assumed to add nothing) and the resulting position is scored. A Spell that barely
 // helps is held while the hand is at or under the refill target.
@@ -34,6 +35,16 @@ export function guardBonusAtk(cardId: string): number {
   for (const ability of getCombatCard(cardId).abilities) {
     if (ability.trigger !== 'BEFORE_COMBAT' || ability.conditions?.length !== 1 || ability.conditions[0].type !== 'SELF_LOSING_LANE') continue;
     for (const action of ability.actions) if (action.type === 'CHANGE_POWER' && action.target === 'SELF') steps += action.amount;
+  }
+  return steps * ATK_PER_POWER;
+}
+
+/** Clash Damage a Unit's unconditional PASSIVE reduction takes off a lost clash (mirrors the simulator's pilot). */
+export function clashGuardAtk(cardId: string): number {
+  let steps = 0;
+  for (const ability of getCombatCard(cardId).abilities) {
+    if (ability.trigger !== 'PASSIVE' || (ability.conditions?.length ?? 0) > 0) continue;
+    for (const action of ability.actions) if (action.type === 'REDUCE_CLASH_DAMAGE' || action.type === 'REDUCE_OVERFLOW_DAMAGE') steps += action.amount;
   }
   return steps * ATK_PER_POWER;
 }
@@ -83,9 +94,11 @@ export function chooseCardAiAction(state: GameState, side: Side, rngState: numbe
       let theirs = effectiveAtk(state, foeSide, lane);
       if (mine < theirs) mine += guardBonusAtk(cardId);
       if (!foeUnit.silenced && theirs < mine) theirs += guardBonusAtk(foeUnit.cardId);
-      if (mine > theirs) return (STYLE.kill + block) * theirs + 0.2 * mine;
+      // Clash Damage: a blocker only absorbs its own ATK (plus its Clash Damage reduction), so it is scored on what
+      // it stops, not on the size of the threat it stands in front of. A winner also pushes its surplus through.
+      if (mine > theirs) return (STYLE.kill + block) * theirs + STYLE.face * Math.max(0, mine - theirs - clashGuardAtk(foeUnit.cardId)) + 0.2 * mine;
       if (mine === theirs) return 0.5 * STYLE.kill * theirs + block * theirs - 0.5 * STYLE.card * mine;
-      return block * theirs - STYLE.card * mine;
+      return block * Math.min(theirs, mine + clashGuardAtk(cardId)) - STYLE.card * mine;
     };
     // A tiny seeded jitter breaks exact ties only.
     const scores = unitCards.map((h) => openLanes.map((lane) => laneScore(h.cardId, lane) + rand() * 0.01));

@@ -32,6 +32,10 @@ function formatEvent(e: GameEvent, stat: 'Power' | 'ATK'): string {
     }
     case 'DIRECT_DAMAGE':
       return `Direct damage! ${e.side} HP ${e.from} -> ${e.to} (${e.sourceName})`;
+    case 'CLASH_DAMAGE':
+      return e.side === null
+        ? `Clash ${e.lane}: ${e.playerAtk} vs ${e.enemyAtk} - tie, both destroyed, 0 Player damage`
+        : `Clash Damage ${e.lane}: ${e.playerAtk} vs ${e.enemyAtk}, winner ${e.winner} -> ${e.clashDamage}${e.reduced ? ` - ${e.reduced} reduced` : ''}${e.prevented ? ` - ${e.prevented} prevented` : ''} -> ${e.side} HP ${e.from} -> ${e.to}`;
     case 'OVERFLOW_DAMAGE':
       return `Overflow! ${e.winnerName}(${e.amount} over ${e.loserName}) -> ${e.side} HP ${e.from} -> ${e.to} (${e.lane})`;
     case 'HEAL':

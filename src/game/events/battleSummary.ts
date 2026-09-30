@@ -45,7 +45,7 @@ export function summarizeBattle(status: GameState['status'], events: readonly Ga
     } else if (event.type === 'SPELL_RESOLVED' && event.side === 'player') spellsPlayed += 1;
     // Continuous Spells never emit SPELL_RESOLVED - same counting rule as engine/abilities.ts.
     else if (event.type === 'ON_PLAY' && event.side === 'player' && event.zone === 'spell') spellsPlayed += 1;
-    else if ((event.type === 'DIRECT_DAMAGE' || event.type === 'OVERFLOW_DAMAGE') && event.side === 'enemy') damageDealt += Math.max(0, event.amount);
+    else if ((event.type === 'DIRECT_DAMAGE' || event.type === 'OVERFLOW_DAMAGE' || event.type === 'CLASH_DAMAGE') && event.side === 'enemy') damageDealt += Math.max(0, event.amount);
   }
   const result = status === 'PLAYER_WIN' ? 'win' : status === 'DRAW' ? 'draw' : 'loss';
   const summary: BattleSummary = {

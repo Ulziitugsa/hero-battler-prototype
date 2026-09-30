@@ -6,10 +6,11 @@ import { getCard } from '../cards/index.js';
 import { STARTER_DECKS } from '../cards/starterDecks.js';
 import { STARTING_HP } from '../engine/constants.js';
 import { createMatch } from '../engine/match.js';
+import { applyEvent } from '../engine/replay.js';
 import { deckSummary } from '../decks/deckSummary.js';
 import { resolveCombatModel } from '../combatV2/featureFlag.js';
 import { withCardOverrides } from '../cardSim/cardSource.js';
-import { getVariant } from '../cardSim/balance/proposal.js';
+import { getVariant } from '../cardSim/balance/differenceDamage.js';
 import { choosePlays } from '../cardSim/ai.js';
 import { playMatch } from '../cardSim/engine.js';
 import { cardJitter, getStatModel } from '../cardSim/statModels.js';
@@ -143,7 +144,7 @@ describe('card combat: Mastery', () => {
 });
 
 describe('card combat: clashes and direct hits', () => {
-  it('5 and 8. Higher ATK wins, the winner is unchanged, and there is no overflow', () => {
+  it('5 and 8. Higher ATK wins and the winner is unchanged; the loser’s player takes the ATK difference', () => {
     const s = blankMatch();
     const winner = put(s, 'player', 'left', KNIGHT, 120);
     put(s, 'enemy', 'left', KNIGHT, 104);
@@ -153,7 +154,7 @@ describe('card combat: clashes and direct hits', () => {
     expect(r.nextState.enemy.heroZones.left).toBeNull();
     expect(r.nextState.player.heroZones.left?.power).toBe(120);
     expect(r.nextState.player.hp).toBe(hp.player);
-    expect(r.nextState.enemy.hp).toBe(hp.enemy); // the 16-ATK margin is not dealt to anyone
+    expect(r.nextState.enemy.hp).toBe(hp.enemy - 16);
     expect(r.events.some((e) => e.type === 'OVERFLOW_DAMAGE' || e.type === 'DIRECT_DAMAGE' || e.type === 'HERO_DAMAGE')).toBe(false);
   });
 
@@ -206,6 +207,156 @@ describe('card combat: clashes and direct hits', () => {
     const before = s.enemy.hp;
     const r = resolveCardRound(s, { plays: [{ handId: a.handId, cardId: 'spl-arcane-bolt', lane: 'left' }] }, NONE);
     expect(r.nextState.enemy.hp).toBe(before - 135);
+  });
+});
+
+/** One opposed clash in the left lane at fixed ATK, resolved through a whole round. */
+function clash(playerAtk: number | null, enemyAtk: number | null, setup: (s: GameState) => void = () => {}) {
+  const s = blankMatch();
+  if (playerAtk !== null) put(s, 'player', 'left', KNIGHT, playerAtk);
+  if (enemyAtk !== null) put(s, 'enemy', 'left', KNIGHT, enemyAtk);
+  setup(s);
+  const hp = { player: s.player.hp, enemy: s.enemy.hp };
+  const r = resolveCardRound(s, NONE, NONE);
+  const record = r.events.find((e) => e.type === 'CLASH_DAMAGE' && e.lane === 'left') as Extract<GameEvent, { type: 'CLASH_DAMAGE' }> | undefined;
+  return { s, r, hp, record, taken: { player: hp.player - r.nextState.player.hp, enemy: hp.enemy - r.nextState.enemy.hp } };
+}
+
+describe('card combat: ATK difference Clash Damage', () => {
+  it('D1. 145 vs 85: the 85 is destroyed, the 145 remains, the defending player takes 60', () => {
+    const { r, taken, record } = clash(145, 85);
+    expect(r.nextState.enemy.heroZones.left).toBeNull();
+    expect(r.nextState.player.heroZones.left?.power).toBe(145);
+    expect(taken).toEqual({ player: 0, enemy: 60 });
+    expect(record).toMatchObject({ side: 'enemy', winner: 'player', playerAtk: 145, enemyAtk: 85, clashDamage: 60, amount: 60 });
+  });
+
+  it('D2. 145 vs 140: the player takes 5', () => {
+    expect(clash(140, 145).taken).toEqual({ player: 5, enemy: 0 });
+  });
+
+  it('D3. 120 vs 120: both destroyed, 0 Player damage', () => {
+    const { r, taken, record } = clash(120, 120);
+    expect(r.nextState.player.heroZones.left).toBeNull();
+    expect(r.nextState.enemy.heroZones.left).toBeNull();
+    expect(taken).toEqual({ player: 0, enemy: 0 });
+    expect(record).toMatchObject({ side: null, winner: 'tie', clashDamage: 0, amount: 0 });
+    expect(record!.destroyed.map((d) => d.side).sort()).toEqual(['enemy', 'player']);
+  });
+
+  it('D4. 145 into an empty lane: a direct hit for 145', () => {
+    const { r, taken, record } = clash(145, null);
+    expect(taken.enemy).toBe(145);
+    expect(record).toBeUndefined();
+    expect(r.events).toContainEqual(expect.objectContaining({ type: 'DIRECT_DAMAGE', side: 'enemy', amount: 145 }));
+  });
+
+  it('D5. Clash Damage is never negative and never exceeds the defending player’s HP', () => {
+    for (const [a, b] of [[80, 81], [81, 80], [200, 36], [36, 200]]) {
+      const { record, taken } = clash(a, b);
+      expect(record!.clashDamage).toBe(Math.abs(a - b));
+      expect(record!.amount).toBeGreaterThanOrEqual(0);
+      expect(taken.player + taken.enemy).toBe(Math.abs(a - b));
+    }
+    const low = clash(200, 40, (s) => (s.enemy.hp = 50));
+    expect(low.r.nextState.enemy.hp).toBe(0);
+    expect(low.record).toMatchObject({ clashDamage: 160, amount: 50, from: 50, to: 0 });
+  });
+
+  it('D6. An ATK buff changes Clash Damage: Power Surge (+45) turns a 60-point loss into a 15-point win', () => {
+    const s = blankMatch();
+    put(s, 'player', 'left', KNIGHT, 85);
+    put(s, 'enemy', 'left', KNIGHT, 115);
+    const surge = hand(s, 'player', 'spl-power-surge');
+    const hp = s.enemy.hp;
+    const r = resolveCardRound(s, { plays: [{ handId: surge.handId, cardId: 'spl-power-surge', lane: 'left' }] }, NONE);
+    expect(r.events).toContainEqual(expect.objectContaining({ type: 'CLASH_DAMAGE', winner: 'player', playerAtk: 130, enemyAtk: 115, clashDamage: 15 }));
+    expect(r.nextState.enemy.hp).toBe(hp - 15);
+  });
+
+  it('D7. An ATK debuff changes Clash Damage: Weakness (−45) on the winner cuts 60 to 15', () => {
+    const s = blankMatch();
+    put(s, 'player', 'left', KNIGHT, 85);
+    put(s, 'enemy', 'left', KNIGHT, 145);
+    const weak = hand(s, 'player', 'spl-weakness');
+    const hp = s.player.hp;
+    const r = resolveCardRound(s, { plays: [{ handId: weak.handId, cardId: 'spl-weakness', lane: 'left' }] }, NONE);
+    expect(r.events).toContainEqual(expect.objectContaining({ type: 'CLASH_DAMAGE', winner: 'enemy', playerAtk: 85, enemyAtk: 100, clashDamage: 15 }));
+    expect(r.nextState.player.hp).toBe(hp - 15);
+  });
+
+  it('D8. Mastery V still never changes ATK, so it never changes Clash Damage', () => {
+    const run = (stage: number) => {
+      const s = blankMatch();
+      s.cardCombat!.masteryStage.player[KNIGHT] = stage;
+      s.cardCombat!.masteryStage.enemy['und-crypt-warden'] = stage;
+      const k = hand(s, 'player', KNIGHT);
+      put(s, 'enemy', 'left', 'und-crypt-warden', 90);
+      const record = resolveCardRound(s, { plays: [{ handId: k.handId, cardId: KNIGHT, lane: 'left' }] }, NONE).events.find((e) => e.type === 'CLASH_DAMAGE');
+      return record && record.type === 'CLASH_DAMAGE' ? { atk: [record.playerAtk, record.enemyAtk], clashDamage: record.clashDamage, amount: record.amount } : null;
+    };
+    expect(run(1)).toEqual({ atk: [128, 120], clashDamage: 8, amount: 8 }); // the Warden's Guard: 90 + 30
+    expect(run(5)).toEqual(run(1));
+  });
+
+  it('D9. Replay reproduces every Clash Damage number and the HP it moved, exactly', () => {
+    const { log } = autoMatch(20260929, STARTER_DECKS.infernal, STARTER_DECKS.kingdom);
+    const clashes = log.filter((e): e is Extract<GameEvent, { type: 'CLASH_DAMAGE' }> => e.type === 'CLASH_DAMAGE');
+    expect(clashes.length).toBeGreaterThan(3);
+    for (const c of clashes) {
+      expect(c.clashDamage).toBe(Math.abs(c.playerAtk - c.enemyAtk));
+      if (c.side === null) expect(c.amount).toBe(0);
+      else expect(c.to).toBe(c.from! - c.amount);
+      expect(c.amount).toBe(Math.min(c.from ?? 0, c.clashDamage - c.reduced - c.prevented));
+    }
+    // Replay each round's log on the state it started from: the Player HP it lands on is the resolver's own.
+    let { nextState: state } = createCardMatch({ seed: 20260929, playerDeck: STARTER_DECKS.infernal, enemyDeck: STARTER_DECKS.kingdom });
+    while (state.status === 'IN_PROGRESS') {
+      const p = chooseCardAiAction(state, 'player', state.rngState);
+      const e = chooseCardAiAction(state, 'enemy', p.nextRngState);
+      const r = resolveCardRound(state, p.action, e.action, e.nextRngState);
+      const replayed = r.events.reduce(applyEvent, state);
+      expect({ player: replayed.player.hp, enemy: replayed.enemy.hp }).toEqual({ player: r.nextState.player.hp, enemy: r.nextState.enemy.hp });
+      if (r.nextState.status !== 'IN_PROGRESS') break;
+      state = beginCardRound(r.nextState).nextState;
+    }
+  });
+
+  it('D10. Guard (+ATK when it would lose) makes its blocker absorb more: 145 vs Crypt Warden 98 + 30 lets 17 through', () => {
+    const s = blankMatch(STARTER_DECKS.undead, STARTER_DECKS.undead);
+    put(s, 'player', 'left', KNIGHT, 145);
+    put(s, 'enemy', 'left', 'und-crypt-warden', 98);
+    const hp = s.enemy.hp;
+    const r = resolveCardRound(s, NONE, NONE);
+    expect(r.events).toContainEqual(expect.objectContaining({ type: 'CLASH_DAMAGE', playerAtk: 145, enemyAtk: 128, clashDamage: 17 }));
+    expect(r.nextState.enemy.hp).toBe(hp - 17);
+  });
+
+  it('Aegis Ward’s “prevent the next damage” also covers Clash Damage, and says so in the log', () => {
+    const s = blankMatch();
+    put(s, 'player', 'left', KNIGHT, 85);
+    put(s, 'enemy', 'left', KNIGHT, 145);
+    const ward = hand(s, 'player', 'spl-aegis-ward');
+    const hp = s.player.hp;
+    const r = resolveCardRound(s, { plays: [{ handId: ward.handId, cardId: 'spl-aegis-ward', lane: 'center' }] }, NONE);
+    expect(r.events).toContainEqual(expect.objectContaining({ type: 'CLASH_DAMAGE', clashDamage: 60, prevented: 60, amount: 0 }));
+    expect(r.nextState.player.hp).toBe(hp);
+  });
+
+  it('blocking quality: against 145 / 110 / 85, the best lanes for 130 / 95 / 70 let 45 through, the worst 90, the old rule 0', () => {
+    const lanes: LaneId[] = ['left', 'center', 'right'];
+    const damage = (order: number[]) => {
+      const s = blankMatch();
+      [145, 110, 85].forEach((atk, i) => put(s, 'enemy', lanes[i], KNIGHT, atk));
+      order.forEach((atk, i) => put(s, 'player', lanes[i], KNIGHT, atk));
+      const hp = s.player.hp;
+      return hp - resolveCardRound(s, NONE, NONE).nextState.player.hp;
+    };
+    const perms = [[130, 95, 70], [130, 70, 95], [95, 130, 70], [95, 70, 130], [70, 130, 95], [70, 95, 130]];
+    const all = perms.map(damage);
+    expect(all).toEqual([45, 55, 65, 90, 75, 90]);
+    expect(Math.min(...all)).toBe(45);
+    expect(Math.max(...all)).toBe(90);
   });
 });
 
@@ -318,12 +469,12 @@ describe('card combat: determinism and the event log', () => {
 
   // Decks with Graveyard returns (Undead) are left out on purpose: the simulator approximated "once per copy" as a
   // per-card-name budget (copies x 1), while this resolver marks the physical copy, so their matches may differ.
-  it('plays exactly like the approved simulator (final variant) on decks without Graveyard returns', () => {
+  it('plays exactly like the simulator (difference-damage variant dd-final) on decks without Graveyard returns', () => {
     const decks: [string[], string[]][] = [
       [STARTER_DECKS.kingdom, STARTER_DECKS.infernal],
       [STARTER_DECKS.infernal, STARTER_DECKS.kingdom],
     ];
-    const variant = getVariant('final');
+    const variant = getVariant('dd-final');
     for (const [a, b] of decks) {
       for (const seed of [1, 2, 3, 4]) {
         const sim = withCardOverrides(variant.cards(), () => playMatch({ model: getStatModel('baseline'), rules: variant.rules, sides: [{ deck: a, policy: 'balanced' }, { deck: b, policy: 'balanced' }], seed }, choosePlays));
@@ -336,8 +487,8 @@ describe('card combat: determinism and the event log', () => {
 });
 
 describe('card combat: approved card data', () => {
-  it('matches the simulator’s approved final card set, card by card', () => {
-    const approved = new Map(getVariant('final').cards().map((c) => [c.id, c]));
+  it('matches the simulator’s card set (dd-final: batch 3’s approved cards), card by card', () => {
+    const approved = new Map(getVariant('dd-final').cards().map((c) => [c.id, c]));
     const strip = (abilities: readonly object[]) => abilities.map((a) => ({ ...a, text: undefined }));
     expect([...CARD_COMBAT_OVERRIDE_IDS].sort()).toEqual([...approved.keys()].sort());
     for (const [id, card] of approved) {

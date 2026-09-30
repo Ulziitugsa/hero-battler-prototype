@@ -141,6 +141,7 @@ export function Battlefield({
         <span className={`clash-callout lane-${clashCallout.lane} ${clashCallout.kind} ${clashCallout.side ?? ''}`} role="status">
           <b>{clashCallout.line1}</b>
           <small>{clashCallout.line2}</small>
+          {clashCallout.line3 && <small className="clash-callout-damage">{clashCallout.line3}</small>}
         </span>
       )}
     </div>

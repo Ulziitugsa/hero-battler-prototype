@@ -1,7 +1,7 @@
 import type { ConditionDef, CountBasis, DeployPlay, Faction, GameEvent, GameState, GraveyardPick, HandCard, HeroInstance, LaneId, Placement, PlayerAction, PlayerState, ResolveResult, Side, SpellZoneInstance, TargetScope, Trigger } from '../types/index.js';
 import { LANES, TRIGGER_LABEL, adjacentLanes } from '../types/index.js';
 import { nextRandom } from '../engine/rng.js';
-import { type CombatAbility, type CombatAction, type CombatCard, getCombatCard, isPacify } from './cards.js';
+import { type CombatAbility, type CombatAction, type CombatCard, getCombatCard, isCardOnlyAction, isPacify } from './cards.js';
 import { ATK_PER_POWER, DEATH_LINE_ATK, GROWTH_CAP_ATK, HP_PER_LEGACY_POINT, type MasteryStages, atkFromPower, deckStartingHp, hpContributionAt, printedStats } from './stats.js';
 
 // The production card-combat resolver (docs/CARD-COMBAT-DESIGN.md, Phase 1/2 of section 12).
@@ -12,7 +12,9 @@ import { ATK_PER_POWER, DEATH_LINE_ATK, GROWTH_CAP_ATK, HP_PER_LEGACY_POINT, typ
 //     no Unit healing anywhere in this file.
 //   - Starting HP = the deck's summed Unit HP Contributions (stats.ts deckStartingHp, the Deck Builder's helper).
 //   - 3 lanes. Opposed Units compare effective ATK: higher wins and stays unchanged, lower is destroyed.
-//     Equal ATK destroys both. No overflow: losing a clash costs the Unit, never Player HP.
+//   - Clash Damage (ATK difference damage, approved 2026-09-29): the losing Unit's player takes winner ATK -
+//     loser ATK. A blocker absorbs attacks equal to its own ATK; only the rest reaches the Player. Equal ATK
+//     destroys both and deals no Player damage. Clash Damage is never negative and is never Unit damage.
 //   - An unopposed Unit deals its full effective ATK to the opposing player.
 //   - Each physical card copy may return from the Graveyard once per match (a returned copy is marked).
 //   - Permanent effects raise a Unit at most +45 ATK above the ATK it entered with.
@@ -25,7 +27,7 @@ import { ATK_PER_POWER, DEATH_LINE_ATK, GROWTH_CAP_ATK, HP_PER_LEGACY_POINT, typ
 // Deterministic: every random pick draws from the match's own seeded stream (engine/rng.ts), carried in
 // GameState.rngState. Same seed + same plays = same events and the same end state.
 
-export const CARD_RESOLVER_VERSION = 1;
+export const CARD_RESOLVER_VERSION = 2;
 export const CARD_MAX_ROUNDS = 40;
 export const CARD_HAND_TARGET = 3;
 
@@ -188,6 +190,16 @@ function bypassReduction(ctx: Ctx, side: Side, lane: LaneId): number | null {
     for (const a of ability.actions) if (a.type === 'GRANT_BYPASS') best = best === null ? a.reduction : Math.min(best, a.reduction);
   }
   return best;
+}
+
+/**
+ * Clash Damage the losing Unit in (side, lane) takes off its player's hit, in Power steps: REDUCE_CLASH_DAMAGE and
+ * the legacy name for the same line, REDUCE_OVERFLOW_DAMAGE (the simulator reads both the same way).
+ */
+function clashReduction(ctx: Ctx, side: Side, lane: LaneId): number {
+  let steps = 0;
+  for (const { ability } of passiveAbilities(ctx, side, lane)) for (const a of ability.actions) if (a.type === 'REDUCE_CLASH_DAMAGE' || a.type === 'REDUCE_OVERFLOW_DAMAGE') steps += a.amount;
+  return steps * ATK_PER_POWER;
 }
 
 function spellEchoSource(ctx: Ctx, side: Side): string | null {
@@ -357,6 +369,35 @@ function damagePlayer(ctx: Ctx, target: Side, amount: number, sourceName: string
   return true;
 }
 
+/**
+ * Clash Damage to the losing player: winner ATK - loser ATK, minus the losing Unit's reductions, then player-level
+ * prevention (a PREVENT_NEXT_DAMAGE barrier takes the whole hit; a CLASH_SHIELD takes up to its amount). Logged as
+ * one CLASH_DAMAGE event with every number a replay needs.
+ */
+function clashDamage(ctx: Ctx, lane: LaneId, winner: Side, atk: Record<Side, number>, destroyed: { side: Side; instanceId: string; name: string }[]): void {
+  const loser = opposite(winner);
+  const p = playerOf(ctx, loser);
+  const raw = Math.max(0, atk[winner] - atk[loser]);
+  const reduced = Math.min(raw, clashReduction(ctx, loser, lane));
+  let amount = raw - reduced;
+  let prevented = 0;
+  if (amount > 0 && (p.barrier ?? 0) > 0) {
+    p.barrier = (p.barrier ?? 0) - 1;
+    prevented = amount;
+    amount = 0;
+  }
+  const shield = meta(ctx).clashShield?.[loser] ?? 0;
+  if (amount > 0 && shield > 0) {
+    const absorbed = Math.min(shield, amount);
+    meta(ctx).clashShield![loser] = shield - absorbed;
+    prevented += absorbed;
+    amount -= absorbed;
+  }
+  const from = p.hp;
+  p.hp = Math.max(0, p.hp - amount);
+  push(ctx, { type: 'CLASH_DAMAGE', lane, side: loser, winner, playerAtk: atk.player, enemyAtk: atk.enemy, destroyed, clashDamage: raw, reduced, prevented, amount: from - p.hp, from, to: p.hp });
+}
+
 function healPlayer(ctx: Ctx, side: Side, amount: number, sourceName: string): void {
   const p = playerOf(ctx, side);
   if (p.hp <= 0) return;
@@ -446,14 +487,25 @@ function returnToHand(ctx: Ctx, side: Side, index: number, usedSpellZoneLane?: L
 
 function execute(ctx: Ctx, action: CombatAction, exec: Exec): void {
   const me = playerOf(ctx, exec.owner);
-  if (isPacify(action)) {
-    for (const loc of hostileFilter(ctx, exec, action, locations(ctx, exec, action.target))) {
-      const unit = unitAt(ctx, loc.side, loc.lane);
-      if (!unit) continue;
-      unit.pacified = true;
-      push(ctx, { type: 'PACIFIED', side: loc.side, instanceId: unit.instanceId, name: unit.name, lane: loc.lane });
+  if (isCardOnlyAction(action)) {
+    switch (action.type) {
+      case 'PACIFY':
+        for (const loc of hostileFilter(ctx, exec, action, locations(ctx, exec, action.target))) {
+          const unit = unitAt(ctx, loc.side, loc.lane);
+          if (!unit) continue;
+          unit.pacified = true;
+          push(ctx, { type: 'PACIFIED', side: loc.side, instanceId: unit.instanceId, name: unit.name, lane: loc.lane });
+        }
+        return;
+      case 'CLASH_SHIELD': {
+        const m = meta(ctx);
+        m.clashShield = m.clashShield ?? { player: 0, enemy: 0 };
+        m.clashShield[exec.owner] += action.amount * ATK_PER_POWER;
+        return;
+      }
+      case 'REDUCE_CLASH_DAMAGE':
+        return; // read live as PASSIVE at the clash
     }
-    return;
   }
   switch (action.type) {
     case 'CHANGE_POWER':
@@ -488,7 +540,7 @@ function execute(ctx: Ctx, action: CombatAction, exec: Exec): void {
     case 'SPELL_ECHO':
       return; // read live as PASSIVE
     case 'REDUCE_OVERFLOW_DAMAGE':
-      return; // there is no overflow damage in card combat
+      return; // read live as PASSIVE at the clash (clashReduction)
     case 'DESTROY': {
       const targets = hostileFilter(ctx, exec, action, locations(ctx, exec, action.target)).filter((loc) => {
         if (!unitAt(ctx, loc.side, loc.lane)) return false;
@@ -990,8 +1042,9 @@ export function resolveCardRound(state: GameState, playerAction: PlayerAction, e
   // lane, so the last word on a close contest alternates by round instead of always going to the enemy.
   dispatchAll(ctx, 'BEFORE_COMBAT', order);
 
-  // 5. Combat: higher effective ATK wins and stays; the loser is destroyed; a tie destroys both; an unopposed
-  //    Unit hits the opposing player for its full ATK. No overflow, and no damage to any Unit.
+  // 5. Combat: higher effective ATK wins and stays; the loser is destroyed and its player takes the ATK
+  //    difference as Clash Damage; a tie destroys both with no Player damage; an unopposed Unit hits the
+  //    opposing player for its full ATK. Lanes resolve left to right; no Unit ever takes damage.
   const losers: { side: Side; lane: LaneId }[] = [];
   const direct = (attacker: Side, lane: LaneId, amount: number, name: string) => {
     damagePlayer(ctx, opposite(attacker), Math.max(0, amount), name);
@@ -1033,15 +1086,20 @@ export function resolveCardRound(state: GameState, playerAction: PlayerAction, e
         }
         continue;
       }
+      const atk = { player: atkA, enemy: atkB };
+      const gone = (side: Side) => {
+        const unit = side === 'player' ? a : b;
+        return { side, instanceId: unit.instanceId, name: unit.name };
+      };
       if (atkA === atkB) {
         push(ctx, { type: 'COMBAT', lane, outcome: 'TIE', player: pInfo, enemy: eInfo });
+        push(ctx, { type: 'CLASH_DAMAGE', lane, side: null, winner: 'tie', playerAtk: atkA, enemyAtk: atkB, destroyed: [gone('player'), gone('enemy')], clashDamage: 0, reduced: 0, prevented: 0, amount: 0 });
         losers.push({ side: 'player', lane }, { side: 'enemy', lane });
-      } else if (atkA > atkB) {
-        push(ctx, { type: 'COMBAT', lane, outcome: 'PLAYER_WINS', player: pInfo, enemy: eInfo });
-        losers.push({ side: 'enemy', lane });
       } else {
-        push(ctx, { type: 'COMBAT', lane, outcome: 'ENEMY_WINS', player: pInfo, enemy: eInfo });
-        losers.push({ side: 'player', lane });
+        const winner: Side = atkA > atkB ? 'player' : 'enemy';
+        push(ctx, { type: 'COMBAT', lane, outcome: winner === 'player' ? 'PLAYER_WINS' : 'ENEMY_WINS', player: pInfo, enemy: eInfo });
+        clashDamage(ctx, lane, winner, atk, [gone(opposite(winner))]);
+        losers.push({ side: opposite(winner), lane });
       }
     } else if (a) {
       push(ctx, { type: 'COMBAT', lane, outcome: 'PLAYER_DIRECT', player: pInfo, enemy: null });
@@ -1056,6 +1114,7 @@ export function resolveCardRound(state: GameState, playerAction: PlayerAction, e
   // 6-8. After Combat, Round End, then this-round effects expire.
   dispatchAll(ctx, 'AFTER_COMBAT');
   dispatchAll(ctx, 'ROUND_END');
+  delete m.clashShield;
   for (const side of SIDES) {
     const p = playerOf(ctx, side);
     delete p.barrier;

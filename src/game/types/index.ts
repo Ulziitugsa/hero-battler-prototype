@@ -380,6 +380,8 @@ export interface CardCombatMeta {
   playsThisRound: number;
   /** Instance id counter, kept in state so ids are deterministic per match. */
   seq: number;
+  /** Clash Damage each player may still prevent this round (CLASH_SHIELD). Cleared at Round End. */
+  clashShield?: Record<Side, number>;
   /** Why the match ended, once it has. */
   endReason?: 'hp' | 'exhausted' | 'round-cap';
 }
@@ -488,6 +490,34 @@ export type GameEvent =
       /** The lane's winner: it survives unchanged. Overflow is player damage, never damage to this Hero. */
       winnerInstanceId: string;
       loserInstanceId: string;
+    }
+  /**
+   * Card combat: one opposed clash under ATK difference damage (docs/CARD-COMBAT-DESIGN.md). Pushed right after the
+   * lane's COMBAT event, for a win and a tie alike, with everything a replay needs to reproduce the Player HP
+   * change: both ATKs, the winner, the Unit(s) the clash destroys, the Clash Damage (winner ATK - loser ATK), what
+   * reductions and prevention took off it, and the losing player's HP before and after. `side` is the player
+   * that takes the damage (the losing Unit's owner), null on a tie. Units never take damage: this is Player damage.
+   */
+  | {
+      type: 'CLASH_DAMAGE';
+      lane: LaneId;
+      side: Side | null;
+      winner: Side | 'tie';
+      playerAtk: number;
+      enemyAtk: number;
+      /** Units the clash destroys (a Shield may still save one: see the SHIELD_CONSUMED that follows). */
+      destroyed: { side: Side; instanceId: string; name: string }[];
+      /** Winner ATK - loser ATK (0 on a tie). Never negative. */
+      clashDamage: number;
+      /** Taken off by the losing Unit's Clash Damage reductions. */
+      reduced: number;
+      /** Taken off by the losing player's damage prevention (Aegis Ward). */
+      prevented: number;
+      /** Player HP actually lost: clashDamage - reduced - prevented, floored at 0 and at the player's HP. */
+      amount: number;
+      /** The losing player's HP before and after. Absent on a tie. */
+      from?: number;
+      to?: number;
     }
   | { type: 'HEAL'; side: Side; amount: number; from: number; to: number; sourceName: string }
   /** `token` is set for a summoned token: it vanishes instead of entering the Graveyard. */

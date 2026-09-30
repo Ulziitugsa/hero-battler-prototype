@@ -27,7 +27,7 @@ export function MatchSummary({
   friendlyRematch?: FriendlyRematchActions;
 }) {
   const title = stats.winner === 'player' ? 'You win' : stats.winner === 'enemy' ? 'You lose' : 'Draw';
-  // Card combat: Unit numbers are ATK and there is no overflow damage, so the summary says so.
+  // Card combat: Unit numbers are ATK, and a lost clash costs Clash Damage (winner ATK - loser ATK), not overflow.
   const cardCombat = !!useCardCombatDisplay();
   const stat = cardCombat ? 'ATK' : 'Power';
   return (
@@ -43,7 +43,12 @@ export function MatchSummary({
           <span className="v">{stats.roundsPlayed}</span>
           <span className="k">Total direct damage</span>
           <span className="v">{stats.totalDirectDamage}</span>
-          {!cardCombat && (
+          {cardCombat ? (
+            <>
+              <span className="k">Total Clash Damage</span>
+              <span className="v">{stats.totalClashDamage}</span>
+            </>
+          ) : (
             <>
               <span className="k">Total overflow damage</span>
               <span className="v">{stats.totalOverflowDamage}</span>
