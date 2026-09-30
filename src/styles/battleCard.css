@@ -1,6 +1,7 @@
 /* Card-combat battle faces (BattleCard.tsx, Battle UX pass). The root reuses .collectible for the frame material,
-   trim and rarity ornaments, so a battle card is the same object as the Collection card; the inside is a column:
-   art band (with ATK), name, then the rules panel with every effect. Text sizes are px with a 9px floor. */
+   trim and rarity ornaments, so a battle card is the same object as the Collection card. Inside, top to bottom:
+   artwork (about half the card), name + ATK, then one compact row per effect: a small timing chip and a short
+   phrase. Hierarchy: art, then name and ATK, then the effect, then its timing. Text sizes are px with a 9px floor. */
 
 .collectible.battle-card {
   aspect-ratio: auto;
@@ -8,7 +9,9 @@
   height: 100%;
   border-radius: 6px;
   --bc-fs: 10px;
-  --bc-lh: 1.22;
+  --bc-lh: 1.2;
+  --bc-art: 50%;
+  --bc-gap: 3px;
 }
 
 .battle-card .collectible-frame { inset: 2px; border-radius: 4px; }
@@ -21,17 +24,17 @@
   flex-direction: column;
   overflow: hidden;
   border-radius: 4px;
-  background: linear-gradient(180deg, #132634, var(--plate) 60%);
+  background: linear-gradient(180deg, #132634, var(--plate) 70%);
 }
 
-/* ---- Art band: a crop of the card art, with identity, ATK and live state laid over it ------------------------------- */
+/* ---- Artwork: a large crop of the square card art, with identity and live flags laid over its corners ------------- */
 .bc-art {
   position: relative;
-  flex: 0 0 auto;
-  height: var(--bc-art-h, 44px);
+  flex: 0 0 var(--bc-art);
+  min-height: 0;
   overflow: hidden;
   background: #16283f;
-  border-bottom: 1px solid color-mix(in srgb, var(--trim) 55%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--trim) 70%, transparent);
 }
 .battle-card.undead .bc-art { background: #12251f; }
 .battle-card.infernal .bc-art { background: #331711; }
@@ -41,7 +44,7 @@
   left: 0;
   width: 100%;
   /* The art is square; the band shows its upper-middle, where the faces are. */
-  top: -22%;
+  top: var(--bc-art-top, -6%);
   height: auto;
   aspect-ratio: 1;
   image-rendering: pixelated;
@@ -50,7 +53,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(6, 13, 20, 0.5), transparent 40%, transparent 55%, rgba(6, 13, 20, 0.78));
+  background: linear-gradient(180deg, rgba(6, 13, 20, 0.35), transparent 26%, transparent 78%, rgba(6, 13, 20, 0.55));
   pointer-events: none;
 }
 .bc-identity {
@@ -63,33 +66,10 @@
   gap: 3px;
   padding: 1px 4px 1px 2px;
   border-radius: 99px;
-  background: rgba(6, 13, 20, 0.7);
+  background: rgba(6, 13, 20, 0.66);
 }
 .bc-identity .cp-sigil { transform: scale(0.8); }
 .bc-identity .cp-gems { gap: 1.5px; }
-
-.bc-atk {
-  position: absolute;
-  z-index: 2;
-  left: 3px;
-  bottom: 3px;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 5px 2px 4px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #213345, #0c1822);
-  border: 1px solid rgba(232, 214, 168, 0.6);
-  color: #fff3d6;
-  box-shadow: 0 1px 3px rgba(3, 8, 12, 0.7);
-}
-.bc-atk svg { color: #f2cf7e; }
-.bc-atk strong { font: 800 14px / 1 var(--font, sans-serif); font-variant-numeric: tabular-nums; }
-.bc-atk.up { border-color: #8fe0a0; }
-.bc-atk.up strong { color: #9ff0b0; }
-.bc-atk.down { border-color: #f0907a; }
-.bc-atk.down strong { color: #ffab98; }
-.bc-atk-printed { font: 700 10px / 1 var(--font, sans-serif); color: #a8b3b0; margin-left: 1px; }
 
 .bc-kind {
   position: absolute;
@@ -101,11 +81,11 @@
   gap: 3px;
   padding: 2px 5px;
   border-radius: 4px;
-  background: linear-gradient(180deg, #213345, #0c1822);
+  background: rgba(8, 16, 24, 0.82);
   border: 1px solid rgba(214, 196, 150, 0.45);
   color: #c9b8f0;
-  font: 800 9px / 1 var(--font, sans-serif);
-  letter-spacing: 0.06em;
+  font: 800 8.5px / 1 var(--font, sans-serif);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -124,96 +104,119 @@
 .bc-temp.down { color: #ffab98; border: 1px solid rgba(240, 144, 122, 0.55); }
 .bc-flag.shield { top: 3px; color: #cfe7fb; border: 1px solid rgba(160, 205, 240, 0.6); }
 
-/* ---- Name ---------------------------------------------------------------------------------------------------------- */
-.bc-name {
+/* ---- Name + ATK ------------------------------------------------------------------------------------------------------ */
+.bc-head {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 5px 1px;
+  gap: 4px;
+  padding: 3px 4px 2px 5px;
+}
+.bc-name {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--name-ink);
-  font: 400 12px / 1.15 var(--px-font-display, Georgia, serif);
-  /* Long names wrap rather than truncate. */
-  overflow-wrap: anywhere;
+  font: 400 var(--bc-name-fs, 12px) / 1.1 var(--px-font-display, Georgia, serif);
+  /* Long names wrap between words rather than truncate. */
+  overflow-wrap: break-word;
 }
 .battle-card.r-legendary .bc-name { color: #ffe0a0; }
+.bc-atk {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 1px 3px 1px 2px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #213345, #0c1822);
+  border: 1px solid rgba(232, 214, 168, 0.6);
+  color: #fff3d6;
+}
+.bc-atk svg { color: #f2cf7e; }
+.bc-atk strong { font: 800 var(--bc-atk-fs, 14px) / 1 var(--font, sans-serif); font-variant-numeric: tabular-nums; }
+.bc-atk.up { border-color: #8fe0a0; }
+.bc-atk.up strong { color: #9ff0b0; }
+.bc-atk.down { border-color: #f0907a; }
+.bc-atk.down strong { color: #ffab98; }
+.bc-atk-printed { font: 700 9px / 1 var(--font, sans-serif); color: #a8b3b0; margin-left: 1px; }
 
-/* ---- Rules panel ---------------------------------------------------------------------------------------------------- */
+/* ---- Effects: one compact row each ----------------------------------------------------------------------------------- */
 .bc-rules {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 2px 5px 4px;
+  gap: var(--bc-gap);
+  padding: 1px 5px 4px;
   overflow: hidden;
-  color: #e6dcc4;
+  color: #efe6d0;
   font: 500 var(--bc-fs) / var(--bc-lh) var(--font, sans-serif);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   text-align: left;
 }
 .bc-effect { display: block; }
+/* The timing chip: a small accent in front of the phrase, never a headline. */
 .bc-when {
-  color: #f2cf7e;
-  font-weight: 800;
-  font-size: max(9px, calc(var(--bc-fs) - 1px));
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.battle-card.undead .bc-when { color: #97e0c0; }
-.battle-card.infernal .bc-when { color: #f7a88e; }
-.battle-card.is-spell .bc-when { color: #cdbcf4; }
-.bc-once { font-weight: 700; letter-spacing: 0.02em; text-transform: none; color: #c9bb98; }
-.bc-state {
-  display: inline-block;
-  margin-left: 4px;
-  padding: 0 3px;
-  border-radius: 3px;
-  font-size: 9px;
-  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 1px;
+  padding: 0 2px;
+  border-radius: 2px;
   vertical-align: 0.5px;
+  background: rgba(242, 207, 126, 0.12);
+  color: #d0b06a;
+  font: 800 8.5px / 11px var(--font, sans-serif);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
-.bc-state.on { color: #0c1a12; background: #8fe0a0; }
-.bc-state.off { color: #c3c7c2; background: rgba(160, 170, 165, 0.25); }
-.bc-effect.is-off .bc-text { color: #9aa29c; }
+.battle-card.undead .bc-when { color: #8fd2b4; background: rgba(143, 210, 180, 0.13); }
+.battle-card.infernal .bc-when { color: #efa088; background: rgba(239, 160, 136, 0.13); }
+.battle-card.is-spell .bc-when { color: #c2b2ec; background: rgba(194, 178, 236, 0.14); }
+/* A conditional Passive: a green dot while it is on; the row dims while it is off. */
+.bc-state { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+.bc-state.on { background: #8fe0a0; box-shadow: 0 0 4px #8fe0a0; }
+.bc-state.off { background: transparent; box-shadow: inset 0 0 0 1px #a3aaa4; }
+.bc-effect.is-off .bc-text { color: #99a19b; }
 .bc-silenced { color: #ffab98; font-weight: 800; font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; }
 .battle-card.is-silenced .bc-effect .bc-text { text-decoration: line-through; text-decoration-color: rgba(255, 171, 152, 0.7); }
 .bc-none { color: #8f988f; font-style: italic; font-weight: 500; }
 
-/* Hand: label on its own line above the rule (until the slim levels, where it runs inline like the board's). */
-.battle-card.v-hand:not([data-fit*='slim']):not([data-fit='scroll']) .bc-when { display: block; }
-.battle-card.v-board .bc-when::after,
-.battle-card.v-spell .bc-when::after { content: ''; }
-
 /* ---- Variants -------------------------------------------------------------------------------------------------------- */
-.battle-card.v-hand { --bc-art-h: 42px; --bc-fs: 10px; }
-.battle-card.v-board { --bc-art-h: 36px; --bc-fs: 10px; }
-.battle-card.v-board .bc-name { font-size: 11.5px; padding-top: 1px; }
+.battle-card.v-hand { --bc-fs: 10px; --bc-name-fs: 11.5px; --bc-atk-fs: 13.5px; }
+.battle-card.v-board { --bc-fs: 9.5px; --bc-name-fs: 11px; --bc-atk-fs: 13px; }
 .battle-card.v-spell .bc-name { display: inline; padding: 0; margin-right: 3px; font: 800 var(--bc-fs) / var(--bc-lh) var(--font, sans-serif); color: #efe6ff; letter-spacing: 0; }
 .battle-card.v-spell .bc-name svg { display: inline; vertical-align: -1px; margin-right: 2px; color: #cdbcf4; }
-.battle-card.v-spell .bc-rules { display: block; padding: 2px 4px; --bc-fs: 9.5px; --bc-lh: 1.16; }
-.battle-card.v-spell .bc-when { font-size: 8.5px; letter-spacing: 0.04em; }
+.battle-card.v-spell .bc-rules { display: block; padding: 3px 5px; --bc-fs: 10px; --bc-lh: 1.2; }
 .battle-card.v-spell .bc-effect { display: inline; }
 .battle-card.v-spell .bc-when-implied { display: none; }
 .battle-card.v-spell .bc-effect + .bc-effect::before { content: ''; display: block; height: 2px; }
 
-/* Fit levels (useFitRules, on the card root): smaller type, then (hand only) the board wording, then a slimmer art band,
-   then 9px type, and scrolling only as a last resort. */
-.battle-card[data-fit^='full'] .bc-text-compact { display: none; }
-.battle-card[data-fit^='compact'] .bc-text-full,
-.battle-card[data-fit='scroll'] .bc-text-full { display: none; }
-.battle-card[data-fit$='-sm'] .bc-rules { --bc-fs: 9.5px; --bc-lh: 1.17; gap: 2px; }
-.battle-card[data-fit$='-xs'] .bc-rules,
-.battle-card[data-fit='scroll'] .bc-rules { --bc-fs: 9px; --bc-lh: 1.14; gap: 2px; }
-.battle-card[data-fit$='-roomy'] { --bc-art-h: 58px; }
-.battle-card[data-fit$='-roomy'] .bc-art > canvas { top: -12%; }
-.battle-card[data-fit*='slim'],
-.battle-card[data-fit='scroll'] { --bc-art-h: 24px; }
-.battle-card[data-fit*='slim'] .bc-identity,
-.battle-card[data-fit='scroll'] .bc-identity { display: none; }
-.battle-card[data-fit*='slim'] .bc-art > canvas,
-.battle-card[data-fit='scroll'] .bc-art > canvas { top: -30%; }
-.battle-card[data-fit='scroll'] .bc-rules { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+/* Fit levels (useFitRules, on the card root). No level scrolls; type never goes below 9px. */
+.battle-card[data-fit='roomy'] { --bc-art: 56%; }
+.battle-card[data-fit='tight'],
+.battle-card[data-fit='sm'],
+.battle-card[data-fit^='art'] { --bc-gap: 1px; --bc-lh: 1.15; }
+.battle-card[data-fit='sm'],
+.battle-card[data-fit='art-md'] { --bc-fs: 9.5px; }
+.battle-card.v-board[data-fit='sm'],
+.battle-card.v-board[data-fit='art-md'] { --bc-fs: 9px; }
+.battle-card[data-fit='art-md'] { --bc-art: 42%; --bc-art-top: -14%; }
+.battle-card[data-fit='art-sm'] { --bc-art: 34%; --bc-art-top: -20%; --bc-fs: 9px; --bc-lh: 1.1; }
+.battle-card[data-fit='art-xs'] { --bc-art: 27%; --bc-art-top: -24%; --bc-fs: 9px; --bc-lh: 1.1; --bc-gap: 1px; }
+.battle-card[data-fit='art-sm'] .bc-rules,
+.battle-card[data-fit='art-xs'] .bc-rules { padding-bottom: 2px; }
+.bc-name-short { display: none; }
+.battle-card[data-head='short'] .bc-name:has(.bc-name-short) { font-size: 0; }
+.battle-card[data-head='short'] .bc-name-short { display: inline; font-size: var(--bc-name-fs, 12px); }
+.battle-card[data-fit^='art'] .bc-head { padding-top: 2px; padding-bottom: 1px; }
+/* Name + ATK (data-head): on one row; or ATK on the artwork's lower-right corner so the name has the full row. */
+.battle-card:is([data-head='overlay'], [data-head='short']) .bc-atk { position: absolute; z-index: 3; right: 3px; top: calc(var(--bc-art) - 21px); box-shadow: 0 1px 3px rgba(3, 8, 12, 0.7); }
+.battle-card:is([data-head='overlay'], [data-head='short']) .bc-temp { right: auto; left: 3px; }
+.battle-card[data-fit^='art'] .bc-identity { transform: scale(0.85); transform-origin: top left; }
+.battle-card.v-spell[data-fit='sm'] .bc-rules { --bc-fs: 9.5px; --bc-lh: 1.15; }
+.battle-card.v-spell[data-fit='xs'] .bc-rules { --bc-fs: 9px; --bc-lh: 1.12; padding-top: 2px; padding-bottom: 2px; }
 
 /* ---- Card-combat battle screen (GamePage adds .card-mode): taller Hero zones for readable Units ------------------
    At 390x844: enemy Spell 100-166, enemy Hero 168-336, Fight seal (58px) and clash line 335-393, player Hero 392-560,

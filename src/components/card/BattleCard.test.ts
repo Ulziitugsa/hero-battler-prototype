@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameState, HeroInstance, LaneId, Side } from '../../game/types';
 import { ALL_CARDS, getCard } from '../../game/cards';
 import { STARTER_DECKS } from '../../game/cards/starterDecks';
-import { cardCombatBattleEffects, cardCombatEffectLines } from '../../game/cardCombat/cardText';
+import { battleCopyLineCount, cardCombatBattleEffects, cardCombatEffectLines } from '../../game/cardCombat/cardText';
 import { getCombatCard, hasCombatOverride } from '../../game/cardCombat/cards';
 import { createCardMatch, passiveEffectStates } from '../../game/cardCombat/engine';
 import { BoardChit } from '../BoardChit';
@@ -35,28 +35,27 @@ const handProps = (cardId: string) => ({ hand: { handId: 'h1', cardId }, selecte
 describe('Battle UX: Royal Guard is readable without Card Inspect', () => {
   const ROYAL_GUARD = 'kng-royal-guard';
 
-  it('5. in hand: both effects, with their timing, in full wording, and no HP Contribution', () => {
+  it('5. in hand: name, ATK and both effects in battle copy with their timing chips, and no HP Contribution', () => {
     const html = inCardCombat(createElement(HandCard, handProps(ROYAL_GUARD)));
     const t = text(html);
-    expect(t).toContain('Royal Guard');
-    expect(t).toContain('On Play');
-    expect(t).toContain('Adjacent allied Units gain +15 ATK for the rest of the battle.');
-    expect(t).toContain('Passive');
-    expect(t).toContain('While another Kingdom Unit is in play, enemy Spells can’t affect this Unit.');
-    expect(t).toContain('113');
+    expect(t).toContain('Royal Guard 113');
+    expect(t).toContain('On Play Adjacent allies +15 ATK');
+    expect(t).toContain('Passive Spell Immune with Kingdom ally');
     expect(t).not.toContain('+77');
     expect(html).toContain('battle-card v-hand');
+    // The full sentences stay in Card Inspect (and the card's accessible label).
+    expect(t).not.toContain('for the rest of the battle');
   });
 
   it('6. on the board: both effects in board wording, current ATK, and whether the immunity is on', () => {
     const guard = unit(ROYAL_GUARD);
     const html = inCardCombat(createElement(BoardChit, { hero: guard, side: 'player', onClick: () => {} }), new Map([[guard.instanceId, new Map([[1, true]])]]));
     const t = text(html);
-    expect(t).toContain('On Play');
-    expect(t).toContain('Adjacent allies +15 ATK for the rest of the battle.');
-    expect(t).toContain('Passive');
-    expect(t).toContain('Spell Immune while another Kingdom Unit is in play.');
-    expect(t).toContain('active');
+    expect(t).toContain('Royal Guard 113');
+    expect(t).toContain('On Play Adjacent allies +15 ATK');
+    expect(t).toContain('Passive Spell Immune with Kingdom ally');
+    expect(html).toContain('bc-state on');
+    expect(html).toContain('aria-label="active now"');
     expect(t).not.toContain('Adj+1');
     expect(t).not.toContain('…');
   });
@@ -72,23 +71,25 @@ describe('Battle UX: Royal Guard is readable without Card Inspect', () => {
 describe('Battle UX: multi-effect cards never drop an effect', () => {
   const cards = ALL_CARDS.filter((c) => !c.id.startsWith('tok-'));
 
-  it('the battle lines are exactly the card-combat effect lines, with a board wording for each', () => {
+  it('the battle lines are exactly the card-combat effect lines, each with its own short battle copy', () => {
     for (const card of cards) {
       const lines = cardCombatEffectLines(card.id);
       const effects = cardCombatBattleEffects(card.id);
       expect(effects.length, card.id).toBe(lines.length);
+      expect(battleCopyLineCount(card.id), card.id).toBe(lines.length);
       const visible = getCombatCard(card.id).abilities.filter((a) => !hasCombatOverride(card.id) || a.text !== '');
       expect(effects.length, card.id).toBe(visible.length);
       for (const e of effects) {
         expect(e.text.length, card.id).toBeGreaterThan(0);
         expect(e.compact.length, card.id).toBeGreaterThan(0);
         expect(e.compact, card.id).not.toMatch(/…|\.\.\./);
-        expect(e.compact.length, `${card.id}: ${e.compact}`).toBeLessThanOrEqual(95);
+        expect(e.compact.length, `${card.id}: ${e.compact}`).toBeLessThanOrEqual(70);
+        expect(e.compact.length, `${card.id}: battle copy should be shorter than the Inspect sentence`).toBeLessThanOrEqual(e.text.length);
       }
     }
   });
 
-  it('7. every card shows every effect: all full lines in hand, all board lines on the board or in its Spell zone', () => {
+  it('7. every card shows every effect, with its timing chip, in hand and on the board or in its Spell zone', () => {
     let multi = 0;
     for (const card of cards) {
       const effects = cardCombatBattleEffects(card.id);
@@ -96,10 +97,10 @@ describe('Battle UX: multi-effect cards never drop an effect', () => {
       const hand = text(renderToStaticMarkup(createElement(BattleCard, { cardId: card.id, variant: 'hand' })));
       const board = text(renderToStaticMarkup(createElement(BattleCard, { cardId: card.id, variant: card.type === 'hero' ? 'board' : 'spell' })));
       for (const e of effects) {
-        expect(hand, card.id).toContain(e.text.replace(/\s+/g, ' '));
         expect(hand, card.id).toContain(e.compact.replace(/\s+/g, ' '));
+        expect(hand, card.id).toContain(e.chip);
         expect(board, card.id).toContain(e.compact.replace(/\s+/g, ' '));
-        expect(board, card.id).toContain(e.label);
+        if (card.type === 'hero' || card.spellKind === 'CONTINUOUS') expect(board, card.id).toContain(e.chip);
       }
       if (effects.length === 0) expect(board, card.id).toContain('No effect');
     }
@@ -108,15 +109,14 @@ describe('Battle UX: multi-effect cards never drop an effect', () => {
 
   it('the Legendary Paladin shows Shield, Guard 3 and its heal, each with its timing', () => {
     const t = text(renderToStaticMarkup(createElement(BattleCard, { cardId: 'kng-paladin', variant: 'board' })));
-    expect(t).toContain('On Play This Unit gains a Shield.');
-    expect(t).toContain('On Clash Guard 3: +45 ATK this round if it would lose its lane.');
-    expect(t).toContain('Enemy Destroyed · once per round');
-    expect(t).toContain('restore 45 HP to your player.');
+    expect(t).toContain('On Play Gain Shield');
+    expect(t).toContain('Clash Guard 3: +45 ATK if losing');
+    expect(t).toContain('Enemy Falls Enemy here: restore 45 HP');
   });
 
   it('a Continuous Spell on the board shows its rule in its Spell zone', () => {
     const html = inCardCombat(createElement(SpellZoneChit, { spell: { instanceId: 's1', cardId: 'spl-burning-ground', faction: 'infernal', name: 'Burning Ground', shortName: 'Burning Ground', usedThisRound: false } as never, side: 'enemy', onClick: () => {} }));
-    expect(text(html)).toContain('Round End Enemy Unit here: −15 ATK for the rest of the battle.');
+    expect(text(html)).toContain('Burning Ground Round End Enemy here −15 ATK');
   });
 
   it('battle wording drops a timing phrase the label already shows, and keeps Guard', () => {
@@ -172,7 +172,7 @@ describe('Battle UX: live ATK and effect state', () => {
   it('a silenced Unit keeps its rules visible and says they are off', () => {
     const t = text(renderToStaticMarkup(createElement(BattleCard, { cardId: 'kng-royal-guard', variant: 'board', silenced: true })));
     expect(t).toContain('Silenced this round');
-    expect(t).toContain('Spell Immune while another Kingdom Unit is in play.');
+    expect(t).toContain('Spell Immune with Kingdom ally');
   });
 });
 
