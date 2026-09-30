@@ -15,8 +15,8 @@ const RULES: { icon: Parameters<typeof Icon>[0]['name']; text: string }[] = [
 
 /** Card combat (ATK + HP Contribution): the same list with the clash and HP lines in its own terms. */
 const CARD_COMBAT_RULES: typeof RULES = RULES.flatMap((rule) => {
-  if (rule.text.startsWith('Higher Power')) return [{ icon: 'power' as const, text: 'Higher ATK wins a lane - the loser is destroyed, the winner is untouched. The difference is not dealt to anyone.' }];
-  if (rule.text.startsWith('Equal Power')) return [{ icon: 'warning' as const, text: 'Equal ATK destroys both units in that lane.' }];
+  if (rule.text.startsWith('Higher Power')) return [{ icon: 'power' as const, text: 'Higher ATK wins a lane - the loser is destroyed, the winner stays, and the losing player takes the ATK difference as Clash Damage (145 vs 85: 60).' }];
+  if (rule.text.startsWith('Equal Power')) return [{ icon: 'warning' as const, text: 'Equal ATK destroys both units in that lane, with no Player damage.' }];
   if (rule.text.startsWith('An empty lane')) {
     return [
       { icon: 'hp' as const, text: 'Your HP starts at your deck’s Starting HP: the HP Contribution of all its Units added up. Units have no HP of their own.' },

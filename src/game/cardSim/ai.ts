@@ -80,6 +80,7 @@ function chooseUnits(s: SimState, side: SideIndex, style: Style): Play[] {
   const block = endangered ? Math.max(style.block, 1.2) : style.block;
   const foeCanAnswer = foe.hand.length > 0;
   const tieKills = s.cfg.rules.tie === 'both';
+  const clash = s.cfg.rules.clashDamage;
 
   const laneScore = (cardId: string, lane: Lane): number => {
     let mine = statsOf(s, side, cardId).atk + continuousBonus(s, side, lane);
@@ -89,9 +90,16 @@ function chooseUnits(s: SimState, side: SideIndex, style: Style): Play[] {
     // Guard (Before Combat: +N if this Unit would lose its lane) is printed on the card, so a good pilot counts it.
     if (mine < theirs) mine += guardBonus(s, cardId);
     if (!foeUnit.silenced && theirs < mine) theirs += guardBonus(s, foeUnit.cardId);
-    if (mine > theirs) return (style.kill + block) * theirs + 0.2 * mine;
+    if (!clash) {
+      if (mine > theirs) return (style.kill + block) * theirs + 0.2 * mine;
+      if (mine === theirs) return tieKills ? 0.5 * style.kill * theirs + block * theirs - 0.5 * style.card * mine : block * theirs;
+      return block * theirs - style.card * mine;
+    }
+    // Clash Damage: a blocker only absorbs its own ATK (plus its Guard), so it is scored on what it stops, not
+    // on the size of the threat it stands in front of. A winner also pushes its surplus ATK through.
+    if (mine > theirs) return (style.kill + block) * theirs + style.face * Math.max(0, mine - theirs - clashGuard(s, foeUnit.cardId)) + 0.2 * mine;
     if (mine === theirs) return tieKills ? 0.5 * style.kill * theirs + block * theirs - 0.5 * style.card * mine : block * theirs;
-    return block * theirs - style.card * mine;
+    return block * Math.min(theirs, mine + clashGuard(s, cardId)) - style.card * mine;
   };
 
   // Precompute scores (plus a tiny seeded jitter that only breaks exact ties).
@@ -128,6 +136,16 @@ export function guardBonus(s: SimState, cardId: string): number {
     for (const action of ability.actions) if (action.type === 'CHANGE_POWER' && action.target === 'SELF') bonus += action.amount;
   }
   return bonus * s.cfg.model.atkStep;
+}
+
+/** Clash Damage a Unit's Guard (REDUCE_CLASH_DAMAGE / REDUCE_OVERFLOW_DAMAGE) takes off a lost clash. */
+export function clashGuard(s: SimState, cardId: string): number {
+  let steps = 0;
+  for (const ability of getCard(cardId).abilities) {
+    if (ability.trigger !== 'PASSIVE' || (ability.conditions?.length ?? 0) > 0) continue;
+    for (const action of ability.actions as { type: string; amount?: number }[]) if (action.type === 'REDUCE_CLASH_DAMAGE' || action.type === 'REDUCE_OVERFLOW_DAMAGE') steps += action.amount ?? 0;
+  }
+  return steps * s.cfg.model.atkStep;
 }
 
 function evaluate(s: SimState, side: SideIndex, style: Style): number {

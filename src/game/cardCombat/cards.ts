@@ -19,7 +19,23 @@ export interface PacifyAction {
   target: TargetScope;
 }
 
-export type CombatAction = ActionDef | PacifyAction;
+/**
+ * Card-combat-only primitive (difference-damage pass): PASSIVE on a Unit. When this Unit loses a clash, its player
+ * takes `amount` legacy Power steps (15 each) less Clash Damage. Read live at the clash, like GRANT_BYPASS.
+ */
+export interface ReduceClashDamageAction {
+  type: 'REDUCE_CLASH_DAMAGE';
+  amount: number;
+  target: 'SELF';
+}
+
+/** Card-combat-only primitive (difference-damage pass): prevent up to `amount` legacy Power steps (15 each) of Clash Damage to your player this round. */
+export interface ClashShieldAction {
+  type: 'CLASH_SHIELD';
+  amount: number;
+}
+
+export type CombatAction = ActionDef | PacifyAction | ReduceClashDamageAction | ClashShieldAction;
 
 export interface CombatAbility extends Omit<AbilityDefinition, 'actions'> {
   actions: CombatAction[];
@@ -31,6 +47,11 @@ export interface CombatCard extends Omit<CardDefinition, 'abilities'> {
 
 export function isPacify(action: CombatAction): action is PacifyAction {
   return action.type === 'PACIFY';
+}
+
+/** True for the card-combat-only primitives the live ActionDef union does not know. */
+export function isCardOnlyAction(action: CombatAction): action is PacifyAction | ReduceClashDamageAction | ClashShieldAction {
+  return action.type === 'PACIFY' || action.type === 'REDUCE_CLASH_DAMAGE' || action.type === 'CLASH_SHIELD';
 }
 
 const live = (id: string): CardDefinition => getCard(id);
@@ -88,7 +109,7 @@ const OVERRIDES: CombatCard[] = [
   rewrite('spl-aegis-ward', {
     boardText: 'Ignore next dmg; ally Shield',
     abilities: [
-      ability('ON_PLAY', [{ type: 'PREVENT_NEXT_DAMAGE', count: 1 }], 'The next damage your player would take this round is prevented.'),
+      ability('ON_PLAY', [{ type: 'PREVENT_NEXT_DAMAGE', count: 1 }], 'The next damage your player would take this round, including Clash Damage, is prevented.'),
       ability('ON_PLAY', [{ type: 'GRANT_SHIELD', target: 'ALLY_SAME_LANE' }], 'Your Unit in this lane gains a Shield.'),
     ],
   }),

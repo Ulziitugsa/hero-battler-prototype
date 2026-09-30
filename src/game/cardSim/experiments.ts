@@ -35,7 +35,14 @@ export interface SeriesResult {
   winnerDirectHits: number[];
   directDamage: number[];
   effectDamage: number[];
-  overflowDamage: number[];
+  /** Per match: Clash Damage (ATK difference damage) dealt by both sides. */
+  clashDamage: number[];
+  /** Matches in which a player needed to draw from an empty deck. */
+  deckOuts: number;
+  /** Per such match: rounds played from the first empty draw to the end. */
+  roundsAfterDeckOut: number[];
+  /** Matches that ended by a player reaching 0 HP. */
+  hpEnds: number;
   killShots: Record<string, number>;
   ties: number;
   clashes: number;
@@ -61,7 +68,10 @@ function emptySeries(games: number): SeriesResult {
     winnerDirectHits: [],
     directDamage: [],
     effectDamage: [],
-    overflowDamage: [],
+    clashDamage: [],
+    deckOuts: 0,
+    roundsAfterDeckOut: [],
+    hpEnds: 0,
     killShots: {},
     ties: 0,
     clashes: 0,
@@ -103,7 +113,12 @@ function absorb(out: SeriesResult, m: MatchResult, aFirst: boolean): void {
   out.directHits.push(m.totals[0].directHits + m.totals[1].directHits);
   out.directDamage.push(m.totals[0].directDamage + m.totals[1].directDamage);
   out.effectDamage.push(m.totals[0].effectDamage + m.totals[1].effectDamage);
-  out.overflowDamage.push(m.totals[0].overflowDamage + m.totals[1].overflowDamage);
+  out.clashDamage.push(m.totals[0].clashDamage + m.totals[1].clashDamage);
+  if (m.endReason === 'hp') out.hpEnds++;
+  if (m.firstDeckOut > 0) {
+    out.deckOuts++;
+    out.roundsAfterDeckOut.push(m.rounds - m.firstDeckOut + 1);
+  }
   out.ties += m.ties;
   out.clashes += m.clashes;
   for (const t of m.totals) {
@@ -115,7 +130,7 @@ function absorb(out: SeriesResult, m: MatchResult, aFirst: boolean): void {
   }
 }
 
-function merge(results: SeriesResult[]): SeriesResult {
+export function merge(results: SeriesResult[]): SeriesResult {
   const out = emptySeries(0);
   for (const r of results) {
     out.games += r.games;
@@ -131,7 +146,10 @@ function merge(results: SeriesResult[]): SeriesResult {
     out.winnerDirectHits.push(...r.winnerDirectHits);
     out.directDamage.push(...r.directDamage);
     out.effectDamage.push(...r.effectDamage);
-    out.overflowDamage.push(...r.overflowDamage);
+    out.clashDamage.push(...r.clashDamage);
+    out.deckOuts += r.deckOuts;
+    out.roundsAfterDeckOut.push(...r.roundsAfterDeckOut);
+    out.hpEnds += r.hpEnds;
     for (const [k, v] of Object.entries(r.killShots)) out.killShots[k] = (out.killShots[k] ?? 0) + v;
     out.ties += r.ties;
     out.clashes += r.clashes;
@@ -181,10 +199,17 @@ export interface SeriesSummary {
   winnerDirectHitsMean: number;
   directDamageMean: number;
   effectDamageMean: number;
-  overflowDamageMean: number;
+  clashDamageMean: number;
   killShotDirectPct: number;
   killShotEffectPct: number;
-  killShotOverflowPct: number;
+  killShotClashPct: number;
+  /** How matches ended: a player at 0 HP, both decks and boards empty, or the round cap. */
+  endHpPct: number;
+  endExhaustedPct: number;
+  endCapPct: number;
+  /** Share of matches in which a player had to draw from an empty deck, and the rounds played after that. */
+  deckOutPct: number;
+  roundsAfterDeckOutMean: number;
   tieRate: number;
   seat0WinRate: number;
   maxHitPct: number;
@@ -214,10 +239,15 @@ export function summarize(r: SeriesResult): SeriesSummary {
     winnerDirectHitsMean: r1(mean(r.winnerDirectHits)),
     directDamageMean: Math.round(mean(r.directDamage)),
     effectDamageMean: Math.round(mean(r.effectDamage)),
-    overflowDamageMean: Math.round(mean(r.overflowDamage)),
+    clashDamageMean: Math.round(mean(r.clashDamage)),
     killShotDirectPct: r3((r.killShots.direct ?? 0) / kills),
     killShotEffectPct: r3((r.killShots.effect ?? 0) / kills),
-    killShotOverflowPct: r3((r.killShots.overflow ?? 0) / kills),
+    killShotClashPct: r3((r.killShots.clash ?? 0) / kills),
+    endHpPct: r3(r.hpEnds / Math.max(1, r.games)),
+    endExhaustedPct: r3(r.exhausted / Math.max(1, r.games)),
+    endCapPct: r3(r.capped / Math.max(1, r.games)),
+    deckOutPct: r3(r.deckOuts / Math.max(1, r.games)),
+    roundsAfterDeckOutMean: r1(mean(r.roundsAfterDeckOut)),
     tieRate: r3(r.ties / Math.max(1, r.clashes)),
     seat0WinRate: r3(r.seat0Wins / Math.max(1, decided)),
     maxHitPct: r3(r.maxHitPct),
@@ -463,7 +493,7 @@ export function unitCountSweep(model: StatModel, games: number, seed: number, ru
 }
 
 /** Legal random decks (8-13 Units) in a round-robin; reports each card's win share when included and its clash record. */
-export function randomDeckOutliers(model: StatModel, deckCount: number, gamesPerPair: number, seed: number, rules?: Rules): { cardId: string; rarity: string; decks: number; winShareWhenIncluded: number; played: number; clashWinRate: number; tieRate: number; directDamagePerPlay: number; effectDamagePerPlay: number; healPerPlay: number }[] {
+export function randomDeckOutliers(model: StatModel, deckCount: number, gamesPerPair: number, seed: number, rules?: Rules): { cardId: string; rarity: string; decks: number; winShareWhenIncluded: number; played: number; clashWinRate: number; tieRate: number; directDamagePerPlay: number; clashDamagePerPlay: number; absorbedPerPlay: number; effectDamagePerPlay: number; healPerPlay: number }[] {
   let rng = seed >>> 0;
   const next = () => {
     rng = (Math.imul(rng, 1664525) + 1013904223) >>> 0;
@@ -501,7 +531,7 @@ export function randomDeckOutliers(model: StatModel, deckCount: number, gamesPer
     }
   }
   return roster.map((id) => {
-    const c = cardStats.get(id) ?? { played: 0, clashWins: 0, clashLosses: 0, clashTies: 0, directDamage: 0, effectDamage: 0, heal: 0 };
+    const c = cardStats.get(id) ?? { played: 0, clashWins: 0, clashLosses: 0, clashTies: 0, directDamage: 0, effectDamage: 0, clashDamage: 0, absorbed: 0, heal: 0 };
     const e = inclusion.get(id) ?? { w: 0, n: 0 };
     const clashes = c.clashWins + c.clashLosses + c.clashTies;
     return {
@@ -513,6 +543,8 @@ export function randomDeckOutliers(model: StatModel, deckCount: number, gamesPer
       clashWinRate: r3(clashes ? c.clashWins / clashes : 0),
       tieRate: r3(clashes ? c.clashTies / clashes : 0),
       directDamagePerPlay: r1(c.played ? c.directDamage / c.played : 0),
+      clashDamagePerPlay: r1(c.played ? c.clashDamage / c.played : 0),
+      absorbedPerPlay: r1(c.played ? c.absorbed / c.played : 0),
       effectDamagePerPlay: r1(c.played ? c.effectDamage / c.played : 0),
       healPerPlay: r1(c.played ? c.heal / c.played : 0),
     };

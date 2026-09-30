@@ -54,8 +54,8 @@ export interface StepVisuals {
 }
 
 /**
- * Card combat only: a lane's clash spelled out in ATK ("ATK 120 vs 104", "120 wins"). Legacy matches never get
- * one, because their COMBAT events carry Power, which the battle UI does not show.
+ * Card combat only: a lane's clash spelled out in ATK and Clash Damage ("145 vs 85", "Winner: 145", "Clash Damage: 60").
+ * Legacy matches never get one, because their COMBAT events carry Power, which the battle UI does not show.
  */
 export interface ClashCallout {
   lane: LaneId;
@@ -64,27 +64,43 @@ export interface ClashCallout {
   side?: Side;
   line1: string;
   line2: string;
+  /** Clash Damage read-out ('win' / 'tie' only). */
+  line3?: string;
 }
 
 function empty(): StepVisuals {
   return { heroChit: new Map(), spellChit: new Map(), hpFx: [], clashLane: null, handPulse: false, graveyardPulse: null, vfx: [], stageShake: false };
 }
 
-/** The ATK read-out for one card-combat COMBAT event (exported for tests). */
-export function clashCalloutFor(e: Extract<GameEvent, { type: 'COMBAT' }>): ClashCallout | null {
+type CombatEvent = Extract<GameEvent, { type: 'COMBAT' }>;
+type ClashDamageEvent = Extract<GameEvent, { type: 'CLASH_DAMAGE' }>;
+
+/** "Clash Damage: 60", or "Clash Damage: 60 → 0" when a reduction or prevention took some of it off. */
+function clashDamageLine(cd: ClashDamageEvent): string {
+  return cd.amount === cd.clashDamage ? `Clash Damage: ${cd.amount}` : `Clash Damage: ${cd.clashDamage} → ${cd.amount}`;
+}
+
+/**
+ * The ATK read-out for one card-combat COMBAT event (exported for tests). `clash` is the lane's CLASH_DAMAGE record,
+ * when the round has one, and supplies the Clash Damage line.
+ */
+export function clashCalloutFor(e: CombatEvent, clash?: ClashDamageEvent | null): ClashCallout | null {
   const p = e.player?.power;
   const en = e.enemy?.power;
   switch (e.outcome) {
     case 'PLAYER_WINS':
-      return p !== undefined && en !== undefined ? { lane: e.lane, kind: 'win', side: 'player', line1: `ATK ${p} vs ${en}`, line2: `${p} wins` } : null;
-    case 'ENEMY_WINS':
-      return p !== undefined && en !== undefined ? { lane: e.lane, kind: 'win', side: 'enemy', line1: `ATK ${p} vs ${en}`, line2: `${en} wins` } : null;
+    case 'ENEMY_WINS': {
+      if (p === undefined || en === undefined) return null;
+      const side: Side = e.outcome === 'PLAYER_WINS' ? 'player' : 'enemy';
+      const winner = side === 'player' ? p : en;
+      return { lane: e.lane, kind: 'win', side, line1: `${p} vs ${en}`, line2: `Winner: ${winner}`, line3: clash ? clashDamageLine(clash) : `Clash Damage: ${Math.abs(p - en)}` };
+    }
     case 'TIE':
-      return p !== undefined ? { lane: e.lane, kind: 'tie', line1: `ATK ${p} vs ${en ?? p}`, line2: 'Tie: both destroyed' } : null;
+      return p !== undefined ? { lane: e.lane, kind: 'tie', line1: `${p} vs ${en ?? p}`, line2: 'Tie · both destroyed', line3: '0 Player damage' } : null;
     case 'PLAYER_DIRECT':
-      return p !== undefined ? { lane: e.lane, kind: 'direct', side: 'player', line1: `ATK ${p}`, line2: 'Direct hit' } : null;
+      return p !== undefined ? { lane: e.lane, kind: 'direct', side: 'player', line1: `${p} ATK`, line2: `Direct hit · ${p}` } : null;
     case 'ENEMY_DIRECT':
-      return en !== undefined ? { lane: e.lane, kind: 'direct', side: 'enemy', line1: `ATK ${en}`, line2: 'Direct hit' } : null;
+      return en !== undefined ? { lane: e.lane, kind: 'direct', side: 'enemy', line1: `${en} ATK`, line2: `Direct hit · ${en}` } : null;
     default:
       return null;
   }
@@ -129,7 +145,7 @@ function findSpellInstanceByName(state: GameState, side: Side, name: string): st
   return out;
 }
 
-const CALLOUT_STEPS = new Set(['combat-clash', 'hero-destroyed', 'shield-save', 'direct-damage']);
+const CALLOUT_STEPS = new Set(['combat-clash', 'clash-damage', 'hero-destroyed', 'shield-save', 'direct-damage']);
 
 /**
  * The clash callout to show during `step` of a card-combat round: from the lane's clash until its loser is gone
@@ -141,7 +157,10 @@ export function clashCalloutForStep(step: AnimationStep | null, events: readonly
     const e = events[i];
     // Anything after the combat phase (After Combat, Round End, expiry) is not part of a clash.
     if (e.type === 'TEMP_POWER_EXPIRED' || e.type === 'ROUND_END' || (e.type === 'TRIGGER' && (e.trigger === 'AFTER_COMBAT' || e.trigger === 'ROUND_END'))) return null;
-    if (e.type === 'COMBAT' && e.lane === step.lane) return clashCalloutFor(e);
+    if (e.type === 'COMBAT' && e.lane === step.lane) {
+      const next = events[i + 1];
+      return clashCalloutFor(e, next?.type === 'CLASH_DAMAGE' && next.lane === e.lane ? next : null);
+    }
   }
   return null;
 }
@@ -177,6 +196,11 @@ function applyEventVisual(v: StepVisuals, e: GameEvent, state: GameState): void 
       // The damage lands on the PLAYER (`e.side`), so the number and flash belong on that side's HP bar - never on
       // the attacking Hero, which takes no damage and would otherwise read as if it had lost Power.
       v.hpFx.push({ side: e.side, kind: 'damage', amount: e.amount });
+      return;
+    case 'CLASH_DAMAGE':
+      // Clash Damage lands on the LOSING PLAYER's HP meter as "-N". No Unit takes damage, so nothing is drawn on
+      // either chit. A tie (side null) or a fully prevented hit moves no HP.
+      if (e.side !== null && e.amount > 0) v.hpFx.push({ side: e.side, kind: 'damage', amount: e.amount });
       return;
     case 'OVERFLOW_DAMAGE':
       // Combat overflow is damage to the LOSER'S PLAYER (`e.side`), not to either Hero: the winner survives at

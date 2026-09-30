@@ -41,7 +41,7 @@ async function withSim(fn) {
   try {
     return await fn({
       B: await server.ssrLoadModule('/src/game/cardSim/balance.ts'),
-      P: await server.ssrLoadModule('/src/game/cardSim/balance/proposal.ts'),
+      P: await server.ssrLoadModule('/src/game/cardSim/balance/differenceDamage.ts'),
       S: await server.ssrLoadModule('/src/game/cardSim/cardSource.ts'),
       X: await server.ssrLoadModule('/src/game/cardSim/experiments.ts'),
     });

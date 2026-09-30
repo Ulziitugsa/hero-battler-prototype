@@ -19,6 +19,8 @@ export interface MatchStats {
   /** Combat overflow (winner Power - loser Power), tracked separately from totalDirectDamage since it
    * comes from a different event (OVERFLOW_DAMAGE) and is now a major share of match damage. */
   totalOverflowDamage: number;
+  /** Card combat: Clash Damage (winner ATK - loser ATK) both players took, from CLASH_DAMAGE. 0 in legacy matches. */
+  totalClashDamage: number;
   cardsDrawn: number;
   cardsPlayed: number;
   heroesPlayed: number;
@@ -49,6 +51,7 @@ export function computeMatchStats(
   let winner: Side | 'draw' | null = null;
   let totalDirectDamage = 0;
   let totalOverflowDamage = 0;
+  let totalClashDamage = 0;
   let heroesPlayed = 0;
   let spellsPlayed = 0;
   let continuousSpellsPlayed = 0;
@@ -135,6 +138,9 @@ export function computeMatchStats(
       case 'OVERFLOW_DAMAGE':
         totalOverflowDamage += event.amount;
         break;
+      case 'CLASH_DAMAGE':
+        totalClashDamage += event.amount;
+        break;
       case 'MATCH_END':
         winner = event.winner;
         break;
@@ -168,6 +174,7 @@ export function computeMatchStats(
     finalEnemyHp,
     totalDirectDamage,
     totalOverflowDamage,
+    totalClashDamage,
     cardsDrawn,
     cardsPlayed: heroesPlayed + spellsPlayed,
     heroesPlayed,

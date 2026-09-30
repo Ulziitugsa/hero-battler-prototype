@@ -34,7 +34,7 @@ describe('card-combat simulator', () => {
     expect(s.players[0].hp).toBe(expected);
   });
 
-  it('keeps the higher-ATK Unit unchanged and destroys the lower one, with no overflow by default', () => {
+  it('keeps the higher-ATK Unit unchanged and destroys the lower one, with no Clash Damage under the batch 2-3 rules', () => {
     const s = duel();
     const knightAtk = baseline.stats(getCard(KNIGHT)).atk;
     const hpB = s.players[1].hp;
@@ -45,8 +45,8 @@ describe('card-combat simulator', () => {
     expect(s.players[1].hp).toBe(hpB);
   });
 
-  it('applies overflow only when the alternative rule is on', () => {
-    const s = duel({ ...BASE_RULES, overflow: true });
+  it('applies ATK difference Clash Damage when the rule is on', () => {
+    const s = duel({ ...BASE_RULES, clashDamage: true });
     const diff = baseline.stats(getCard(KNIGHT)).atk - baseline.stats(getCard(IMP)).atk;
     const hpB = s.players[1].hp;
     resolveRound(s, [[{ cardId: KNIGHT, lane: 0 }], [{ cardId: IMP, lane: 0 }]]);

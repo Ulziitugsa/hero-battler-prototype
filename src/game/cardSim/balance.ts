@@ -5,7 +5,7 @@ import { withCardOverrides } from './cardSource.js';
 import { ARCANE_CONTROL_V2 } from './controlPass.js';
 import { type SimDeck, SIM_DECKS } from './decks.js';
 import { BULWARK_SIM_DECK } from './balance/defensive.js';
-import { type SeriesResult, type SeriesSummary, mean, runSeries, summarize } from './experiments.js';
+import { type SeriesResult, type SeriesSummary, mean, merge, runSeries, summarize } from './experiments.js';
 import { type MasteryOption, type StatModel, getMasteryOption, getStatModel } from './statModels.js';
 
 // Effect / archetype balance pass (docs/CARD-COMBAT-DESIGN.md). Fixes the approved card-combat baseline in
@@ -13,7 +13,7 @@ import { type MasteryOption, type StatModel, getMasteryOption, getStatModel } fr
 // controlled pilot scenarios (how much decisions are worth against how much deck quality is worth).
 // scripts/simulate-balance.mjs runs them. Design tool only; nothing in the game reads this.
 
-/** Approved rules: no overflow, a tie destroys both Units, full direct damage, one Graveyard return per card. */
+/** Batch 3's approved rules (before difference damage): a lost clash cost only the Unit, a tie destroys both Units, full direct damage, one Graveyard return per card. */
 export const APPROVED_RULES: Rules = { ...BASE_RULES, recursionCap: 1 };
 
 /** Approved Mastery: HP Contribution only, +20% at Mastery V. */
@@ -218,30 +218,5 @@ export function matrixReport(model: StatModel, jobs: SeriesJob[], results: Serie
 }
 
 export function mergeResults(results: SeriesResult[]): SeriesResult {
-  const out: SeriesResult = { games: 0, winsA: 0, winsB: 0, draws: 0, exhausted: 0, capped: 0, seat0Wins: 0, seat1Wins: 0, rounds: [], startHpA: 0, startHpB: 0, directHits: [], winnerDirectHits: [], directDamage: [], effectDamage: [], overflowDamage: [], killShots: {}, ties: 0, clashes: 0, maxHitPct: 0, openLaneRounds: [0, 0, 0], openLaneDamagePct: [0, 0, 0] };
-  for (const r of results) {
-    out.games += r.games;
-    out.winsA += r.winsA;
-    out.winsB += r.winsB;
-    out.draws += r.draws;
-    out.exhausted += r.exhausted;
-    out.capped += r.capped;
-    out.seat0Wins += r.seat0Wins;
-    out.seat1Wins += r.seat1Wins;
-    out.rounds.push(...r.rounds);
-    out.directHits.push(...r.directHits);
-    out.winnerDirectHits.push(...r.winnerDirectHits);
-    out.directDamage.push(...r.directDamage);
-    out.effectDamage.push(...r.effectDamage);
-    out.overflowDamage.push(...r.overflowDamage);
-    for (const [k, v] of Object.entries(r.killShots)) out.killShots[k] = (out.killShots[k] ?? 0) + v;
-    out.ties += r.ties;
-    out.clashes += r.clashes;
-    out.maxHitPct = Math.max(out.maxHitPct, r.maxHitPct);
-    for (let k = 0; k < 3; k++) {
-      out.openLaneRounds[k] += r.openLaneRounds[k];
-      out.openLaneDamagePct[k] += r.openLaneDamagePct[k];
-    }
-  }
-  return out;
+  return merge(results);
 }

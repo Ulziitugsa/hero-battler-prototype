@@ -26,6 +26,7 @@ export type VisualType =
   | 'hero-destroyed'
   | 'shield-save'
   | 'overflow-damage'
+  | 'clash-damage'
   | 'direct-damage'
   | 'shield-granted'
   | 'immunity-blocked'

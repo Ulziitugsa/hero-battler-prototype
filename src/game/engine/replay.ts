@@ -69,6 +69,11 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
       }
       return next;
     }
+    case 'CLASH_DAMAGE': {
+      if (event.side === null || event.to === undefined) return next; // a tie moves no Player HP
+      (event.side === 'player' ? p : e).hp = event.to;
+      return next;
+    }
     case 'DIRECT_DAMAGE':
     case 'OVERFLOW_DAMAGE':
     case 'HEAL': {

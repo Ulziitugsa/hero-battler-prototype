@@ -7267,6 +7267,10 @@ button {
 .clash-callout.win.enemy small { color: #f19a9a; }
 .clash-callout.tie small { color: #f0c46a; }
 .clash-callout.direct { border-color: #e0795d; }
+.clash-callout .clash-callout-damage,
+.clash-callout.win.player .clash-callout-damage,
+.clash-callout.win.enemy .clash-callout-damage,
+.clash-callout.tie .clash-callout-damage { color: #ffd98a; white-space: normal; }
 @keyframes clash-callout-in {
   from { opacity: 0; transform: translateY(-50%) scale(0.9); }
   to { opacity: 1; transform: translateY(-50%) scale(1); }

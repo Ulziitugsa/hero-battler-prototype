@@ -69,7 +69,7 @@ describe('Thread D outlier rules', () => {
 
   it('keeps every variant on the approved baseline', () => {
     for (const v of OUTLIER_VARIANTS) {
-      expect(v.rules.overflow, v.id).toBe(false);
+      expect(v.rules.clashDamage, v.id).toBe(false);
       expect(v.cards.find((c) => c.id === 'und-vharos')?.power, v.id).toBe(6);
     }
   });

@@ -102,10 +102,10 @@ try {
   // 3. Rule and scale variants on stat model H (baseline)
   const variants = [
     ['tie-none', { rules: { ...E.BASE_RULES, tie: 'none' } }],
-    ['overflow-on', { rules: { ...E.BASE_RULES, overflow: true } }],
+    ['overflow-on', { rules: { ...E.BASE_RULES, clashDamage: true } }],
     ['death-at-0-atk', { rules: { ...E.BASE_RULES, deathAtk: 0 } }],
     ['direct-75pct', { rules: { ...E.BASE_RULES, directScale: 0.75 } }],
-    ['overflow+recursion-once', { rules: { ...E.BASE_RULES, overflow: true, recursionCap: 1 } }],
+    ['overflow+recursion-once', { rules: { ...E.BASE_RULES, clashDamage: true, recursionCap: 1 } }],
     ['recommended', { rules: RECOMMENDED_RULES, model: recommendedModel }],
     ['recommended+hp-unit-25', { rules: RECOMMENDED_RULES, model: M.scaledModel(baseline, { hpUnit: 25, suffix: '+hpUnit25' }) }],
     ['recommended+hp-unit-55', { rules: RECOMMENDED_RULES, model: M.scaledModel(baseline, { hpUnit: 55, suffix: '+hpUnit55' }) }],
@@ -131,7 +131,7 @@ try {
   summary.tieChance = tieChance;
 
   // 4. Controlled experiments on model H under three rule sets: the spec's rules, the live overflow rule, and the recommended baseline
-  const RULESETS = [['no-overflow', E.BASE_RULES, baseline], ['overflow', { ...E.BASE_RULES, overflow: true }, baseline], ['recommended', RECOMMENDED_RULES, recommendedModel]];
+  const RULESETS = [['no-overflow', E.BASE_RULES, baseline], ['overflow', { ...E.BASE_RULES, clashDamage: true }, baseline], ['recommended', RECOMMENDED_RULES, recommendedModel]];
   const tag = (ruleset, rows) => rows.map((row) => ({ rules: ruleset, ...row }));
   const premiumRows = [];
   const masteryRows = [];

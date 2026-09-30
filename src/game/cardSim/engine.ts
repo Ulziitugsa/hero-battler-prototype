@@ -13,7 +13,10 @@ import { type SimAction, asSimAction } from './simActions.js';
 //   - 3 lanes. Opposed Units compare ATK: higher wins and stays unchanged, lower is destroyed.
 //     Equal ATK destroys both (tie rule 'both'), or neither ('none') as an alternative.
 //   - An unopposed Unit deals its ATK to the opposing player.
-//   - No overflow by default. `overflow: true` re-enables the live rule (loser's player takes the difference).
+//   - Clash Damage (ATK difference damage, approved 2026-09-29): with `clashDamage: true` the losing Unit's player
+//     takes winner ATK - loser ATK. The loser's ATK is absorbed; it is Player damage, never Unit damage.
+//     BASE_RULES keeps it off so the pre-2026-09-29 studies (batch 2 and 3, where a lost clash cost only the
+//     Unit) stay byte-reproducible; the approved rule set is DIFFERENCE_RULES in balance/differenceDamage.ts.
 // Round structure, draws, placement-as-targeting and every ability trigger/condition/action follow the live
 // engine (engine/resolveRound.ts, engine/abilities.ts) so real cards are simulated as written, with their
 // Power numbers converted by the stat model (see statModels.ts).
@@ -31,7 +34,8 @@ export interface Rules {
   tie: 'both' | 'none';
   /** Multiplier on an unopposed Unit's ATK (1 = full ATK, the spec's baseline). */
   directScale: number;
-  overflow: boolean;
+  /** ATK difference damage: the loser's player takes winner ATK - loser ATK (minus Clash Damage reductions). */
+  clashDamage: boolean;
   /** Units at or below this ATK are destroyed. 'power0' = the model's ATK for Power 0 (the legacy Power <= 0 rule). */
   deathAtk: number | 'power0';
   maxRounds: number;
@@ -43,9 +47,11 @@ export interface Rules {
   growthCap?: number | null;
   /** 'persist' (default): tokens stay until destroyed. 'oneCombat': a token fades at Round End after the first Combat it was on the board for. */
   tokenLifetime?: 'persist' | 'oneCombat';
+  /** Before Combat lane order: 'fixed' (default, side A first, the batch 2-3 studies) or 'initiative' (side A first on odd rounds, side B on even, the production resolver's order). */
+  beforeCombatOrder?: 'fixed' | 'initiative';
 }
 
-export const BASE_RULES: Rules = { tie: 'both', directScale: 1, overflow: false, deathAtk: 'power0', maxRounds: 40, recursionCap: null };
+export const BASE_RULES: Rules = { tie: 'both', directScale: 1, clashDamage: false, deathAtk: 'power0', maxRounds: 40, recursionCap: null };
 
 export interface SideSetup {
   deck: string[];
@@ -71,6 +77,10 @@ export interface CardCounters {
   clashTies: number;
   directDamage: number;
   effectDamage: number;
+  /** Clash Damage this card dealt as a clash winner. */
+  clashDamage: number;
+  /** Clash Damage this card absorbed as a clash loser (its ATK, plus reductions), versus an empty lane. */
+  absorbed: number;
   heal: number;
 }
 
@@ -110,6 +120,8 @@ export interface SidePlayer {
   barrier: number;
   /** Sim-only PLAYER_SHIELD: HP of damage still preventable this round. */
   shield: number;
+  /** Card-combat CLASH_SHIELD: Clash Damage still preventable this round. */
+  clashShield: number;
   charges: Record<string, number>;
   /** Graveyard recursions used per card id (for Rules.recursionCap). */
   returns: Record<string, number>;
@@ -119,7 +131,7 @@ export interface SidePlayer {
 export interface SideTotals {
   directHits: number;
   directDamage: number;
-  overflowDamage: number;
+  clashDamage: number;
   effectDamage: number;
   healed: number;
   /** Damage this side's PLAYER_SHIELD / barrier prevented. */
@@ -142,6 +154,8 @@ export interface SideTotals {
   /** Clashes a token of this side took part in (it blocked an enemy Unit). */
   tokenClashes: number;
   tokensFaded: number;
+  /** Clash Damage this side's reductions (Guard, CLASH_SHIELD) prevented. */
+  clashReduced: number;
 }
 
 export interface SimState {
@@ -158,12 +172,14 @@ export interface SimState {
   clashes: number;
   lastDamage: [DamageKind | null, DamageKind | null];
   playsThisRound: number;
+  /** Round in which the first deck ran out (0 = never). */
+  firstDeckOut: number;
   /** False inside AI look-ahead copies: no logging, no shared counters. */
   live: boolean;
   log: string[];
 }
 
-export type DamageKind = 'direct' | 'overflow' | 'effect';
+export type DamageKind = 'direct' | 'clash' | 'effect';
 
 export interface Play {
   cardId: string;
@@ -180,6 +196,8 @@ export interface MatchResult {
   totals: [SideTotals, SideTotals];
   ties: number;
   clashes: number;
+  /** Round in which the first deck ran out (0 = never). */
+  firstDeckOut: number;
   log: string[];
 }
 
@@ -187,14 +205,14 @@ const other = (side: SideIndex): SideIndex => (side === 0 ? 1 : 0);
 const adjacent = (lane: Lane): Lane[] => (lane === 1 ? [0, 2] : [1]);
 
 function emptyTotals(): SideTotals {
-  return { directHits: 0, directDamage: 0, overflowDamage: 0, effectDamage: 0, healed: 0, prevented: 0, clashWins: 0, unitsLost: 0, spellsPlayed: 0, unitsPlayed: 0, maxHitPct: 0, openLaneRounds: [0, 0, 0], openLaneDamagePct: [0, 0, 0], returns: 0, peakGain: 0, growthClipped: 0, tokensSummoned: 0, tokenClashes: 0, tokensFaded: 0 };
+  return { directHits: 0, directDamage: 0, clashDamage: 0, effectDamage: 0, healed: 0, prevented: 0, clashWins: 0, unitsLost: 0, spellsPlayed: 0, unitsPlayed: 0, maxHitPct: 0, openLaneRounds: [0, 0, 0], openLaneDamagePct: [0, 0, 0], returns: 0, peakGain: 0, growthClipped: 0, tokensSummoned: 0, tokenClashes: 0, tokensFaded: 0, clashReduced: 0 };
 }
 
 function bumpCard(s: SimState, cardId: string, key: keyof CardCounters, amount = 1): void {
   if (!s.live || !s.cfg.cardStats) return;
   let c = s.cfg.cardStats.get(cardId);
   if (!c) {
-    c = { played: 0, clashWins: 0, clashLosses: 0, clashTies: 0, directDamage: 0, effectDamage: 0, heal: 0 };
+    c = { played: 0, clashWins: 0, clashLosses: 0, clashTies: 0, directDamage: 0, effectDamage: 0, clashDamage: 0, absorbed: 0, heal: 0 };
     s.cfg.cardStats.set(cardId, c);
   }
   c[key] += amount;
@@ -272,6 +290,7 @@ export function createSimState(cfg: MatchConfig): SimState {
     clashes: 0,
     lastDamage: [null, null],
     playsThisRound: 0,
+    firstDeckOut: 0,
     live: true,
     log: [],
   };
@@ -292,6 +311,7 @@ export function createSimState(cfg: MatchConfig): SimState {
       spells: [null, null, null],
       barrier: 0,
       shield: 0,
+      clashShield: 0,
       charges,
       returns: {},
       stats,
@@ -424,10 +444,14 @@ function bypassReduction(s: SimState, side: SideIndex, lane: Lane): number | nul
   return best;
 }
 
-function overflowReduction(s: SimState, side: SideIndex, lane: Lane): number {
+/**
+ * Clash Damage the losing Unit in (side, lane) takes off its player's hit: printed REDUCE_OVERFLOW_DAMAGE lines
+ * (the legacy name) and card-combat Guard (REDUCE_CLASH_DAMAGE), both in legacy Power steps.
+ */
+export function clashReduction(s: SimState, side: SideIndex, lane: Lane): number {
   let total = 0;
   for (const { ability } of passiveAbilities(s, side, lane)) {
-    for (const a of ability.actions) if (a.type === 'REDUCE_OVERFLOW_DAMAGE') total += a.amount;
+    for (const a of ability.actions as { type: string; amount?: number }[]) if (a.type === 'REDUCE_OVERFLOW_DAMAGE' || a.type === 'REDUCE_CLASH_DAMAGE') total += a.amount ?? 0;
   }
   return total * s.cfg.model.atkStep;
 }
@@ -590,6 +614,13 @@ function damagePlayer(s: SimState, target: SideIndex, amount: number, kind: Dama
     note(s, `${target === 0 ? 'A' : 'B'} barrier absorbs ${amount}`);
     return false;
   }
+  if (kind === 'clash' && p.clashShield > 0) {
+    const absorbed = Math.min(p.clashShield, amount);
+    p.clashShield -= absorbed;
+    s.totals[target].prevented += absorbed;
+    amount -= absorbed;
+    if (amount <= 0) return false;
+  }
   if (p.shield > 0) {
     const absorbed = Math.min(p.shield, amount);
     p.shield -= absorbed;
@@ -601,13 +632,14 @@ function damagePlayer(s: SimState, target: SideIndex, amount: number, kind: Dama
   s.lastDamage[target] = kind;
   const attacker = s.totals[other(target)];
   if (kind === 'direct') attacker.directDamage += amount;
-  else if (kind === 'overflow') attacker.overflowDamage += amount;
+  else if (kind === 'clash') attacker.clashDamage += amount;
   else attacker.effectDamage += amount;
   if (kind === 'direct') {
     attacker.directHits += 1;
     attacker.maxHitPct = Math.max(attacker.maxHitPct, amount / p.maxHp);
     bumpCard(s, sourceCardId, 'directDamage', amount);
   } else if (kind === 'effect') bumpCard(s, sourceCardId, 'effectDamage', amount);
+  else bumpCard(s, sourceCardId, 'clashDamage', amount);
   return true;
 }
 
@@ -661,6 +693,11 @@ function executeSim(s: SimState, action: SimAction, exec: Exec): void {
     case 'PLAYER_SHIELD':
       s.players[exec.owner].shield += Math.round(action.amount * s.cfg.model.hpUnit);
       return;
+    case 'CLASH_SHIELD':
+      s.players[exec.owner].clashShield += action.amount * s.cfg.model.atkStep;
+      return;
+    case 'REDUCE_CLASH_DAMAGE':
+      return; // read live as PASSIVE
   }
 }
 
@@ -836,9 +873,9 @@ function dispatchZone(s: SimState, side: SideIndex, lane: Lane, trigger: Trigger
   runAbilities(s, getCard(zone.cardId).abilities, trigger, { owner: side, kind: 'spell', lane, name: zone.cardId, deathCardId: death?.cardId, deathLane: death?.lane }, zone);
 }
 
-function dispatchAll(s: SimState, trigger: Trigger): void {
+function dispatchAll(s: SimState, trigger: Trigger, order: readonly SideIndex[] = [0, 1]): void {
   for (const lane of LANES) {
-    for (const side of [0, 1] as SideIndex[]) {
+    for (const side of order) {
       dispatchUnit(s, side, lane, trigger);
       dispatchZone(s, side, lane, trigger);
     }
@@ -960,7 +997,10 @@ export function beginRound(s: SimState): void {
     }
   }
   dispatchAll(s, 'ROUND_START');
-  for (const p of s.players) while (p.hand.length < HAND_TARGET && p.deck.length > 0) p.hand.push(p.deck.shift()!);
+  for (const p of s.players) {
+    if (p.hand.length < HAND_TARGET && p.deck.length === 0 && s.firstDeckOut === 0) s.firstDeckOut = s.round;
+    while (p.hand.length < HAND_TARGET && p.deck.length > 0) p.hand.push(p.deck.shift()!);
+  }
 }
 
 function removeFromHand(p: SidePlayer, cardId: string): void {
@@ -1024,7 +1064,7 @@ export function resolveRound(s: SimState, plays: [Play[], Play[]]): void {
 
   // 4. Before Combat, then the Mastery effect stand-in (Thread D): a unit that is not winning its clash
   //    spends one use to gain +10% ATK this clash.
-  dispatchAll(s, 'BEFORE_COMBAT');
+  dispatchAll(s, 'BEFORE_COMBAT', s.cfg.rules.beforeCombatOrder === 'initiative' ? order : [0, 1]);
   for (const lane of LANES) {
     for (const side of order) {
       const unit = s.players[side].units[lane];
@@ -1087,9 +1127,13 @@ export function resolveRound(s: SimState, plays: [Play[], Play[]]): void {
       bumpCard(s, (winner === 0 ? a : b).cardId, 'clashWins');
       bumpCard(s, (winner === 0 ? b : a).cardId, 'clashLosses');
       losers.push({ side: loser, lane });
-      if (s.cfg.rules.overflow) {
-        const diff = Math.abs(atkA - atkB) - overflowReduction(s, loser, lane);
-        damagePlayer(s, loser, Math.round(diff), 'overflow', (winner === 0 ? a : b).cardId);
+      if (s.cfg.rules.clashDamage) {
+        // Clash Damage: the loser's ATK is absorbed; the rest reaches its player (never negative).
+        const diff = Math.abs(atkA - atkB);
+        const reduced = Math.min(diff, clashReduction(s, loser, lane));
+        s.totals[loser].clashReduced += reduced;
+        bumpCard(s, (winner === 0 ? b : a).cardId, 'absorbed', Math.min(atkA, atkB) + reduced);
+        damagePlayer(s, loser, diff - reduced, 'clash', (winner === 0 ? a : b).cardId);
       }
     } else if (a) direct(0, lane, atkA);
     else if (b) direct(1, lane, atkB);
@@ -1111,6 +1155,7 @@ export function resolveRound(s: SimState, plays: [Play[], Play[]]): void {
     const p = s.players[side];
     p.barrier = 0;
     p.shield = 0;
+    p.clashShield = 0;
     for (const lane of LANES) {
       const unit = p.units[lane];
       if (!unit) continue;
@@ -1172,6 +1217,7 @@ export function playMatch(cfg: MatchConfig, choose: Chooser): MatchResult {
     totals: s.totals,
     ties: s.ties,
     clashes: s.clashes,
+    firstDeckOut: s.firstDeckOut,
     log: s.log,
   };
 }
