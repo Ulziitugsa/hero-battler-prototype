@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { GamePage } from './pages/GamePage';
 import { HomePage } from './pages/HomePage';
 const PixelPreviewPage = lazy(() => import('./pages/PixelPreviewPage').then(m => ({ default: m.PixelPreviewPage })));
+const BattleCardLabPage = lazy(() => import('./pages/BattleCardLabPage').then(m => ({ default: m.BattleCardLabPage })));
 const FriendlyBattlePage = lazy(() => import('./pages/FriendlyBattlePage').then(m => ({ default: m.FriendlyBattlePage })));
 import { BattleSetupPage, type DeckChoice } from './pages/BattleSetupPage';
 import { DecksPage } from './pages/DecksPage';
@@ -46,6 +47,7 @@ export default function App() {
 function GameApp() {
   const [tab, setTabState] = useState<TabId>('home');
   const [showPixelPreview, setShowPixelPreview] = useState(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('pixelPreview'));
+  const [showBattleCardLab, setShowBattleCardLab] = useState(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('battleCardLab'));
   const [showFriendly, setShowFriendly] = useState(() => new URLSearchParams(window.location.search).has('friendly'));
   const [showStats, setShowStats] = useState(false);
   const [showCombatLab, setShowCombatLab] = useState(false);
@@ -113,6 +115,7 @@ function GameApp() {
   };
   useEffect(() => registerBackButton(() => backHandler.current()), []);
 
+  if (showBattleCardLab) return <BattleCardLabPage onBack={() => { setShowBattleCardLab(false); window.history.replaceState(null, '', window.location.pathname); }} />;
   if (showPixelPreview) return <PixelPreviewPage onBack={() => { setShowPixelPreview(false); window.history.replaceState(null, '', window.location.pathname); }} />;
 
   if (showFriendly) return <FriendlyBattlePage onBack={() => { setShowFriendly(false); window.history.replaceState(null, '', window.location.pathname); }} />;

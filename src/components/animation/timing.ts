@@ -16,6 +16,8 @@ export const BASE_DURATIONS: Record<TimingCategory, number> = {
   short: 350,
   combat: 550,
   major: 700,
+  // Card combat: a clash loser flashes, shakes and dissolves in about a third of a second, then its lane is empty.
+  destroy: 300,
 };
 
 /** Multiplies every base duration for the current playback speed. 'instant' always resolves to 0 regardless of category - see resolveDuration. */

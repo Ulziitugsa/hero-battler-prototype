@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { GameEvent, GameState } from '../../game/types';
-import { replayUpTo } from '../../game/engine/replay';
 import { buildAnimationSteps } from './buildAnimationSteps';
 import { computeStepVisuals, type StepVisuals } from './chitEffects';
+import { stateAfterSteps } from './playback';
 import { resolveDuration, resolvePause, useReducedMotion } from './timing';
 import type { AnimationSpeed, AnimationStep } from './types';
 
@@ -19,14 +19,15 @@ import type { AnimationSpeed, AnimationStep } from './types';
  * `buildAnimationSteps`'s combat-pairing comment for why events aren't always shown in their raw
  * array order. `committedIndex` only ever moves forward (a running max of each step's
  * `maxEventIndex`), so `displayState` is always a valid prefix-replay of the real event log, never a
- * skipped-around reconstruction - the invariant `replay.test.ts` already relies on elsewhere.
+ * skipped-around reconstruction - the invariant `replay.test.ts` already relies on elsewhere. The one
+ * addition is a step's `commitIndices` (card combat's clash losers leaving right after their own lane), which
+ * playback.ts's `stateAfterSteps` applies on top of that prefix, still in log order.
  */
 export function useAnimationController({ events, baseState, speed, active }: { events: GameEvent[]; baseState: GameState; speed: AnimationSpeed; active: boolean }) {
   const reducedMotion = useReducedMotion();
   const steps = useMemo(() => buildAnimationSteps(events), [events]);
 
   const [stepIndex, setStepIndex] = useState(0);
-  const [committedIndex, setCommittedIndex] = useState(-1);
 
   // A new round's events (a fresh array from a fresh resolveRound() call) resets playback to the
   // start. Adjusted during render rather than in an effect - the React-recommended way to reset state
@@ -35,7 +36,6 @@ export function useAnimationController({ events, baseState, speed, active }: { e
   if (events !== eventsForReset) {
     setEventsForReset(events);
     setStepIndex(0);
-    setCommittedIndex(-1);
   }
 
   useEffect(() => {
@@ -54,18 +54,17 @@ export function useAnimationController({ events, baseState, speed, active }: { e
       () => {
         if (wait <= 0) {
           setStepIndex(steps.length);
-          setCommittedIndex(events.length - 1);
           return;
         }
-        setCommittedIndex((prev) => Math.max(prev, step.maxEventIndex));
         setStepIndex((i) => i + 1);
       },
       Math.max(wait, 0),
     );
     return () => clearTimeout(timer);
-  }, [active, stepIndex, steps, speed, reducedMotion, events.length]);
+  }, [active, stepIndex, steps, speed, reducedMotion]);
 
-  const displayState = useMemo(() => replayUpTo(baseState, events, committedIndex), [baseState, events, committedIndex]);
+  // Everything from the steps that have finished playing - never the step currently playing.
+  const displayState = useMemo(() => stateAfterSteps(baseState, events, steps, stepIndex), [baseState, events, steps, stepIndex]);
 
   const currentStep: AnimationStep | null = active && stepIndex < steps.length ? steps[stepIndex] : null;
   const visuals: StepVisuals = useMemo(() => computeStepVisuals(currentStep, displayState), [currentStep, displayState]);

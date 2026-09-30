@@ -1,0 +1,245 @@
+/* Card-combat battle faces (BattleCard.tsx, Battle UX pass). The root reuses .collectible for the frame material,
+   trim and rarity ornaments, so a battle card is the same object as the Collection card; the inside is a column:
+   art band (with ATK), name, then the rules panel with every effect. Text sizes are px with a 9px floor. */
+
+.collectible.battle-card {
+  aspect-ratio: auto;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  --bc-fs: 10px;
+  --bc-lh: 1.22;
+}
+
+.battle-card .collectible-frame { inset: 2px; border-radius: 4px; }
+
+.bc-body {
+  position: absolute;
+  z-index: 4;
+  inset: 2px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #132634, var(--plate) 60%);
+}
+
+/* ---- Art band: a crop of the card art, with identity, ATK and live state laid over it ------------------------------- */
+.bc-art {
+  position: relative;
+  flex: 0 0 auto;
+  height: var(--bc-art-h, 44px);
+  overflow: hidden;
+  background: #16283f;
+  border-bottom: 1px solid color-mix(in srgb, var(--trim) 55%, transparent);
+}
+.battle-card.undead .bc-art { background: #12251f; }
+.battle-card.infernal .bc-art { background: #331711; }
+.bc-art > canvas,
+.bc-art > .moon-art {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  /* The art is square; the band shows its upper-middle, where the faces are. */
+  top: -22%;
+  height: auto;
+  aspect-ratio: 1;
+  image-rendering: pixelated;
+}
+.bc-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(6, 13, 20, 0.5), transparent 40%, transparent 55%, rgba(6, 13, 20, 0.78));
+  pointer-events: none;
+}
+.bc-identity {
+  position: absolute;
+  z-index: 2;
+  top: 3px;
+  left: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 4px 1px 2px;
+  border-radius: 99px;
+  background: rgba(6, 13, 20, 0.7);
+}
+.bc-identity .cp-sigil { transform: scale(0.8); }
+.bc-identity .cp-gems { gap: 1.5px; }
+
+.bc-atk {
+  position: absolute;
+  z-index: 2;
+  left: 3px;
+  bottom: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px 2px 4px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #213345, #0c1822);
+  border: 1px solid rgba(232, 214, 168, 0.6);
+  color: #fff3d6;
+  box-shadow: 0 1px 3px rgba(3, 8, 12, 0.7);
+}
+.bc-atk svg { color: #f2cf7e; }
+.bc-atk strong { font: 800 14px / 1 var(--font, sans-serif); font-variant-numeric: tabular-nums; }
+.bc-atk.up { border-color: #8fe0a0; }
+.bc-atk.up strong { color: #9ff0b0; }
+.bc-atk.down { border-color: #f0907a; }
+.bc-atk.down strong { color: #ffab98; }
+.bc-atk-printed { font: 700 10px / 1 var(--font, sans-serif); color: #a8b3b0; margin-left: 1px; }
+
+.bc-kind {
+  position: absolute;
+  z-index: 2;
+  left: 3px;
+  bottom: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #213345, #0c1822);
+  border: 1px solid rgba(214, 196, 150, 0.45);
+  color: #c9b8f0;
+  font: 800 9px / 1 var(--font, sans-serif);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bc-temp,
+.bc-flag {
+  position: absolute;
+  z-index: 2;
+  right: 3px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font: 800 9px / 1 var(--font, sans-serif);
+  background: rgba(6, 13, 20, 0.82);
+}
+.bc-temp { bottom: 3px; }
+.bc-temp.up { color: #9ff0b0; border: 1px solid rgba(143, 224, 160, 0.55); }
+.bc-temp.down { color: #ffab98; border: 1px solid rgba(240, 144, 122, 0.55); }
+.bc-flag.shield { top: 3px; color: #cfe7fb; border: 1px solid rgba(160, 205, 240, 0.6); }
+
+/* ---- Name ---------------------------------------------------------------------------------------------------------- */
+.bc-name {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px 1px;
+  color: var(--name-ink);
+  font: 400 12px / 1.15 var(--px-font-display, Georgia, serif);
+  /* Long names wrap rather than truncate. */
+  overflow-wrap: anywhere;
+}
+.battle-card.r-legendary .bc-name { color: #ffe0a0; }
+
+/* ---- Rules panel ---------------------------------------------------------------------------------------------------- */
+.bc-rules {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 2px 5px 4px;
+  overflow: hidden;
+  color: #e6dcc4;
+  font: 500 var(--bc-fs) / var(--bc-lh) var(--font, sans-serif);
+  letter-spacing: -0.01em;
+  text-align: left;
+}
+.bc-effect { display: block; }
+.bc-when {
+  color: #f2cf7e;
+  font-weight: 800;
+  font-size: max(9px, calc(var(--bc-fs) - 1px));
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.battle-card.undead .bc-when { color: #97e0c0; }
+.battle-card.infernal .bc-when { color: #f7a88e; }
+.battle-card.is-spell .bc-when { color: #cdbcf4; }
+.bc-once { font-weight: 700; letter-spacing: 0.02em; text-transform: none; color: #c9bb98; }
+.bc-state {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  vertical-align: 0.5px;
+}
+.bc-state.on { color: #0c1a12; background: #8fe0a0; }
+.bc-state.off { color: #c3c7c2; background: rgba(160, 170, 165, 0.25); }
+.bc-effect.is-off .bc-text { color: #9aa29c; }
+.bc-silenced { color: #ffab98; font-weight: 800; font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; }
+.battle-card.is-silenced .bc-effect .bc-text { text-decoration: line-through; text-decoration-color: rgba(255, 171, 152, 0.7); }
+.bc-none { color: #8f988f; font-style: italic; font-weight: 500; }
+
+/* Hand: label on its own line above the rule (until the slim levels, where it runs inline like the board's). */
+.battle-card.v-hand:not([data-fit*='slim']):not([data-fit='scroll']) .bc-when { display: block; }
+.battle-card.v-board .bc-when::after,
+.battle-card.v-spell .bc-when::after { content: ''; }
+
+/* ---- Variants -------------------------------------------------------------------------------------------------------- */
+.battle-card.v-hand { --bc-art-h: 42px; --bc-fs: 10px; }
+.battle-card.v-board { --bc-art-h: 36px; --bc-fs: 10px; }
+.battle-card.v-board .bc-name { font-size: 11.5px; padding-top: 1px; }
+.battle-card.v-spell .bc-name { display: inline; padding: 0; margin-right: 3px; font: 800 var(--bc-fs) / var(--bc-lh) var(--font, sans-serif); color: #efe6ff; letter-spacing: 0; }
+.battle-card.v-spell .bc-name svg { display: inline; vertical-align: -1px; margin-right: 2px; color: #cdbcf4; }
+.battle-card.v-spell .bc-rules { display: block; padding: 2px 4px; --bc-fs: 9.5px; --bc-lh: 1.16; }
+.battle-card.v-spell .bc-when { font-size: 8.5px; letter-spacing: 0.04em; }
+.battle-card.v-spell .bc-effect { display: inline; }
+.battle-card.v-spell .bc-when-implied { display: none; }
+.battle-card.v-spell .bc-effect + .bc-effect::before { content: ''; display: block; height: 2px; }
+
+/* Fit levels (useFitRules, on the card root): smaller type, then (hand only) the board wording, then a slimmer art band,
+   then 9px type, and scrolling only as a last resort. */
+.battle-card[data-fit^='full'] .bc-text-compact { display: none; }
+.battle-card[data-fit^='compact'] .bc-text-full,
+.battle-card[data-fit='scroll'] .bc-text-full { display: none; }
+.battle-card[data-fit$='-sm'] .bc-rules { --bc-fs: 9.5px; --bc-lh: 1.17; gap: 2px; }
+.battle-card[data-fit$='-xs'] .bc-rules,
+.battle-card[data-fit='scroll'] .bc-rules { --bc-fs: 9px; --bc-lh: 1.14; gap: 2px; }
+.battle-card[data-fit$='-roomy'] { --bc-art-h: 58px; }
+.battle-card[data-fit$='-roomy'] .bc-art > canvas { top: -12%; }
+.battle-card[data-fit*='slim'],
+.battle-card[data-fit='scroll'] { --bc-art-h: 24px; }
+.battle-card[data-fit*='slim'] .bc-identity,
+.battle-card[data-fit='scroll'] .bc-identity { display: none; }
+.battle-card[data-fit*='slim'] .bc-art > canvas,
+.battle-card[data-fit='scroll'] .bc-art > canvas { top: -30%; }
+.battle-card[data-fit='scroll'] .bc-rules { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+
+/* ---- Card-combat battle screen (GamePage adds .card-mode): taller Hero zones for readable Units ------------------
+   At 390x844: enemy Spell 100-166, enemy Hero 168-336, Fight seal (58px) and clash line 335-393, player Hero 392-560,
+   player Spell 562-628, then the player bar and a 188px hand. Spell zones span the full lane width. */
+.battle-scene.card-mode .zone-eSpell { left: 0; width: 100%; top: 11.85%; height: 7.82%; }
+.battle-scene.card-mode .zone-eHero { top: 19.91%; height: 19.91%; }
+.battle-scene.card-mode .zone-pHero { top: 46.45%; height: 19.91%; }
+.battle-scene.card-mode .zone-pSpell { left: 0; width: 100%; top: 66.59%; height: 7.82%; }
+.battle-scene.card-mode .fight-seal-mount { top: 43.13%; width: 14.87%; height: auto; aspect-ratio: 1; margin: -7.435% 0 0 -7.435%; } /* 58px at 390, scales with the scene */
+.battle-scene.card-mode .clash-callout { top: 43.13%; }
+
+.zone-card.card-face { border-radius: 6px; box-shadow: none; }
+.zone-card.card-face > .battle-card { position: absolute; inset: 0; }
+.hero-zone-card.card-face.mine > .battle-card { box-shadow: 0 0 0 1.5px rgba(246, 226, 176, 0.7), 0 -6px 12px -6px rgba(6, 2, 5, 0.5); }
+.hero-zone-card.card-face.theirs > .battle-card { box-shadow: 0 0 0 1.5px rgba(224, 128, 104, 0.8), 0 6px 12px -6px rgba(6, 2, 5, 0.45); }
+.spell-zone-card.card-face > .battle-card { box-shadow: 0 0 0 1px rgba(205, 188, 244, 0.55); }
+.spell-zone-card.card-face.theirs > .battle-card { box-shadow: 0 0 0 1px rgba(224, 128, 104, 0.7); }
+.spell-zone-card.card-face .zone-card-ready { top: -9px; right: 2px; }
+
+.hand-fan.readable .hand-card { width: 30%; height: 93.6%; }
+.hand-fan.readable .hand-card-inspect { width: 26px !important; height: 26px !important; top: 2px !important; right: 2px !important; }
+/* The developer-panel button sat on the rightmost hand card's rules; in card combat it moves beside the enemy bar. */
+.battle-scene.card-mode .mobile-debug-toggle { top: 46px; bottom: auto; left: 10px; right: auto; width: 26px; height: 26px; }
+.battle-scene.card-mode .fight-seal-core { inset: 4px; }
+/* Taller cards: keep the clash lunge the same physical distance as before (about 30px), not 26% of a taller card. */
+.battle-scene.card-mode { --vfx-lunge-distance: 18%; }
+.battle-scene.card-mode .fight-seal-battle.resolving .fight-seal-label { font-size: 8px; letter-spacing: -0.02em; }
+/* The status hint ("Tap a card", "Ready to fight") sat on the leftmost hand card's art and ATK; it moves under the enemy bar. */
+.battle-scene.card-mode > .battle-hint { left: 11.3%; top: 5.6%; }

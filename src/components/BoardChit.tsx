@@ -11,6 +11,7 @@ import { cardEffectSummary } from '../game/cards/effectText';
 import { atkDelta, cardFaceStats } from '../game/cards/cardFace';
 import { cardCombatEffectSummary } from '../game/cardCombat/cardText';
 import { useCardCombatDisplay } from './combatDisplay';
+import { BattleCard } from './card/BattleCard';
 import '../styles/ascension.css';
 
 /** A Hero zone's filled state - a compact version of the card frame (art, gems, power coin, name),
@@ -29,6 +30,27 @@ export function BoardChit({ hero, side, anim, disabled, onClick }: { hero: HeroI
   const cardCombat = useCardCombatDisplay();
   const summary = cardCombat ? cardCombatEffectSummary(card) : cardEffectSummary(card);
   const atk = cardCombat ? hero.power : cardFaceStats(card, hero.power)?.atk;
+
+  if (cardCombat) {
+    // Card combat (Battle UX pass): the Unit's full rules on its face, with its current ATK and live state.
+    return (
+      <button
+        type="button"
+        className={`zone-card hero-zone-card card-face ${mine ? 'mine' : 'theirs'} ${hero.shielded ? 'chit-shield-active' : ''} ${hero.silenced ? 'chit-silenced-persistent' : ''} ${anim?.className ?? ''}`}
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={`${card.name}, ${hero.power} ATK. Tap to inspect.`}
+      >
+        <BattleCard cardId={hero.cardId} variant="board" name={hero.shortName} atk={hero.power} tempAtk={hero.tempPower} silenced={hero.silenced} shielded={hero.shielded} passiveState={cardCombat.passiveStates?.(hero.instanceId)} />
+        {hero.shielded && <span className="chit-shield-ring" aria-hidden="true" />}
+        {anim?.floaters.map((f) => (
+          <span key={f.key} className={`floater floater-${f.kind}`}>
+            {f.text}
+          </span>
+        ))}
+      </button>
+    );
+  }
 
   return (
     <button

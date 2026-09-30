@@ -414,6 +414,13 @@ Locked for the current card-combat baseline:
 
 Campaign, Ranked and Friendly Battle stay on the legacy resolver until ozi asks. No further balance pass is scheduled.
 
+### 15.8 Battle presentation (Battle UX pass, 2026-09-30)
+
+Presentation only; no rule above changes.
+
+- **Destruction per lane.** A lane's clash loser (both Units on a tie) plays a quick destroy beat (about 300 ms at 1x) right after the lane's Clash Damage, and the lane is empty before the next lane clashes. The engine still clashes all three lanes and then destroys the losers in one batch, and When Destroyed / Ally Destroyed / Enemy Destroyed effects still fire after the third lane. The playback reads the lane's own `HERO_DESTROYED` (or `SHIELD_CONSUMED`) from the event log, so a replay of the same log plays the same sequence (`components/animation/playback.ts`).
+- **Every effect on the card.** Hand cards, board Units and Spell zones show every combat effect with its timing label (`cardCombatBattleEffects` in `cardCombat/cardText.ts`): the full wording in hand where it fits, a shorter board wording otherwise. Card Inspect adds HP Contribution, Mastery and keyword help. HP Contribution is not shown on hand or board cards.
+
 ## Appendix: collection, Box and save rules
 
 - Collection is a copy count per card. Card Mastery is a read model over legacy Ascension (`cardMastery/model.ts`); only 6 Units have paths today. See [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md).

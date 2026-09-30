@@ -143,8 +143,7 @@ export function buildAnimationSteps(events: GameEvent[]): AnimationStep[] {
     }
 
     // Card combat: the lane's Clash Damage (winner ATK - loser ATK) lands on the losing player's HP straight after the
-    // clash. The losers are destroyed later, in their own steps, exactly where the log has them: all three lanes
-    // clash before anyone dies, and pulling a death forward would commit the other lanes' HP changes early.
+    // clash, then the lane's loser (both Units on a tie) leaves the board before the next lane resolves.
     const cdIdx = findNext(combatIndex, (e) => e.type === 'CLASH_DAMAGE' && e.lane === combat.lane);
     if (cdIdx >= 0) {
       consumed.add(cdIdx);
@@ -158,6 +157,8 @@ export function buildAnimationSteps(events: GameEvent[]): AnimationStep[] {
         step.maxEventIndex = cdIdx;
         out.push(step);
       }
+      const exit = buildClashExitStep(cd, cdIdx);
+      if (exit) out.push(exit);
       return out;
     }
 
@@ -184,6 +185,31 @@ export function buildAnimationSteps(events: GameEvent[]): AnimationStep[] {
     }
 
     return out;
+  }
+
+  /**
+   * Card combat: the engine clashes all three lanes on the board as it stood, then destroys every loser in one batch
+   * (cardCombat/engine.ts step 5), and that order is part of the rules: When Destroyed / Ally Destroyed effects only
+   * fire after the last lane. The destruction itself is already decided at the clash, so the lane's own HERO_DESTROYED
+   * (or SHIELD_CONSUMED, when a Shield saves the loser) plays right here, as one quick beat. `maxEventIndex` stays at the
+   * clash's record so the later lanes' Clash Damage is not committed early; `commitIndices` commits just the
+   * destruction (see playback.ts). The death triggers themselves keep their place after the third lane.
+   */
+  function buildClashExitStep(cd: Extract<GameEvent, { type: 'CLASH_DAMAGE' }>, cdIdx: number): AnimationStep | null {
+    const exits: number[] = [];
+    for (const gone of cd.destroyed) {
+      const idx = findNext(cdIdx, (e) => (e.type === 'HERO_DESTROYED' || e.type === 'SHIELD_CONSUMED') && e.side === gone.side && e.instanceId === gone.instanceId);
+      if (idx < 0) continue;
+      consumed.add(idx);
+      exits.push(idx);
+    }
+    if (exits.length === 0) return null;
+    const exitEvents = exits.map((i) => events[i]);
+    const destroyed = exitEvents.some((e) => e.type === 'HERO_DESTROYED');
+    const step = makeStep(destroyed ? 'hero-destroyed' : 'shield-save', destroyed ? 'destroy' : categoryFor('shield-save'), exitEvents, cdIdx, cd.lane);
+    step.maxEventIndex = cdIdx;
+    step.commitIndices = exits;
+    return step;
   }
 
   for (let i = 0; i < events.length; i++) {

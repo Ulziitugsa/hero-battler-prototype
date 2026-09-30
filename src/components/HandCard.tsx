@@ -3,6 +3,9 @@ import type { HandCard as HandCardModel } from '../game/types';
 import { getCard } from '../game/cards';
 import { Icon } from './Icon';
 import { CollectibleCard } from './CollectibleCard';
+import { BattleCard } from './card/BattleCard';
+import { useCardCombatDisplay } from './combatDisplay';
+import { cardCombatBattleEffects } from '../game/cardCombat/cardText';
 
 const LONG_PRESS_MS = 450;
 
@@ -24,6 +27,7 @@ export function HandCard({
   onDragEnd: () => void;
 }) {
   const card = getCard(hand.cardId);
+  const cardCombat = useCardCombatDisplay();
   // Long-press anywhere on the card opens Card Inspect (the (i) button does the same in one tap).
   const pressTimer = useRef<number | null>(null);
   const longPressed = useRef(false);
@@ -37,8 +41,8 @@ export function HandCard({
       role="button"
       tabIndex={0}
       aria-pressed={selected}
-      aria-label={`${card.name}. Long-press or use the info button to inspect.`}
-      className={`hand-card r-${card.rarity} ${selected ? 'selected' : ''}`}
+      aria-label={`${card.name}.${cardCombat ? ` ${cardCombatBattleEffects(card.id).map((e) => `${e.label}: ${e.text}`).join(' ')}` : ''} Long-press or use the info button to inspect.`}
+      className={`hand-card r-${card.rarity} ${selected ? 'selected' : ''} ${cardCombat ? 'card-face' : ''}`}
       style={style}
       onClick={() => {
         if (longPressed.current) {
@@ -73,7 +77,7 @@ export function HandCard({
       }}
       onDragEnd={onDragEnd}
     >
-      <CollectibleCard cardId={card.id} mode="battle" animated={false} />
+      {cardCombat ? <BattleCard cardId={card.id} variant="hand" /> : <CollectibleCard cardId={card.id} mode="battle" animated={false} />}
       <button
         type="button"
         className="hand-card-inspect"

@@ -13,6 +13,8 @@ export interface CardCombatDisplay {
   hpContribution: (cardId: string, owner: 'player' | 'enemy') => number;
   /** Card Mastery stage (1..5) this match uses for the card. */
   masteryStage: (cardId: string, owner: 'player' | 'enemy') => number;
+  /** A board Unit's conditional always-on effects, on or off on the board as shown (keyed by ability index). */
+  passiveStates?: (instanceId: string) => ReadonlyMap<number, boolean> | undefined;
 }
 
 export const CombatDisplayContext = createContext<CardCombatDisplay | null>(null);

@@ -5,6 +5,7 @@ import { cardEffectSummary } from '../game/cards/effectText';
 import { cardCombatEffectSummary } from '../game/cardCombat/cardText';
 import { useCardCombatDisplay } from './combatDisplay';
 import type { ChitVisual } from './animation/chitEffects';
+import { BattleCard } from './card/BattleCard';
 
 /**
  * A Spell zone's filled state (Battle Screen v8). Kind is always re-derived from the card definition
@@ -19,7 +20,29 @@ export function SpellZoneChit({ spell, side, anim, disabled, onClick }: { spell:
   const mine = side === 'player';
   const continuous = card.spellKind === 'CONTINUOUS';
   const ready = !continuous && mine; // a staged one-time Spell, ready to resolve on Fight
-  const summary = useCardCombatDisplay() ? cardCombatEffectSummary(card) : cardEffectSummary(card);
+  const cardCombat = useCardCombatDisplay();
+  const summary = cardCombat ? cardCombatEffectSummary(card) : cardEffectSummary(card);
+
+  if (cardCombat) {
+    // Card combat (Battle UX pass): the Spell's rules on its face, not a summary.
+    return (
+      <button
+        type="button"
+        className={`zone-card spell-zone-card card-face ${mine ? 'mine' : 'theirs'} ${continuous ? 'clamped' : 'floating'} ${anim?.className ?? ''}`}
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={`${card.name}, ${continuous ? 'Continuous' : 'staged'}. Tap to inspect.`}
+      >
+        <BattleCard cardId={spell.cardId} variant="spell" name={spell.shortName} />
+        {ready && <span className="zone-card-ready">Ready</span>}
+        {anim?.floaters.map((f) => (
+          <span key={f.key} className={`floater floater-${f.kind}`}>
+            {f.text}
+          </span>
+        ))}
+      </button>
+    );
+  }
 
   return (
     <button

@@ -89,7 +89,10 @@ describe('Quick Battle card mode: Clash Damage feedback', () => {
     expect(dmg.map((st) => st.lane)).toEqual(['left', 'center']);
     const types = (st: (typeof dmg)[number]) => run.events.slice(0, st.maxEventIndex + 1).filter((e: GameEvent) => e.type === 'CLASH_DAMAGE').length;
     expect(dmg.map(types)).toEqual([1, 2]);
+    // The left lane's loser leaves between the two lanes (Battle UX pass), and that exit commits no Clash Damage of its own.
     const destroyed = run.steps.findIndex((st) => st.visualType === 'hero-destroyed');
-    expect(destroyed).toBeGreaterThan(run.steps.indexOf(dmg[1]));
+    expect(destroyed).toBeGreaterThan(run.steps.indexOf(dmg[0]));
+    expect(destroyed).toBeLessThan(run.steps.indexOf(dmg[1]));
+    expect(types(run.steps[destroyed])).toBe(1);
   });
 });

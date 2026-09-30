@@ -8,7 +8,7 @@ import { withEffectivePowers } from '../game/engine/power';
 import { makeSeed } from '../game/engine/rng';
 import { combatStats } from '../game/combatV2/model';
 import { chooseAiAction } from '../game/ai/simpleAI';
-import { beginCardRound, cardAtk, cardSpellHasTarget, createCardMatch, matchHpContribution, resolveCardRound, validateCardDeployment, withEffectiveAtk } from '../game/cardCombat/engine';
+import { beginCardRound, cardAtk, cardSpellHasTarget, createCardMatch, matchHpContribution, passiveEffectStates, resolveCardRound, validateCardDeployment, withEffectiveAtk } from '../game/cardCombat/engine';
 import { chooseCardAiAction } from '../game/cardCombat/ai';
 import { getCombatCard } from '../game/cardCombat/cards';
 import { stagesFromAscensionRanks } from '../game/cardCombat/mastery';
@@ -410,6 +410,9 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const playerBoardState = cardMode ? withEffectiveAtk({ ...displayState, player: playerZonesForDisplay }, 'player') : withEffectivePowers({ ...displayState, player: playerZonesForDisplay }, 'player');
   const enemyBoardState = cardMode ? withEffectiveAtk(displayState, 'enemy') : withEffectivePowers(displayState, 'enemy');
   const clashCallout = isRevealing ? clashCalloutForStep(anim.currentStep, revealEvents, displayState) : null;
+  // Card combat: which conditional always-on effects are live on the board as shown (pending plays included).
+  const shownState = { ...displayState, player: playerZonesForDisplay };
+  const passiveStates = cardMode ? new Map([...passiveEffectStates(shownState, 'player'), ...passiveEffectStates(shownState, 'enemy')]) : new Map<string, Map<number, boolean>>();
 
   // Status band above the hand (Battle Screen v8 / design source of truth section 9): during
   // resolution it's a static "Resolving", never a scrolling play-by-play of each event.
@@ -430,6 +433,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     ? {
         hpContribution: (cardId, owner) => matchHpContribution(gameState, owner, cardId),
         masteryStage: (cardId, owner) => gameState.cardCombat?.masteryStage[owner][cardId] ?? 1,
+        passiveStates: (instanceId) => passiveStates.get(instanceId),
       }
     : null;
 
@@ -437,7 +441,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     <CombatDisplayContext.Provider value={cardDisplay}>
     <div className="app-shell">
       <div className="battle-stage" style={{ '--step-ms': `${Math.max(stepMs, 1)}ms` } as CSSProperties}>
-        <div className="battle-scene">
+        <div className={`battle-scene ${cardMode ? 'card-mode' : ''}`}>
           <div className="battle-sky" aria-hidden="true" />
           <div className="battle-terrace" aria-hidden="true" />
           <div className="battle-glow left" aria-hidden="true" />
@@ -491,8 +495,10 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             badge={playerMastery && !cardMode ? <MasteryBadge loadout={playerMastery} toast={masteryToast} /> : undefined}
           />
 
+          {/* Card combat: the hint sits under the enemy bar, clear of the taller hand cards' art and ATK. */}
+          {cardMode && <div className="battle-hint">{hint}</div>}
           <div className="hand-apron">
-            <div className="battle-hint">{hint}</div>
+            {!cardMode && <div className="battle-hint">{hint}</div>}
             {submitError && phase === 'DEPLOY' && (
               <div style={{ color: '#e66', textAlign: 'center', fontSize: 13 }}>
                 {submitError}{' '}
@@ -502,7 +508,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
               </div>
             )}
             {phase === 'DEPLOY' ? (
-              <Hand hand={gameState.player.hand} selectedHandId={selectedHand?.handId ?? null} usedHandIds={usedHandIds} onSelect={selectForPlacement} onInspect={setInspectCardId} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
+              <Hand readable={cardMode} hand={gameState.player.hand} selectedHandId={selectedHand?.handId ?? null} usedHandIds={usedHandIds} onSelect={selectForPlacement} onInspect={setInspectCardId} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
             ) : (
               <div className="hand-fan" />
             )}
