@@ -15,7 +15,7 @@ import { BattleCard } from './card/BattleCard';
  * both need their kind's own treatment (floating+Ready vs clamped+rune ring). `anim`, when present, is
  * this round's currently-playing animation beat for this Spell (see `components/animation`).
  */
-export function SpellZoneChit({ spell, side, anim, disabled, onClick }: { spell: SpellZoneInstance; side: Side; anim?: ChitVisual | null; disabled?: boolean; onClick: () => void }) {
+export function SpellZoneChit({ spell, side, anim, disabled, focused, onClick }: { spell: SpellZoneInstance; side: Side; anim?: ChitVisual | null; disabled?: boolean; /** Card combat: the card the focus panel shows. */ focused?: boolean; onClick: () => void }) {
   const card = getCard(spell.cardId);
   const mine = side === 'player';
   const continuous = card.spellKind === 'CONTINUOUS';
@@ -28,10 +28,10 @@ export function SpellZoneChit({ spell, side, anim, disabled, onClick }: { spell:
     return (
       <button
         type="button"
-        className={`zone-card spell-zone-card card-face ${mine ? 'mine' : 'theirs'} ${continuous ? 'clamped' : 'floating'} ${anim?.className ?? ''}`}
+        className={`zone-card spell-zone-card card-face ${mine ? 'mine' : 'theirs'} ${continuous ? 'clamped' : 'floating'} ${focused ? 'is-focused' : ''} ${anim?.className ?? ''}`}
         onClick={onClick}
         disabled={disabled}
-        aria-label={`${card.name}, ${continuous ? 'Continuous' : 'staged'}. Tap to inspect.`}
+        aria-label={`${card.name}, ${continuous ? 'Continuous' : 'staged'}.${continuous ? ' Tap for details.' : mine ? ' Tap to take it back.' : ''}`}
       >
         <BattleCard cardId={spell.cardId} variant="spell" name={spell.shortName} />
         {ready && <span className="zone-card-ready">Ready</span>}

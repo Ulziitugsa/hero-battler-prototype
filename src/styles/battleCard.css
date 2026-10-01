@@ -3,7 +3,10 @@
    with the frame showing between them: a name bar, a framed art box (about half the card), a stats and identity row
    with ATK set into the frame, and a text box. Hierarchy: art, then name and ATK, then the effect, then its timing.
    Type: a fantasy serif title (Cinzel), a book serif for rules (Alegreya), small caps for timing labels
-   (Alegreya SC). Rules text never goes below 9px. */
+   (Alegreya SC). Rules text never goes below 9px.
+   Info layers pass: rules text is a little smaller and tighter than before (hand 10px from 10.5px, board 9.5px from
+   10px, line height 1.15 from 1.2, 2px between effects from 3px), now that every effect is a short battle line and the
+   full rules live in the focus panel a tap opens. */
 
 .collectible.battle-card {
   aspect-ratio: auto;
@@ -13,8 +16,8 @@
   --bc-pad: 2.5px;
   --bc-gap: 1.5px;
   --bc-fs: 10px;
-  --bc-lh: 1.2;
-  --bc-egap: 3px;
+  --bc-lh: 1.15;
+  --bc-egap: 2px;
   --bc-art: var(--bc-art-base);
   --bc-art-top: 0%;
   --bc-title-font: 'Cinzel', var(--px-font-display, Georgia, serif);
@@ -203,14 +206,14 @@
 .bc-state { display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-right: 1px; }
 .bc-state.on { background: #8fe0a0; box-shadow: 0 0 3px #8fe0a0; }
 .bc-state.off { background: transparent; box-shadow: inset 0 0 0 1px #a3aaa4; }
-.bc-effect.is-off .bc-text { color: #9aa19b; }
+.bc-text.is-off { color: #9aa19b; }
 .bc-silenced { color: #ffab98; font: 700 var(--bc-fs) / 1.1 var(--bc-label-font); letter-spacing: 0.03em; }
 .battle-card.is-silenced .bc-effect .bc-text { text-decoration: line-through; text-decoration-color: rgba(255, 171, 152, 0.7); }
 .bc-none { color: #8f988f; font-style: italic; }
 
 /* ---- Density modes ------------------------------------------------------------------------------------------------- */
-.battle-card.v-hand { --bc-fs: 10.5px; --bc-sm-fs: 10px; --bc-name-fs: 10.5px; --bc-name-h: 13px; --bc-atk-fs: 13px; --bc-stat-h: 11px; --bc-art-base: 50%; --bc-art-roomy: 54%; }
-.battle-card.v-board { --bc-fs: 10px; --bc-sm-fs: 9.5px; --bc-name-fs: 9.5px; --bc-name-h: 12px; --bc-atk-fs: 12.5px; --bc-stat-h: 10px; --bc-art-base: 48%; --bc-art-roomy: 52%; }
+.battle-card.v-hand { --bc-fs: 10px; --bc-sm-fs: 9.5px; --bc-name-fs: 10.5px; --bc-name-h: 13px; --bc-atk-fs: 13px; --bc-stat-h: 11px; --bc-art-base: 50%; --bc-art-roomy: 54%; }
+.battle-card.v-board { --bc-fs: 9.5px; --bc-sm-fs: 9px; --bc-name-fs: 9.5px; --bc-name-h: 12px; --bc-atk-fs: 12.5px; --bc-stat-h: 10px; --bc-art-base: 48%; --bc-art-roomy: 52%; }
 .collectible.battle-card.v-inspect {
   aspect-ratio: 5 / 7;
   height: auto;
@@ -242,8 +245,8 @@
 
 /* Spell zone: a wide, short strip; name and text only. */
 .battle-card.v-spell { --bc-pad: 2px; }
-.battle-card.v-spell .bc-rules { display: block; padding: 3px 5px; --bc-fs: 10px; --bc-lh: 1.2; border-radius: 3px; }
-.battle-card.v-spell .bc-name-inline { display: inline; margin-right: 4px; font: 700 9.5px / 1 var(--bc-title-font); color: #efe6ff; letter-spacing: 0.02em; white-space: normal; }
+.battle-card.v-spell .bc-rules { display: block; padding: 3px 5px; --bc-fs: 9.5px; --bc-lh: 1.15; border-radius: 3px; }
+.battle-card.v-spell .bc-name-inline { display: inline-block; max-width: 100%; margin-right: 4px; font: 700 9.5px / 1 var(--bc-title-font); color: #efe6ff; letter-spacing: 0.02em; white-space: normal; }
 .battle-card.v-spell .bc-name-inline svg { display: inline; vertical-align: -1px; margin-right: 2px; color: #cdbcf4; }
 .battle-card.v-spell .bc-effect { display: inline; }
 .battle-card.v-spell .bc-effect + .bc-effect::before { content: ''; display: block; height: 2px; }
@@ -257,7 +260,7 @@
 .battle-card:is([data-fit='xs-fill'], [data-fit='xxs-fill']) { --bc-fs: 9px; --bc-lh: 1.1; }
 /* The last resort for the longest text: the same 9px type set 8% narrower (long card text is condensed, not cut). */
 .battle-card:is([data-fit='xxs-fill'], .v-spell[data-fit='xxs']) .bc-rules { width: calc(100% / 0.92); transform: scaleX(0.92); transform-origin: left top; }
-.battle-card.v-spell[data-fit='sm'] .bc-rules { --bc-fs: 9.5px; --bc-lh: 1.15; }
+.battle-card.v-spell[data-fit='sm'] .bc-rules { --bc-fs: 9.25px; --bc-lh: 1.12; }
 .battle-card.v-spell:is([data-fit='xs'], [data-fit='xxs']) .bc-rules { --bc-fs: 9px; --bc-lh: 1.1; padding: 1px 3px; }
 .battle-card.v-spell:is([data-fit='xs'], [data-fit='xxs']) .bc-effect + .bc-effect::before { height: 1px; }
 

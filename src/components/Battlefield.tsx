@@ -36,6 +36,7 @@ export function Battlefield({
   canFight,
   fighting,
   onFight,
+  focusedId = null,
 }: {
   enemyState: PlayerState;
   playerState: PlayerState;
@@ -61,6 +62,8 @@ export function Battlefield({
   canFight: boolean;
   fighting: boolean;
   onFight: () => void;
+  /** Card combat: the instance the focus panel shows, ringed on the board. */
+  focusedId?: string | null;
 }) {
   return (
     <div className={`battlefield ${stageShake ? 'stage-shake' : ''}`}>
@@ -93,10 +96,10 @@ export function Battlefield({
             {lane !== 'center' && <span className={`lane-pip ${pHeroTargetable || pSpellTargetable ? 'active' : ''}`} />}
 
             <div className="battle-zone-slot zone-eSpell">
-              <SpellLaneSlot lane={lane} side="enemy" targetable={false} spell={eSpell} anim={eSpell ? spellAnimById.get(eSpell.instanceId) : null} interactionDisabled={interactionDisabled} onChitClick={onEnemySpellChitClick} />
+              <SpellLaneSlot lane={lane} side="enemy" targetable={false} spell={eSpell} anim={eSpell ? spellAnimById.get(eSpell.instanceId) : null} interactionDisabled={interactionDisabled} focused={!!eSpell && eSpell.instanceId === focusedId} onChitClick={onEnemySpellChitClick} />
             </div>
             <div className="battle-zone-slot zone-eHero">
-              <LaneSlot lane={lane} side="enemy" hero={eHero} targetable={false} anim={eHero ? heroAnimById.get(eHero.instanceId) : null} interactionDisabled={interactionDisabled} onChitClick={onEnemyHeroChitClick} />
+              <LaneSlot lane={lane} side="enemy" hero={eHero} targetable={false} anim={eHero ? heroAnimById.get(eHero.instanceId) : null} interactionDisabled={interactionDisabled} focused={!!eHero && eHero.instanceId === focusedId} onChitClick={onEnemyHeroChitClick} />
             </div>
             <div className="battle-zone-slot zone-pHero">
               <LaneSlot
@@ -107,6 +110,7 @@ export function Battlefield({
                 hasSelection={hasSelection}
                 anim={pHero ? heroAnimById.get(pHero.instanceId) : null}
                 interactionDisabled={interactionDisabled}
+                focused={!!pHero && pHero.instanceId === focusedId}
                 onSlotClick={() => onHeroSlotClick(lane)}
                 onChitClick={onHeroChitClick}
               />
@@ -120,6 +124,7 @@ export function Battlefield({
                 hasSelection={hasSelection}
                 anim={pSpell ? spellAnimById.get(pSpell.instanceId) : null}
                 interactionDisabled={interactionDisabled}
+                focused={!!pSpell && pSpell.instanceId === focusedId}
                 onSlotClick={() => onSpellSlotClick(lane)}
                 onChitClick={onSpellChitClick}
               />

@@ -41,7 +41,7 @@ export function HandCard({
       role="button"
       tabIndex={0}
       aria-pressed={selected}
-      aria-label={`${card.name}.${cardCombat ? ` ${cardCombatBattleEffects(card.id).map((e) => `${e.label}: ${e.text}`).join(' ')}` : ''} Long-press or use the info button to inspect.`}
+      aria-label={`${card.name}.${cardCombat ? ` ${cardCombatBattleEffects(card.id).map((e) => `${e.chip}: ${e.text}`).join(' ')}` : ''} Long-press or use the info button to inspect.`}
       className={`hand-card r-${card.rarity} ${selected ? 'selected' : ''} ${cardCombat ? 'card-face' : ''}`}
       style={style}
       onClick={() => {

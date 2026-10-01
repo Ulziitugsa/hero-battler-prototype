@@ -20,7 +20,7 @@ import '../styles/ascension.css';
  * `components/animation` - built from the engine's own event log, never from the card's identity).
  * `hero.shielded`/`hero.silenced` are persistent engine state (not animation), so their quiet standing
  * indicators render independently of whatever beat is currently playing. */
-export function BoardChit({ hero, side, anim, disabled, onClick }: { hero: HeroInstance; side: Side; anim?: ChitVisual | null; disabled?: boolean; onClick: () => void }) {
+export function BoardChit({ hero, side, anim, disabled, focused, onClick }: { hero: HeroInstance; side: Side; anim?: ChitVisual | null; disabled?: boolean; /** Card combat: the card the focus panel shows. */ focused?: boolean; onClick: () => void }) {
   const card = getCard(hero.cardId);
   const mine = side === 'player';
   const gemCount = RARITY_GEMS[card.rarity];
@@ -36,10 +36,11 @@ export function BoardChit({ hero, side, anim, disabled, onClick }: { hero: HeroI
     return (
       <button
         type="button"
-        className={`zone-card hero-zone-card card-face ${mine ? 'mine' : 'theirs'} ${hero.shielded ? 'chit-shield-active' : ''} ${hero.silenced ? 'chit-silenced-persistent' : ''} ${anim?.className ?? ''}`}
+        className={`zone-card hero-zone-card card-face ${mine ? 'mine' : 'theirs'} ${hero.shielded ? 'chit-shield-active' : ''} ${hero.silenced ? 'chit-silenced-persistent' : ''} ${focused ? 'is-focused' : ''} ${anim?.className ?? ''}`}
+        aria-pressed={focused}
         onClick={onClick}
         disabled={disabled}
-        aria-label={`${card.name}, ${hero.power} ATK. Tap to inspect.`}
+        aria-label={`${card.name}, ${hero.power} ATK. Tap for details.`}
       >
         <BattleCard cardId={hero.cardId} variant="board" name={hero.shortName} atk={hero.power} tempAtk={hero.tempPower} silenced={hero.silenced} shielded={hero.shielded} passiveState={cardCombat.passiveStates?.(hero.instanceId)} />
         {hero.shielded && <span className="chit-shield-ring" aria-hidden="true" />}

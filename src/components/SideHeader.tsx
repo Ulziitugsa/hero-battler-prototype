@@ -23,6 +23,8 @@ export function SideHeader({
   graveyardDisabled,
   onClose,
   onGraveyardClick,
+  onLogClick,
+  logOpen,
   badge,
 }: {
   side: 'player' | 'enemy';
@@ -40,6 +42,9 @@ export function SideHeader({
   graveyardDisabled?: boolean;
   onClose?: () => void;
   onGraveyardClick?: () => void;
+  /** Card combat: opens the battle log in the dock over the hand (BattleDock.tsx). */
+  onLogClick?: () => void;
+  logOpen?: boolean;
   /** Small extra HUD element shown beside the pills (the equipped Mastery badge). */
   badge?: ReactNode;
 }) {
@@ -79,6 +84,12 @@ export function SideHeader({
       {side === 'player' && deckCount !== undefined && graveyardCount !== undefined && (
         <div className="side-header-pills">
           {badge}
+          {onLogClick && (
+            <button type="button" className={`side-header-pill interactive log-pill ${logOpen ? 'active' : ''}`} onClick={onLogClick} disabled={graveyardDisabled} aria-pressed={!!logOpen} aria-label="Battle log">
+              <Icon name="log" size={10} />
+              Log
+            </button>
+          )}
           <button
             type="button"
             className={`side-header-pill interactive ${graveyardPulse ? 'pill-pulse' : ''}`}

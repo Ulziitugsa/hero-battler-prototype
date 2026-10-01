@@ -1,7 +1,7 @@
-import { useLayoutEffect, useRef } from 'react';
+import { Fragment, useLayoutEffect, useRef } from 'react';
 import { getCard } from '../../game/cards';
 import { cardAtk } from '../../game/cardCombat/engine';
-import { cardCombatBattleEffects } from '../../game/cardCombat/cardText';
+import { cardCombatBattleEffects, type BattleEffectLine } from '../../game/cardCombat/cardText';
 import { CardArtwork } from '../CardArtwork';
 import { Gems, Sigil } from '../CardParts';
 import { Icon } from '../Icon';
@@ -11,10 +11,13 @@ import '../../styles/battleCard.css';
 /**
  * A card-combat card as it reads in battle (Battle UX pass), laid out as a collectible card in four zones inside the
  * rarity frame: a name bar, a framed art box (about half the card), a stats and identity row with ATK set into the
- * frame, and a text box with every combat effect under a small-caps timing label (cardText.ts BATTLE_LINES).
+ * frame, and a text box with every combat effect as a short battle line after its small-caps timing label
+ * ("On Play: Adjacent allies +15 ATK.", cardText.ts BATTLE_LINES). Effects that share a label read as one paragraph
+ * under it. This is the first of three layers: a tap in battle opens the focus panel with the full rules and the
+ * card's live state (BattleFocusPanel), and Card Inspect holds everything else.
  *
  * hand:    most readable; full name.
- * board:   compact but complete; short name; shows whether conditional Passives are active.
+ * board:   compact but complete; short name; board wording; shows whether conditional Passives are active.
  * spell:   a Spell in a Spell zone (a Continuous Spell, or a one-time Spell staged for this round): name and text only.
  * inspect: the large face at the top of in-battle Card Inspect: the same card, larger, with HP Contribution beside
  *          ATK. Card Inspect lists the full rules wording under it.
@@ -166,6 +169,18 @@ export function BattleCard({ cardId, variant, atk, tempAtk = 0, silenced = false
   // A Spell names its kind where a Unit shows ATK. (Card Inspect lists a Unit's role under the card.)
   const spellKind = continuous ? (inspect ? 'Continuous Spell' : 'Continuous') : 'Spell';
 
+  // Effects that share a label read as one paragraph under it ("On Play: Restore 135 HP. Gain a Shield.").
+  const groups: { chip: string; trigger: BattleEffectLine['trigger']; implied: boolean; effects: BattleEffectLine[] }[] = [];
+  for (const effect of effects) {
+    // A one-time Spell happens when it is played, so "On Play" goes without saying on it (as on a printed card).
+    const implied = !unit && !continuous && effect.trigger === 'ON_PLAY';
+    const last = groups[groups.length - 1];
+    if (last && last.chip === effect.chip && last.implied === implied) last.effects.push(effect);
+    else groups.push({ chip: effect.chip, trigger: effect.trigger, implied, effects: [effect] });
+  }
+  const stateDot = (state: boolean | undefined) =>
+    state !== undefined && !silenced && <span className={`bc-state ${state ? 'on' : 'off'}`} role="img" aria-label={state ? 'active now' : 'inactive now'} title={state ? 'Active now' : 'Not active now'} />;
+
   const rules = (
     <span className="bc-rules">
       {variant === 'spell' && (
@@ -176,22 +191,28 @@ export function BattleCard({ cardId, variant, atk, tempAtk = 0, silenced = false
       )}
       {silenced && <span className="bc-silenced">Silenced this round</span>}
       {effects.length === 0 && <span className="bc-none">No effect</span>}
-      {effects.map((effect, i) => {
-        const state = passiveState?.get(effect.abilityIndex);
-        const live = state !== undefined && !silenced;
-        // A one-time Spell happens when it is played, so "On Play" goes without saying on it (as on a printed card).
-        const implied = !unit && !continuous && effect.trigger === 'ON_PLAY';
+      {groups.map((group, g) => {
+        const states = group.effects.map((effect) => passiveState?.get(effect.abilityIndex));
+        const single = group.effects.length === 1;
         return (
-          <span className={`bc-effect ${state === false || silenced ? 'is-off' : ''}`} key={i} data-trigger={effect.trigger}>
-            {!implied && (
+          <span className={`bc-effect ${silenced || states.every((state) => state === false) ? 'is-off' : ''}`} key={g} data-trigger={group.trigger}>
+            {!group.implied && (
               <>
                 <span className="bc-when">
-                  {live && <span className={`bc-state ${state ? 'on' : 'off'}`} role="img" aria-label={state ? 'active now' : 'inactive now'} title={state ? 'Active now' : 'Not active now'} />}
-                  {effect.chip}
+                  {single && stateDot(states[0])}
+                  {group.chip}:
                 </span>{' '}
               </>
             )}
-            <span className="bc-text">{keepTogether(effect.compact)}</span>
+            {group.effects.map((effect, k) => (
+              <Fragment key={k}>
+                {k > 0 && ' '}
+                <span className={`bc-text ${silenced || states[k] === false ? 'is-off' : ''}`}>
+                  {!single && stateDot(states[k])}
+                  {keepTogether(variant === 'board' ? effect.board : effect.compact)}
+                </span>
+              </Fragment>
+            ))}
           </span>
         );
       })}

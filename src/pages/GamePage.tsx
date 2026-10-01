@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { CombatModelId, DeployPlay, GameEvent, GameState, HandCard as HandCardModel, HeroInstance, LaneId, MasteryLoadout, PlayerAction, SpellZoneInstance } from '../game/types';
 import { LANES } from '../game/types';
 import { getCard } from '../game/cards';
@@ -13,6 +13,9 @@ import { chooseCardAiAction } from '../game/cardCombat/ai';
 import { getCombatCard } from '../game/cardCombat/cards';
 import { stagesFromAscensionRanks } from '../game/cardCombat/mastery';
 import { CombatDisplayContext, type CardCombatDisplay } from '../components/combatDisplay';
+import { BattleFocusPanel, BattleLogPanel } from '../components/battleInfo/BattleDock';
+import { battleLogEntries } from '../components/battleInfo/battleLog';
+import { focusDetails, type BattleFocus } from '../components/battleInfo/focusDetails';
 import { clashCalloutForStep } from '../components/animation/chitEffects';
 import { computeMatchStats, type MatchStats } from '../game/engine/stats';
 import { saveRecentMatch } from '../game/engine/localMatchHistory';
@@ -168,6 +171,11 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const [selectedHand, setSelectedHand] = useState<HandCardModel | null>(null);
   const [inspect, setInspect] = useState<{ cardId: string; context: InspectContext; livePower?: number; masteryRank?: number } | null>(null);
   const setInspectCardId = (cardId: string | null) => setInspect(cardId ? { cardId, context: 'battle' } : null);
+  // Card combat's dock over the hand apron (Info layers pass): the card a tap picked out, or the battle log, one at a
+  // time and between rounds only (while a round resolves the dock shows the live log instead). The log stays open from
+  // round to round until it is closed; a card's panel shows over it.
+  const [focus, setFocus] = useState<BattleFocus | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
 
   const [revealEvents, setRevealEvents] = useState<GameEvent[]>([]);
   const [baseStateForReveal, setBaseStateForReveal] = useState<GameState | null>(null);
@@ -201,6 +209,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     setPhase('DEPLOY');
     setPendingPlays([]);
     setSelectedHand(null);
+    setFocus(null);
+    setLogOpen(false);
     setRevealEvents([]);
     setBaseStateForReveal(null);
     setPendingNextState(null);
@@ -273,6 +283,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     }
     setPendingPlays([]);
     setSelectedHand(null);
+    setFocus(null);
     setSubmitError(null);
 
     if (remoteOpponent) {
@@ -312,7 +323,40 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
 
   function selectForPlacement(hand: HandCardModel) {
     if (phase !== 'DEPLOY') return;
-    setSelectedHand((prev) => (prev?.handId === hand.handId ? null : hand));
+    if (!cardMode) {
+      setSelectedHand((prev) => (prev?.handId === hand.handId ? null : hand));
+      return;
+    }
+    // Card combat: a tap selects the card and opens its focus panel; tapping the card the panel shows puts it back.
+    const shown = focus?.kind === 'hand' && focus.handId === hand.handId;
+    if (shown && selectedHand?.handId === hand.handId) {
+      setSelectedHand(null);
+      setFocus(null);
+      return;
+    }
+    setSelectedHand(hand);
+    setFocus({ kind: 'hand', handId: hand.handId, cardId: hand.cardId });
+  }
+
+  /** Card combat: a tap on a Unit or a Spell on the board opens its focus panel, and a second tap closes it. */
+  function toggleFocus(next: BattleFocus) {
+    setFocus((prev) => (prev && prev.kind === next.kind && 'instanceId' in prev && 'instanceId' in next && prev.instanceId === next.instanceId ? null : next));
+  }
+
+  function closeFocus() {
+    // Closing a hand card's panel puts the card back as well.
+    if (focus?.kind === 'hand' && selectedHand?.handId === focus.handId) setSelectedHand(null);
+    setFocus(null);
+  }
+
+  function toggleLog() {
+    if (phase !== 'DEPLOY') return;
+    if (logShown) {
+      setLogOpen(false);
+      return;
+    }
+    setLogOpen(true);
+    setFocus(null);
   }
 
   // Placement IS targeting - a single Hero/Spell click or drop commits the whole play; there is no
@@ -321,6 +365,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     if (!selectedHand) return;
     setPendingPlays((prev) => [...prev, { handId: selectedHand.handId, cardId: selectedHand.cardId, lane }]);
     setSelectedHand(null);
+    setFocus(null);
   }
 
   function handleHeroLaneClick(lane: LaneId) {
@@ -377,21 +422,25 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
 
   // Tapping a chit to inspect it - like every other board interaction - is locked out while the round
   // is resolving, so a mid-animation tap can never race the animation queue or open stale card data.
+  // Card combat opens the focus panel instead (Card Inspect is one more tap away, on the panel).
   function handlePlayerChitClick(hero: HeroInstance) {
     if (isRevealing) return;
     if (hero.instanceId.startsWith('pending-')) handleRemovePending(hero.instanceId.replace('pending-', ''));
+    else if (cardMode) toggleFocus({ kind: 'unit', side: 'player', instanceId: hero.instanceId });
     else setInspect({ cardId: hero.cardId, context: 'battle', livePower: hero.maxHp === undefined ? hero.power : undefined, masteryRank: hero.ascension ?? 0 });
   }
 
   function handlePlayerSpellChitClick(spell: SpellZoneInstance) {
     if (isRevealing) return;
     if (spell.instanceId.startsWith('pending-')) handleRemovePending(spell.instanceId.replace('pending-', ''));
+    else if (cardMode) toggleFocus({ kind: 'spell', side: 'player', instanceId: spell.instanceId });
     else setInspectCardId(spell.cardId);
   }
 
-  function handleEnemyChitClick(cardId: string, hero?: HeroInstance) {
+  function handleEnemyChitClick(cardId: string, hero?: HeroInstance, spell?: SpellZoneInstance) {
     if (isRevealing) return;
-    setInspect({ cardId, context: 'opponent', livePower: hero && hero.maxHp === undefined ? hero.power : undefined, masteryRank: hero?.ascension ?? 0 });
+    if (cardMode && (hero || spell)) toggleFocus(hero ? { kind: 'unit', side: 'enemy', instanceId: hero.instanceId } : { kind: 'spell', side: 'enemy', instanceId: spell!.instanceId });
+    else setInspect({ cardId, context: 'opponent', livePower: hero && hero.maxHp === undefined ? hero.power : undefined, masteryRank: hero?.ascension ?? 0 });
   }
 
   function handleDragStart(hand: HandCardModel) {
@@ -413,6 +462,23 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   // Card combat: which conditional always-on effects are live on the board as shown (pending plays included).
   const shownState = { ...displayState, player: playerZonesForDisplay };
   const passiveStates = cardMode ? new Map([...passiveEffectStates(shownState, 'player'), ...passiveEffectStates(shownState, 'enemy')]) : new Map<string, Map<number, boolean>>();
+
+  // Card combat's dock (Info layers pass). Between rounds: the focus panel for the card a tap picked out (read from the
+  // board as shown), else the battle log when it is open; either way the hand peeks out under it. While a round
+  // resolves: the live log, each line appearing as playback reaches the events it describes.
+  const focusInfo = cardMode && phase === 'DEPLOY' && focus ? focusDetails(focus, shownState, fullLog, (cardId, owner) => matchHpContribution(gameState, owner, cardId)) : null;
+  const historyLog = useMemo(() => (cardMode && logOpen ? battleLogEntries(fullLog) : []), [cardMode, logOpen, fullLog]);
+  const revealLog = useMemo(() => (cardMode ? battleLogEntries(revealEvents, baseStateForReveal ?? undefined) : []), [cardMode, revealEvents, baseStateForReveal]);
+  let revealedUntil = anim.isDone ? revealEvents.length - 1 : -1;
+  if (!anim.isDone) for (let i = 0; i <= Math.min(anim.stepIndex, anim.steps.length - 1); i++) revealedUntil = Math.max(revealedUntil, anim.steps[i].maxEventIndex);
+  const liveLog = isRevealing ? revealLog.filter((entry) => entry.until <= revealedUntil) : [];
+  const logShown = cardMode && phase === 'DEPLOY' && !focusInfo && logOpen;
+  const dockOpen = !!focusInfo || logShown;
+
+  function inspectFocused() {
+    if (!focusInfo) return;
+    setInspect({ cardId: focusInfo.cardId, context: focusInfo.owner === 'enemy' ? 'opponent' : 'battle', ...(focusInfo.place === 'board' ? { livePower: focusInfo.atk } : {}) });
+  }
 
   // Status band above the hand (Battle Screen v8 / design source of truth section 9): during
   // resolution it's a static "Resolving", never a scrolling play-by-play of each event.
@@ -474,10 +540,11 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             onSpellSlotClick={handleSpellLaneClick}
             onSpellChitClick={handlePlayerSpellChitClick}
             onEnemyHeroChitClick={(h) => handleEnemyChitClick(h.cardId, h)}
-            onEnemySpellChitClick={(s) => handleEnemyChitClick(s.cardId)}
+            onEnemySpellChitClick={(s) => handleEnemyChitClick(s.cardId, undefined, s)}
             canFight={phase === 'DEPLOY'}
             fighting={isRevealing}
             onFight={handleFight}
+            focusedId={focusInfo && focus && focus.kind !== 'hand' ? focus.instanceId : null}
           />
 
           <SideHeader
@@ -492,6 +559,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             graveyardCount={displayState.player.graveyard.length}
             graveyardDisabled={isRevealing}
             onGraveyardClick={() => setGraveyardOpen(true)}
+            onLogClick={cardMode ? toggleLog : undefined}
+            logOpen={logShown}
             badge={playerMastery && !cardMode ? <MasteryBadge loadout={playerMastery} toast={masteryToast} /> : undefined}
           />
 
@@ -508,10 +577,13 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
               </div>
             )}
             {phase === 'DEPLOY' ? (
-              <Hand readable={cardMode} hand={gameState.player.hand} selectedHandId={selectedHand?.handId ?? null} usedHandIds={usedHandIds} onSelect={selectForPlacement} onInspect={setInspectCardId} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
+              <Hand readable={cardMode} peek={dockOpen} hand={gameState.player.hand} selectedHandId={selectedHand?.handId ?? null} usedHandIds={usedHandIds} onSelect={selectForPlacement} onInspect={setInspectCardId} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
             ) : (
               <div className="hand-fan" />
             )}
+            {focusInfo && <BattleFocusPanel details={focusInfo} onClose={closeFocus} onInspect={inspectFocused} />}
+            {logShown && <BattleLogPanel entries={historyLog} live={false} onClose={() => setLogOpen(false)} />}
+            {cardMode && isRevealing && <BattleLogPanel entries={liveLog} live round={baseStateForReveal?.round} />}
           </div>
 
           {mobileDebugOpen && (

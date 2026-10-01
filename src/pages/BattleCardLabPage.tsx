@@ -1,5 +1,8 @@
 import { ALL_CARDS } from '../game/cards';
 import { BattleCard } from '../components/card/BattleCard';
+import { BattleFocusPanel } from '../components/battleInfo/BattleDock';
+import { handCardDetails } from '../components/battleInfo/focusDetails';
+import { hpContributionAt } from '../game/cardCombat/stats';
 
 /**
  * Dev-only QA sheet (?battleCardLab): every card as a card-combat battle face, at the sizes the 390x844 battle screen
@@ -12,6 +15,22 @@ export function BattleCardLabPage({ onBack }: { onBack: () => void }) {
   const k = Number(new URLSearchParams(window.location.search).get('width') ?? 390) / 390;
   const size = (w: number, h: number) => ({ position: 'relative' as const, width: Math.round(w * k), height: Math.round(h * k) });
   const cards = ALL_CARDS.filter((c) => !c.id.startsWith('tok-'));
+  // ?battleCardLab&panels: every card's focus panel in the dock over the hand apron (390x188 at 390), each reporting
+  // whether its rules had to scroll in `data-scrolls`.
+  if (new URLSearchParams(window.location.search).has('panels')) {
+    return (
+      <div style={{ padding: 12, background: '#0a141e', minHeight: '100dvh', color: '#f4ead2', overflowY: 'auto', height: '100dvh' }}>
+        <button type="button" onClick={onBack}>Back</button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+          {cards.map((card) => (
+            <div key={card.id} data-lab-panel={card.id} style={{ ...size(390, 188), flex: '0 0 auto' }}>
+              <BattleFocusPanel details={handCardDetails(card.id, card.type === 'hero' ? hpContributionAt(card.id) : undefined)} onClose={() => {}} onInspect={() => {}} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ padding: 12, background: '#0a141e', minHeight: '100dvh', color: '#f4ead2', overflowY: 'auto', height: '100dvh' }}>
       <button type="button" onClick={onBack}>Back</button>
