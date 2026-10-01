@@ -81,7 +81,7 @@
 .moon-claim-feedback { width:fit-content; margin:10px auto 0; padding:10px 14px; color:#f4ecd7; background:#183941; border:1px solid #e4c080; box-shadow:0 3px 0 #07131a; font:700 12px var(--mono); animation:moon-claim-pop 240ms steps(4) both; }
 @keyframes moon-claim-pop { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
 
-/* Card faces are styled by collectible.css (CollectibleCard modes); pages only size the card. */
+/* Card faces are styled by gameCard.css (GameCard densities); pages only size the card. */
 .moon-game .archive-detail { border:1px solid #99ac9270; box-shadow:0 20px 90px #0009; border-radius:0; }
 .moon-game .archive-detail-card { width:240px; }
 
@@ -123,7 +123,8 @@
 .moon-banner-copy small { display:block; font:10px/1.8 var(--mono); color:#aebfb4; }
 .moon-banner-cards { display:grid; grid-template-columns:1fr 1.15fr 1fr; gap:12px; align-items:center; }
 .moon-banner-cards>div:nth-child(2) { transform:translateY(-8px); }
-.moon-banner-cards .collectible-rule,.moon-banner-cards .collectible-kind { display:none; }
+/* Narrow banner cards stand taller than a Collection tile so their art keeps room beside every effect line. */
+.moon-banner-cards .game-card.d-tile { aspect-ratio:1 / 1.8; }
 .moon-game .summon-dock { background:#0e2530; border-top:1px solid #aeb98c40; }
 .moon-game .ritual { background:linear-gradient(#071723c9,#071723ed),url('/art/pixel/moonwater.png') center/cover; }
 .moon-game .ritual-canvas { width:min(100%,900px); background:none; box-shadow:none; }
@@ -131,7 +132,7 @@
 .moon-game .ritual-heading { top:5%; }
 .moon-game .ritual-heading strong { font:400 24px Georgia,serif; }
 .moon-game .rc { width:240px; height:390px; }
-.moon-game .rc .collectible { height:100%; }
+.moon-game .rc .game-card { height:100%; }
 .moon-game .ritual-info { background:#10242df0; border:1px solid #94aa7950; padding:18px; }
 .moon-game .ritual-grid { gap:16px; }
 .moon-game .ritual-grid .moon-art { object-fit:cover; }
@@ -214,7 +215,7 @@
   .moon-game .hr-title,.moon-game .dk-title,.moon-game .pf-title { font-size:30px; }
   .moon-game .summon-screen { padding-top:12px; }.moon-game .moon-banner { padding:12px 10px; min-height:350px; }
   .moon-banner-heading { margin-bottom:10px; }.moon-banner-body { grid-template-columns:1fr; gap:8px; }.moon-banner-copy h2 { font-size:24px; margin:0 0 4px; }.moon-banner-copy p { font-size:11px; line-height:1.35; margin:4px 0; }.moon-banner-copy small { display:none; }
-  .moon-banner-cards { width:100%; max-width:400px; margin:auto; gap:10px; }
+  .moon-banner-cards { width:calc(100% + 12px); max-width:400px; margin:0 -6px; gap:5px; grid-template-columns:repeat(3,minmax(0,1fr)); }
   .moon-game .ritual-canvas { width:100%; }.moon-game .ritual-info { padding:12px; }.moon-game .rc { width:210px; height:342px; }
 }
 @media(max-height:720px) { .moon-game .rc { width:185px; height:300px; }.moon-game .ritual-heading strong { font-size:18px; }.moon-game .ritual-heading { top:3%; } }
@@ -350,9 +351,6 @@
 .home-kicker,.home-target-reward small,.home-formation small,.home-acquisition small { display:block; color:#d6bd83; font:9px/1.4 var(--mono); letter-spacing:.09em; }
 .home-campaign h1 { margin:6px 0 0; color:#fff0ca; font:400 clamp(24px,7vw,32px)/1.05 Georgia,serif; }
 .home-feature-card { flex:0 0 62px; width:62px; height:98px; overflow:hidden; padding:0; border:1px solid #d8bf85; background:#10232d; box-shadow:2px 2px 0 #07131a; }
-.home-feature-card .collectible { width:100%; height:100%; aspect-ratio:auto; }
-.home-feature-card .collectible-name { font-size:7px!important; }
-.home-feature-card .collectible-top,.home-feature-card .collectible-stats,.home-feature-card .collectible-spell-kind,.home-feature-card .collectible-rule,.home-feature-card .collectible-kind,.home-feature-card .collectible-number { display:none!important; }
 .home-progress { height:7px; margin:1px 0 9px; overflow:hidden; border:1px solid #71877c; background:#081923; }
 .home-progress>span { display:block; height:100%; background:linear-gradient(90deg,#b9955e,#f0d391); }
 .home-power-line { display:flex; align-items:center; flex-wrap:wrap; gap:5px 13px; color:#bdcdc7; font:9px var(--mono); }
@@ -364,9 +362,6 @@
 .home-target-reward small { font-size:8px; color:#bdb994; }
 .home-target-reward strong { display:block; overflow:hidden; color:#fff0ca; font:14px Georgia,serif; text-overflow:ellipsis; white-space:nowrap; }
 .home-reward-art { flex:0 0 28px; width:28px; height:39px; overflow:hidden; border:1px solid #71877c; }
-.home-reward-art .collectible { width:100%; height:100%; aspect-ratio:auto; }
-.home-reward-art .collectible-top,.home-reward-art .collectible-stats,.home-reward-art .collectible-spell-kind,.home-reward-art .collectible-plate,.home-reward-art .collectible-number,.home-reward-art .collectible-crest { display:none!important; }
-.home-reward-art .collectible-art { bottom:2.2cqi; }
 .home-continue { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:47px; padding:0 14px; color:#28251c; background:#e4c080; border:1px solid #f4dba4; box-shadow:0 3px 0 #876a42; font:700 12px var(--mono); letter-spacing:.04em; text-transform:uppercase; }
 .home-continue b { font:22px Georgia,serif; }
 .home-secondary-actions { display:grid; grid-template-columns:1fr 1fr; gap:9px; }

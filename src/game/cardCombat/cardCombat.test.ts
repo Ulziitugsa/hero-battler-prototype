@@ -551,10 +551,11 @@ describe('card combat: mode gating', () => {
 
 describe('card combat: player-facing copy', () => {
   it('speaks in ATK and Player HP, never Power, Hero or legacy HP points', async () => {
-    const { cardCombatEffectLines, cardCombatEffectSummary } = await import('./cardText.js');
+    const { cardCombatEffectLines } = await import('./cardText.js');
+    const { cardEffects } = await import('../cards/cardPresentation.js');
     const { ALL_CARDS } = await import('../cards/index.js');
     for (const card of ALL_CARDS) {
-      const text = [cardCombatEffectSummary(card.id), ...cardCombatEffectLines(card.id).map((l) => l.text)].join(' | ');
+      const text = [...cardEffects(card.id).flatMap((e) => [e.label, e.compact, e.board, e.full]), ...cardCombatEffectLines(card.id).map((l) => l.text)].join(' | ');
       expect(text, card.id).not.toMatch(/\bPower\b|\bHero\b|\b[1-5] (HP|damage)\b/);
     }
     expect(cardCombatEffectLines('kng-light-priest')[0].text).toBe('Restore 135 HP to your player.');

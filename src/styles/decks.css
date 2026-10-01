@@ -502,7 +502,7 @@
 .dk-dock {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 8;
   margin: 0 -16px;
   padding: 12px 16px 0;
   background: linear-gradient(180deg, #4a2b1e, #2b170f);
@@ -783,15 +783,16 @@ button.dk-hp:focus-visible { outline: 2px solid var(--ember-gold-light); outline
 .dk-card-sortval { white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; color: #f3d78c; }
 .dk-card-sortval svg:first-child { flex: none; }
 
-/* Integration: Deck Builder tiles render the shared card face (CollectibleCard mode="standard").
-   The frame, plate and stats come from the card itself; the tile only adds deck overlays and a note line. */
+/* Deck Builder tiles render the game's one card face (GameCard, tile density). The tile only adds deck overlays,
+   in one row on the top of the art (under the name bar) so they never cover ATK or rules text, and a note line. */
 .dk-card { flex-direction: column; gap: 4px; }
 .dk-card-frame { padding: 0; border-radius: 0; background: none; box-shadow: none; flex: none; }
 .dk-card.r-epic .dk-card-frame, .dk-card.r-legendary .dk-card-frame { padding: 0; box-shadow: none; }
-.dk-card-frame > .collectible.dk-card-cc { width: 100%; }
-.dk-card .dk-card-count, .dk-card .dk-card-add { z-index: 5; top: 17%; right: 5px; }
+.dk-card-frame > .game-card.dk-card-gc { width: 100%; }
+.dk-card .dk-card-count, .dk-card .dk-card-add { z-index: 4; top: 18px; right: 5px; }
 .dk-card-note { display: flex; justify-content: center; min-height: 14px; font-size: 0.68rem; font-weight: 700; color: var(--ember-ink-3); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dk-card.maxed .dk-card-note { color: var(--ember-gold); }
-.dk-card.blocked .collectible-art { filter: saturate(0.6) brightness(0.72); }
-.dk-card.over .collectible { outline: 2px solid #f0866a; outline-offset: 1px; }
-.dk-card-wrap .dk-card-inspect, .dk-card-wrap .dk-card-fav { top: calc(17% + 30px); }
+.dk-card.blocked .gc-art { filter: saturate(0.6) brightness(0.72); }
+.dk-card.over .game-card { outline: 2px solid #f0866a; outline-offset: 1px; }
+.dk-card-wrap .dk-card-inspect, .dk-card-wrap .dk-card-fav { top: 18px; }
+.dk-card-wrap .dk-card-inspect { left: 31px; right: auto; }

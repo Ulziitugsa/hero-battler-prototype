@@ -2,10 +2,9 @@ import { useRef, type CSSProperties } from 'react';
 import type { HandCard as HandCardModel } from '../game/types';
 import { getCard } from '../game/cards';
 import { Icon } from './Icon';
-import { CollectibleCard } from './CollectibleCard';
-import { BattleCard } from './card/BattleCard';
-import { useCardCombatDisplay } from './combatDisplay';
-import { cardCombatBattleEffects } from '../game/cardCombat/cardText';
+import { GameCard } from './card/GameCard';
+import { useBattleCardDisplay } from './combatDisplay';
+import { cardEffects } from '../game/cards/cardPresentation';
 
 const LONG_PRESS_MS = 450;
 
@@ -27,7 +26,10 @@ export function HandCard({
   onDragEnd: () => void;
 }) {
   const card = getCard(hand.cardId);
-  const cardCombat = useCardCombatDisplay();
+  // The battle's rules (card combat or legacy) decide the card's wording and ATK; the face is the same in every mode.
+  const display = useBattleCardDisplay();
+  const rules = display?.rules ?? 'card';
+  const masteryRank = display?.masteryRank(card.id, 'player') ?? 0;
   // Long-press anywhere on the card opens Card Inspect (the (i) button does the same in one tap).
   const pressTimer = useRef<number | null>(null);
   const longPressed = useRef(false);
@@ -41,8 +43,10 @@ export function HandCard({
       role="button"
       tabIndex={0}
       aria-pressed={selected}
-      aria-label={`${card.name}.${cardCombat ? ` ${cardCombatBattleEffects(card.id).map((e) => `${e.chip}: ${e.text}`).join(' ')}` : ''} Long-press or use the info button to inspect.`}
-      className={`hand-card r-${card.rarity} ${selected ? 'selected' : ''} ${cardCombat ? 'card-face' : ''}`}
+      aria-label={`${card.name}. ${cardEffects(card.id, { rules, masteryRank })
+        .map((e) => `${e.label}: ${e.compact}`)
+        .join(' ')} Tap for details; long-press or use the info button to inspect.`}
+      className={`hand-card card-face r-${card.rarity} ${selected ? 'selected' : ''}`}
       style={style}
       onClick={() => {
         if (longPressed.current) {
@@ -77,7 +81,7 @@ export function HandCard({
       }}
       onDragEnd={onDragEnd}
     >
-      {cardCombat ? <BattleCard cardId={card.id} variant="hand" /> : <CollectibleCard cardId={card.id} mode="battle" animated={false} />}
+      <GameCard cardId={card.id} density="hand" rules={rules} masteryRank={masteryRank} atk={display?.handAtk(card.id)} />
       <button
         type="button"
         className="hand-card-inspect"

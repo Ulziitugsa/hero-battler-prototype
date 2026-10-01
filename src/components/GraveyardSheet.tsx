@@ -4,6 +4,8 @@ import { getCard } from '../game/cards';
 import { cardArtUrl } from '../game/cards/art';
 import { CardArtwork } from './CardArtwork';
 import { Icon } from './Icon';
+import { useBattleCardDisplay } from './combatDisplay';
+import { printedAtk } from '../game/cards/cardPresentation';
 
 /**
  * A real, inspectable Graveyard (mechanics foundation pass). Graveyard contents are treated as
@@ -25,6 +27,8 @@ export function GraveyardSheet({
   onInspect: (cardId: string, side: 'player' | 'enemy') => void;
 }) {
   const [side, setSide] = useState<Side>('player');
+  // A Unit's printed ATK under this battle's rules (the same number its card face shows).
+  const rules = useBattleCardDisplay()?.rules ?? 'card';
   const cardIds = side === 'player' ? playerGraveyard : enemyGraveyard;
   // Destruction order is oldest-first in state; show most-recently-lost cards at the top.
   const ordered = [...cardIds].reverse();
@@ -58,6 +62,7 @@ export function GraveyardSheet({
             {ordered.map((cardId, i) => {
               const card = getCard(cardId);
               const artUrl = cardArtUrl(cardId);
+              const atk = printedAtk(card, rules);
               const typeLabel = card.type === 'hero' ? 'Unit' : card.spellKind === 'CONTINUOUS' ? 'Continuous Spell' : 'Spell';
               return (
                 <button type="button" className="graveyard-card-row" key={`${cardId}-${i}`} onClick={() => onInspect(cardId, side)}>
@@ -71,7 +76,7 @@ export function GraveyardSheet({
                       {typeLabel}
                     </span>
                   </span>
-                  {card.power !== undefined && <span className="graveyard-card-power">{card.power}</span>}
+                  {atk !== null && <span className="graveyard-card-power" aria-label={`${atk} ATK`}>{atk}</span>}
                 </button>
               );
             })}

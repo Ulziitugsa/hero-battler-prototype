@@ -1,36 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CardDefinition, Faction, Rarity } from '../game/types';
 import { getCard } from '../game/cards';
 import { PLAYTEST_ROSTER } from '../game/cards/roster';
-import { listDeckOptions } from '../game/engine/deckOptions';
-import { loadPreferences } from '../game/engine/preferences';
+import { cardCopyView } from '../game/cards/cardCopy';
 import { Icon } from '../components/Icon';
-import { Gems, Sigil } from '../components/CardParts';
+import { Sigil } from '../components/CardParts';
 import { useCollection } from '../game/collection/useCollection';
-import { acquisitionSummary, getCardAcquisitionSources } from '../game/collection/acquisition';
 import { useAscension } from '../game/ascension/useAscension';
-import { getAscensionRank } from '../game/ascension/store';
-import { ascensionAddedAbilities, effectiveAbilities } from '../game/ascension/effective';
-import { AscensionPanel } from './heroes/AscensionPanel';
-import { HeroLevelPanel } from './heroes/HeroLevelPanel';
-import { getHeroLevel } from '../game/heroLevel/store';
-import { MasteryPips } from './heroes/MasteryPips';
-import { getOwnedCount } from '../game/collection/collection';
-import { getCardMasteryView } from '../game/cardMastery/model';
 import { track } from '../analytics/track';
-import { useDialogFocus } from '../components/useDialogFocus';
-import { getAscensionStatus } from '../game/ascension/ascend';
-import { CollectibleCard } from '../components/CollectibleCard';
-import { CardEffectList, CardStatsPanel } from '../components/card/CardInspectSections';
-import { useHeroLevel } from '../game/heroLevel/useHeroLevel';
-import { displayRole, emptyCopy, FACTION_LABEL, FACTION_ORDER, filterHeroes, isFiltered, scopeOf, SORT_LABEL, tally, type HeroFilters, type OwnedFilter, type SortMode } from './heroes/collection';
+import { GameCard } from '../components/card/GameCard';
+import { CardViewer } from '../components/card/CardViewer';
+import { emptyCopy, FACTION_LABEL, FACTION_ORDER, filterHeroes, isFiltered, scopeOf, SORT_LABEL, tally, type HeroFilters, type OwnedFilter, type SortMode } from './heroes/collection';
 import '../styles/heroes.css';
 
-// Heroes screen: the collection gallery. Where Decks is dense and tactical, this is the slow, visual
-// side of the game - two roomy columns of art-first cards framed by rarity (never faction), a single
-// engraved counter that follows whatever you're filtering, and missing cards veiled but still legible
-// so they read as things to chase rather than broken slots. Tapping a card opens a proper inspection
-// sheet with previous/next so you can page through the gallery.
+// Cards screen: the collection gallery. Three columns of the game's one card face (GameCard, tile density: art, name,
+// rarity frame, faction, ATK, HP Contribution and every effect's battle line), a single engraved counter that follows
+// whatever you're filtering, and missing cards veiled but still legible so they read as things to chase rather than
+// broken slots. Tapping a card opens the focused card detail (the same panel battle uses, as a sheet), and Card Inspect
+// from there pages through the gallery with previous/next.
 //
 // Ownership comes from the real persisted collection (src/game/collection) - Campaign rewards add
 // cards to it and this screen re-renders the moment that happens. Filtering / sorting / empty copy live
@@ -40,164 +27,16 @@ import '../styles/heroes.css';
 const HERO_IDS: string[] = [...PLAYTEST_ROSTER];
 const HEROES: CardDefinition[] = HERO_IDS.map(getCard);
 
-/** One quiet line: where the card comes from. Parked / unobtainable cards say so plainly rather than promising a stage. */
-function sourceLine(cardId: string, owned: boolean): string {
-  const kinds = getCardAcquisitionSources(cardId).map((x) => x.kind);
-  if (kinds.includes('starter') || kinds.includes('campaign') || kinds.includes('summon')) return `${owned ? 'Source' : 'Earn it'}: ${acquisitionSummary(cardId)}`;
-  return kinds.includes('future') ? 'Arrives in a later region' : 'Not obtainable yet';
-}
-
 const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
 const RARITY_LABEL: Record<Rarity, string> = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
 const SORTS: SortMode[] = ['rarity', 'power', 'name', 'faction'];
 
-/** The deck to credit in a hero's "In your deck" footer: the active deck if it carries this hero, else the first deck (starters first) that does. */
-function findDeckFor(cardId: string): string | null {
-  const decks = listDeckOptions();
-  const activeId = loadPreferences().selectedDeckId;
-  const active = decks.find((d) => d.id === activeId);
-  if (active?.cardIds.includes(cardId)) return active.label;
-  return decks.find((d) => d.cardIds.includes(cardId))?.label ?? null;
-}
-
-function HeroTile({ card, owned, count, rank, onClick }: { card: CardDefinition; owned: boolean; count: number; rank: number; onClick: () => void }) {
+function HeroTile({ card, collection, ascension, onClick }: { card: CardDefinition; collection: ReturnType<typeof useCollection>; ascension: ReturnType<typeof useAscension>; onClick: () => void }) {
+  const copy = cardCopyView(card.id, collection, ascension);
   return (
-    <button type="button" className={`hr-card hr-card-face r-${card.rarity} ${owned ? '' : 'missing'}`} onClick={onClick} aria-label={`${card.name}, ${RARITY_LABEL[card.rarity]}, ${owned ? 'owned' : 'not collected'}. Inspect.`}>
-      <CollectibleCard cardId={card.id} mode="standard" owned={owned} copies={count} masteryRank={owned ? rank : 0} animated={false} />
+    <button type="button" className={`hr-card hr-card-face r-${card.rarity} ${copy.owned ? '' : 'missing'}`} onClick={onClick} aria-label={`${card.name}, ${RARITY_LABEL[card.rarity]}, ${copy.owned ? 'owned' : 'not collected'}. Show details.`}>
+      <GameCard cardId={card.id} density="tile" owned={copy.owned} copies={copy.copies} masteryStage={copy.masteryStage} hpContribution={copy.hpContribution} />
     </button>
-  );
-}
-
-function HeroDetail({
-  card,
-  owned,
-  count,
-  onClose,
-  onPrev,
-  onNext,
-  onOpenDecks,
-}: {
-  card: CardDefinition;
-  owned: boolean;
-  count: number;
-  onClose: () => void;
-  onPrev?: () => void;
-  onNext?: () => void;
-  onOpenDecks: () => void;
-}) {
-  const deckLabel = findDeckFor(card.id);
-  const ascension = useAscension();
-  const ownedCards = useCollection();
-  const levels = useHeroLevel();
-  const rank = owned ? getAscensionRank(card.id, ascension) : 0;
-  const ascensionStatus = getAscensionStatus(card.id, ownedCards, ascension);
-  const primaryProgression = ascensionStatus.canAscend ? 'mastery' : null;
-  const abilities = effectiveAbilities(card.id, rank);
-  const fromAscension = ascensionAddedAbilities(card.id, rank);
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const dialogRef = useDialogFocus(onClose);
-  const trackedHero = useRef<string | null>(null);
-
-  useEffect(() => {
-    bodyRef.current?.scrollTo({ top: 0 });
-    if (trackedHero.current !== card.id) {
-      trackedHero.current = card.id;
-      track('hero_detail_opened', { heroId: card.id, rarity: card.rarity, level: owned ? getHeroLevel(card.id, levels) : 0 });
-    }
-  }, [card.id, card.rarity, levels, owned]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') onPrev?.();
-      if (e.key === 'ArrowRight') onNext?.();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, onPrev, onNext]);
-
-  return (
-    <div className="overlay-backdrop hr-sheet-backdrop" onClick={onClose}>
-      <div ref={dialogRef} className={`hr-sheet r-${card.rarity} ${owned ? '' : 'missing'}`} role="dialog" aria-modal="true" aria-label={card.name} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
-        <div className="hr-sheet-scroll" ref={bodyRef}>
-          <div className="hr-sheet-stage">
-            <div className="hr-sheet-frame hr-sheet-card">
-              <CollectibleCard cardId={card.id} mode="inspect" owned={owned} masteryRank={rank} />
-            </div>
-            {onPrev && (
-              <button type="button" className="hr-sheet-nav prev" onClick={onPrev} aria-label="Previous card">
-                <Icon name="back" size={20} />
-              </button>
-            )}
-            {onNext && (
-              <button type="button" className="hr-sheet-nav next" onClick={onNext} aria-label="Next card">
-                <Icon name="back" size={20} />
-              </button>
-            )}
-          </div>
-
-          <div className="hr-sheet-body">
-            <div className="hr-sheet-title"><span className="hr-sheet-overline">{owned ? 'IN YOUR COLLECTION' : 'A CARD TO DISCOVER'}</span><h2 className="hr-sheet-name">{card.name}</h2><span className="hr-sheet-powerline">{owned ? `${getCardMasteryView(card.id).label} · ${getOwnedCount(card.id, ownedCards)} ${getOwnedCount(card.id, ownedCards) === 1 ? 'copy' : 'copies'}` : card.type === 'hero' ? 'Unit card' : 'Spell card'}</span></div>
-
-            <div className="hr-sheet-line">
-              <span className={`hr-rarity-tag r-${card.rarity}`}>
-                <Gems rarity={card.rarity} />
-                {RARITY_LABEL[card.rarity]}
-              </span>
-              <span className={`hr-owned-seal ${owned ? 'owned' : ''}`}>
-                <Icon name={owned ? 'check' : 'lock'} size={12} />
-                {owned ? (count > 1 ? `Owned ×${count}` : 'In your collection') : 'Not yet collected'}
-              </span>
-              {owned && <MasteryPips view={getCardMasteryView(card.id)} />}
-            </div>
-
-            <div className="hr-sheet-line faction">
-              <Sigil faction={card.faction} size="md" />
-              <span>
-                {card.type === 'hero' ? [`${FACTION_LABEL[card.faction]} Unit`, displayRole(card)].filter(Boolean).join(' · ') : `${FACTION_LABEL[card.faction]} Spell · ${card.spellKind === 'CONTINUOUS' ? 'Continuous' : 'One-time'}`}
-              </span>
-            </div>
-            <CardStatsPanel card={card} />
-
-            {owned && <AscensionPanel card={card} priority={primaryProgression === 'mastery'} />}
-            {owned && card.type === 'hero' && <details className="legacy-growth"><summary>Legacy Level · saved at {getHeroLevel(card.id, levels)}</summary><p>Earlier Level progress is preserved while the bounded card progression migration is designed.</p><HeroLevelPanel card={card} /></details>}
-
-            <div className={`hr-source ${owned ? '' : 'missing'}`}>
-              <Icon name={owned ? 'check' : 'lock'} size={13} />
-              <span>{sourceLine(card.id, owned)}</span>
-            </div>
-
-            {card.tags.length > 0 && (
-              <div className="hr-tags" aria-label="Traits">
-                {card.tags.map((t) => (
-                  <span key={t} className="hr-tag">
-                    {t}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <CardEffectList card={card} abilities={abilities} masteryAdded={fromAscension} />
-
-            {deckLabel && (
-              <button type="button" className="hr-deck-link" onClick={onOpenDecks}>
-                <span className="hr-deck-link-text">
-                  <span>In your deck</span>
-                  <strong>{deckLabel}</strong>
-                </span>
-                <span className="hr-deck-link-go">
-                  <Icon name="decks" size={16} />
-                  View decks
-                </span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        <button type="button" className="hr-sheet-close" onClick={onClose} aria-label="Back to Cards">
-          <Icon name="back" size={18} />
-        </button>
-      </div>
-    </div>
   );
 }
 
@@ -375,16 +214,15 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
       ) : (
         <div className="hr-grid">
           {list.map((card) => (
-            <HeroTile key={card.id} card={card} owned={owned.has(card.id)} count={collection[card.id] ?? 0} rank={getAscensionRank(card.id, ascensionState)} onClick={() => setInspectId(card.id)} />
+            <HeroTile key={card.id} card={card} collection={collection} ascension={ascensionState} onClick={() => setInspectId(card.id)} />
           ))}
         </div>
       )}
 
       {inspectCard && (
-        <HeroDetail
-          card={inspectCard}
-          owned={owned.has(inspectCard.id)}
-          count={collection[inspectCard.id] ?? 0}
+        <CardViewer
+          cardId={inspectCard.id}
+          context="collection"
           onClose={closeInspect}
           onPrev={list.length > 1 && idx >= 0 ? () => go(-1) : undefined}
           onNext={list.length > 1 && idx >= 0 ? () => go(1) : undefined}

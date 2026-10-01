@@ -9,6 +9,9 @@ import { getAscensionRank } from '../../game/ascension/store';
 import { getHeroLevel } from '../../game/heroLevel/store';
 import { rosterPowerForHero } from '../../game/heroLevel/rosterPower';
 import { starsForCard, starsForNextRank } from '../../game/ascension/stars';
+import { hpContributionAt, MASTERY_HPC_PCT } from '../../game/cardCombat/stats';
+import { stageFromAscensionRank } from '../../game/cardMastery/model';
+import { masteryRankCopy } from '../../game/cards/cardPresentation';
 import { StarStrip } from './StarStrip';
 import { RewardFeedback } from '../../components/RewardFeedback';
 import { track } from '../../analytics/track';
@@ -48,7 +51,13 @@ export function AscensionPanel({ card, priority = false }: { card: CardDefinitio
   const level = getHeroLevel(card.id);
   const rank = getAscensionRank(card.id);
   const rosterGain = nextDef ? rosterPowerForHero(card.power ?? 0, level, rank + 1) - rosterPowerForHero(card.power ?? 0, level, rank) : 0;
-  const improvement = nextDef?.summary ?? 'Card improved';
+  // What the next stage does, in card combat (HP Contribution only) and in classic battles (the effect it adds).
+  const nextStage = nextDef ? stageFromAscensionRank(nextDef.rank) : 0;
+  const hpcNow = card.type === 'hero' ? hpContributionAt(card, stageFromAscensionRank(rank)) : 0;
+  const hpcNext = nextDef && card.type === 'hero' ? hpContributionAt(card, nextStage) : 0;
+  const nextPct = nextDef ? (MASTERY_HPC_PCT[nextStage - 1] ?? 0) : 0;
+  const classicCopy = nextDef ? masteryRankCopy(card.id, nextDef.rank) : null;
+  const improvement = nextDef ? `HP Contribution +${nextPct}%` : 'Card improved';
 
   useEffect(() => {
     if (!ascending) return;
@@ -89,7 +98,12 @@ export function AscensionPanel({ card, priority = false }: { card: CardDefinitio
             <strong>
               {ascensionLabel(nextDef.rank)} · {nextDef.name}
             </strong>
-            <span>{nextDef.summary}</span>
+            {card.type === 'hero' && (
+              <span>
+                HP Contribution +{nextPct}% (+{hpcNow} → +{hpcNext}). ATK never changes.
+              </span>
+            )}
+            {classicCopy && <span className="asc-classic">Classic battles also add: {classicCopy}</span>}
             {(() => {
               const nextStars = starsForNextRank(card.id);
               return nextStars !== null ? (

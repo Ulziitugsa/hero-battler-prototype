@@ -5,34 +5,27 @@ import { cardArtUrl } from '../game/cards/art';
 import { RARITY_GEMS } from './cardVisuals';
 import type { ChitVisual } from './animation/chitEffects';
 import { Icon } from './Icon';
-import { CardStats } from './card/CardStats';
-import { EffectIcon } from './card/CardIcons';
-import { cardEffectSummary } from '../game/cards/effectText';
-import { atkDelta, cardFaceStats } from '../game/cards/cardFace';
-import { cardCombatEffectSummary } from '../game/cardCombat/cardText';
-import { useCardCombatDisplay } from './combatDisplay';
-import { BattleCard } from './card/BattleCard';
+import { useBattleCardDisplay } from './combatDisplay';
+import { GameCard } from './card/GameCard';
 import '../styles/ascension.css';
 
-/** A Hero zone's filled state - a compact version of the card frame (art, gems, power coin, name),
- * tinted gold for the player's own Heroes and ember for the enemy's (Battle Screen v8). `anim`, when
- * present, is this round's currently-playing animation beat for this specific Hero (see
- * `components/animation` - built from the engine's own event log, never from the card's identity).
- * `hero.shielded`/`hero.silenced` are persistent engine state (not animation), so their quiet standing
- * indicators render independently of whatever beat is currently playing. */
-export function BoardChit({ hero, side, anim, disabled, focused, onClick }: { hero: HeroInstance; side: Side; anim?: ChitVisual | null; disabled?: boolean; /** Card combat: the card the focus panel shows. */ focused?: boolean; onClick: () => void }) {
+/** A Unit on the board: the shared card face (GameCard, board density) with its current ATK, every effect in its board
+ * wording, and its live state (Shield, Silence, this round's ATK change, which conditional effects are on), tinted gold
+ * for the player's own Units and ember for the enemy's. The same face in every battle mode: `display.rules` picks card
+ * combat's rules or a legacy battle's (BattleCardDisplay). `anim`, when present, is this round's currently-playing
+ * animation beat for this specific Unit (see `components/animation`, built from the engine's own event log).
+ * The experimental per-unit-HP resolver (Combat V2, development builds only) keeps its own chit below. */
+export function BoardChit({ hero, side, anim, disabled, focused, onClick }: { hero: HeroInstance; side: Side; anim?: ChitVisual | null; disabled?: boolean; /** The card the focus panel shows. */ focused?: boolean; onClick: () => void }) {
   const card = getCard(hero.cardId);
   const mine = side === 'player';
   const gemCount = RARITY_GEMS[card.rarity];
   const artUrl = cardArtUrl(hero.cardId);
   const v2 = hero.maxHp !== undefined;
-  // Card combat: `hero.power` is the Unit's ATK and `tempPower` an ATK amount; there is no Unit HP.
-  const cardCombat = useCardCombatDisplay();
-  const summary = cardCombat ? cardCombatEffectSummary(card) : cardEffectSummary(card);
-  const atk = cardCombat ? hero.power : cardFaceStats(card, hero.power)?.atk;
+  const display = useBattleCardDisplay();
 
-  if (cardCombat) {
-    // Card combat (Battle UX pass): the Unit's full rules on its face, with its current ATK and live state.
+  if (!v2) {
+    const rules = display?.rules ?? 'card';
+    const atk = display ? display.unitAtk(hero) : hero.power;
     return (
       <button
         type="button"
@@ -40,9 +33,20 @@ export function BoardChit({ hero, side, anim, disabled, focused, onClick }: { he
         aria-pressed={focused}
         onClick={onClick}
         disabled={disabled}
-        aria-label={`${card.name}, ${hero.power} ATK. Tap for details.`}
+        aria-label={`${card.name}, ${atk} ATK. Tap for details.`}
       >
-        <BattleCard cardId={hero.cardId} variant="board" name={hero.shortName} atk={hero.power} tempAtk={hero.tempPower} silenced={hero.silenced} shielded={hero.shielded} passiveState={cardCombat.passiveStates?.(hero.instanceId)} />
+        <GameCard
+          cardId={hero.cardId}
+          density="board"
+          rules={rules}
+          masteryRank={display?.masteryRank(hero.cardId, side, hero) ?? 0}
+          name={hero.shortName}
+          atk={atk}
+          tempAtk={display ? display.tempAtk(hero) : hero.tempPower}
+          silenced={hero.silenced}
+          shielded={hero.shielded}
+          passiveState={display?.passiveStates(hero.instanceId)}
+        />
         {hero.shielded && <span className="chit-shield-ring" aria-hidden="true" />}
         {anim?.floaters.map((f) => (
           <span key={f.key} className={`floater floater-${f.kind}`}>
@@ -59,7 +63,7 @@ export function BoardChit({ hero, side, anim, disabled, focused, onClick }: { he
       className={`zone-card hero-zone-card ${mine ? 'mine' : 'theirs'} ${hero.shielded ? 'chit-shield-active' : ''} ${hero.silenced ? 'chit-silenced-persistent' : ''} ${anim?.className ?? ''}`}
       onClick={onClick}
       disabled={disabled}
-      aria-label={`${card.name}, ${v2 ? `ATK ${hero.power}, HP ${hero.hp ?? hero.maxHp} of ${hero.maxHp}` : `${atk} ATK`}${summary ? `, ${summary}` : ''}. Tap to inspect.`}
+      aria-label={`${card.name}, ATK ${hero.power}, HP ${hero.hp ?? hero.maxHp} of ${hero.maxHp}. Tap to inspect.`}
     >
       <span className={`zone-card-art ${hero.faction}`}>
         {artUrl ? (
@@ -77,24 +81,16 @@ export function BoardChit({ hero, side, anim, disabled, focused, onClick }: { he
         ))}
       </span>
       {hero.ascension ? <span className="zone-card-asc" title="Ascended">{['', 'I', 'II', 'III'][hero.ascension]}</span> : null}
-      {/* Experimental per-unit-HP combat keeps its own readout; the default resolver shows the card's live ATK and printed HP Contribution. */}
-      {v2 ? <span className="zone-card-power v2">ATK {hero.power}</span> : <span className="zone-card-stats"><CardStats card={card} size="compact" livePower={hero.power} /></span>}
-      {summary && <span className="zone-card-effect-dot" aria-hidden="true"><EffectIcon size={9} /></span>}
+      {/* Experimental per-unit-HP combat keeps its own readout. */}
+      <span className="zone-card-power v2">ATK {hero.power}</span>
       {hero.maxHp !== undefined && <span className="zone-card-vitality" aria-label={`HP ${hero.hp ?? hero.maxHp} / ${hero.maxHp}`}><span className="zone-card-vitality-fill" style={{ width: `${Math.max(0, Math.min(100, ((hero.hp ?? hero.maxHp) / hero.maxHp) * 100))}%` }} /><small>{hero.hp ?? hero.maxHp}/{hero.maxHp} HP{(hero.combatShield ?? 0) > 0 ? ` · SH ${hero.combatShield}` : ''}</small></span>}
       {hero.tempPower !== 0 && (
         <span className="zone-card-buff">
           {hero.tempPower > 0 ? '+' : '\u2212'}
-          {v2 || cardCombat ? Math.abs(hero.tempPower) : `${Math.abs(atkDelta(hero.tempPower))}`}
+          {Math.abs(hero.tempPower)}
         </span>
       )}
-      {summary ? (
-        <span className="zone-card-footer">
-          <span className="zone-card-name">{hero.shortName}</span>
-          <span className="zone-card-effect">{hero.silenced ? 'Silenced' : summary}</span>
-        </span>
-      ) : (
-        <span className="zone-card-name bare">{hero.shortName}</span>
-      )}
+      <span className="zone-card-name bare">{hero.shortName}</span>
       {hero.shielded && <span className="chit-shield-ring" aria-hidden="true" />}
       {hero.silenced && (
         <span className="chit-silence-icon" aria-hidden="true">

@@ -109,7 +109,7 @@ export function masteryEffectText(id: MasteryId, rank: number): string {
       return `${every}, shield ${what}${pref}.`;
     }
     default:
-      return 'After you take direct damage, your strongest Unit gains +1 Power this round.';
+      return 'After you take direct damage, your strongest Unit gains +15 ATK this round.';
   }
 }
 

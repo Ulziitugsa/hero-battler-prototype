@@ -1,6 +1,6 @@
 /* The Ember Archive room dressing on top of summonRitual.css's phase-driven reveal - pixel-art
    migration: a flat night room instead of a gilded gallery, dust motes stepped instead of eased,
-   pixel-frame bezels instead of rounded gold borders. Imported after summonRitual.css/collectible.css so
+   pixel-frame bezels instead of rounded gold borders. Imported after summonRitual.css so
    these overrides win; the phase/tier/data-attribute logic they react to is untouched. */
 .ritual-canvas { background: radial-gradient(ellipse at 50% 35%, var(--px-panel-2, #1b2b35) 0%, var(--px-bg, #0e1a26) 45%, var(--px-bg-deep, #0a141e) 75%); }
 .ritual-architecture { position: absolute; inset: 0; overflow: hidden; opacity: 0.4; pointer-events: none; }
@@ -30,7 +30,7 @@
 .ritual.single.is-result .ritual-canvas { overflow-y: auto; } .ritual.single.is-result .ritual-info { position: relative; margin-top: max(530px, 66dvh); bottom: auto; padding-bottom: 25px; }
 .ritual.single.is-result .ritual-center { top: 315px; }
 .ritual .ritual-skip:focus-visible, .ritual .ritual-continue:focus-visible { outline: 2px solid var(--px-gold-strong, #fff3ca); outline-offset: 3px; }
-@media (max-height: 720px) { .ritual-heading { top: 18px; } .ritual-heading strong { font-size: 20px; } .ritual .rc { width: 200px; margin: -150px 0 0 -100px; } .ritual .rc-inner { width: 200px; height: 300px; } .ritual.single.is-result .ritual-center { top: 255px; } .ritual.single.is-result .ritual-info { margin-top: 452px; } .ritual .collectible-rule { font-size: 10px; padding-top: 4px; } .ritual .collectible-base { gap: 4px; top: 66%; } .ritual .collectible-name { padding-right: 0; font-size: 16px; } .ritual .collectible-number { display: none; } }
+@media (max-height: 720px) { .ritual-heading { top: 18px; } .ritual-heading strong { font-size: 20px; } .ritual .rc { width: 200px; margin: -150px 0 0 -100px; } .ritual .rc-inner { width: 200px; height: 300px; } .ritual.single.is-result .ritual-center { top: 255px; } .ritual.single.is-result .ritual-info { margin-top: 452px; } }
 /* card frames + badges: flat faction fields, hard pixel-frame bezel, square badges instead of wax/gems */
 .ritual .cf { --frame-a: var(--px-line, #5c6f6c); --frame-b: var(--px-bg-deep, #0a141e); padding: 2px; box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 12px 24px rgba(4, 8, 10, 0.6); }
 .ritual .cf.r-rare { --frame-a: var(--rarity-rare, #7fb0d9); box-shadow: 0 0 0 2px var(--px-bg-deep), 0 0 0 3px var(--frame-a), 0 0 16px rgba(127, 176, 217, 0.4); }

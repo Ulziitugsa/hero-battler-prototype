@@ -4079,9 +4079,10 @@ button {
 
 .graveyard-card-power {
   flex-shrink: 0;
-  width: 26px;
+  min-width: 34px;
   height: 26px;
-  border-radius: 50%;
+  padding: 0 5px;
+  border-radius: 13px;
   display: flex;
   align-items: center;
   justify-content: center;

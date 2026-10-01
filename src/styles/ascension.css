@@ -11,6 +11,7 @@
 .asc-copies { font-size: 0.82rem; font-weight: 800; color: var(--ember-ink-2); }
 .asc-next { margin: 0; display: flex; flex-direction: column; gap: 3px; font-size: 0.92rem; font-weight: 700; line-height: 1.35; color: var(--ember-ink-2); }
 .asc-next strong { color: var(--ember-gold); font-weight: 800; }
+.asc-next .asc-classic { font-size: 0.8rem; font-weight: 600; opacity: 0.85; }
 .asc-reason { margin: 0; font-size: 0.85rem; font-weight: 700; line-height: 1.35; color: var(--ember-ink-3); }
 .asc-later { margin: 0; font-size: 0.85rem; font-weight: 700; color: var(--ember-ink-3); }
 

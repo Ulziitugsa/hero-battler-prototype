@@ -1,14 +1,17 @@
-import type { GameEvent, GameState, LaneId, Side, Trigger } from '../../game/types';
+import type { CardDefinition, GameEvent, GameState, LaneId, Side, Trigger } from '../../game/types';
 import { LANES, TRIGGER_LABEL } from '../../game/types';
-import { ALL_CARDS } from '../../game/cards';
-import { getCombatCard } from '../../game/cardCombat/cards';
-import { BATTLE_CHIP_LABEL, cardCombatBattleEffects } from '../../game/cardCombat/cardText';
+import { ALL_CARDS, getCard } from '../../game/cards';
+import { getCombatCard, type CombatCard } from '../../game/cardCombat/cards';
+import { cardEffects, legacyAtk, TIMING_LABEL, type CardRules } from '../../game/cards/cardPresentation';
+import { ATK_PER_POWER } from '../../game/cardCombat/stats';
 
 /**
- * Card combat's battle log (Info layers pass, layer 3): what each effect and each clash actually did, one short line
- * each, built from the round's own event log. "Royal Guard — On Play: Battle Captain and Light Priest +15 ATK",
- * "Clash Damage — Center: 35 to Enemy (Royal Guard 128 beat Bone Soldier 93)". It explains a resolution after the
- * fact; it never decides anything, and it reads the same events replay and animation do.
+ * The battle log: what each effect and each clash actually did, one short line each, built from the round's own event
+ * log. "Royal Guard — On Play: Battle Captain and Light Priest +15 ATK", "Clash Damage — Center: 35 to Enemy (Royal
+ * Guard 128 beat Bone Soldier 93)". It explains a resolution after the fact; it never decides anything, and it reads
+ * the same events replay and animation do. Every battle mode has it: a legacy battle's lines speak ATK the way its
+ * cards do (the ATK a Power reads as, cardPresentation.ts legacyAtk), and its clash lines name the winner without ATK
+ * arithmetic, since a legacy clash costs legacy HP points rather than the ATK difference.
  */
 
 export interface BattleLogEntry {
@@ -21,7 +24,7 @@ export interface BattleLogEntry {
   side: Side | null;
   /** The card that acted, or "Clash Damage" / "Tie" for a clash. */
   who: string;
-  /** The timing or keyword label ("On Play", "Guard 2", "Direct Hit"), or the lane for a clash. */
+  /** The timing or keyword label ("On Play", "Guard 2", "Direct Attack"), or the lane for a clash. */
   label?: string;
   /** What happened, in a few words. */
   text: string;
@@ -48,18 +51,21 @@ const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1
  * Guard, "Your 2nd Spell"). A card whose effects on that trigger have different labels (Dark Priest's Guard 2 and its
  * Clash line) gets the rules' own timing name instead ("Before Combat"): the log can't tell which of them fired.
  */
-function triggerLabel(source: string, trigger: Trigger): string {
+function triggerLabel(source: string, trigger: Trigger, rules: CardRules): string {
   const id = CARD_ID_BY_NAME.get(source);
-  if (!id) return BATTLE_CHIP_LABEL[trigger];
-  const card = getCombatCard(id);
+  if (!id) return TIMING_LABEL[trigger];
+  const card = definition(id, rules);
   if (card.type === 'spell' && card.spellKind !== 'CONTINUOUS' && trigger === 'ON_PLAY') return 'Spell';
-  const chips = new Set(
-    cardCombatBattleEffects(id)
+  const labels = new Set(
+    cardEffects(id, { rules })
       .filter((e) => e.trigger === trigger)
-      .map((e) => e.chip),
+      .map((e) => e.label),
   );
-  return chips.size === 1 ? [...chips][0] : chips.size > 1 ? TRIGGER_LABEL[trigger] : BATTLE_CHIP_LABEL[trigger];
+  return labels.size === 1 ? [...labels][0] : labels.size > 1 ? TRIGGER_LABEL[trigger] : TIMING_LABEL[trigger];
 }
+
+/** The card as these rules play it: card combat's approved definition, or the live card file in a legacy battle. */
+const definition = (id: string, rules: CardRules): CardDefinition | CombatCard => (rules === 'legacy' ? getCard(id) : getCombatCard(id));
 
 /**
  * Labels are the card's own (written from its owner's side, as on the card). In an enemy card's row, the two that
@@ -69,19 +75,20 @@ const ENEMY_ROW_LABEL: Record<string, string> = { 'Your Spell': 'Their Spell', '
 const rowLabel = (label: string, side: Side) => (side === 'enemy' ? (ENEMY_ROW_LABEL[label] ?? label) : label);
 
 /** A card whose effects can stop its player's next damage (Aegis Ward), so a prevented hit can name it. */
-function preventsDamage(source: string): boolean {
+function preventsDamage(source: string, rules: CardRules): boolean {
   const id = CARD_ID_BY_NAME.get(source);
-  return !!id && getCombatCard(id).abilities.some((a) => a.actions.some((action) => action.type === 'PREVENT_NEXT_DAMAGE' || action.type === 'CLASH_SHIELD'));
+  const abilities: readonly { actions: readonly { type: string }[] }[] = id ? definition(id, rules).abilities : [];
+  return abilities.some((a) => a.actions.some((action) => action.type === 'PREVENT_NEXT_DAMAGE' || action.type === 'CLASH_SHIELD'));
 }
 
 /**
  * What a triggered card did that logs no event of its own: Aegis Ward's barrier. Only an effect with no condition
  * counts, since the log can't tell whether a conditional one fired.
  */
-function silentEffects(source: string, trigger: Trigger, side: Side): string[] {
+function silentEffects(source: string, trigger: Trigger, side: Side, rules: CardRules): string[] {
   const id = CARD_ID_BY_NAME.get(source);
   if (!id) return [];
-  return getCombatCard(id)
+  return definition(id, rules)
     .abilities.filter((a) => a.trigger === trigger && !a.conditions?.length)
     .flatMap((a) => a.actions)
     .filter((action) => action.type === 'PREVENT_NEXT_DAMAGE')
@@ -92,7 +99,7 @@ function silentEffects(source: string, trigger: Trigger, side: Side): string[] {
 function isOneTimeSpell(source: string): boolean {
   const id = CARD_ID_BY_NAME.get(source);
   if (!id) return false;
-  const card = getCombatCard(id);
+  const card = getCard(id);
   return card.type === 'spell' && card.spellKind !== 'CONTINUOUS';
 }
 
@@ -113,7 +120,7 @@ class BoardNames {
     return this.names.get(`${side}:${lane}`);
   }
   track(ev: GameEvent) {
-    if (ev.type === 'REVEAL') for (const p of ev.placements) if (p.zone === 'hero') this.names.set(`${p.side}:${p.lane}`, getCombatCard(p.cardId).name);
+    if (ev.type === 'REVEAL') for (const p of ev.placements) if (p.zone === 'hero') this.names.set(`${p.side}:${p.lane}`, getCard(p.cardId).name);
     if ((ev.type === 'ON_PLAY' && ev.zone === 'hero') || ev.type === 'REVIVED' || ev.type === 'TOKEN_SUMMONED') this.names.set(`${ev.side}:${ev.lane}`, ev.name);
     if (ev.type === 'HERO_DESTROYED') this.names.delete(`${ev.side}:${ev.lane}`);
   }
@@ -123,7 +130,10 @@ class BoardNames {
  * What one announced effect did, from the events it caused, as one short phrase list ("Restored 135 HP, gained a
  * Shield"), after any `lead` phrases (what it did silently).
  */
-function describeEffects(events: GameEvent[], source: string, side: Side, board: BoardNames, lead: string[] = []): string {
+function describeEffects(events: GameEvent[], source: string, side: Side, board: BoardNames, rules: CardRules, lead: string[] = []): string {
+  // A legacy battle logs Power: its lines show the ATK it reads as, as its cards do.
+  const atkStep = rules === 'legacy' ? ATK_PER_POWER : 1;
+  const atkOf = (power: number) => (rules === 'legacy' ? legacyAtk(power) : power);
   // Each Unit's ATK changes add up to one net change, and Units with the same change read as one phrase ("Hellhound and
   // Pit Fiend −30 ATK this round"); the Units that gain a Shield or are destroyed are listed the same way. Everything
   // else is one phrase per event, in order.
@@ -144,7 +154,7 @@ function describeEffects(events: GameEvent[], source: string, side: Side, board:
         if (atk.size === 0) parts.push({ kind: 'atk' });
         const key = `${ev.instanceId}|${ev.permanent}`;
         const unit = atk.get(key) ?? { name: ev.name, delta: 0, temp: !ev.permanent, self: isSource(ev.name, ev.side) };
-        unit.delta += ev.to - ev.from;
+        unit.delta += (ev.to - ev.from) * atkStep;
         atk.set(key, unit);
         break;
       }
@@ -177,7 +187,7 @@ function describeEffects(events: GameEvent[], source: string, side: Side, board:
         say(ev.name === source ? 'returned to deck' : `${ev.name} returned to deck`);
         break;
       case 'REVIVED':
-        say(ev.name === source ? `revived with ${ev.power} ATK` : `revived ${ev.name} (${ev.power} ATK)`);
+        say(ev.name === source ? `revived with ${atkOf(ev.power)} ATK` : `revived ${ev.name} (${atkOf(ev.power)} ATK)`);
         break;
       case 'EXILED':
         say(`exiled ${ev.name}`);
@@ -236,7 +246,8 @@ function describeEffects(events: GameEvent[], source: string, side: Side, board:
  * The log entries for `events` (one round's reveal, or a whole match's log), in the order the round resolved.
  * `base` is the board before the first event, so a blocked effect can name the Unit that ignored it.
  */
-export function battleLogEntries(events: GameEvent[], base?: GameState): BattleLogEntry[] {
+export function battleLogEntries(events: GameEvent[], base?: GameState, rules: CardRules = 'card'): BattleLogEntry[] {
+  const atkOf = (power: number | undefined) => (power === undefined ? 0 : rules === 'legacy' ? legacyAtk(power) : power);
   const entries: BattleLogEntry[] = [];
   const board = new BoardNames(base);
   const preventer: Partial<Record<Side, string>> = {};
@@ -259,17 +270,17 @@ export function battleLogEntries(events: GameEvent[], base?: GameState): BattleL
       for (const e of caused) board.track(e);
       // A one-time Spell's group ends at its SPELL_RESOLVED.
       if (events[j]?.type === 'SPELL_RESOLVED' && (events[j] as { name: string }).name === ev.sourceName) j++;
-      let text = describeEffects(caused, ev.sourceName, ev.side, board, silentEffects(ev.sourceName, ev.trigger, ev.side));
+      let text = describeEffects(caused, ev.sourceName, ev.side, board, rules, silentEffects(ev.sourceName, ev.trigger, ev.side, rules));
       if (caused.length === 0 && ev.trigger === 'PASSIVE') {
         // Archmage Vael's echo: the next Spell resolves twice.
         const next = events.slice(i + 1).find((e) => e.type === 'TRIGGER' || e.type === 'SPELL_RESOLVED') as { sourceName?: string; name?: string } | undefined;
         const spell = next?.sourceName ?? next?.name;
         text = spell ? `${spell} resolves twice` : text;
       }
-      if (preventsDamage(ev.sourceName)) preventer[ev.side] = ev.sourceName;
+      if (preventsDamage(ev.sourceName, rules)) preventer[ev.side] = ev.sourceName;
       // A Unit or Continuous Spell whose effect found nothing to do (no enemy in its lane, nothing in the Graveyard)
       // leaves no row: the log keeps to what changed.
-      if (text !== NO_EFFECT || isOneTimeSpell(ev.sourceName)) entries.push({ key: `${start}`, until: j - 1, kind: 'effect', side: ev.side, who: ev.sourceName, label: rowLabel(triggerLabel(ev.sourceName, ev.trigger), ev.side), text });
+      if (text !== NO_EFFECT || isOneTimeSpell(ev.sourceName)) entries.push({ key: `${start}`, until: j - 1, kind: 'effect', side: ev.side, who: ev.sourceName, label: rowLabel(triggerLabel(ev.sourceName, ev.trigger, rules), ev.side), text });
       i = j;
       continue;
     }
@@ -281,10 +292,10 @@ export function battleLogEntries(events: GameEvent[], base?: GameState): BattleL
     }
     if (ev.type === 'ON_PLAY' && ev.zone === 'spell') {
       // A Continuous Spell whose effect is always on (Battle Banner) never announces itself: say what it does once.
-      const always = cardCombatBattleEffects(ev.cardId).filter((e) => e.trigger === 'CONTINUOUS');
+      const always = cardEffects(ev.cardId, { rules }).filter((e) => e.trigger === 'CONTINUOUS');
       if (always.length > 0) {
         const text = always.map((e) => e.compact.replace(/^Your Unit here/, 'Unit here').replace(/\.$/, '')).join(', ');
-        entries.push({ key: `${start}`, until: i, kind: 'effect', side: ev.side, who: ev.name, label: always[0].chip, text });
+        entries.push({ key: `${start}`, until: i, kind: 'effect', side: ev.side, who: ev.name, label: always[0].label, text });
       }
       i++;
       continue;
@@ -292,16 +303,33 @@ export function battleLogEntries(events: GameEvent[], base?: GameState): BattleL
     if (ev.type === 'COMBAT') {
       const next = events[i + 1];
       const lane = LANE_NAME[ev.lane];
-      if (ev.outcome === 'TIE' && next?.type === 'CLASH_DAMAGE') {
-        entries.push({ key: `${start}`, until: i + 1, kind: 'clash', side: null, who: 'Tie', label: lane, text: `${ev.player?.name} and ${ev.enemy?.name} destroyed at ${ev.player?.power} ATK each, no damage` });
-        i += 2;
+      if (ev.outcome === 'TIE' && (next?.type === 'CLASH_DAMAGE' || rules === 'legacy')) {
+        const paired = next?.type === 'CLASH_DAMAGE';
+        entries.push({ key: `${start}`, until: paired ? i + 1 : i, kind: 'clash', side: null, who: 'Tie', label: lane, text: `${ev.player?.name} and ${ev.enemy?.name} destroyed at ${atkOf(ev.player?.power)} ATK each, no damage` });
+        i += paired ? 2 : 1;
+        continue;
+      }
+      if ((ev.outcome === 'PLAYER_WINS' || ev.outcome === 'ENEMY_WINS') && rules === 'legacy') {
+        // A legacy clash costs the loser's player legacy HP points (OVERFLOW_DAMAGE), not the ATK difference, so the line
+        // names the winner without ATK arithmetic.
+        const winner: Side = ev.outcome === 'PLAYER_WINS' ? 'player' : 'enemy';
+        const loser: Side = winner === 'player' ? 'enemy' : 'player';
+        const w = winner === 'player' ? ev.player : ev.enemy;
+        const l = winner === 'player' ? ev.enemy : ev.player;
+        const why = `(${w?.name} beat ${l?.name})`;
+        const hit = next?.type === 'OVERFLOW_DAMAGE' || (next?.type === 'DAMAGE_PREVENTED' && next.side === loser) ? next : null;
+        const to = SIDE_NAME[loser];
+        if (hit?.type === 'DAMAGE_PREVENTED') entries.push({ key: `${start}`, until: i + 1, kind: 'clash', side: loser, who: preventer[loser] ?? 'Clash Damage', label: lane, text: `Prevented ${hit.amount} Clash Damage to ${to} ${why}` });
+        else if (hit) entries.push({ key: `${start}`, until: i + 1, kind: 'clash', side: winner, who: 'Clash Damage', label: lane, text: `${hit.amount} to ${to} ${why}` });
+        else entries.push({ key: `${start}`, until: i, kind: 'clash', side: winner, who: 'Clash', label: lane, text: `${w?.name} beat ${l?.name}, no damage` });
+        i += hit ? 2 : 1;
         continue;
       }
       if ((ev.outcome === 'PLAYER_WINS' || ev.outcome === 'ENEMY_WINS') && next?.type === 'CLASH_DAMAGE' && next.side) {
         const winner: Side = ev.outcome === 'PLAYER_WINS' ? 'player' : 'enemy';
         const w = winner === 'player' ? ev.player : ev.enemy;
         const l = winner === 'player' ? ev.enemy : ev.player;
-        const why = `(${w?.name} ${w?.power} beat ${l?.name} ${l?.power})`;
+        const why = `(${w?.name} ${atkOf(w?.power)} beat ${l?.name} ${atkOf(l?.power)})`;
         const to = SIDE_NAME[next.side];
         const by = preventer[next.side];
         if (next.prevented > 0 && next.amount === 0) {
@@ -320,7 +348,7 @@ export function battleLogEntries(events: GameEvent[], base?: GameState): BattleL
         const to = SIDE_NAME[attacker === 'player' ? 'enemy' : 'player'];
         const by = preventer[attacker === 'player' ? 'enemy' : 'player'];
         const text = !hit ? 'No damage' : hit.type === 'DAMAGE_PREVENTED' ? `${hit.amount} to ${to} prevented${by ? ` by ${by}` : ''}` : `${hit.amount} to ${to}`;
-        entries.push({ key: `${start}`, until: hit ? i + 1 : i, kind: 'clash', side: attacker, who: unit?.name ?? 'Unit', label: ev.bypass ? 'Bypass' : 'Direct Hit', text });
+        entries.push({ key: `${start}`, until: hit ? i + 1 : i, kind: 'clash', side: attacker, who: unit?.name ?? 'Unit', label: ev.bypass ? 'Bypass' : 'Direct Attack', text });
         i += hit ? 2 : 1;
         continue;
       }

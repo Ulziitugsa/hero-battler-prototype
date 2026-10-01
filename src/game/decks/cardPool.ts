@@ -1,5 +1,6 @@
 import type { CardDefinition, Faction, Rarity } from '../types/index.js';
 import { baseAtk, hpContribution } from './deckSummary.js';
+import { cardSearchText as presentationSearchText } from '../cards/cardPresentation.js';
 import type { CardPopularity } from './cardPopularity.js';
 
 // Deck Builder card-pool query: text search, filters and sorting as one pure function, so the page
@@ -55,10 +56,9 @@ export function defaultCardOrder(a: CardDefinition, b: CardDefinition): number {
   return RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity] || a.name.localeCompare(b.name);
 }
 
-/** Everything a player might type to find a card: names, role, rules text, tags, faction and rarity. */
-export function cardSearchText(card: CardDefinition): string {
-  return [card.name, card.shortName, card.role, card.type === 'hero' ? 'unit' : 'spell', card.faction, card.rarity, card.boardText ?? '', ...card.tags, ...card.abilities.map((a) => a.text)].join(' ').toLowerCase();
-}
+/** Everything a player might type to find a card: the Collection's search text (names, rarity, faction, type, traits and
+ * every effect as the cards print it, cardPresentation.ts). */
+export const cardSearchText = (card: CardDefinition): string => presentationSearchText(card);
 
 /** Every whitespace-separated term must appear somewhere in the card's search text. */
 export function matchesSearch(card: CardDefinition, search: string): boolean {

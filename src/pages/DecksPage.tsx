@@ -12,14 +12,16 @@ import { loadPreferences, savePreferences } from '../game/engine/preferences';
 import { getActiveDeck } from '../game/engine/activeDeck';
 import { useCollection } from '../game/collection/useCollection';
 import { getOwnedCount, usableCopies } from '../game/collection/collection';
-import { CardDetail } from '../components/CardDetail';
-import { CollectibleCard } from '../components/CollectibleCard';
+import { GameCard } from '../components/card/GameCard';
+import { CardViewer } from '../components/card/CardViewer';
+import type { FocusAction } from '../components/card/CardFocusPanel';
+import { cardCopyView } from '../game/cards/cardCopy';
 import { Icon } from '../components/Icon';
 import { Gems, Sigil } from '../components/CardParts';
 import { countCopies, getDeckStatus, plural, sortedEntries } from './decks/deckStatus';
 import { DeckSummaryBar, STARTING_HP_HELP, StartingHpBadge } from './decks/DeckSummaryBar';
 import { FavoriteStar } from './decks/FavoriteStar';
-import { baseAtk, deckSummary, hpContribution } from '../game/decks/deckSummary';
+import { deckSummary } from '../game/decks/deckSummary';
 import { playerMasteryStages } from '../game/cardCombat/mastery';
 import { DEFAULT_POOL_OPTIONS, SORT_LABEL, activeFilterCount, availableSorts, queryCardPool, type CardPoolOptions, type CardSort, type OwnershipFilter } from '../game/decks/cardPool';
 import { getCardPopularity } from '../game/decks/cardPopularity';
@@ -67,15 +69,17 @@ function CardArt({ card, sigil }: { card: CardDefinition; sigil: 'lg' | 'md' }) 
   );
 }
 
-/** One card tile. In a deck view `count` is the deck's copies of it; in the pool it is "how many are already in the deck" and 0 is normal. */
+/**
+ * One card tile: the game's one card face (GameCard, tile density, with the copy's Card Mastery and HP Contribution)
+ * plus the Deck Builder's controls. In a deck view `count` is the deck's copies of it; in the pool it is "how many are
+ * already in the deck" and 0 is normal.
+ */
 function DeckCard({
   card,
   count,
   ownedCount,
-  ascension = 0,
   pool,
   deckFull,
-  sortKey,
   favorite = false,
   onToggleFavorite,
   onClick,
@@ -85,12 +89,8 @@ function DeckCard({
   count: number;
   /** Copies of this card the player owns. */
   ownedCount: number;
-  /** Ascension rank of this card (0 = Base) - shown as a small mark. */
-  ascension?: number;
   pool?: boolean;
   deckFull?: boolean;
-  /** Pool sort in effect - ATK / HP Contribution sorts show that value on the tile so the order reads. */
-  sortKey?: CardSort;
   favorite?: boolean;
   onToggleFavorite?: () => void;
   onClick?: () => void;
@@ -106,8 +106,7 @@ function DeckCard({
   const unowned = pool && ownedCount === 0;
   const role = isHero ? card.role : card.spellKind === 'CONTINUOUS' ? 'Continuous' : 'One use';
   const badge = unowned ? null : pool ? (count > 0 ? `${count}/${limit}` : null) : over && ownedShort ? `Own ${ownedCount}` : count > 1 ? `×${count}` : null;
-  const atk = baseAtk(card);
-  const sortValue = isHero && sortKey === 'atk' && atk !== null ? { icon: 'attack' as const, text: `${atk}`, label: `${atk} ATK` } : isHero && sortKey === 'hp' ? { icon: 'lp' as const, text: `+${hpContribution(card)}`, label: `HP Contribution +${hpContribution(card)}` } : null;
+  const copy = cardCopyView(card.id);
 
   return (
     <span className="dk-card-wrap">
@@ -115,11 +114,11 @@ function DeckCard({
       type="button"
       className={`dk-card r-${card.rarity} ${unowned ? 'unowned' : ''} ${pool && (maxed || deckFull) ? 'blocked' : ''} ${pool && maxed && !unowned ? 'maxed' : ''} ${!pool && count > 1 ? 'stacked' : ''} ${over ? 'over' : ''}`}
       onClick={unowned ? onInspect : onClick}
-      aria-label={unowned ? `Inspect ${card.name} (not owned)` : pool ? `Add ${card.name}${maxed ? ' (at copy limit)' : ''}` : `Inspect ${card.name}`}
+      aria-label={unowned ? `${card.name} (not owned). Show details.` : pool ? `Add ${card.name}${maxed ? ' (at copy limit)' : ''}` : `${card.name}. Show details.`}
     >
       {!pool && count > 1 && <span className="dk-card-under" aria-hidden="true" />}
       <span className="dk-card-frame">
-        <CollectibleCard cardId={card.id} mode="standard" owned={!unowned} masteryRank={ascension} animated={false} className="dk-card-cc" />
+        <GameCard cardId={card.id} density="tile" owned={!unowned} masteryStage={copy.masteryStage} hpContribution={copy.hpContribution} className="dk-card-gc" />
         {badge && (
           <span className={`dk-card-count ${maxed ? 'full' : ''} ${over ? 'over' : ''}`}>
             {pool && maxed && <Icon name="lock" size={9} />}
@@ -140,18 +139,12 @@ function DeckCard({
       </span>
       {pool && (
         <span className="dk-card-note">
-          {sortValue ? (
-            <span className="dk-card-sortval" title={sortValue.label}>
-              <Icon name={sortValue.icon} size={10} filled={sortValue.icon === 'lp'} />
-              {sortValue.text}
-            </span>
-          ) : (
-            <span>{unowned ? primaryAcquisitionLabel(card.id) : maxed ? (ownedShort ? `Own ${ownedCount}` : card.rarity === 'legendary' ? 'Only 1' : `Max ${gameLimit}`) : role}</span>
-          )}
+          <span>{unowned ? primaryAcquisitionLabel(card.id) : maxed ? (ownedShort ? `Own ${ownedCount}` : card.rarity === 'legendary' ? 'Only 1' : `Max ${gameLimit}`) : role}</span>
         </span>
       )}
     </button>
-    {pool && onInspect && <button type="button" className="dk-card-inspect" aria-label={`Inspect ${card.name}`} onClick={(event) => { event.stopPropagation(); onInspect(); }}><Icon name="help" size={12} /></button>}
+    {/* A card not owned opens its details on tap already. */}
+    {pool && onInspect && !unowned && <button type="button" className="dk-card-inspect" aria-label={`${card.name}: show details`} onClick={(event) => { event.stopPropagation(); onInspect(); }}><Icon name="help" size={12} /></button>}
     {pool && onToggleFavorite && (
       <button type="button" className={`dk-card-fav ${favorite ? 'on' : ''}`} aria-label={favorite ? `Unfavorite ${card.name}` : `Favorite ${card.name}`} aria-pressed={favorite} onClick={(event) => { event.stopPropagation(); onToggleFavorite(); }}>
         <FavoriteStar filled={favorite} size={12} />
@@ -161,29 +154,24 @@ function DeckCard({
   );
 }
 
-/** One card a locked starter needs: art-first, "have / need" badge, and where to earn it while it is still missing. */
-function RequirementTile({ req }: { req: StarterRequirement }) {
+/** One card a locked starter needs: the card face, a "have / need" badge, and where to earn it while it is still missing. */
+function RequirementTile({ req, onShow }: { req: StarterRequirement; onShow: () => void }) {
   const card = getCard(req.cardId);
   const have = Math.min(req.have, req.need);
+  const copy = cardCopyView(req.cardId);
   return (
-    <div className={`dk-card dk-req r-${card.rarity} ${req.met ? 'met' : 'blocked'}`}>
+    <button type="button" className={`dk-card dk-req r-${card.rarity} ${req.met ? 'met' : 'blocked'}`} onClick={onShow} aria-label={`${card.name}: ${have} of ${req.need}. Show details.`}>
       <span className="dk-card-frame">
-        <span className="dk-card-face">
-          <CardArt card={card} sigil="lg" />
-          <span className="dk-card-gems">
-            <Gems rarity={card.rarity} />
-          </span>
-          <span className={`dk-card-count ${req.met ? 'met' : ''}`}>
-            {req.met && <Icon name="check" size={10} />}
-            {have}/{req.need}
-          </span>
-        </span>
-        <span className="dk-card-plate">
-          <span className="dk-card-name">{card.shortName}</span>
-          <span className="dk-req-source">{req.met ? 'Collected' : primaryAcquisitionLabel(req.cardId)}</span>
+        <GameCard cardId={card.id} density="tile" owned={copy.owned} masteryStage={copy.masteryStage} hpContribution={copy.hpContribution} className="dk-card-gc" />
+        <span className={`dk-card-count ${req.met ? 'met' : ''}`}>
+          {req.met && <Icon name="check" size={10} />}
+          {have}/{req.need}
         </span>
       </span>
-    </div>
+      <span className="dk-card-note">
+        <span className="dk-req-source">{req.met ? 'Collected' : primaryAcquisitionLabel(req.cardId)}</span>
+      </span>
+    </button>
   );
 }
 
@@ -207,6 +195,7 @@ export function DecksPage() {
   const [poolOpts, setPoolOpts] = useState<CardPoolOptions>(DEFAULT_POOL_OPTIONS);
   const setPool = (patch: Partial<CardPoolOptions>) => setPoolOpts((prev) => ({ ...prev, ...patch }));
   const marks = useCardMarks();
+  // The card whose focused detail is open (Card Inspect is one tap further, inside it).
   const [inspectCardId, setInspectCardId] = useState<string | null>(null);
 
   const shelfRef = useRef<HTMLDivElement>(null);
@@ -305,6 +294,18 @@ export function DecksPage() {
       next.splice(idx, 1);
       return next;
     });
+  }
+
+  /** The focus sheet's actions while editing: add a copy (or another), take one out. */
+  function deckActions(cardId: string): FocusAction[] {
+    const card = getCard(cardId);
+    const inDeck = copies.get(cardId) ?? 0;
+    const have = getOwnedCount(cardId, owned);
+    const limit = Math.min(have, maxCopiesFor(cardId));
+    const actions: FocusAction[] = [];
+    if (have > 0) actions.push({ label: inDeck > 0 ? `Add another (${inDeck}/${limit})` : 'Add to deck', icon: 'plus', primary: true, disabled: inDeck >= limit || cardIds.length >= DECK_SIZE, onClick: () => addCard(card) });
+    if (inDeck > 0) actions.push({ label: 'Remove one', icon: 'minus', onClick: () => removeOneCopy(cardId) });
+    return actions;
   }
 
   /** Deterministic completion from owned cards (game/decks/autoFill.ts) - never touches cards already chosen. */
@@ -486,10 +487,8 @@ export function DecksPage() {
                 card={c}
                 count={copies.get(c.id) ?? 0}
                 ownedCount={getOwnedCount(c.id, owned)}
-                ascension={getAscensionRank(c.id, ascensions)}
                 pool
                 deckFull={full}
-                sortKey={poolOpts.sort}
                 favorite={marks.favorites.includes(c.id)}
                 onToggleFavorite={() => toggleFavorite(c.id)}
                 onClick={() => addCard(c)}
@@ -513,7 +512,7 @@ export function DecksPage() {
             </div>
           )}
         </div>
-        {inspectCardId && <CardDetail cardId={inspectCardId} context="deck" onClose={() => setInspectCardId(null)} />}
+        {inspectCardId && <CardViewer cardId={inspectCardId} context="deck" onClose={() => setInspectCardId(null)} actions={deckActions(inspectCardId)} />}
       </div>
     );
   }
@@ -544,11 +543,12 @@ export function DecksPage() {
             <p className="dk-req-blurb">{unlock.unlocked ? 'You have every card this deck needs.' : rp.message + ' Each card below shows how many you hold and where to earn it.'}</p>
             <div className="dk-grid">
               {unlock.requirements.map((r) => (
-                <RequirementTile key={r.cardId} req={r} />
+                <RequirementTile key={r.cardId} req={r} onShow={() => setInspectCardId(r.cardId)} />
               ))}
             </div>
           </>
         )}
+        {inspectCardId && <CardViewer cardId={inspectCardId} context="deck" onClose={() => setInspectCardId(null)} />}
       </div>
     );
   }
@@ -659,7 +659,7 @@ export function DecksPage() {
 
       <div className="dk-grid">
         {entries.map(({ card, count }) => (
-          <DeckCard key={card.id} card={card} count={count} ownedCount={getOwnedCount(card.id, owned)} ascension={getAscensionRank(card.id, ascensions)} onClick={() => setInspectCardId(card.id)} />
+          <DeckCard key={card.id} card={card} count={count} ownedCount={getOwnedCount(card.id, owned)} onClick={() => setInspectCardId(card.id)} />
         ))}
         {selStatus.missing > 0 && (
           <button type="button" className="dk-open-slot" onClick={() => openEdit(sel, false)}>
@@ -692,7 +692,7 @@ export function DecksPage() {
         </div>
       )}
 
-      {inspectCardId && <CardDetail cardId={inspectCardId} context="deck" onClose={() => setInspectCardId(null)} />}
+      {inspectCardId && <CardViewer cardId={inspectCardId} context="deck" onClose={() => setInspectCardId(null)} />}
     </div>
   );
 }

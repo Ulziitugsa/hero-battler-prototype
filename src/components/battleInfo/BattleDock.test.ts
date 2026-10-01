@@ -2,12 +2,13 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { LaneId, Side } from '../../game/types';
-import { BattleFocusPanel, BattleLogPanel } from './BattleDock';
+import { BattleLogPanel } from './BattleDock';
+import { CardFocusPanel } from '../card/CardFocusPanel';
 import { battleLogEntries } from './battleLog';
-import { focusDetails, handCardDetails, type FocusDetails } from './focusDetails';
+import { cardFocusDetails, focusDetails, type FocusDetails } from './focusDetails';
 import { buildBattleScene } from '../../pages/battleScenes';
 
-// The dock over card combat's hand apron (Info layers pass): the focus panel and the battle log, rendered.
+// The dock over the hand apron in every battle mode: the focus panel (CardFocusPanel, dock layout) and the battle log.
 
 const { state, events } = buildBattleScene('3');
 /** The rendered text, a space between elements (none before punctuation). */
@@ -19,8 +20,8 @@ const text = (html: string) =>
     .replace(/\s+/g, ' ')
     .replace(/ ([.,:;)])/g, '$1')
     .trim();
-const panel = (details: FocusDetails) => renderToStaticMarkup(createElement(BattleFocusPanel, { details, onClose: () => {}, onInspect: () => {} }));
-const unit = (side: Side, lane: LaneId) => focusDetails({ kind: 'unit', side, instanceId: state[side].heroZones[lane]!.instanceId }, state, events, () => 77)!;
+const panel = (details: FocusDetails) => renderToStaticMarkup(createElement(CardFocusPanel, { details, layout: 'dock', onClose: () => {}, onInspect: () => {} }));
+const unit = (side: Side, lane: LaneId) => focusDetails({ kind: 'unit', side, instanceId: state[side].heroZones[lane]!.instanceId }, state, events, { rules: 'card', hpContribution: () => 77 })!;
 
 describe('focus panel', () => {
   it('Royal Guard on the board reads as one card: ATK, full rules, what is on now, and where its bonus comes from', () => {
@@ -39,7 +40,7 @@ describe('focus panel', () => {
 
   it('an enemy Unit is marked as the enemy’s and says how it came back', () => {
     const html = panel(unit('enemy', 'left'));
-    expect(html).toContain('bd-focus enemy board');
+    expect(html).toContain('card-focus cf-dock battle-dock enemy board');
     expect(html).toContain('aria-label="Vharos, Enemy left lane"');
     expect(text(html)).toContain('Enemy');
     expect(text(html)).toContain('Status: Revived at 95 ATK (printed 130).');
@@ -47,7 +48,7 @@ describe('focus panel', () => {
 
   it('a lasting bonus and a hand card', () => {
     expect(text(panel(unit('player', 'left')))).toContain('No effect. Current bonus: +15 ATK from Royal Guard (printed 128).');
-    const vael = text(panel(handCardDetails('kng-archmage-vael', 98)));
+    const vael = text(panel(cardFocusDetails('kng-archmage-vael', { place: 'hand', hpContribution: 98 })));
     expect(vael).toContain('Passive: The first one-time Spell you cast each round resolves twice.');
     expect(vael).toContain('Your 2nd Spell:');
     expect(vael).toContain('Round End:');

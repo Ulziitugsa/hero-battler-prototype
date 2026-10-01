@@ -1,39 +1,8 @@
-/* Card Inspect (CardDetail.tsx) and its sections, also reused by the Collection sheet. */
+/* Card Inspect (card/CardInspect.tsx): the full-screen card sheet (.hr-sheet, heroes.css + moonwaterPolish.css) and its
+   sections (CardInspectSections.tsx). */
 
-.card-inspect {
-  position: relative;
-  width: min(420px, calc(100vw - 20px));
-  max-height: calc(100dvh - 24px);
-  overflow-y: auto;
-  padding: 18px 18px 22px;
-  background: linear-gradient(180deg, #102030, #0b1620) !important;
-  border: 1px solid rgba(160, 172, 131, 0.45) !important;
-  border-radius: 10px !important;
-  color: #efe6cf;
-  font-family: var(--font, system-ui, sans-serif);
-}
-.ci-close {
-  position: sticky;
-  z-index: 6;
-  top: 0;
-  float: right;
-  width: 44px;
-  height: 44px;
-  margin: -6px -6px 0 0;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(160, 172, 131, 0.45);
-  border-radius: 50%;
-  background: #0d1b25;
-  color: #ebc989;
-}
-.ci-card { width: min(236px, 62vw); margin: 4px auto 16px; }
-.ci-battle .ci-card,
-.ci-opponent .ci-card { width: min(190px, 50vw); }
-
-.ci-header { text-align: center; }
-.ci-header h2 { margin: 0 0 8px; color: #fbeccb; font: 400 25px/1.15 var(--px-font-display, Georgia, serif); }
 .ci-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.card-inspect .ci-traits { margin: -4px 0 0; text-align: center; }
 .ci-pill {
   display: inline-flex;
   align-items: center;
@@ -97,7 +66,17 @@
 .ci-lore p { margin: 0; color: #b8ae96; font-size: 12.5px; line-height: 1.65; }
 .ci-stat p b { color: #e9dfc6; font-weight: 700; }
 
-/* Collection sheet: the inspect face replaces the old portrait window. */
+.ci-mastery { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(214, 196, 150, 0.16); }
+.ci-mastery-head { display: flex; align-items: center; gap: 8px; color: #f1e8d3; font-size: 13px; font-weight: 700; }
+.ci-classic { margin: 8px 0 0; color: #b9b19c; font-size: 12px; line-height: 1.4; }
+.ci-stat.is-classic strong { color: #b9b19c; }
+.card-inspect .ci-stats,
+.card-inspect .ci-effects,
+.card-inspect .ci-mastery,
+.card-inspect .ci-collection,
+.card-inspect .ci-lore { width: 100%; max-width: 420px; margin-inline: auto; box-sizing: border-box; }
+
+/* The inspect face in the sheet's stage. */
 .hr-sheet .hr-sheet-frame.hr-sheet-card { width: min(60vw, 250px); max-width: none; margin: 0 auto; padding: 0; overflow: visible; border: 0 !important; outline: 0; border-radius: 0; background: transparent !important; box-shadow: none !important; filter: none; }
 .hr-sheet .ci-stats { max-width: 420px; margin: 14px auto 0; }
 .hr-sheet .ci-effects { max-width: 420px; margin-inline: auto; }

@@ -1,0 +1,49 @@
+/* The battle screen's hosts for GameCard, in every battle mode: taller Unit zones so a Unit's rules read on the board,
+   full-width Spell zones, the readable hand, and the rings that say whose card it is.
+   At 390x844: enemy Spell 100-166, enemy Unit 168-336, Fight seal (58px) and clash line 335-393, player Unit 392-560,
+   player Spell 562-628, then the player bar and a 188px hand. */
+.battle-scene.card-faces .zone-eSpell { left: 0; width: 100%; top: 11.85%; height: 7.82%; }
+.battle-scene.card-faces .zone-eHero { top: 19.91%; height: 19.91%; }
+.battle-scene.card-faces .zone-pHero { top: 46.45%; height: 19.91%; }
+.battle-scene.card-faces .zone-pSpell { left: 0; width: 100%; top: 66.59%; height: 7.82%; }
+.battle-scene.card-faces .fight-seal-mount { top: 43.13%; width: 14.87%; height: auto; aspect-ratio: 1; margin: -7.435% 0 0 -7.435%; } /* 58px at 390, scales with the scene */
+.battle-scene.card-faces .clash-callout { top: 43.13%; }
+
+.zone-card.card-face { border-radius: 6px; box-shadow: none; }
+.zone-card.card-face > .game-card { position: absolute; inset: 0; }
+.hero-zone-card.card-face.mine > .game-card { box-shadow: 0 0 0 1.5px rgba(246, 226, 176, 0.7), 0 -6px 12px -6px rgba(6, 2, 5, 0.5); }
+.hero-zone-card.card-face.theirs > .game-card { box-shadow: 0 0 0 1.5px rgba(224, 128, 104, 0.8), 0 6px 12px -6px rgba(6, 2, 5, 0.45); }
+.spell-zone-card.card-face > .game-card { box-shadow: 0 0 0 1px rgba(205, 188, 244, 0.55); }
+.spell-zone-card.card-face.theirs > .game-card { box-shadow: 0 0 0 1px rgba(224, 128, 104, 0.7); }
+.spell-zone-card.card-face .zone-card-ready { top: -9px; right: 2px; }
+.battle-scene .zone-card.card-face.is-focused > .game-card { box-shadow: 0 0 0 2px #ffe6a6, 0 0 14px rgba(255, 220, 150, 0.7); }
+
+/* ---- The hand: the card wraps a hand-density face ------------------------------------------------------------------ */
+.hand-card { background: transparent !important; box-shadow: 0 10px 20px rgba(4, 8, 10, 0.72) !important; border-radius: 7px !important; touch-action: manipulation; -webkit-touch-callout: none; user-select: none; }
+.hand-card.selected { box-shadow: 0 0 0 2px #0a141e, 0 0 0 4px #ffdc99, 0 0 18px rgba(235, 201, 137, 0.55), 0 14px 26px rgba(4, 8, 10, 0.78) !important; }
+.hand-card > .game-card { border-radius: 7px; }
+.hand-fan.readable .hand-card { width: 30%; height: 93.6%; }
+/* The Inspect button sits on the art box's top-right corner, under the name bar (its tap area is larger, see ::before). */
+.hand-card-inspect {
+  position: absolute;
+  z-index: 6;
+  top: 19px !important;
+  right: 5px !important;
+  bottom: auto !important;
+  width: 20px !important;
+  height: 20px !important;
+  border: 1px solid rgba(255, 226, 180, 0.45) !important;
+  background: rgba(6, 13, 20, 0.72) !important;
+  color: #f2e2b8 !important;
+}
+.hand-card-inspect svg { width: 12px; height: 12px; }
+.hand-card-inspect::before { content: ''; position: absolute; inset: -7px; }
+
+/* The developer-panel button sat on the rightmost hand card's rules; it moves beside the enemy bar. */
+.battle-scene.card-faces .mobile-debug-toggle { top: 46px; bottom: auto; left: 10px; right: auto; width: 26px; height: 26px; }
+.battle-scene.card-faces .fight-seal-core { inset: 4px; }
+/* Taller cards: keep the clash lunge the same physical distance as before (about 30px), not 26% of a taller card. */
+.battle-scene.card-faces { --vfx-lunge-distance: 18%; }
+.battle-scene.card-faces .fight-seal-battle.resolving .fight-seal-label { font-size: 8px; letter-spacing: -0.02em; }
+/* The status hint ("Tap a card", "Ready to fight") would sit on the leftmost hand card's art and ATK; it moves under the enemy bar. */
+.battle-scene.card-faces > .battle-hint { left: 11.3%; top: 5.6%; }

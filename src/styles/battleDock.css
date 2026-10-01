@@ -1,4 +1,5 @@
-/* Card combat's dock over the hand apron (BattleDock.tsx, Info layers pass): the focus panel and the battle log.
+/* The battle dock over the hand apron: the focus panel (CardFocusPanel.tsx, styled in cardFocus.css) and the battle
+   log (BattleDock.tsx).
    It sits inside .hand-apron, under the player's HP bar, so the board, the Fight seal and both HP bars stay clear.
    Between rounds it takes the top of the apron and the hand slides down under it (Hand's peek layout); while a round
    resolves the hand is away and the live log takes the whole apron. Type follows the cards: Cinzel names, Alegreya
@@ -38,13 +39,6 @@
 }
 @media (prefers-reduced-motion: reduce) { .battle-dock { animation: none; } }
 
-.bd-label {
-  color: #c7ab70;
-  font: 700 10.5px / 1 'Alegreya SC', 'Alegreya', Georgia, serif;
-  letter-spacing: 0.02em;
-  word-spacing: 0.12em;
-  white-space: nowrap;
-}
 .battle-dock .bd-close {
   flex: 0 0 auto;
   width: 22px;
@@ -58,175 +52,6 @@
   background: rgba(10, 7, 6, 0.6);
   color: #e9d3a8;
 }
-
-/* ---- Focus panel ---------------------------------------------------------------------------------------------- */
-.bd-focus {
-  /* The art's size reads the panel's height (cqh). */
-  container-type: size;
-  display: flex;
-  gap: 9px;
-  padding: 6px 7px 6px 6px;
-}
-.bd-side {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  /* The art is square and takes the panel's height, less the stats under it. */
-  width: calc(100cqh - 21px);
-}
-.bd-art {
-  --frame-hi: #75838a;
-  --frame-lo: #2b353b;
-  --trim: #a6b1b4;
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: 3px;
-  background: #16283f;
-  box-shadow: 0 0 0 1.5px var(--frame-lo), 0 0 0 2.5px color-mix(in srgb, var(--frame-hi) 80%, transparent);
-}
-.bd-art.r-rare { --frame-hi: #a8cdea; --frame-lo: #26445e; --trim: #cfe7fb; }
-.bd-art.r-epic { --frame-hi: #c7a0f0; --frame-lo: #3b2458; --trim: #e7d4ff; }
-.bd-art.r-legendary { --frame-hi: #fbe4a6; --frame-lo: #7d5018; --trim: #fff3cf; }
-.bd-art.undead { background: #12251f; }
-.bd-art.infernal { background: #331711; }
-.bd-art > canvas,
-.bd-art > .moon-art {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  image-rendering: pixelated;
-}
-.bd-art::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.7), inset 0 0 12px rgba(0, 0, 0, 0.4);
-  pointer-events: none;
-}
-.bd-owner {
-  position: absolute;
-  z-index: 1;
-  left: 0;
-  top: 0;
-  padding: 2px 6px 2px 5px;
-  border-radius: 0 0 4px 0;
-  background: rgba(70, 18, 12, 0.88);
-  color: #ffc4b2;
-  font: 700 9.5px / 1 'Alegreya SC', 'Alegreya', Georgia, serif;
-  letter-spacing: 0.04em;
-}
-.bd-stats {
-  flex: 0 0 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  padding: 0 1px;
-  white-space: nowrap;
-}
-.bd-stat-label {
-  margin-right: 2px;
-  color: #c7ab70;
-  font: 700 9px / 1 'Alegreya SC', 'Alegreya', Georgia, serif;
-  letter-spacing: 0.05em;
-}
-.bd-atk strong {
-  color: #fff3d6;
-  font: 800 15px / 1 'Alegreya', Georgia, serif;
-  font-variant-numeric: lining-nums tabular-nums;
-}
-.bd-atk.up strong { color: #a6f0b6; }
-.bd-atk.down strong { color: #ffb09c; }
-.bd-hpc {
-  color: #ffd0cf;
-  font: 700 11.5px / 1 'Alegreya', Georgia, serif;
-  font-variant-numeric: lining-nums;
-}
-.bd-kind {
-  color: #cdbcf4;
-  font: 700 10px / 1 'Alegreya SC', 'Alegreya', Georgia, serif;
-  letter-spacing: 0.05em;
-}
-
-.bd-main {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  /* Never clipped: a card with very long rules scrolls inside the panel (the card itself never does). */
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-.bd-main.has-more {
-  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
-  mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
-}
-/* The longest rules (Runebreaker): a little smaller and tighter before they would scroll. */
-.bd-focus[data-fit='tight'] .bd-main { gap: 3px; font-size: 11px; line-height: 1.22; }
-.bd-focus[data-fit='tight'] .bd-effects { gap: 2px; }
-.bd-focus[data-fit='tight'] .bd-now { font-size: 10.5px; line-height: 1.2; }
-.bd-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 22px;
-}
-/* (Three classes: the app's own heading font rule, moonwaterPolish.css, outranks two.) */
-.battle-dock .bd-head h2.bd-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin: 0;
-  color: #f4ead2;
-  font: 700 13.5px / 1.1 'Cinzel', var(--px-font-display, Georgia, serif);
-  letter-spacing: 0.02em;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
-}
-.battle-dock .bd-head h2.bd-name.r-legendary { color: #ffe0a0; }
-.battle-dock .bd-inspect {
-  flex: 0 0 auto;
-  padding: 3px 8px 4px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 214, 140, 0.32);
-  background: rgba(10, 7, 6, 0.55);
-  color: #e9d3a8;
-  font: 700 10px / 1 'Alegreya SC', 'Alegreya', Georgia, serif;
-  letter-spacing: 0.04em;
-}
-.bd-effects {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.bd-effects li.is-off { color: #a9aea8; }
-.bd-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin: 0 3px 1px 0;
-  border-radius: 50%;
-  vertical-align: middle;
-}
-.bd-dot.on { background: #8fe0a0; box-shadow: 0 0 4px #8fe0a0; }
-.bd-dot.off { box-shadow: inset 0 0 0 1px #a3aaa4; }
-.bd-state { font-style: italic; }
-.bd-state.on { color: #9ff0b0; }
-.bd-state.off { color: #a3aaa4; }
-.bd-none { color: #8f988f; font-style: italic; }
-.bd-now {
-  margin: 0;
-  color: #dcd2ba;
-  font-size: 11px;
-  line-height: 1.25;
-}
-.bd-printed { color: #a8b3b0; }
 
 /* ---- Battle log ----------------------------------------------------------------------------------------------- */
 .bd-log {
@@ -315,6 +140,3 @@
 }
 .hand-fan.peek .hand-card-inspect { display: none !important; }
 .hand-fan.peek .hand-card:not(.selected) { filter: brightness(0.82); }
-.battle-scene .zone-card.card-face.is-focused > .battle-card {
-  box-shadow: 0 0 0 2px #ffe6a6, 0 0 14px rgba(255, 220, 150, 0.7);
-}

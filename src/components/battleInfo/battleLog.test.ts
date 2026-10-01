@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { battleLogEntries, type BattleLogEntry } from './battleLog';
 import { buildBattleScene, scriptedMatch, type ScriptedRound } from '../../pages/battleScenes';
 import { resolveCardRound } from '../../game/cardCombat/engine';
+import { resolveRound } from '../../game/engine/resolveRound';
+import { getCard } from '../../game/cards';
+import type { GameState, HeroInstance, LaneId, PlayerState, Side } from '../../game/types';
 
 // The battle log (Info layers pass, layer 3), read from real resolver logs: the scripted QA board (battleScenes.ts) and
 // a few one- or two-round matches set up for one rule each.
@@ -19,7 +22,7 @@ describe('battle log', () => {
       '— Round 1 —',
       'Battle Banner — Passive: Unit here +15 ATK',
       'Clash Damage — Left: 35 to Enemy (Common Knight 128 beat Bone Soldier 93)',
-      'Dark Priest — Direct Hit: 84 to You',
+      'Dark Priest — Direct Attack: 84 to You',
       'Bone Soldier — Destroyed: Returned to deck',
       '— Round 2 —',
       'Royal Guard — On Play: Common Knight and Light Priest +15 ATK',
@@ -41,7 +44,7 @@ describe('battle log', () => {
     const find = (text: string) => entries.find((e) => line(e).startsWith(text))!;
     expect(find('Clash Damage — Left: 35').side).toBe('player');
     expect(find('Clash Damage — Right: 21').side).toBe('enemy');
-    expect(find('Dark Priest — Direct Hit').side).toBe('enemy');
+    expect(find('Dark Priest — Direct Attack').side).toBe('enemy');
     expect(find('Royal Guard — On Play')).toMatchObject({ side: 'player', kind: 'effect' });
     expect(logOf([{ hands: { player: ['kng-apprentice-mage'], enemy: ['und-bone-soldier'] }, plays: { player: [['kng-apprentice-mage', 'center']], enemy: [['und-bone-soldier', 'center']] } }])).toContain(
       'Tie — Center: Apprentice Mage and Bone Soldier destroyed at 93 ATK each, no damage',
@@ -68,7 +71,7 @@ describe('battle log', () => {
       'Archmage Vael — Passive: Power Surge resolves twice',
       'Power Surge — Spell: Archmage Vael +45 ATK this round',
       'Power Surge — Spell: Archmage Vael +45 ATK this round',
-      'Archmage Vael — Direct Hit: 184 to Enemy',
+      'Archmage Vael — Direct Attack: 184 to Enemy',
       'Archmage Vael — Round End: Power Surge returned to hand',
       '— Round 3 —',
     ]);
@@ -114,5 +117,28 @@ describe('battle log', () => {
       expect(entry.until).toBeLessThan(events.length);
     }
     expect(entries.map((e) => e.until)).toEqual([...entries.map((e) => e.until)].sort((a, b) => a - b));
+  });
+});
+
+describe('battle log in a legacy battle', () => {
+  function legacyUnit(cardId: string, power: number, id: string): HeroInstance {
+    const card = getCard(cardId);
+    return { instanceId: id, cardId, faction: card.faction, name: card.name, shortName: card.shortName, power, tempPower: 0, shielded: false, silenced: false, usedThisRound: false };
+  }
+  function side(s: Side, units: Partial<Record<LaneId, HeroInstance>>): PlayerState {
+    return { side: s, hp: 20, deck: [], hand: [], graveyard: [], heroZones: { left: null, center: null, right: null, ...units }, spellZones: { left: null, center: null, right: null } };
+  }
+  const legacyLog = (board: GameState) => battleLogEntries(resolveRound(board, { plays: [] }, { plays: [] }, 1).events, undefined, 'legacy').map(line);
+
+  it('names the clash winner and the HP the legacy rules deal, with no ATK arithmetic', () => {
+    const board: GameState = { round: 1, rngState: 42, status: 'IN_PROGRESS', player: side('player', { left: legacyUnit('kng-common-knight', 7, 'p1') }), enemy: side('enemy', { left: legacyUnit('kng-archer', 4, 'e1') }) };
+    const lines = legacyLog(board);
+    expect(lines).toContain('Clash Damage — Left: 3 to Enemy (Common Knight beat Kingdom Archer)');
+    expect(lines.join(' ')).not.toMatch(/\bPower\b|\d+ beat/);
+  });
+
+  it('a tie destroys both for no damage', () => {
+    const board: GameState = { round: 1, rngState: 42, status: 'IN_PROGRESS', player: side('player', { left: legacyUnit('kng-common-knight', 5, 'p1') }), enemy: side('enemy', { left: legacyUnit('kng-archer', 5, 'e1') }) };
+    expect(legacyLog(board).join(' | ')).toMatch(/Tie — Left: Common Knight and Kingdom Archer destroyed/);
   });
 });

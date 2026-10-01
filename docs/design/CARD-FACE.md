@@ -1,60 +1,84 @@
-# Moonwater card face and Card Inspect
+# Moonwater card system
 
-Status: implemented (Thread A of the collectible-card pass). Presentation only; the combat resolver is unchanged.
+Status: the one card system for every player-facing card (global card UX migration, 2026-10-01). Presentation only:
+no rule, stat, effect, Mastery, Starting HP, deck-out or economy value changes here.
 
-## Stats on the card
+## Three layers
 
-Every Unit prints two numbers, from `src/game/cards/cardFace.ts`:
+1. **Card face** (`GameCard`): name, art, ATK (a Spell names its kind there), and every effect's compact battle line
+   after its timing label. Collection-style tiles add HP Contribution beside ATK; battle faces never show it.
+2. **Focused card detail** (`CardFocusPanel`): the full rule of every effect, current and printed ATK, HP
+   Contribution where it applies, live state (each ATK change by source and how long it lasts, Shield, Silence, entry
+   ATK, a Continuous Spell's lane), Card Mastery, and an Inspect button. In battle it is a dock over the hand apron
+   (`layout="dock"`), so the board, the HP bars and Fight stay visible; outside battle it is a bottom sheet
+   (`layout="sheet"`, via `CardViewer`) with the screen's own actions (Deck Builder: Add to deck / Remove one).
+3. **Card Inspect** (`CardInspect`): the large card, rarity / faction / type, traits, ATK and HP Contribution spelled
+   out, every rule with keyword help, Card Mastery (stage, HP Contribution step, the Mastery panel), copies owned,
+   where it comes from, the deck it is in, lore, previous/next in the Collection, and treatment hooks.
 
-| Stat | Icon | Meaning | Value today |
-| --- | --- | --- | --- |
-| ATK | diagonal longsword (`AtkIcon`) | Strength in a lane clash. The higher ATK wins the lane. | `40 + 15 × Power` |
-| HP Contribution | heart with a plus (`HpIcon`) | Adds this amount to your starting HP. Not the Unit's own health. | `max(45, 145 − 10 × base Power)` |
+The battle log (`components/battleInfo/battleLog.ts`) sits beside layer 2 in battle: optional, a Log pill by the HP
+bar, grouped by round, newest at the bottom, built from the resolver's own events.
 
-`deckStartingHp(cards)` sums HP Contribution for the Deck Builder. The ATK mapping is linear and increasing, so comparing ATK always gives the same lane winner as the engine's Power comparison, and every Power change converts exactly (1 Power = 15 ATK). In battle the default resolver still uses Power and the fixed 20 match HP; card faces show live ATK translated from live Power, and player HP/damage numbers stay on the old scale until the combat migration.
+## One model for every surface
 
-The experimental per-unit-HP combat (v2) keeps its own chit readout and is not promoted by this work.
+`src/game/cards/cardPresentation.ts` is the only place card wording is assembled. `cardEffects(card, { rules,
+masteryRank })` returns each effect with:
 
-## One card component, three modes
+| Field | Use |
+| --- | --- |
+| `label` | timing label or keyword label every surface prints ("On Play", "Guard 2", "Your 2nd Spell") |
+| `timing` | the trigger's own label (Inspect shows both when a keyword replaces it) |
+| `compact` | the battle line on every card face ("Adjacent allies +15 ATK.") |
+| `board` | the board's wording (equal to `compact`, or tighter where part of it stops mattering in play) |
+| `full` | the full rule (focus detail, Inspect) |
+| `oncePerRound`, `mastery`, `abilityIndex` | tags and live Passive state lookup |
 
-`CollectibleCard` (`src/components/CollectibleCard.tsx`):
+Both wordings are authored side by side (`BATTLE_LINES` in `cardCombat/cardText.ts`, `LEGACY_LINES` and
+`MASTERY_LINES` in `cardPresentation.ts`); the compact line is never cut from the full rule. Other helpers:
+`printedAtk`, `legacyAtk`, `cardKeywords`, `cardIdentity` ("Rare · Kingdom · Unit · Knight"), `cardSearchText`
+(Collection and Deck Builder search), `masteryRankCopy`. `src/game/cards/cardCopy.ts` `cardCopyView` gives the player's
+copy of a card (owned, copies, Mastery stage, Mastery-adjusted HP Contribution).
 
-```tsx
-<CollectibleCard
-  cardId="kng-paladin"
-  mode="battle" | "standard" | "inspect"   // default "standard"; legacy `compact` = "battle"
-  treatment="base"                          // reserved: foil, moonlit, animated, alt-art, premium-frame, event
-  artId?                                    // alternate art: paint another art id on the same face
-  livePower?                                // battle: current Power → live ATK, green/red vs printed
-  owned? copies? masteryRank?               // Collection overlays (veil + lock, ×N, Mastery numeral)
-  animated?                                 // pixel animation; defaults on only in inspect
-/>
-```
+Timing labels: On Play, Passive, Clash, After Clash, Destroyed, Ally Falls, Enemy Falls, Round Start, Round End, Your
+Spell, Enemy Spell, Direct Attack. Keyword labels replace the timing where they say more (Guard N, Your 2nd Spell,
+Enemy's 2nd Spell).
 
-- **battle**: art, ATK, HP Contribution, effect indicator, short name. Used by the battle hand.
-- **standard**: adds full name, rarity gems, faction sigil and a one-line effect summary. Collection, pack results, banners.
-- **inspect**: large face with type line and set footer. Card Inspect and the Collection sheet.
+## Densities
 
-Sizing is container-relative (`cqi`), so a page only sets the card's width. Rarity changes frame material (pewter, steel, amethyst, gold), trim and ornament; Epic adds corner ornaments; only Legendary adds a crest, a soft aura and a slow frame sheen (off under reduced motion).
+`<GameCard cardId density rules? masteryRank? atk? tempAtk? silenced? shielded? passiveState? name? hpContribution?
+owned? copies? masteryStage? treatment? artId? animated? />`
 
-Treatments: the face carries `data-treatment` and renders a `.collectible-treatment` layer over the art when the treatment is not `base`. Future foil/moonlit/animated looks are CSS (or a canvas) on that layer; no component change is needed.
+| Density | Where | Notes |
+| --- | --- | --- |
+| `hand` | battle hand (117×176 at 390) | most readable: 10px rules |
+| `board` | Units on the board (118×168 at 390) | 9.5px rules, current ATK with printed beside it, active-state dots |
+| `spell` | Spell zones (full-width strip) | name inline with the rule |
+| `tile` | Collection, Deck Builder, Box contents, pack results, Structure Decks, events, banners, Campaign rewards, focus sheet | hand proportions, HP Contribution beside ATK |
+| `inspect` | Card Inspect | 12.5px rules, animated art |
 
-Standalone pieces: `CardStats` (the stat pair, sizes compact/standard/full), `CardStatsPanel` and `CardEffectList` (inspect sections), `AtkIcon` / `HpIcon` / `EffectIcon`.
+All densities share the frame, the Cinzel name bar, Alegreya rules, Alegreya SC labels, the rarity frame (pewter,
+steel, amethyst, gold; Legendary crest), the faction sigil and gems, the ATK socket and the effect language. A card
+whose text is long first tightens its spacing, then gives the text box room from the art box, then uses smaller type
+(never below 9px, the last step slightly condensed). Text never scrolls and is never cut off. Treatments
+(`foil`, `moonlit`, `animated`, `alt-art`, `premium-frame`, `event`) are a `data-treatment` attribute and an overlay layer
+on the art.
 
-## Effect copy
+## Rules sets in battle
 
-`src/game/cards/effectText.ts` holds player-facing copy for every curated roster card and token, one line per ability, index-aligned with `card.abilities`. The engine's `abilities[].text` and `boardText` are untouched (battle log and older surfaces read them).
+Every battle mode renders the same faces, focus dock, log and Inspect. `CombatDisplayContext`
+(`components/combatDisplay.ts`) tells them which rules the battle plays:
 
-Timing labels, one per engine trigger: On Play, On Clash (before combat), After Clash, Round Start, Round End, When Destroyed, Ally Destroyed, Enemy Destroyed, Direct Attack, You Cast a Spell, Enemy Casts a Spell, While Active (continuous Spell), Always (passive). Durations are "this round" or "for the rest of the battle". "Once per round" is a tag from `oncePerRound`. Keywords explained in Inspect: Shield, Silence, Bypass, Token, Exile, Continuous Spell.
+- `card` (card combat): the approved ATK, effects and HP Contribution (Starting HP; shown in the focus detail and
+  Inspect only).
+- `legacy` (modes still on the legacy resolver): ATK is the Power band (15 × Power + 35), effects are the legacy rules
+  plus the copy's Card Mastery abilities (marked), HP Contribution is not shown in battle (Inspect says it is not used
+  there), and Legacy Level shows as an ATK change. So a card in play never claims a number the battle will not use.
 
-`effectText.test.ts` checks every ATK number in the copy against the engine actions, bans old vocabulary (Hero, Power, `w/`, `Adj`, `;`), and caps summaries at 34 characters. Cards outside the roster (and Mastery-evolved abilities) fall back to the engine text with Hero→Unit and Power→ATK normalised.
+Resolver gating (`featureFlag.ts`) is untouched; only the presentation is global.
 
-`cardSearchText(card)` gives Deck Builder / Collection search a lower-cased string of name, faction, tags, summary and effect text.
+## Tests
 
-## Card Inspect
-
-`CardDetail` props: `cardId`, `onClose`, and optional `context` (`collection | deck | battle | opponent | pack | shop | other`), `livePower`, `masteryRank`, `treatment`. Battle contexts show the face, stats and exact effect only; other contexts add copies owned, Card Mastery stage, how to get it, card style and lore. Opening it tracks `card_inspect_opened` with the context.
-
-Entry points wired in this pass: Collection tiles and sheet; battle hand (info button, 30px with an enlarged hit area, or long-press anywhere on the card); own and enemy board chits (tap), with live ATK and the copy's Mastery rank; graveyard sheet.
-
-Still to hook up (Thread F): Deck Builder (`DecksPage` should pass `context="deck"` and render pool/deck tiles with `CollectibleCard mode="standard"`), pack and Box results (`RitualStage`, `PrototypeBoxPanel`, `PoolSheet`: `context="pack"`), and Ranked opponent deck info if it lists cards (`context="opponent"`).
+`components/card/GameCard.test.ts`: every effect on every card in hand, on the board / in its Spell zone and on its
+tile, for both rule sets; grouped labels; buffed ATK with printed ATK; no HP Contribution on battle faces; focus
+detail full text; Inspect and the viewer open; legacy ATK and Mastery effects. `battleInfo/*.test.ts`: focus detail
+content and the log in both rule sets. `cards/effectText.test.ts`: copy vocabulary and numbers.
