@@ -1,8 +1,8 @@
 # Moonwater card combat design
 
-Status: **authoritative design, not yet implemented.** This document is the single source of truth for Moonwater's core combat direction: a premium collectible three-lane card battler where Units have **ATK** and an **HP Contribution** that sums into the player's Starting HP. It supersedes [COMBAT-V2-DESIGN.md](COMBAT-V2-DESIGN.md) (per-Unit HP, historical) for future core-combat work.
+Status: **authoritative design, live as the production combat of every mode (section 16, 2026-10-01).** This document is the single source of truth for Moonwater's core combat direction: a premium collectible three-lane card battler where Units have **ATK** and an **HP Contribution** that sums into the player's Starting HP. It supersedes [COMBAT-V2-DESIGN.md](COMBAT-V2-DESIGN.md) (per-Unit HP, historical) for future core-combat work.
 
-Nothing here is live. Every mode still runs the legacy resolver (Power, fixed 20 HP, overflow). The model below was validated with the seeded simulator in `src/game/cardSim/` ([CARD-COMBAT-SIMULATION.md](CARD-COMBAT-SIMULATION.md)); section 12 is the plan for moving production onto it. ozi approved the stat model and the section 13 defaults on 2026-09-29; section 14 is the effect and archetype balance pass run on top of them, whose card changes ozi approved the same day as the baseline card data for the new model. They exist today as simulator overrides; the live card files and every game mode stay on the legacy resolver until the production card resolver is built on request.
+Card combat is the production rule set: Quick Battle, Campaign, Ranked AI, the Lantern trials and Friendly Battle all play it, with no flag or URL switch (section 16). The legacy resolver (Power, fixed 20 HP, overflow) is historical and Combat V2 is experimental; neither is reachable from normal navigation. The model below was validated with the seeded simulator in `src/game/cardSim/` ([CARD-COMBAT-SIMULATION.md](CARD-COMBAT-SIMULATION.md)); section 12 is the plan for moving production onto it. ozi approved the stat model and the section 13 defaults on 2026-09-29; section 14 is the effect and archetype balance pass run on top of them, whose card changes ozi approved the same day as the baseline card data for the new model. Those card changes are the live card data of the production resolver in `src/game/cardCombat/`.
 
 ## 1. Design goals
 
@@ -12,7 +12,7 @@ Nothing here is live. Every mode still runs the legacy resolver (Power, fixed 20
 - **Deckbuilding tradeoffs.** Starting HP comes from the deck, so Unit count and card choice shape how long a player can survive.
 - **Bounded progression.** Mastery and rarity make cards desirable without deciding clashes. A well-played base deck must be able to beat a maxed one.
 - **Mobile pacing.** Portrait, one-handed, short matches: a design target of about 9–12 rounds (current balanced baseline: median 12, p90 15, accepted for playtesting; section 14.4).
-- **Safe migration.** No save rewrite, no mode switch and no removal of legacy systems until each phase in section 12 passes its gate.
+- **Safe migration.** Saves are migrated once, versioned and idempotently (section 16.5); old Friendly match records keep finishing under the rules they started with.
 
 ## 2. Rules
 
@@ -92,9 +92,9 @@ Why this shape:
 - **HPC only: +5 / +10 / +15 / +20% HPC at Mastery II–V. No ATK step.** A maxed 11-Unit deck gains about +180 Starting HP, under two average hits.
 - Mirror results (M5 against M1, same deck and pilot): HPC-only 0.52–0.54 win share. Thread D's option MA (+3% ATK, +10% HPC) scored **0.86–0.93**, because any ATK step wins 100% of same-card clashes and each won clash compounds. A well-played M1 deck still beats a badly played M5 deck 61–68% of the time under HPC-only.
 - **Effect stages (III and V) must never flip a clash.** Even a +10% ATK once-per-match stand-in reached 0.77. Effect stages should be HPC, cosmetic, or once-per-match utility without ATK.
-- Ladder unchanged: 1 / 2 / 4 / 7 / 11 copies owned for I–V (a card run at 2 copies needs 12 in practice, because deck copies are protected).
-- Spells get a Mastery path so duplicates are never dead: II and IV cosmetic, III and V raise the Spell's own number about 10% each, subject to the same "never flips a clash on its own" review.
-- **Legacy Level** (+15 / +30 ATK at Levels 30 / 60) is bigger than the whole Mastery budget. The card resolver never reads it; it retires for combat at the moment a mode moves to the card resolver. **Approved save treatment: refund invested Gold only, and only in the same release as a new Gold sink.**
+- Ladder unchanged: 1 / 2 / 4 / 7 / 11 copies owned for I–V (duplicate costs 1 / 2 / 3 / 4), plus **500 Gold for Mastery IV and 1,500 Gold for Mastery V**, the Gold sink that ships with the Legacy Level refund (section 16.5) (a card run at 2 copies needs 12 in practice, because deck copies are protected).
+- Spells get a Mastery path so duplicates are never dead. **As shipped (2026-10-01) a Spell's Mastery is a collection mark only: the Spell plays the same at every stage.** The earlier proposal (III and V raise the Spell's number about 10%) is not implemented; it needs its own review against "never flips a clash on its own".
+- **Legacy Level** (+15 / +30 ATK at Levels 30 / 60) is bigger than the whole Mastery budget. The card resolver never reads it; it retires for combat at the moment a mode moves to the card resolver. **Approved save treatment: refund invested Gold only, and only in the same release as a new Gold sink.** Done 2026-10-01: section 16.5.
 
 ## 8. Rarity philosophy
 
@@ -176,7 +176,7 @@ Target match length: **about 9–12 rounds** (median 9, p90 at most 12). The ¾ 
 
 ### 12.1 Phases
 
-The legacy resolver stays available, and remains the default, through every phase. Each phase is a separate reviewed change with a per-mode switch that can be turned off without a deploy of new code.
+*Completed 2026-10-01: phases 1 to 6 are done, see section 16. The table is kept as the record of the plan.* The legacy resolver stayed available, and remained the default, through every phase until then. Each phase is a separate reviewed change with a per-mode switch that can be turned off without a deploy of new code.
 
 | Phase | Scope | Gate to start the next phase |
 | --- | --- | --- |
@@ -188,7 +188,7 @@ The legacy resolver stays available, and remains the default, through every phas
 | 5 | **Friendly Battle** and remaining legacy modes | Both clients and the API agree on a resolver version per match |
 | 6 (later) | Save migration: Legacy Level refund with a Gold sink, Mastery re-authoring | Versioned, idempotent migration with tests; separate release |
 
-Flag: extend `combatV2/featureFlag.ts` from `'legacy' | 'v2'` to include `'card'`, read from a new `VITE_CARD_COMBAT_MODES` list with a dev-only `?combat=card` override, mirroring the existing V2 switch. Combat V2 stays in the codebase as an isolated lab until a separate decision retires it.
+Flag (historical): `combatV2/featureFlag.ts` gained `'card'`, read from `VITE_CARD_COMBAT_MODES` with a `?combat=card` override. Since section 16 the file is `combat/combatModel.ts`, the env list is gone and production builds always play card combat. Combat V2 stays in the codebase as an isolated lab until a separate decision retires it.
 
 ### 12.2 New resolver requirements
 
@@ -262,7 +262,7 @@ The open questions of the first draft, as decided:
 
 14. **Balance pass (section 14):** the combined card changes, the recursion, token and growth rules, the Arcane Control and Defensive effect changes and the Moonfall Box copy split are approved as the baseline card data for the new model. The rejected alternatives stay rejected. Box prices do not change.
 
-The production card resolver is not implemented and no mode moves to it until ozi asks.
+*(2026-09-29; superseded by the Phase 2 prototype below and section 16.)*
 
 **Phase 2 prototype (Quick Battle only).** At ozi's ask, the production card resolver now lives in `src/game/cardCombat/` (resolver, balanced AI, card data from section 14, the shared Starting HP helper) and Quick Battle can play it when `VITE_CARD_COMBAT_MODES` lists `quickBattle` or the URL carries `?combat=card`. `?combat=card` works in any build so a preview deploy can be played; it is ignored for every mode other than Quick Battle. Campaign, Ranked, Friendly Battle, the legacy resolver, Combat V2, saves and Legacy Level are unchanged.
 
@@ -412,7 +412,7 @@ Locked for the current card-combat baseline:
 5. **Undead starter vs Bulwark (0.96) is a known matchup outlier.** Bulwark is a study deck, not a shipped deck, so production card balance is not changed to correct it. **Review it when real starter and archetype decks are authored.**
 6. **Approved prototype baseline:** core archetype spread about 0.39–0.61, first-seat win rate about 0.50, no stalls, Clash Damage on, HPC unchanged, Mastery HPC-only, no Unit HP, an empty lane still takes full ATK, ties destroy both for 0 Player damage.
 
-Campaign, Ranked and Friendly Battle stay on the legacy resolver until ozi asks. No further balance pass is scheduled.
+No further balance pass is scheduled. *(Campaign, Ranked and Friendly Battle moved to card combat on 2026-10-01, section 16.)*
 
 ### 15.8 Battle presentation (Battle UX pass, 2026-09-30)
 
@@ -422,11 +422,55 @@ Presentation only; no rule above changes.
 - **A battle card is a collectible card.** Hand cards, board Units and Card Inspect show the same card in four zones inside the rarity frame: a name bar, a framed art box (about 45 to 54% of the card's height on a 390px-wide phone; the longest cards and narrower phones go lower), a stats row with faction and rarity and ATK set into the frame (a Spell names its kind there), and a text box. A Spell zone shows the Spell's name and text. Hand cards are the most readable, board cards are compact, and Card Inspect adds HP Contribution beside ATK, with the full wording, Mastery and keyword help listed under the card. HP Contribution is not shown on hand or board cards.
 - **Every effect on the card, in battle copy.** Each combat effect is a short battle line after a small-caps label: its timing (On Play, Clash, Passive, Round End, …) or a keyword that says more (Guard 2, Your 2nd Spell, Enemy's 2nd Spell). Effects that share a label read as one paragraph under it, and a one-time Spell's effects need no label, since they happen when it is played. The copy is `BATTLE_LINES` in `cardCombat/cardText.ts`, e.g. Royal Guard: "On Play: Adjacent allies +15 ATK." and "Passive: Spell Immune with Kingdom ally."; Archmage Vael: "Round End: If hand is empty, gain a Graveyard Spell." A few lines have a tighter board wording where part of the line stops mattering once the card is in play (an On Play condition already checked, a Bypass's "from next round"). Conventions: an ATK change with no duration lasts for the rest of the battle; "this round" marks temporary ones; "here" is this lane; "allies" are your other Units; "with …" holds while the condition does; "damage" always hits the enemy player (Units have no HP); no abbreviations beyond ATK and HP. Rules text is 10px in hand and 9.5px on the board at line height 1.15. Text never scrolls, is never cut off and never goes below 9px: a card with more text first tightens its spacing, then gives the text box room from the art box, then uses smaller type; the very longest texts are set slightly condensed.
 - **Three layers of card information (Info layers pass, 2026-10-01).** The card face (above) is layer 1: everything that matters in a fight, at a glance. Layer 2 is the **focus panel**: in card combat, tapping a hand card, one of your Units, an enemy Unit or a filled Spell zone opens a panel over the hand area, under the board and the HP bar (`components/battleInfo/BattleDock.tsx`, content from `focusDetails.ts`). It shows the art, ATK (current and printed), HP Contribution, every effect's full rule, whether each conditional Passive is on now, and the card's live state: each ATK change by source and how long it lasts ("+15 ATK from Battle Banner, while it stays"), Shield and Silence, a revived or summoned Unit's entry ATK, and the Units in a Spell's lane. Tapping a hand card also selects it for placement, as before; the panel closes on placement, on Fight, with its close button, Back or Escape, or by tapping the same card again, and its Inspect button opens Card Inspect, layer 3, with keywords, Mastery and collection detail. Layer 3 also covers the **battle log** (`battleLog.ts`): while a round resolves, a short log under the board adds one line per effect and clash as the playback reaches it ("Royal Guard — On Play: Common Knight and Light Priest +15 ATK", "Clash Damage — Left: 13 to Enemy (Common Knight 143 beat Vharos 130)"), built from the resolver's own events, so it never says more than happened. Between rounds the Log pill by the HP bar opens the whole match's log; it stays open from round to round until closed.
-- **One card system everywhere (global card UX migration, 2026-10-01).** The card face, the focused card detail and Card Inspect are now the only card UI: battle (every mode), Collection, Deck Builder, Shop, Box contents and pack results, Structure Decks, events, banners and Campaign rewards all render `GameCard` and open the same focus detail and Inspect, with wording from `cards/cardPresentation.ts`. Legacy battles use the same faces and panels with the legacy resolver's own numbers (Power band as ATK, legacy HP points, Card Mastery effects, no HP Contribution), so nothing in play claims a value the battle won't use. Details: `docs/design/CARD-FACE.md`.
+- **One card system everywhere (global card UX migration, 2026-10-01).** The card face, the focused card detail and Card Inspect are now the only card UI: battle (every mode), Collection, Deck Builder, Shop, Box contents and pack results, Structure Decks, events, banners and Campaign rewards all render `GameCard` and open the same focus detail and Inspect, with wording from `cards/cardPresentation.ts`. Since section 16 every battle plays card combat, so a card shows the same ATK, HP Contribution and wording in battle as in the Collection; the legacy-number branches are gone. Details: `docs/design/CARD-FACE.md`.
+
+## 16. Card combat everywhere (2026-10-01)
+
+At ozi's ask, card combat (sections 2 to 15, Clash Damage included) is the production combat of every mode. No rule, stat, effect, HP Contribution, Mastery percentage, deck-out rule, rarity or Box number changed.
+
+### 16.1 One resolver
+
+- `combat/combatModel.ts` (was `combatV2/featureFlag.ts`): a production build always plays `'card'`. There is no env list and no URL switch that routes elsewhere; `?combat=card` is accepted and changes nothing. Development builds can still open the old engines with `?combat=legacy` or `?combat=v2` for comparison.
+- Roles: card = production, legacy (`src/game/engine`) = historical, kept so an old Friendly match record can finish; Combat V2 (`src/game/combatV2`) = experimental, its lab page shows only in development builds.
+- Every match records `combatModel` and `cardCombat.version` (`CARD_RESOLVER_VERSION`, now 2) in its state; local match history stores both (`combat/resolver.ts`).
+- Decks need 8+ Units everywhere (`engine/deckRules.ts`, Deck Builder status and Battle Setup). The Arcane Control (Mage) archetype deck moved to its approved 8-Unit list.
+
+### 16.2 Campaign
+
+- Each encounter plays its own authored deck at Mastery I against the player's deck (`campaign/battleSetup.ts`). Nothing reads the player's Level, Ascension or old Power: difficulty comes from deck construction and, for the boss, an HP pool.
+- Each node carries an authored `difficulty` (Easy / Fair / Hard) shown on the stage sheet and Home in place of Recommended Power and Deck Strength. The stage sheet's Starting HP preview and the battle read the same helper.
+- Boss: the Grave Tyrant fights from a **1,200 HP pool** instead of its deck's total. Challenge node Toll of the Ford starts the player at **70%** of their deck's Starting HP.
+- Objectives were re-thresholded for card-combat numbers (rounds, HP kept, Clash Damage dealt) from the simulation.
+- Simulated with `scripts/simulate-modes.mjs` (seed 20261001, 300 games per row, Kingdom starter at Mastery I): Easy nodes 81–97%, Fair 62–68%, Hard 39–53%, boss 39%, median 7–14 rounds, no match ended through a fallback.
+
+### 16.3 Ranked AI
+
+- `ranked/tiers.ts`: each division has fixed rival decks and one fixed Mastery stage (Bronze I, Silver II, Gold II, Platinum III, Diamond IV, Master V). Rivals get harder through deck construction (plain Commons, then synergy, then optimized lists) and Mastery (HP Contribution only). Nothing reads the player's decks, Legacy Level or Power.
+- The Ranked screen shows the next rival's deck name and tier line.
+- Simulated averages over the three starters: Bronze ~88%, Silver ~71%, Gold ~53%, Platinum ~48%, Diamond ~37%, Master ~36%.
+
+### 16.4 Friendly Battle
+
+- Both clients send `rules: { combatModel, resolverVersion }` with their deck snapshot. `api/create-match.ts` builds the match with `createCardMatch` only when both match the server's production rules; otherwise the room is abandoned with a 409 "different versions of Moonwater" message.
+- Both players play at Mastery I, so a Friendly match is decided by decks and play, not collection depth.
+- `api/_lib/resolveRoundInternal.ts` picks the resolver from the stored match: a card match must carry the current resolver version (a mismatch is a 409 and writes nothing) and continues the stored RNG state; a legacy match record still finishes on the legacy resolver; Combat V2 is refused. A client whose rules differ from the stored match shows an alert and does not submit.
+- The guest's view flips every side-keyed card-combat field; the opponent's per-card Mastery table is redacted.
+- Fixed in passing: clients no longer begin a round locally on top of the server's begin.
+
+### 16.5 Progression and saves
+
+- **Card Mastery I–V is the only card progression.** Every collectible card has the path. A Unit's Mastery adds HP Contribution +0 / 5 / 10 / 15 / 20%; ATK never changes. A Spell's Mastery is a collection mark. Costs: 1 / 2 / 3 / 4 duplicate copies, plus 500 Gold (IV) and 1,500 Gold (V), configurable as `economy.masteryGoldFee`. That fee is the new Gold sink.
+- **Legacy Level is retired.** It has no effect on any battle, its panel is gone, and its daily and weekly missions became "Fight 3 battles" / "Fight 15 battles". The Gold a save spent on it is refunded once (`save/migrations.ts`): the economy (now v5) records the grant id `legacy-level-refund-v1` in the same write as the Gold, so a crash or a second run can never pay twice, and the migration marker `moonwater:saveMigration` records the version. Level data itself is kept untouched. Home shows a one-time note with the amount.
+- **Deck Strength is gone.** Home shows the active deck's real Starting HP and the next Campaign battle's difficulty instead. Old Power, Hero, Tactic and Legacy Level wording is removed from player UI (a test scans the screens for it).
+- Saves keep every key: collection counts, decks, Ascension ranks (read as Mastery), Level data, Tactic data and match history.
+
+### 16.6 Fonts
+
+Cinzel, Alegreya, Alegreya SC, Bree Serif and Nunito (all SIL OFL) are bundled from `@fontsource` (latin subset, `styles/fonts.css`) and ship inside the build, so cards render the same offline and in the Capacitor app. Google Fonts is no longer loaded.
 
 ## Appendix: collection, Box and save rules
 
-- Collection is a copy count per card. Card Mastery is a read model over legacy Ascension (`cardMastery/model.ts`); only 6 Units have paths today. See [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md).
+- Collection is a copy count per card. Card Mastery is a read model over legacy Ascension (`cardMastery/model.ts`): stored rank 0..4 is Mastery I..V, and every collectible card (all 52) has the path. See [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md).
 - The Moonfall Box is a finite 100-pack pool (500 cards: 258 Common, 168 Rare, 54 Epic, 20 Legendary; per card 14-15 / 8 / 6 / 5, so Mastery V takes 1 / 2 / 2 / 3 Boxes) that shows its remaining contents. The copy split is approved (section 14); prices are unchanged and not part of this design.
 - Keep card IDs, collection counts, deck definitions, `skyloom:*` storage keys and historical event names intact.
 - Before replacing Legacy Level or Ascension behaviour, ship an idempotent, versioned migration with tests for old saves, missing fields, max-rank cards, duplicate inventory and playable decks.

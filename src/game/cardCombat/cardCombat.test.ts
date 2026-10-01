@@ -8,7 +8,8 @@ import { STARTING_HP } from '../engine/constants.js';
 import { createMatch } from '../engine/match.js';
 import { applyEvent } from '../engine/replay.js';
 import { deckSummary } from '../decks/deckSummary.js';
-import { resolveCombatModel } from '../combatV2/featureFlag.js';
+import { COMBAT_MODEL_ROLE, PRODUCTION_COMBAT_MODEL, resolveCombatModel } from '../combat/combatModel.js';
+import { isCurrentCardResolver, matchResolver, PRODUCTION_RULES, sameRules } from '../combat/resolver.js';
 import { withCardOverrides } from '../cardSim/cardSource.js';
 import { getVariant } from '../cardSim/balance/differenceDamage.js';
 import { choosePlays } from '../cardSim/ai.js';
@@ -16,7 +17,7 @@ import { playMatch } from '../cardSim/engine.js';
 import { cardJitter, getStatModel } from '../cardSim/statModels.js';
 import { chooseCardAiAction } from './ai.js';
 import { CARD_COMBAT_OVERRIDE_IDS, getCombatCard } from './cards.js';
-import { CARD_MAX_ROUNDS, beginCardRound, cardAtk, createCardMatch, resolveCardRound } from './engine.js';
+import { CARD_MAX_ROUNDS, CARD_RESOLVER_VERSION, beginCardRound, cardAtk, createCardMatch, resolveCardRound } from './engine.js';
 import { stagesFromAscensionRanks } from './mastery.js';
 import { ATK_OFFSET, GROWTH_CAP_ATK, MASTERY_HPC_PCT, atkFromPower, deckStartingHp, hpContributionAt, printedStats } from './stats.js';
 
@@ -510,42 +511,59 @@ describe('card combat: approved card data', () => {
   });
 });
 
-describe('card combat: mode gating', () => {
-  const on = { dev: false, search: '?combat=card', cardModes: 'quickBattle,campaign,ranked', v2Modes: '' };
+describe('card combat: the production resolver everywhere', () => {
+  const MODES = ['quickBattle', 'campaign', 'ranked', 'story'] as const;
 
-  it('13. Quick Battle can use card combat (env list or ?combat=card)', () => {
-    expect(resolveCombatModel('quickBattle', on)).toBe('card');
-    expect(resolveCombatModel('quickBattle', { dev: false, search: '', cardModes: 'quickBattle' })).toBe('card');
-    expect(resolveCombatModel('quickBattle', { dev: false, search: '' })).toBe('legacy'); // off by default
-    expect(resolveCombatModel('quickBattle', { dev: false, search: '', v2Modes: 'quickBattle' })).toBe('v2'); // Combat V2 untouched
+  it('every local battle mode plays card combat in production, whatever the URL says', () => {
+    for (const mode of MODES) {
+      for (const search of ['', '?combat=card', '?combat=legacy', '?combat=v2', '?debug']) {
+        expect(resolveCombatModel(mode, { dev: false, search }), `${mode} ${search}`).toBe('card');
+      }
+    }
+    expect(PRODUCTION_COMBAT_MODEL).toBe('card');
+    expect(COMBAT_MODEL_ROLE).toEqual({ card: 'production', legacy: 'historical', v2: 'experimental' });
   });
 
-  it('14. Campaign stays legacy', () => {
-    expect(resolveCombatModel('campaign', on)).toBe('legacy');
-    expect(resolveCombatModel('campaign', { ...on, dev: true })).toBe('legacy');
+  it('a dev build defaults to card combat too; only an explicit dev override reaches the old resolvers', () => {
+    for (const mode of MODES) {
+      expect(resolveCombatModel(mode, { dev: true, search: '' })).toBe('card');
+      expect(resolveCombatModel(mode, { dev: true, search: '?combat=card' })).toBe('card'); // accepted, no longer needed
+      expect(resolveCombatModel(mode, { dev: true, search: '?combat=legacy' })).toBe('legacy');
+      expect(resolveCombatModel(mode, { dev: true, search: '?combat=v2' })).toBe('v2');
+    }
   });
 
-  it('15. Ranked stays legacy', () => {
-    expect(resolveCombatModel('ranked', on)).toBe('legacy');
-    expect(resolveCombatModel('ranked', { ...on, dev: true })).toBe('legacy');
+  it('no production route asks for a legacy or V2 battle', () => {
+    const app = readFileSync(new URL('../../App.tsx', import.meta.url), 'utf8');
+    const modes = [...app.matchAll(/combatModelForMode\((\w+)\)/g)].map((m) => m[1]);
+    expect(modes.length).toBeGreaterThan(0);
+    expect(app).not.toMatch(/combatModel: '(legacy|v2)'|combatModel="(legacy|v2)"/);
+    expect(app).toMatch(/import\.meta\.env\.DEV && showCombatLab/); // the Combat V2 lab is dev-only
+    const game = readFileSync(new URL('../../pages/GamePage.tsx', import.meta.url), 'utf8');
+    expect(game).toMatch(/combatModel: requestedModel = 'card'/);
   });
 
-  it('16. Friendly Battle stays legacy', () => {
-    // Friendly matches are built server-side by the legacy createMatch and rendered without a combat model.
-    const friendlyPage = readFileSync(new URL('../../pages/FriendlyBattlePage.tsx', import.meta.url), 'utf8');
+  it('Friendly Battle builds card matches with an explicit resolver version on the server', () => {
     const createMatchApi = readFileSync(new URL('../../../api/create-match.ts', import.meta.url), 'utf8');
-    expect(friendlyPage).not.toMatch(/combatModel/);
-    expect(createMatchApi).not.toMatch(/combatModel|cardCombat/);
+    expect(createMatchApi).toMatch(/createCardMatch\(/);
+    expect(createMatchApi).not.toMatch(/\bcreateMatch\(/);
+    expect(createMatchApi).toMatch(/sameRules\(hostDeck\.rules\)/);
+    const friendlyPage = readFileSync(new URL('../../pages/FriendlyBattlePage.tsx', import.meta.url), 'utf8');
+    expect(friendlyPage).toMatch(/rules: PRODUCTION_RULES/);
+    const built = createCardMatch({ seed: 1, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead }).nextState;
+    expect(matchResolver(built)).toEqual({ combatModel: 'card', resolverVersion: CARD_RESOLVER_VERSION });
+    expect(matchResolver(built)).toEqual(PRODUCTION_RULES);
+    expect(isCurrentCardResolver(built)).toBe(true);
+    expect(isCurrentCardResolver({ ...built, cardCombat: { ...built.cardCombat!, version: CARD_RESOLVER_VERSION + 1 } })).toBe(false);
+  });
+
+  it('an old legacy match still reads as legacy v1 (never inferred from a date)', () => {
     const legacy = createMatch({ seed: 1, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead }).state;
     expect(legacy.combatModel).toBeUndefined();
     expect(legacy.player.hp).toBe(STARTING_HP);
-  });
-
-  it('only Quick Battle asks for card combat in the app', () => {
-    const app = readFileSync(new URL('../../App.tsx', import.meta.url), 'utf8');
-    const modes = [...app.matchAll(/combatModelForMode\('(\w+)'\)/g)].map((m) => m[1]);
-    expect(new Set(modes)).toEqual(new Set(['quickBattle', 'campaign', 'ranked']));
-    expect(app).not.toMatch(/'card'/);
+    expect(matchResolver(legacy)).toEqual({ combatModel: 'legacy', resolverVersion: 1 });
+    expect(sameRules(matchResolver(legacy))).toBe(false);
+    expect(sameRules(undefined)).toBe(false);
   });
 });
 

@@ -47,6 +47,7 @@ import { resolveDuration } from '../components/animation/timing';
 import type { AnimationSpeed } from '../components/animation/types';
 import type { FriendlyRematchActions } from '../components/MatchSummary';
 import type { RemoteOpponentController } from '../net/friendlyTypes';
+import { isCurrentCardResolver, matchResolver } from '../game/combat/resolver';
 import '../styles/battleCardHosts.css';
 
 export type { AnimationSpeed };
@@ -66,10 +67,18 @@ export interface GamePageProps {
   /** The player's Hero Levels for the cards in their deck (cardId -> level), captured at setup. Omit for all Level 1. */
   playerHeroLevels?: Record<string, number>;
   enemyHeroLevels?: Record<string, number>;
-  /** 'card' plays the ATK + HP Contribution card-combat resolver (src/game/cardCombat); Quick Battle only. */
+  /**
+   * The resolver a local battle plays: card combat (src/game/cardCombat), the production rules, unless a development
+   * build asked for an old engine (game/combat/combatModel.ts). A Friendly Battle ignores this and plays whatever
+   * resolver built its `initialState`.
+   */
   combatModel?: CombatModelId;
-  /** Overrides the match's starting HP (both sides) - used by Campaign's challenge nodes. Omit for the default STARTING_HP. */
+  /** Legacy resolver only (developer comparisons): a fixed Starting HP for both sides. */
   startingHp?: number;
+  /** Card combat: a fixed Starting HP for one side in place of its deck's total (a Campaign boss pool or challenge rule). */
+  startingHpOverride?: Partial<Record<'player' | 'enemy', number>>;
+  /** Card combat: the opponent's Card Mastery stage per card id (Ranked tiers). Omit for Mastery I. Changes HP Contribution only. */
+  enemyMasteryStages?: Record<string, number>;
   /** Fires once, the instant this match reaches MATCH_END - before the player dismisses the summary
    * screen. Campaign uses this to record node progress independent of how/when the player exits;
    * Quick Battle never passes it, so it never touches Campaign state. */
@@ -141,8 +150,12 @@ function buildPreviewZones(
   return { heroZones: previewHero, spellZones: previewSpell };
 }
 
-export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel = 'legacy', battleMode = 'quick' }: GamePageProps) {
+export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, startingHpOverride, enemyMasteryStages, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel: requestedModel = 'card', battleMode = 'quick' }: GamePageProps) {
+  // A match handed in ready-made (Friendly Battle) plays the resolver that built it; it says which in its own state.
+  const combatModel: CombatModelId = initialState ? (initialState.combatModel ?? 'legacy') : requestedModel;
   const cardMode = combatModel === 'card';
+  // A Friendly match built by a different card-resolver version can't be played by this build: show why, play nothing.
+  const rulesMismatch = !!initialState && cardMode && !isCurrentCardResolver(initialState);
   // The rules every card in this battle describes: card combat's, or a legacy resolver's (v2 included). The card faces,
   // focus panel, log and Card Inspect are the same in every mode; only their wording and numbers follow the rules.
   const rules: CardRules = cardMode ? 'card' : 'legacy';
@@ -150,9 +163,9 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   function buildMatch(matchSeed: number): { state: GameState; events: GameEvent[] } {
     if (cardMode) {
       // Card combat: Starting HP is each deck's own Unit HP Contributions (cardCombat/stats.ts deckStartingHp, the
-      // Deck Builder's helper). The player's Card Mastery raises their HP Contribution only; the opponent plays
-      // its own deck at Mastery I and never copies the player's Mastery, Levels or HP.
-      const built = createCardMatch({ seed: matchSeed, playerDeck, enemyDeck, playerMastery: stagesFromAscensionRanks(playerAscensions) });
+      // Deck Builder's helper). The player's Card Mastery raises their HP Contribution only; the opponent plays its own
+      // deck at its own Mastery (Mastery I unless a Ranked tier sets it) and never copies the player's Mastery or HP.
+      const built = createCardMatch({ seed: matchSeed, playerDeck, enemyDeck, playerMastery: stagesFromAscensionRanks(playerAscensions), enemyMastery: enemyMasteryStages, startingHpOverride });
       return { state: built.nextState, events: built.events };
     }
     return createMatch({
@@ -246,7 +259,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
       );
       // Friendly Battle grants 0 XP/rewards and isn't tracked in local match history - it's an isolated
       // networking experiment, not a progression-affecting mode (see docs/FRIENDLY-BATTLE.md).
-      if (!remoteOpponent) saveRecentMatch(seed, stats);
+      if (!remoteOpponent) saveRecentMatch(seed, stats, matchResolver(next));
       // Event missions count local battles from this one summary (game/events); Friendly Battle stays out.
       if (!remoteOpponent) track('battle_completed', summarizeBattle(next.status, merged, battleMode));
       setFullLog(merged);
@@ -268,7 +281,9 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
         onExit();
       }
     } else {
-      const begun = cardMode ? beginCardRound(next) : beginRound(next);
+      // Friendly Battle's server already began the next round (its events were part of this reveal); beginning it again
+      // here would re-fire Round Start effects on the client only. Local battles begin it now.
+      const begun = remoteOpponent ? { nextState: next, events: [] } : cardMode ? beginCardRound(next) : beginRound(next);
       const toast = masteryToastFrom(begun.events);
       if (toast) setMasteryToast(toast);
       setFullLog([...fullLog, ...revealEvents, ...begun.events]);
@@ -281,7 +296,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   }, [isRevealing, anim.isDone]);
 
   function handleFight() {
-    if (phase !== 'DEPLOY') return;
+    if (phase !== 'DEPLOY' || rulesMismatch) return;
     const localAction = { plays: pendingPlays };
     const validation = cardMode ? validateCardDeployment(gameState, 'player', localAction) : validateDeployment(gameState, 'player', localAction);
     if (!validation.legal) {
@@ -606,6 +621,11 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
           {/* The hint sits under the enemy bar, clear of the hand cards' art and ATK. */}
           <div className="battle-hint">{hint}</div>
           <div className="hand-apron">
+            {rulesMismatch && (
+              <div role="alert" style={{ color: '#e66', textAlign: 'center', fontSize: 13 }}>
+                This match was started on a different version of Moonwater. Update the game to keep playing.
+              </div>
+            )}
             {submitError && phase === 'DEPLOY' && (
               <div style={{ color: '#e66', textAlign: 'center', fontSize: 13 }}>
                 {submitError}{' '}

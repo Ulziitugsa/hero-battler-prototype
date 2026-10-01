@@ -1,7 +1,7 @@
 # Ranked mode (local prototype)
 
 Ranked is a local rating loop against an AI deck. It is not online PvP or a seasonal service. Matches
-use the existing production battle resolver; Combat V2 remains a separate developer lab.
+use the production card-combat resolver (ATK, HP Contribution, Clash Damage); Combat V2 remains a separate developer lab.
 
 ## Rating and rewards
 
@@ -16,10 +16,14 @@ use the existing production battle resolver; Combat V2 remains a separate develo
 
 ## AI opponent selection
 
-At battle start, the app chooses another saved deck option with the closest average Hero Power to the
-player's active deck. Ties are resolved deterministically from the current rating seed. AI Hero Levels
-mirror the player's average owned Hero Level. The opponent label describes the selected deck; this is
-not an MMR queue or a claim of human matchmaking.
+Each division has fixed rival decks and one fixed Card Mastery stage (`src/game/ranked/tiers.ts`): Bronze I,
+Silver II, Gold II, Platinum III, Diamond IV, Master V. Mastery changes HP Contribution only, never ATK. Rivals
+get harder through deck construction (plain Commons, then synergy, then optimized lists), never by reading the
+player's decks, Legacy Level or Power. The rival is picked deterministically from the current rating seed and
+shown on the Ranked screen (deck name and tier line). This is not an MMR queue or a claim of human matchmaking.
+
+Simulated on the production resolver (`scripts/simulate-modes.mjs`, seed 20261001), the card AI piloting a starter
+deck wins about 88% in Bronze, 71% in Silver, 53% in Gold, 48% in Platinum, 37% in Diamond and 36% in Master.
 
 ## Attention and limits
 

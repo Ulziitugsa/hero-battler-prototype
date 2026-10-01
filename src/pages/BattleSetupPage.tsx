@@ -7,8 +7,7 @@ import { loadPreferences, savePreferences } from '../game/engine/preferences';
 import { getActiveDeck } from '../game/engine/activeDeck';
 import { useCollection } from '../game/collection/useCollection';
 import { getDeckPresentation } from './decks/deckPresentation';
-import { combatModelForMode } from '../game/combatV2/featureFlag';
-import { MIN_UNITS_CARD_COMBAT, deckStartingHp } from '../game/cardCombat/stats';
+import { deckStartingHp } from '../game/cardCombat/stats';
 import { playerMasteryStages } from '../game/cardCombat/mastery';
 
 const FACTIONS: StarterFaction[] = ['kingdom', 'undead', 'infernal'];
@@ -30,13 +29,11 @@ export function BattleSetupPage({ onStartBattle, onBack }: { onStartBattle: (pla
   const playerDeck = deckOptions.find((d) => d.id === playerDeckId) ?? deckOptions[0];
   const playerDeckIndex = deckOptions.indexOf(playerDeck);
   const pres = getDeckPresentation(playerDeck, owned);
-  // Card combat (Quick Battle prototype): each side starts at its own deck's Starting HP, from the same helper
-  // the Deck Builder shows and the battle starts with. Decks need 8 Units to play it.
-  const cardMode = useMemo(() => combatModelForMode('quickBattle') === 'card', []);
-  const playerHp = cardMode ? deckStartingHp(playerDeck.cardIds, playerMasteryStages(playerDeck.cardIds)) : null;
-  const opponentHp = cardMode ? deckStartingHp(STARTER_DECKS[opponent]) : null;
-  const tooFewUnits = !!playerHp && playerHp.units < MIN_UNITS_CARD_COMBAT;
-  const status = { valid: pres.playable && !tooFewUnits };
+  // Each side starts at its own deck's Starting HP, from the same helper the Deck Builder shows and the battle starts
+  // with. The deck rules (8+ Units) are part of `pres.playable`.
+  const playerHp = deckStartingHp(playerDeck.cardIds, playerMasteryStages(playerDeck.cardIds));
+  const opponentHp = deckStartingHp(STARTER_DECKS[opponent]);
+  const status = { valid: pres.playable };
 
   function updatePlayerDeck(id: string) {
     setPlayerDeckId(id);
@@ -142,18 +139,9 @@ export function BattleSetupPage({ onStartBattle, onBack }: { onStartBattle: (pla
           )}
         </div>
 
-        {playerHp && opponentHp && (
-          <p className="skirmish-card-hp" aria-live="polite">
-            Card combat · Starting HP: you <b>{playerHp.total}</b> · {FACTION_LABEL[opponent]} <b>{opponentHp.total}</b>
-          </p>
-        )}
-
-        {pres.playable && tooFewUnits && (
-          <div className="skirmish-warning" role="alert">
-            <Icon name="warning" size={16} />
-            <span>Card combat needs at least {MIN_UNITS_CARD_COMBAT} Units in a deck. This one has {playerHp?.units}.</span>
-          </div>
-        )}
+        <p className="skirmish-card-hp" aria-live="polite">
+          Starting HP: you <b>{playerHp.total}</b> · {FACTION_LABEL[opponent]} <b>{opponentHp.total}</b>
+        </p>
 
         {!pres.playable && (
           <div className="skirmish-warning" role="alert">

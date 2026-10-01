@@ -1,5 +1,5 @@
 import { getAscensionStatus } from '../ascension/ascend';
-import { getCardAscension } from '../ascension/definitions';
+import { hasMasteryPath } from '../ascension/path';
 import { starsForCard } from '../ascension/stars';
 import { getCollection, grantCard } from '../collection/collection';
 import { getStarterDeckUnlockProgress, starterDeckId } from '../collection/starterUnlock';
@@ -135,7 +135,7 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
       ...r,
       grant,
       ascensionAvailable: !grant.isNew && getAscensionStatus(r.cardId, after).canAscend,
-      hasAscensionPath: !!getCardAscension(r.cardId),
+      hasAscensionPath: hasMasteryPath(r.cardId),
       starsBefore,
       starsAfter,
     });

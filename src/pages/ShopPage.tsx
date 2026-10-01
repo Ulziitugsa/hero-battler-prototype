@@ -12,9 +12,7 @@ import { loadEnergy, restoreEnergy } from '../game/campaign/energy';
 import { getDailyShopGiftState, subscribeDailyShopGift, claimDailyShopGift, dailyShopGiftResetsAt, DAILY_SHOP_GIFT_GOLD } from '../game/shop/dailyGift';
 import { OFFERS, type OfferId, type OfferDef } from '../game/offers/definitions';
 import { simulatePurchase, trackOfferClicked, trackOfferCtaClicked, trackOfferSeen } from '../game/offers/store';
-import { useHeroLevel } from '../game/heroLevel/useHeroLevel';
 import { useAscension } from '../game/ascension/useAscension';
-import { getHeroLevel } from '../game/heroLevel/store';
 import { getAscensionRank } from '../game/ascension/store';
 import { PLAYTEST_ROSTER } from '../game/cards/roster';
 import { useDialogFocus } from '../components/useDialogFocus';
@@ -66,7 +64,6 @@ function ShopConfirmation({ pending, energy, prices, onCancel, onConfirm }: {
 
 export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: ShopView } = {}) {
   const economy = useEconomy();
-  const heroLevels = useHeroLevel();
   const ascensions = useAscension();
   const gift = useSyncExternalStore(subscribeDailyShopGift, getDailyShopGiftState, getDailyShopGiftState);
   const [energy, setEnergy] = useState(loadEnergy);
@@ -81,7 +78,7 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
   const prices = getConfig().offers.priceLabels;
   const offersEnabled = getConfig().flags.offersEnabled;
 
-  const progressed = PLAYTEST_ROSTER.some((id) => getHeroLevel(id, heroLevels) > 1 || getAscensionRank(id, ascensions) > 0);
+  const progressed = PLAYTEST_ROSTER.some((id) => getAscensionRank(id, ascensions) > 0);
   const summoned = economy.summon.history.length > 0;
   const eligibleOffers = useMemo(() => offersEnabled ? OFFERS.filter((offer) => {
     if (offer.id === 'starter-pack') return progressed || summoned;

@@ -34,7 +34,7 @@ export function LaneSlot({
   return (
     <div
       className={`battle-zone hero-zone ${targetable ? 'targetable' : ''} ${dim ? 'dim' : ''} ${hero ? 'filled' : ''} ${side}`}
-      aria-label={hero ? undefined : `${side === 'player' ? 'Your' : "Enemy's"} hero slot, ${lane} lane`}
+      aria-label={hero ? undefined : `${side === 'player' ? 'Your' : "Enemy's"} Unit slot, ${lane} lane`}
       onClick={canDrop ? onSlotClick : undefined}
       onDragOver={(e) => {
         if (canDrop) e.preventDefault();

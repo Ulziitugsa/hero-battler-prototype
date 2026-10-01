@@ -6,7 +6,7 @@ import { ASCENSION_DUPLICATE_COST } from '../ascension/config';
 import { ascensionLabel } from '../ascension/ascend';
 import {
   MAX_CARD_MASTERY,
-  PROPOSED_MASTERY_LADDER,
+  MASTERY_LADDER,
   ascensionRankForStage,
   copiesToReachStage,
   getCardMasteryView,
@@ -41,52 +41,53 @@ const noLevels = sanitizeHeroLevel(null);
 const noAscension = sanitizeAscension(null);
 
 describe('Card Mastery stage mapping', () => {
-  it('reads legacy Ascension rank 0..3 as Mastery I..IV and never invents Mastery V', () => {
-    expect([0, 1, 2, 3].map(stageFromAscensionRank)).toEqual([1, 2, 3, 4]);
-    expect(stageFromAscensionRank(99)).toBe(MAX_CARD_MASTERY - 1);
+  it('reads the stored Ascension rank 0..4 as Mastery I..V', () => {
+    expect([0, 1, 2, 3, 4].map(stageFromAscensionRank)).toEqual([1, 2, 3, 4, 5]);
+    expect(stageFromAscensionRank(99)).toBe(MAX_CARD_MASTERY);
     expect(stageFromAscensionRank(-2)).toBe(1);
     expect(stageFromAscensionRank(Number.NaN)).toBe(1);
-    expect([1, 2, 3, 4].map(ascensionRankForStage)).toEqual([0, 1, 2, 3]);
+    expect([1, 2, 3, 4, 5].map(ascensionRankForStage)).toEqual([0, 1, 2, 3, 4]);
   });
-  it('agrees with the label the existing Ascension panel already shows', () => {
-    for (const rank of [0, 1, 2, 3]) expect(masteryLabel(stageFromAscensionRank(rank))).toBe(ascensionLabel(rank));
+  it('agrees with the label the Mastery panel shows', () => {
+    for (const rank of [0, 1, 2, 3, 4]) expect(masteryLabel(stageFromAscensionRank(rank))).toBe(ascensionLabel(rank));
     expect(masteryLabel(0)).toBe('');
   });
 });
 
 describe('getCardMasteryView', () => {
   it('an unowned card has no stage and cannot advance', () => {
-    const v = getCardMasteryView('kng-royal-guard', { owned: {}, ascension: noAscension, levels: noLevels });
+    const v = getCardMasteryView('kng-royal-guard', { owned: {}, ascension: noAscension });
     expect(v).toMatchObject({ owned: false, copies: 0, stage: 0, label: '', canAdvance: false, nextStage: null, pips: { filled: 0, total: 5 } });
   });
-  it('an owned card with a path shows its stage, the next cost and what is spare', () => {
+  it('an owned card shows its stage, the next cost and what is spare', () => {
     const ascension = sanitizeAscension({ cards: { 'kng-royal-guard': { rank: 1, duplicatesSpent: 1 } } });
-    const v = getCardMasteryView('kng-royal-guard', { owned: { 'kng-royal-guard': 8 }, ascension, levels: noLevels });
-    expect(v).toMatchObject({ owned: true, copies: 8, stage: 2, label: 'Mastery II', hasPath: true, maxStage: 4, duplicatesInvested: 1, nextStage: 3, nextCost: ASCENSION_DUPLICATE_COST[1], canAdvance: true });
+    const v = getCardMasteryView('kng-royal-guard', { owned: { 'kng-royal-guard': 8 }, ascension, gold: 0 });
+    expect(v).toMatchObject({ owned: true, copies: 8, stage: 2, label: 'Mastery II', hasPath: true, maxStage: 5, duplicatesInvested: 1, nextStage: 3, nextCost: ASCENSION_DUPLICATE_COST[1], nextGoldCost: 0, canAdvance: true });
     expect(v.pips).toEqual({ filled: 2, total: 5 });
   });
-  it('a card at the top of its authored path stops at Mastery IV', () => {
-    const ascension = sanitizeAscension({ cards: { 'und-bone-soldier': { rank: 3, duplicatesSpent: 6 } } });
-    const v = getCardMasteryView('und-bone-soldier', { owned: { 'und-bone-soldier': 2 }, ascension, levels: noLevels });
-    expect(v).toMatchObject({ stage: 4, nextStage: null, nextCost: null, canAdvance: false, duplicatesInvested: 6 });
+  it('Mastery IV and V add their Gold fee to the next cost', () => {
+    const ascension = sanitizeAscension({ cards: { 'kng-royal-guard': { rank: 2, duplicatesSpent: 3 } } });
+    const poor = getCardMasteryView('kng-royal-guard', { owned: { 'kng-royal-guard': 8 }, ascension, gold: 100 });
+    expect(poor).toMatchObject({ nextStage: 4, nextCost: 3, nextGoldCost: 500, canAdvance: false });
+    expect(poor.blockedReason).toMatch(/500 Gold/);
+    expect(getCardMasteryView('kng-royal-guard', { owned: { 'kng-royal-guard': 8 }, ascension, gold: 500 }).canAdvance).toBe(true);
   });
-  it('a card with no path is Mastery I, keeps its duplicates and says so plainly', () => {
-    const v = getCardMasteryView('kng-common-knight', { owned: { 'kng-common-knight': 4 }, ascension: noAscension, levels: noLevels });
-    expect(v).toMatchObject({ stage: 1, hasPath: false, maxStage: 1, copies: 4, canAdvance: false });
-    expect(v.blockedReason).toMatch(/Extra copies stay in your collection/);
+  it('a card at Mastery V stops there', () => {
+    const ascension = sanitizeAscension({ cards: { 'und-bone-soldier': { rank: 4, duplicatesSpent: 10 } } });
+    const v = getCardMasteryView('und-bone-soldier', { owned: { 'und-bone-soldier': 2 }, ascension });
+    expect(v).toMatchObject({ stage: 5, nextStage: null, nextCost: null, canAdvance: false, duplicatesInvested: 10 });
   });
-  it('reports the legacy Level without converting it', () => {
-    const levels = sanitizeHeroLevel({ levels: { 'kng-royal-guard': 31 } });
-    const v = getCardMasteryView('kng-royal-guard', { owned: { 'kng-royal-guard': 1 }, ascension: noAscension, levels });
-    expect(v.legacyLevel).toBe(31);
-    expect(v.stage).toBe(1);
+  it('every collectible card has the path, Spells included', () => {
+    expect(getCardMasteryView('kng-common-knight', { owned: { 'kng-common-knight': 4 }, ascension: noAscension })).toMatchObject({ stage: 1, hasPath: true, maxStage: 5, copies: 4 });
+    expect(getCardMasteryView('spl-power-surge', { owned: { 'spl-power-surge': 3 }, ascension: noAscension })).toMatchObject({ stage: 1, hasPath: true, maxStage: 5, nextStage: 2 });
   });
 });
 
-describe('proposed ladder', () => {
-  it('keeps the live Ascension costs for Mastery II-IV so a migrated save lands on the same stage', () => {
-    expect(PROPOSED_MASTERY_LADDER.slice(1, 4).map((s) => s.duplicateCost)).toEqual([...ASCENSION_DUPLICATE_COST]);
-    expect(PROPOSED_MASTERY_LADDER).toHaveLength(MAX_CARD_MASTERY);
+describe('the ladder', () => {
+  it('lists the live costs and the HP Contribution bonus of every stage', () => {
+    expect(MASTERY_LADDER.slice(1).map((s) => s.duplicateCost)).toEqual([...ASCENSION_DUPLICATE_COST]);
+    expect(MASTERY_LADDER.map((s) => s.hpcPct)).toEqual([0, 5, 10, 15, 20]);
+    expect(MASTERY_LADDER).toHaveLength(MAX_CARD_MASTERY);
   });
   it('is bounded: Mastery V needs 11 copies in total, not an open-ended grind', () => {
     expect([1, 2, 3, 4, 5].map(copiesToReachStage)).toEqual([1, 2, 4, 7, 11]);

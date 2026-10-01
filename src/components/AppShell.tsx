@@ -2,8 +2,6 @@ import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { Icon, type IconName } from './Icon';
 import { homeAttentionReady, navDots } from '../game/home/hubState';
 import { useCollection } from '../game/collection/useCollection';
-import { useAccount } from '../game/progression/useAccount';
-import { masteryPointsAvailable } from '../game/progression/account';
 import { anyAscensionReady } from '../game/home/hubState';
 import { getDailyShopGiftState, subscribeDailyShopGift } from '../game/shop/dailyGift';
 import { AttentionDot } from './AttentionIndicator';
@@ -38,14 +36,13 @@ const TABS: { id: TabId; label: string; icon: IconName }[] = [
 export function AppShell({ active, onNavigate, children }: { active: TabId; onNavigate: (tab: TabId) => void; children: ReactNode }) {
   // One aggregated Home marker covers claimable rewards and Profile access; Cards, Shop, and Ranked each have one marker.
   const owned = useCollection();
-  const account = useAccount();
   const gift = useSyncExternalStore(subscribeDailyShopGift, getDailyShopGiftState, getDailyShopGiftState);
   const ranked = useSyncExternalStore(subscribeRanked, getRanked, getRanked);
   const hub = useHubState();
   const missions = useMissions();
   const journey = useJourney();
   const liveEvent = useLiveEvent();
-  const dots = navDots({ canSummon: false, masteryPoint: masteryPointsAvailable(account) > 0, ascensionReady: anyAscensionReady(owned) });
+  const dots = navDots({ canSummon: false, masteryPoint: false, ascensionReady: anyAscensionReady(owned) });
   useEffect(() => {
     window.scrollTo(0, 0);
     const content = document.querySelector<HTMLElement>('.app-frame-content');
@@ -55,7 +52,7 @@ export function AppShell({ active, onNavigate, children }: { active: TabId; onNa
   const homeReady = homeAttentionReady({masteryPoint:dots.home,missionReward:dailyReady,journeyReward:journey.claimableDays.length>0,idleReward:hub.note?.kind==='idle',eventReward:(liveEvent?.claimable??0)>0});
   const shopReady = !gift.claimed && getGold()<MAX_GOLD;
   const rankedReady = readyRankRewards(ranked).length>0;
-  const dotFor: Partial<Record<TabId, string>> = { home: homeReady ? 'Reward or Tactic Point ready on Home' : '', heroes: dots.heroes ? 'Card Mastery available' : '', shop: shopReady ? 'Free Shop gift ready' : '', ranked: rankedReady ? 'Rank reward ready' : '' };
+  const dotFor: Partial<Record<TabId, string>> = { home: homeReady ? 'Reward ready on Home' : '', heroes: dots.heroes ? 'Card Mastery available' : '', shop: shopReady ? 'Free Shop gift ready' : '', ranked: rankedReady ? 'Rank reward ready' : '' };
   const previousDots = useRef<Record<string, boolean>>({});
   useEffect(()=>{ const states={home:homeReady,heroes:dots.heroes,shop:shopReady,ranked:rankedReady};for(const [destination,visible] of Object.entries(states)){if(visible&&!previousDots.current[destination])track('attention_indicator_shown',{destination});if(!visible&&previousDots.current[destination])track('attention_indicator_cleared',{destination});previousDots.current[destination]=visible;} },[homeReady,dots.heroes,shopReady,rankedReady]);
   return (

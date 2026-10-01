@@ -3,21 +3,17 @@ import type { Side } from '../../game/types';
 import { getCard } from '../../game/cards';
 import { CARD_LORE } from '../../game/cards/lore';
 import { cardCopyView } from '../../game/cards/cardCopy';
-import { cardEffects, cardTypeLine, FACTION_NAME, RARITY_NAME, type CardRules } from '../../game/cards/cardPresentation';
+import { cardTypeLine, FACTION_NAME, RARITY_NAME, type CardRules } from '../../game/cards/cardPresentation';
 import { useCollection } from '../../game/collection/useCollection';
 import { useAscension } from '../../game/ascension/useAscension';
-import { getAscensionRank } from '../../game/ascension/store';
 import { acquisitionSummary } from '../../game/collection/acquisition';
 import { productAcquisitionLines } from '../../game/collection/productSources';
 import { getCardMasteryView, masteryNumeral } from '../../game/cardMastery/model';
 import { MASTERY_HPC_PCT } from '../../game/cardCombat/stats';
-import { useHeroLevel } from '../../game/heroLevel/useHeroLevel';
-import { getHeroLevel } from '../../game/heroLevel/store';
 import { listDeckOptions } from '../../game/engine/deckOptions';
 import { loadPreferences } from '../../game/engine/preferences';
 import { track } from '../../analytics/track';
 import { AscensionPanel } from '../../pages/heroes/AscensionPanel';
-import { HeroLevelPanel } from '../../pages/heroes/HeroLevelPanel';
 import { MasteryPips } from '../../pages/heroes/MasteryPips';
 import { Icon } from '../Icon';
 import { Gems, Sigil } from '../CardParts';
@@ -84,26 +80,22 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
   const unit = card.type === 'hero';
   const collection = useCollection();
   const ascension = useAscension();
-  const levels = useHeroLevel();
   const copy = cardCopyView(cardId, collection, ascension);
   const rules: CardRules = battle?.rules ?? 'card';
   const inBattle = !!battle;
   const owned = inBattle || copy.owned;
   const masteryStage = battle ? (battle.rules === 'card' ? (battle.masteryStage ?? 1) : (battle.masteryRank ?? 0) + 1) : copy.masteryStage;
   const hpContribution = battle ? (battle.rules === 'card' ? battle.hpContribution : undefined) : copy.hpContribution;
-  const masteryView = getCardMasteryView(cardId, { owned: collection, ascension, levels });
-  const rank = getAscensionRank(cardId, ascension);
+  const masteryView = getCardMasteryView(cardId, { owned: collection, ascension });
   const lore = CARD_LORE[cardId];
   const deckLabel = onOpenDecks ? findDeckFor(cardId) : null;
-  // Card Mastery's added effects play only in battles that still use the classic (legacy) rules.
-  const classicMastery = !inBattle && copy.owned && rank > 0 ? cardEffects(card, { rules: 'legacy', masteryRank: rank }).filter((e) => e.mastery) : [];
   const overline = battle ? `${battle.owner === 'enemy' ? 'Enemy card' : 'Your card'} · this battle` : copy.owned ? 'In your collection' : 'A card to discover';
   const pct = MASTERY_HPC_PCT[Math.max(1, Math.min(5, copy.masteryStage)) - 1] ?? 0;
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: 0 });
     track('card_inspect_opened', { cardId, context, rarity: card.rarity });
-    if (context === 'collection') track('hero_detail_opened', { heroId: cardId, rarity: card.rarity, level: copy.owned ? getHeroLevel(cardId) : 0 });
+    if (context === 'collection') track('hero_detail_opened', { heroId: cardId, rarity: card.rarity, masteryStage: copy.owned ? copy.masteryStage : 0 });
     // Once per card shown, not per re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardId, context]);
@@ -163,7 +155,7 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
               <h2 className="hr-sheet-name">{card.name}</h2>
               {!inBattle && copy.owned && (
                 <span className="hr-sheet-powerline">
-                  {unit ? `${masteryView.label} · ` : ''}
+                  {`${masteryView.label} · `}
                   {copy.copies} {copy.copies === 1 ? 'copy' : 'copies'}
                 </span>
               )}
@@ -188,27 +180,17 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
             <CardStatsPanel card={card} rules={rules} atk={battle?.atk} hpContribution={hpContribution} masteryStage={masteryStage} owner={battle?.owner} masteryRank={battle?.masteryRank} />
             <CardEffectList card={card} rules={rules} masteryRank={battle?.rules === 'legacy' ? (battle.masteryRank ?? 0) : 0} />
 
-            {!inBattle && copy.owned && unit && (
+            {!inBattle && copy.owned && (
               <section className="ci-mastery" aria-label="Card Mastery">
                 <h3 className="ci-heading">Card Mastery</h3>
                 <div className="ci-mastery-head">
                   <MasteryPips view={masteryView} />
                   <span>
-                    {masteryView.label}
-                    {masteryView.hasPath ? ` of ${masteryNumeral(masteryView.maxStage)}` : ''} · HP Contribution {pct > 0 ? `+${pct}%` : 'as printed'}
+                    {masteryView.label} of {masteryNumeral(masteryView.maxStage)}
+                    {unit ? ` · HP Contribution ${pct > 0 ? `+${pct}%` : 'as printed'}` : ' · Collection mark'}
                   </span>
                 </div>
-                {classicMastery.length > 0 && (
-                  <p className="ci-classic">
-                    In battles that still use classic rules it also gains: {classicMastery.map((e) => `${e.label}: ${e.compact}`).join(' ')}
-                  </p>
-                )}
                 <AscensionPanel card={card} priority={masteryView.canAdvance} />
-                <details className="legacy-growth">
-                  <summary>Legacy Level · saved at {getHeroLevel(cardId, levels)}</summary>
-                  <p>Earlier Level progress is preserved while the bounded card progression migration is designed.</p>
-                  <HeroLevelPanel card={card} />
-                </details>
               </section>
             )}
 
@@ -220,12 +202,10 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
                     <dt>Copies owned</dt>
                     <dd>{copy.owned ? `×${copy.copies}` : 'Not collected yet'}</dd>
                   </div>
-                  {unit && (
-                    <div>
-                      <dt>Card Mastery</dt>
-                      <dd>{copy.owned ? masteryView.label : 'Starts at Mastery I'}</dd>
-                    </div>
-                  )}
+                  <div>
+                    <dt>Card Mastery</dt>
+                    <dd>{copy.owned ? masteryView.label : 'Starts at Mastery I'}</dd>
+                  </div>
                   <div>
                     <dt>How to get it</dt>
                     <dd>{[acquisitionSummary(cardId).replaceAll('Summon ·', 'Pack set ·'), ...productAcquisitionLines(cardId)].join(' / ')}</dd>

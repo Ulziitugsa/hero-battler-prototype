@@ -23,6 +23,7 @@ export type AnalyticsEventName =
   | 'hero_upgrade_blocked'
   | 'hero_ascended'
   | 'ascension_completed'
+  | 'legacy_level_refunded'
   | 'milestone_animation_shown'
   | 'post_loss_action_selected'
   | 'post_win_action_selected'

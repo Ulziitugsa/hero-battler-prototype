@@ -248,3 +248,80 @@ describe('resolveRoundInternal', () => {
     expect(outcome.view.hostView.player.heroZones.left).toBeNull(); // the illegal play never landed
   });
 });
+
+// ---- card combat (the production resolver) -------------------------------------------------------------------
+
+const { createCardMatch, CARD_RESOLVER_VERSION, beginCardRound, resolveCardRound } = await import('../../src/game/cardCombat/engine.js');
+const { createMatch } = await import('../../src/game/engine/match.js');
+const { STARTER_DECKS } = await import('../../src/game/cards/starterDecks.js');
+const { orientStateForViewer } = await import('../../src/game/engine/perspective.js');
+
+function cardRow(overrides: Partial<MatchRow> = {}): MatchRow {
+  const { nextState } = createCardMatch({ seed: 99, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead });
+  return makeRow({ seed: 99, canonical_state: nextState, ...overrides });
+}
+
+function firstUnitPlay(state: GameState, side: 'player' | 'enemy') {
+  const hand = state[side].hand;
+  const unit = hand.find((h) => !h.cardId.startsWith('spl-'));
+  return unit ? { plays: [{ handId: unit.handId, cardId: unit.cardId, lane: 'center' as const }] } : { plays: [] };
+}
+
+describe('resolveRoundInternal on card combat', () => {
+  it('resolves a card match with the card resolver, continuing its own RNG stream, and keeps it a card match', async () => {
+    const row = cardRow();
+    const start = row.canonical_state;
+    const p = firstUnitPlay(start, 'player');
+    const e = firstUnitPlay(start, 'enemy');
+    fakeMatches = [{ ...row, player_action: p, enemy_action: e }];
+    fakePings = [{ match_id: 'm1', event_seq: 0 }];
+
+    const outcome = await resolveRoundInternal('m1', 1);
+    if (outcome.kind !== 'resolved') throw new Error('expected resolved');
+    // Exactly what the card resolver gives locally from the same state, actions and stream.
+    const local = resolveCardRound(start, p, e, start.rngState);
+    const expected = beginCardRound(local.nextState);
+    expect(fakeMatches[0].canonical_state).toEqual(expected.nextState);
+    expect(fakeMatches[0].canonical_state.combatModel).toBe('card');
+    expect(fakeMatches[0].canonical_state.cardCombat?.version).toBe(CARD_RESOLVER_VERSION);
+    // Both players' views come from the same canonical state, oriented and redacted per viewer.
+    expect(outcome.view.hostView).toEqual(orientStateForViewer(expected.nextState, 'player'));
+    expect(outcome.view.guestView).toEqual(orientStateForViewer(expected.nextState, 'enemy'));
+    expect(outcome.view.guestView.player.hp).toBe(expected.nextState.enemy.hp);
+    expect(outcome.view.hostEvents.some((ev) => ev.type === 'COMBAT' || ev.type === 'CLASH_DAMAGE' || ev.type === 'DIRECT_DAMAGE')).toBe(true);
+  });
+
+  it('an illegal card action is replaced by no plays, never resolved under legacy rules', async () => {
+    const row = cardRow();
+    fakeMatches = [{ ...row, player_action: { plays: [{ handId: 'nope', cardId: 'kng-paladin', lane: 'left' }] }, enemy_action: { plays: [] } }];
+    fakePings = [{ match_id: 'm1', event_seq: 0 }];
+    const outcome = await resolveRoundInternal('m1', 1);
+    expect(outcome.kind).toBe('resolved');
+    expect(fakeMatches[0].canonical_state.player.heroZones.left).toBeNull();
+    expect(fakeMatches[0].canonical_state.combatModel).toBe('card');
+  });
+
+  it('a match created before card combat keeps the legacy resolver to the end (old records stay readable and playable)', async () => {
+    const legacy = createMatch({ seed: 5, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead }).state;
+    fakeMatches = [makeRow({ seed: 5, canonical_state: legacy })];
+    fakePings = [{ match_id: 'm1', event_seq: 0 }];
+    const outcome = await resolveRoundInternal('m1', 1);
+    expect(outcome.kind).toBe('resolved');
+    expect(fakeMatches[0].canonical_state.combatModel).toBeUndefined();
+    expect(fakeMatches[0].canonical_state.cardCombat).toBeUndefined();
+    expect(fakeMatches[0].canonical_state.player.hp).toBeLessThanOrEqual(20);
+  });
+
+  it('a card match from another resolver version is refused (409) and left exactly as stored', async () => {
+    const row = cardRow();
+    const other = { ...row.canonical_state, cardCombat: { ...row.canonical_state.cardCombat!, version: CARD_RESOLVER_VERSION + 1 } };
+    fakeMatches = [{ ...row, canonical_state: other }];
+    fakePings = [{ match_id: 'm1', event_seq: 0 }];
+    const snapshot = structuredClone(other);
+    await expect(resolveRoundInternal('m1', 1)).rejects.toMatchObject({ status: 409 });
+    expect(fakeMatches[0].canonical_state).toEqual(snapshot);
+    expect(fakeMatches[0].status).toBe('AWAITING_ACTIONS'); // claim released, nothing rewritten
+    expect(fakeMatches[0].round_number).toBe(1);
+    expect(fakePings[0].event_seq).toBe(0);
+  });
+});

@@ -17,7 +17,7 @@ export interface CampaignObjectiveDef {
   /** Key into OBJECTIVE_CHECKS (progress.ts) - kept as a lookup key, not a function, so node content
    * stays plain serializable data. */
   check: string;
-  /** Threshold the check reads (e.g. round count, HP floor, overflow amount). Omit for checks with no parameter. */
+  /** Threshold the check reads (a round count, a share of Starting HP in percent, a Clash Damage total). Omit for checks with no parameter. */
   value?: number;
 }
 
@@ -31,6 +31,8 @@ export interface CampaignRewardDef {
   count?: number;
 }
 
+export type CampaignDifficulty = 'easy' | 'fair' | 'hard';
+
 export interface CampaignEncounterDef {
   foeName: string;
   foeFaction: Faction;
@@ -41,17 +43,20 @@ export interface CampaignEncounterDef {
   energyCost: number;
   /** The actual enemy deck the battle engine plays against - always a real, validated deck. */
   enemyDeckFaction: StarterFaction;
-  /** Overrides the match's starting HP (createMatch's own `startingHp` option) - a real mechanical
-   * effect, not flavor text, e.g. the challenge node's "start at 12 health instead of 20". */
-  startingHp?: number;
   /**
-   * Commercial Prototype Phase 3 - a suggested Roster Power (game/heroLevel/rosterPower.ts), shown
-   * alongside the player's own current Roster Power on the stage preview as a neutral "here's roughly
-   * where you should be" comparison. Deliberately NOT an enforced gate: a strong deck/placement can still
-   * clear a stage below the recommendation, and the UI must never imply otherwise (see StagePreviewSheet).
-   * Omit for nodes where the comparison isn't meaningful (story/reward nodes have no encounter at all).
+   * The encounter's designed difficulty, shown on the stage sheet as Easy / Fair / Hard. Authored from simulation on
+   * the production card resolver (scripts/simulate-modes.mjs: the card AI piloting the Kingdom starter at Mastery I wins
+   * an Easy node about 80% of the time or more, a Fair one about 55-80%, a Hard one less). A description of the
+   * encounter, not a prediction about the player's deck: one number can't capture deck synergy, so none is shown.
    */
-  recommendedRosterPower?: number;
+  difficulty: CampaignDifficulty;
+  /**
+   * Boss HP pool: the enemy's Starting HP in place of its deck's own total (docs/CARD-COMBAT-DESIGN.md 12.7). A boss is
+   * a player-like side with a large HP pool and a scripted deck; its Units still have no HP. Omit for a normal deck.
+   */
+  enemyStartingHp?: number;
+  /** Challenge rule: the player starts at this percentage of their deck's Starting HP (a real mechanical effect). */
+  playerStartingHpPct?: number;
   modifier?: { title: string; text: string };
   objectives: CampaignObjectiveDef[];
   firstClearReward: CampaignRewardDef;

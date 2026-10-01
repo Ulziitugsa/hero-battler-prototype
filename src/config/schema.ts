@@ -29,6 +29,8 @@ export interface EconomyConfig {
   campaignWinGold: Record<string, number>;
   quickBattleWinGold: number;
   quickBattleDrawGold: number;
+  /** Gold paid on top of the duplicates to reach Mastery II..V (index 0 = Mastery II). See ascension/config.ts. */
+  masteryGoldFee: number[];
 }
 
 export interface SummonConfig {
@@ -60,8 +62,6 @@ export interface CampaignConfig {
   energyRegenAmount: number;
   /** node id -> energy cost, by node type default (battle/elite/boss/challenge/story/reward). */
   nodeEnergyCostByType: Record<string, number>;
-  /** Campaign node id -> a recommendedRosterPower override (see file header). Absent = the node's own authored value in chapter1.ts. */
-  recommendedPowerOverrides: Record<string, number>;
 }
 
 export interface IdleRewardsConfig {

@@ -6,8 +6,7 @@ import { goldCostForLevelUp, heroLevelCapForAccount } from '../game/heroLevel/co
 import { goldPerHour } from '../game/campaign/idleRewards';
 import { summonCost } from '../game/summon/summon';
 import { getPool } from '../game/summon/pool';
-import { recommendedPowerFor } from '../game/campaign/progress';
-import { CHAPTER_1 } from '../game/campaign/chapter1';
+import { masteryGoldFee } from '../game/ascension/ascend';
 import { claimMission, setMissionProgress } from '../game/missions/store';
 import { claimJourneyDay } from '../game/journey/store';
 import { reloadCollection } from '../game/collection/collection';
@@ -78,26 +77,20 @@ describe('summon/summon.ts summonCost reads live config for Tickets', () => {
   });
 });
 
-describe('Campaign recommendedPowerFor - config override map', () => {
-  it('an override replaces a specific node\'s recommendation without touching chapter1.ts', () => {
-    const node = CHAPTER_1.nodes.find((n) => n.encounter?.recommendedRosterPower !== undefined)!;
-    const authored = node.encounter!.recommendedRosterPower!;
-    expect(recommendedPowerFor(node)).toBe(authored);
-    setConfigProvider(createLocalProvider({ campaign: { recommendedPowerOverrides: { [node.id]: authored + 500 } } }));
-    expect(recommendedPowerFor(node)).toBe(authored + 500);
-  });
-  it('a node with no override and no authored value stays undefined', () => {
-    const storyNode = CHAPTER_1.nodes.find((n) => n.type === 'story')!;
-    expect(recommendedPowerFor(storyNode)).toBeUndefined();
+describe('Card Mastery Gold fee - config', () => {
+  it('a provider override changes the Mastery IV / V fee without a release', () => {
+    expect(masteryGoldFee(3)).toBe(500);
+    setConfigProvider(createLocalProvider({ economy: { masteryGoldFee: [0, 0, 250, 900] } }));
+    expect([1, 2, 3, 4].map(masteryGoldFee)).toEqual([0, 0, 250, 900]);
   });
 });
 
 describe('Missions - config reward override map', () => {
   it('claimMission grants the override amount instead of the definition\'s own reward', () => {
-    setMissionProgress('daily-hero-level', 1);
-    setConfigProvider(createLocalProvider({ missions: { rewardOverrides: { 'daily-hero-level': { gold: 5000 } } } }));
+    setMissionProgress('daily-battles', 3);
+    setConfigProvider(createLocalProvider({ missions: { rewardOverrides: { 'daily-battles': { gold: 5000 } } } }));
     const before = getEconomy().gold;
-    const r = claimMission('daily-hero-level');
+    const r = claimMission('daily-battles');
     expect(r.gold).toBe(5000);
     expect(getEconomy().gold).toBe(before + 5000);
   });

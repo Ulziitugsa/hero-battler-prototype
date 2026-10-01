@@ -15,7 +15,9 @@ import { replayUpTo } from '../engine/replay';
 import { ASCENSION_DUPLICATE_COST, MAX_ASCENSION_RANK } from './config';
 import { CARD_ASCENSIONS, getCardAscension, supportsAscension } from './definitions';
 import { effectiveAbilities, getEffectiveCardDefinition } from './effective';
-import { ascendCard, getAscensionStatus } from './ascend';
+import { ascendCard, getAscensionStatus, masteryGoldFee } from './ascend';
+import { hasMasteryPath } from './path';
+import { getGold, reloadEconomy, setGold } from '../economy/economy';
 import { ASCENSION_STORAGE_KEY, ascensionRanksFor, getAscensionRank, getAscensionState, getDuplicatesSpent, reloadAscension, resetAscension, sanitizeAscension, setAscensionRank } from './store';
 import { clearQueuedEvents, getQueuedEvents } from '../../analytics/track';
 
@@ -37,6 +39,7 @@ beforeEach(() => {
   installLocalStoragePolyfill();
   reloadCollection();
   reloadAscension();
+  reloadEconomy();
   clearQueuedEvents();
 });
 
@@ -60,12 +63,13 @@ describe('Ascension persistence', () => {
     reloadAscension();
     expect(getAscensionState().cards).toEqual({});
     const s = sanitizeAscension({ cards: { 'kng-royal-guard': { rank: 99, duplicatesSpent: -4 }, 'kng-common-knight': { rank: 2 }, ghost: { rank: 1 }, 'und-bone-soldier': { rank: 0 } } });
-    expect(s.cards).toEqual({ 'kng-royal-guard': { rank: MAX_ASCENSION_RANK, duplicatesSpent: 0 } }); // clamped; unsupported / unknown / rank-0 dropped
+    // clamped to Mastery V; every collectible card has the path now; unknown ids and rank-0 entries dropped
+    expect(s.cards).toEqual({ 'kng-royal-guard': { rank: MAX_ASCENSION_RANK, duplicatesSpent: 0 }, 'kng-common-knight': { rank: 2, duplicatesSpent: 0 } });
     expect(sanitizeAscension(null).cards).toEqual({});
   });
   it('a dev rank set is clamped to the card\'s path', () => {
     setAscensionRank('und-bone-soldier', 50);
-    expect(getAscensionRank('und-bone-soldier')).toBe(3);
+    expect(getAscensionRank('und-bone-soldier')).toBe(4); // Mastery V
     setAscensionRank('und-bone-soldier', 0);
     expect(getAscensionRank('und-bone-soldier')).toBe(0);
     resetAscension();
@@ -81,13 +85,20 @@ describe('Ascension persistence', () => {
 // ---- eligibility and spending ----------------------------------------------------------------
 
 describe('Ascension eligibility and spending', () => {
-  it('costs are a flat, centralised curve of 1 / 2 / 3 duplicates', () => {
-    expect(ASCENSION_DUPLICATE_COST).toEqual([1, 2, 3]);
-    expect(CARD_ASCENSIONS.every((c) => c.ranks.length === MAX_ASCENSION_RANK)).toBe(true);
+  it('costs are a flat, centralised curve of 1 / 2 / 3 / 4 duplicates up to Mastery V, plus Gold for IV and V', () => {
+    expect(ASCENSION_DUPLICATE_COST).toEqual([1, 2, 3, 4]);
+    expect(MAX_ASCENSION_RANK).toBe(4);
+    expect([1, 2, 3, 4].map(masteryGoldFee)).toEqual([0, 0, 500, 1500]);
+    // The legacy effect paths (historical resolver only) keep their three authored ranks.
+    expect(CARD_ASCENSIONS.every((c) => c.ranks.length === 3)).toBe(true);
   });
-  it('a card without an Ascension path is unsupported; a missing one is not owned', () => {
-    expect(getAscensionStatus('kng-common-knight')).toMatchObject({ supported: false, canAscend: false, blocked: 'unsupported', reason: 'Ascension coming later.' });
-    expect(supportsAscension('und-mira')).toBe(false);
+  it('every collectible card has a Mastery path; a card not owned yet is not owned; a non-roster id has none', () => {
+    expect(getAscensionStatus('kng-common-knight')).toMatchObject({ supported: true, maxRank: 4 });
+    expect(getAscensionStatus('spl-power-surge')).toMatchObject({ supported: true, maxRank: 4 });
+    expect(supportsAscension('und-mira')).toBe(false); // no legacy effect path...
+    expect(hasMasteryPath('und-mira')).toBe(true); // ...but the Mastery path
+    expect(hasMasteryPath('wld-forest-wolf')).toBe(false); // not a collectible card
+    expect(getAscensionStatus('wld-forest-wolf')).toMatchObject({ supported: false, blocked: 'unsupported' });
     expect(getAscensionStatus('und-bone-soldier')).toMatchObject({ blocked: 'not-owned', canAscend: false });
   });
   it('one copy cannot Ascend (the last usable copy is never spent)', () => {
@@ -115,13 +126,18 @@ describe('Ascension eligibility and spending', () => {
     expect(s).toMatchObject({ canAscend: false, blocked: 'no-spare', cost: 2 });
     expect(s.reason).toMatch(/spare cop/);
   });
-  it('spends the correct cost per rank and blocks at max rank', () => {
-    setCollection({ 'und-bone-soldier': 1 + 1 + 2 + 3 }); // enough for all three ranks
-    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: true, newRank: 1, spent: 1 });
-    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: true, newRank: 2, spent: 2 });
-    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: true, newRank: 3, spent: 3 });
+  it('spends the correct cost per rank, charges Gold for IV and V, and blocks at max rank', () => {
+    setCollection({ 'und-bone-soldier': 1 + 1 + 2 + 3 + 4 }); // enough copies for all four ranks
+    setGold(2000);
+    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: true, newRank: 1, spent: 1, goldSpent: 0 });
+    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: true, newRank: 2, spent: 2, goldSpent: 0 });
+    expect(getGold()).toBe(2000);
+    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: true, newRank: 3, spent: 3, goldSpent: 500 });
+    expect(getGold()).toBe(1500);
+    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: true, newRank: 4, spent: 4, goldSpent: 1500 });
+    expect(getGold()).toBe(0);
     expect(getOwnedCount('und-bone-soldier')).toBe(1); // one usable copy always remains
-    expect(getDuplicatesSpent('und-bone-soldier')).toBe(6);
+    expect(getDuplicatesSpent('und-bone-soldier')).toBe(10);
     const max = getAscensionStatus('und-bone-soldier');
     expect(max).toMatchObject({ canAscend: false, blocked: 'max-rank', nextRank: null, cost: null });
     expect(ascendCard('und-bone-soldier').ok).toBe(false);
@@ -442,20 +458,16 @@ describe('ascendCard analytics', () => {
     expect(asc).toHaveLength(1);
     expect(asc[0].properties).toMatchObject({ cardId: 'und-bone-soldier', rankBefore: 0, rankAfter: 1 });
   });
-  it('fires hero_star_changed when the Ascension rank crosses a star boundary', () => {
-    setCollection({ 'und-bone-soldier': 1 + 1 + 2 + 3 }); // enough for all three ranks
-    ascendCard('und-bone-soldier'); // rank 0 -> 1: stars 0 -> 2
-    const events = getQueuedEvents().filter((e) => e.name === 'hero_star_changed');
-    expect(events).toHaveLength(1);
-    expect(events[0].properties).toMatchObject({ cardId: 'und-bone-soldier', starsBefore: 0, starsAfter: 2 });
-  });
-  it('fires roster_power_changed with a positive delta', () => {
-    setCollection({ 'und-bone-soldier': 2 });
+  it('Mastery IV needs its Gold fee: without it, nothing is spent', () => {
+    setCollection({ 'und-bone-soldier': 1 + 1 + 2 + 3 });
+    setGold(0);
     ascendCard('und-bone-soldier');
-    const events = getQueuedEvents().filter((e) => e.name === 'roster_power_changed');
-    expect(events).toHaveLength(1);
-    expect(events[0].properties.source).toBe('ascension');
-    expect(events[0].properties.delta as number).toBeGreaterThan(0);
+    ascendCard('und-bone-soldier');
+    const s = getAscensionStatus('und-bone-soldier');
+    expect(s).toMatchObject({ canAscend: false, blocked: 'no-gold', nextRank: 3, cost: 3, goldCost: 500 });
+    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: false, spent: 0, goldSpent: 0 });
+    expect(getOwnedCount('und-bone-soldier')).toBe(4);
+    expect(getAscensionRank('und-bone-soldier')).toBe(2);
   });
   it('a failed Ascend (blocked) fires none of these events', () => {
     setCollection({ 'und-bone-soldier': 1 }); // no spare - blocked

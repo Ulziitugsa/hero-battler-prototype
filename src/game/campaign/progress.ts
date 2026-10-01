@@ -1,6 +1,5 @@
 import type { GameEvent, GameState } from '../types';
 import type { MatchStats } from '../engine/stats';
-import { STARTING_HP } from '../engine/constants';
 import type { CampaignNodeDef, CampaignObjectiveDef, CampaignRewardDef } from './types';
 import { CHAPTER_1 } from './chapter1';
 import { getCollection, grantCard } from '../collection/collection';
@@ -11,12 +10,6 @@ import type { XpGrantResult } from '../progression/types';
 import { grantGems, grantGold } from '../economy/economy';
 import { campaignFirstClearGems, campaignWinGold, chapterCompleteGems } from '../economy/rewards';
 import { track } from '../../analytics/track';
-import { getActiveDeck } from '../engine/activeDeck';
-import { getAccount } from '../progression/account';
-import { getHeroLevelState } from '../heroLevel/store';
-import { getAscensionState } from '../ascension/store';
-import { rosterPowerForDeck } from '../heroLevel/rosterPower';
-import { getConfig } from '../../config/config';
 
 // Campaign node-clearing progress. localStorage-only, following the same convention as
 // localDecks.ts/preferences.ts (try/catch-wrapped, sane defaults, never throws).
@@ -29,11 +22,8 @@ export interface CampaignProgress {
   objectivesMet: Record<string, string[]>;
   firstClearClaimed: string[];
   /**
-   * Commercial Prototype Phase 3 - the player's Roster Power at the moment of a LOSS on a node whose
-   * current Roster Power sat below its `recommendedRosterPower`. Kept only until the next win on that
-   * node (consumed then, whether or not Power actually rose) - this is a short-lived "was the player
-   * behind last time" flag for the campaign_upgrade_after_loss / campaign_return_win analytics, not a
-   * permanent record.
+   * Retired with Deck Strength (card combat migration): the old Roster Power at a loss, for analytics. Still read and
+   * written back unchanged so an old save round-trips, never set any more.
    */
   lastLossPower: Record<string, number>;
 }
@@ -58,11 +48,6 @@ export function loadProgress(): CampaignProgress {
   }
 }
 
-/** The active deck's current Roster Power, read fresh - see game/heroLevel/rosterPower.ts. Only meaningful for battle/challenge/elite/boss nodes. */
-function currentRosterPower(): number {
-  return rosterPowerForDeck(getActiveDeck().cardIds, getAccount().level, getHeroLevelState(), getAscensionState());
-}
-
 function saveProgress(progress: CampaignProgress): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
@@ -84,13 +69,8 @@ export function isNodeCleared(nodeId: string, progress: CampaignProgress): boole
   return progress.clearedNodes.includes(nodeId);
 }
 
-/** A node's recommended Roster Power (Commercial Prototype Phase 3), with a Phase 8 remote-config override
- * checked first - see config/schema.ts's CampaignConfig.recommendedPowerOverrides header note on why this
- * is an override map rather than moving the node's own authored value into config. Undefined when the
- * node has no encounter or no recommendation at all (story/reward nodes). */
-export function recommendedPowerFor(node: CampaignNodeDef): number | undefined {
-  return getConfig().campaign.recommendedPowerOverrides[node.id] ?? node.encounter?.recommendedRosterPower;
-}
+/** Player-facing words for an encounter's designed difficulty (types.ts CampaignEncounterDef.difficulty). */
+export const DIFFICULTY_LABEL = { easy: 'Easy', fair: 'Fair', hard: 'Hard' } as const;
 
 /** A node is reachable once every node it `requires` is cleared - the optional challenge spur requires
  * exactly one main-road node and never appears in anything else's `requires`, so clearing it or not
@@ -126,13 +106,24 @@ export interface ObjectiveContext {
   playerDeckFaction: string;
 }
 
+/** The HP the player started this match with (card combat's STARTING_HP event: the deck's total, or a challenge rule's). */
+export function playerStartingHp(events: readonly GameEvent[]): number | null {
+  const start = events.find((e): e is Extract<GameEvent, { type: 'STARTING_HP' }> => e.type === 'STARTING_HP' && e.side === 'player');
+  return start ? start.hp : null;
+}
+
 const OBJECTIVE_CHECKS: Record<string, (ctx: ObjectiveContext, value: number | undefined) => boolean> = {
   roundsWithin: (ctx, value) => value !== undefined && ctx.stats.roundsPlayed <= value,
-  healthAtLeast: (ctx, value) => value !== undefined && ctx.stats.finalPlayerHp >= value,
+  /** Final HP is at least `value` percent of the HP the player started the match with. */
+  healthPctAtLeast: (ctx, value) => {
+    const start = playerStartingHp(ctx.events);
+    return value !== undefined && start !== null && start > 0 && ctx.stats.finalPlayerHp * 100 >= value * start;
+  },
   noHeroLost: (ctx) => !ctx.events.some((e) => e.type === 'HERO_DESTROYED' && e.side === 'player'),
-  overflowDealtAtLeast: (ctx, value) => {
+  /** Clash Damage (winner ATK - loser ATK) the player's winning Units dealt to the enemy, in total. */
+  clashDamageDealtAtLeast: (ctx, value) => {
     if (value === undefined) return false;
-    const dealt = ctx.events.filter((e) => e.type === 'OVERFLOW_DAMAGE' && e.side === 'enemy').reduce((sum, e) => sum + (e as Extract<GameEvent, { type: 'OVERFLOW_DAMAGE' }>).amount, 0);
+    const dealt = ctx.events.filter((e): e is Extract<GameEvent, { type: 'CLASH_DAMAGE' }> => e.type === 'CLASH_DAMAGE' && e.side === 'enemy').reduce((sum, e) => sum + e.amount, 0);
     return dealt >= value;
   },
   deckFactionKingdom: (ctx) => ctx.playerDeckFaction === 'kingdom',
@@ -204,26 +195,6 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
   let gems = 0;
   let gold = 0;
 
-  // Commercial Prototype Phase 3: was the player under the node's recommended Roster Power for this
-  // attempt? Computed once and reused by both the loss-tracking and the win/return-win branches below.
-  const recommended = recommendedPowerFor(node);
-  const power = recommended !== undefined ? currentRosterPower() : null;
-  const wasBehind = power !== null && recommended !== undefined && power < recommended;
-  if (wasBehind && power !== null && recommended !== undefined) {
-    // Commercial Prototype Phase 9: fires on every ATTEMPT made under the recommendation, win or lose -
-    // broader than campaign_loss_at_power_deficit below, which only fires on a loss.
-    track('campaign_power_wall_encountered', { nodeId, nodeType: node.type, currentPower: power, recommended, deficit: recommended - power });
-  }
-  // Commercial Prototype Phase 9: was this attempt a RETRY of a node the player previously lost while
-  // behind the recommendation - regardless of whether this attempt wins or loses. Broader than
-  // campaign_upgrade_after_loss/campaign_return_win below, which only fire on a win that also gained
-  // Power - this fires on every retry, so "did they come back at all" is measurable even when the retry
-  // fails again or succeeds on strategy alone without a Power gain.
-  const priorLossPower = progress.lastLossPower[nodeId];
-  if (priorLossPower !== undefined) {
-    track('campaign_retry_after_power_wall', { nodeId, lossPower: priorLossPower, retryPower: power ?? undefined, won });
-  }
-
   if (won) {
     progress.objectivesMet[nodeId] = [...alreadyMet];
     if (!wasCleared) progress.clearedNodes = [...progress.clearedNodes, nodeId];
@@ -231,17 +202,6 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
     // firstClearClaimed bookkeeping the rest of Campaign uses) - a replay finds wasCleared true and grants nothing.
     const claimNew = isFirstClear && !progress.firstClearClaimed.includes(nodeId);
     if (claimNew) progress.firstClearClaimed = [...progress.firstClearClaimed, nodeId];
-    // A previous loss on this node recorded a Power deficit - consumed on the next win regardless of
-    // outcome, so it can never linger and misfire on some unrelated later win.
-    if (priorLossPower !== undefined) {
-      const rest = { ...progress.lastLossPower };
-      delete rest[nodeId];
-      progress.lastLossPower = rest;
-      if (power !== null && power > priorLossPower) {
-        track('campaign_upgrade_after_loss', { nodeId, lossPower: priorLossPower, winPower: power, powerGain: power - priorLossPower });
-        track('campaign_return_win', { nodeId, lossPower: priorLossPower, winPower: power });
-      }
-    }
     saveProgress(progress);
     if (claimNew) granted = grantReward(node.encounter.firstClearReward);
     gems = grantCampaignGems(node, claimNew, chapterWasComplete, isChapterComplete(progress));
@@ -249,13 +209,9 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
     // keep replaying a finished chapter (see docs/COMMERCIAL-PROTOTYPE-PLAN.md Phase 1).
     const goldAmount = campaignWinGold(node.type);
     gold = goldAmount > 0 ? grantGold(goldAmount, 'campaign').gained : 0;
-  } else if (wasBehind && power !== null) {
-    progress.lastLossPower = { ...progress.lastLossPower, [nodeId]: power };
-    saveProgress(progress);
-    track('campaign_loss_at_power_deficit', { nodeId, nodeType: node.type, currentPower: power, recommended: recommended ?? 0, deficit: (recommended ?? 0) - power });
   }
 
-  track(won ? 'campaign_won' : 'campaign_lost', { nodeId, nodeType: node.type, isFirstClear, roundsPlayed: stats.roundsPlayed, finalPlayerHp: stats.finalPlayerHp, rosterPower: power ?? undefined });
+  track(won ? 'campaign_won' : 'campaign_lost', { nodeId, nodeType: node.type, isFirstClear, roundsPlayed: stats.roundsPlayed, finalPlayerHp: stats.finalPlayerHp });
 
   return {
     node,
@@ -290,5 +246,3 @@ export function clearNonBattleNode(nodeId: string): { node: CampaignNodeDef; cha
   }
   return { node, chapterComplete: isChapterComplete(loadProgress()), ...granted, gems };
 }
-
-export { STARTING_HP };

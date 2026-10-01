@@ -3,7 +3,6 @@ import { getCard } from '../cards';
 import { PLAYTEST_ROSTER } from '../cards/roster';
 import { STARTER_DECKS } from '../cards/starterDecks';
 import { reloadAscension } from '../ascension/store';
-import { getCardAscension } from '../ascension/definitions';
 import { CHAPTER_1 } from '../campaign/chapter1';
 import { acquisitionSummary, getCardAcquisitionSources, getUnavailableCards, primaryAcquisitionLabel } from '../collection/acquisition';
 import { getCollection, getOwnedCount, reloadCollection, setCollection } from '../collection/collection';
@@ -359,9 +358,9 @@ describe('performSummon', () => {
       seen.set(p.cardId, n);
       expect(p.grant.isNew).toBe(n === 1);
       expect(p.grant.owned).toBe(n);
-      expect(p.hasAscensionPath).toBe(!!getCardAscension(p.cardId));
-      if (!p.hasAscensionPath) expect(p.starsAfter - p.starsBefore).toBe(n === 1 ? 0 : 1);
-      else expect(p.starsAfter).toBe(p.starsBefore); // Stars follow Ascension rank on authored paths.
+      expect(p.hasAscensionPath).toBe(true); // every collectible card has the Card Mastery path
+      // Stars are the Mastery stage: the first copy reaches Mastery I; a duplicate is spent by Mastery, never by a pull.
+      expect(p.starsAfter - p.starsBefore).toBe(n === 1 ? 1 : 0);
     }
   });
 
@@ -403,15 +402,12 @@ describe('performSummon', () => {
 });
 
 describe('performSummon duplicate analytics (Commercial Prototype Phase 9)', () => {
-  it('fires hero_star_changed when a duplicate crosses a star boundary for a card with no Ascension path', () => {
-    // kng-archer has no Ascension path - stars are copy-derived (2nd copy = 1 star, see ascension/stars.ts).
+  it('a duplicate never changes stars (they read the Card Mastery stage), so it fires no hero_star_changed', () => {
     setGems(1000);
     setCollection({ 'kng-archer': 1 });
     const seed = findSeed((s) => resolveSummon(vanguard, { pity: 0 }, s).cardId === 'kng-archer');
     performSummon('single', 'royal-vanguard', seed);
-    const events = getQueuedEvents().filter((e) => e.name === 'hero_star_changed');
-    expect(events).toHaveLength(1);
-    expect(events[0].properties).toMatchObject({ cardId: 'kng-archer', starsBefore: 0, starsAfter: 1, source: 'summon' });
+    expect(getQueuedEvents().filter((e) => e.name === 'hero_star_changed')).toHaveLength(0);
   });
   it('a brand-new card (not a duplicate) fires no hero_star_changed', () => {
     setGems(1000);

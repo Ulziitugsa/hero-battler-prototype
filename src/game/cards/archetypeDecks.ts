@@ -14,16 +14,18 @@ function expand(entries: [string, number][]): string[] {
 
 export type ArchetypeDeckId = 'mage' | 'mage-slayer' | 'beast' | 'trickster' | 'general';
 
-/** Spell-centric control: cheap triggers on Heroes, chip damage, wards and stalls, closed out by Archmage Vael. */
+/** Spell-centric control: cheap triggers on Heroes, chip damage, wards and stalls, closed out by Archmage Vael. The
+ * 8-Unit rebuild approved in the balance pass (docs/CARD-COMBAT-DESIGN.md section 14, cardSim/controlPass.ts). */
 const MAGE: string[] = expand([
   ['kng-apprentice-mage', 2],
   ['und-grave-sage', 2],
   ['kng-archmage-vael', 1],
   ['kng-royal-guard', 2],
+  ['kng-light-priest', 1],
   ['spl-arcane-bolt', 2],
-  ['spl-aegis-ward', 2],
+  ['spl-aegis-ward', 1],
   ['spl-stasis-field', 2],
-  ['spl-ward-circle', 1],
+  ['spl-fireball', 1],
   ['spl-weakness', 1],
 ]);
 

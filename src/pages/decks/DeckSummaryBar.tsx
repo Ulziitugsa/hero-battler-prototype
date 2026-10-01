@@ -1,10 +1,9 @@
 import { Icon } from '../../components/Icon';
 import { Sigil } from '../../components/CardParts';
-import { STARTING_HP } from '../../game/engine/constants';
 import type { DeckSummary } from '../../game/decks/deckSummary';
 import { plural } from './deckStatus';
 
-export const STARTING_HP_HELP = `Total HP Contribution of your Units. Preview only: battles still start at ${STARTING_HP} HP.`;
+export const STARTING_HP_HELP = 'Your HP at the start of every battle: the HP Contribution of all your Units, Card Mastery included.';
 
 const nf = new Intl.NumberFormat('en-US');
 

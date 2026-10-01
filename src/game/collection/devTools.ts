@@ -13,9 +13,8 @@ import { performSummon } from '../summon/summon';
 import { SUMMON_BANNERS } from '../summon/banners';
 import { forceNextRarity } from '../summon/devControls';
 import type { Rarity } from '../types';
-import { getHeroLevelStatus, levelUpHero } from '../heroLevel/levelUp';
-import { getHeroLevelState, resetHeroLevels, setHeroLevel } from '../heroLevel/store';
-import { rosterPowerForDeck } from '../heroLevel/rosterPower';
+import { resetHeroLevels, setHeroLevel } from '../heroLevel/store';
+import { resetSaveMigrations, runSaveMigrations } from '../save/migrations';
 import { claimIdleReward, loadIdleReward, resetIdleRewards } from '../campaign/idleRewards';
 import { claimMission, getMissionsState, resetMissions, setMissionProgress } from '../missions/store';
 import { claimJourneyDay, getJourneyState, resetJourney } from '../journey/store';
@@ -54,12 +53,12 @@ export const devTools = {
   setGold: (amount: number) => setGold(amount),
   addTickets: (amount: number) => grantTickets(amount, 'dev'),
   setTickets: (amount: number) => setTickets(amount),
-  // ---- Hero Level / Roster Power ----
-  heroLevel: (cardId: string) => getHeroLevelStatus(cardId),
+  // ---- Legacy Hero Level (save data only: no effect anywhere; refunded once by save/migrations.ts) ----
   setHeroLevel: (cardId: string, level: number) => setHeroLevel(cardId, level),
-  levelUpHero: (cardId: string) => levelUpHero(cardId),
   resetHeroLevels: () => resetHeroLevels(),
-  rosterPower: (cardIds: string[], accountLevel: number) => rosterPowerForDeck(cardIds, accountLevel, getHeroLevelState(), getAscensionState()),
+  // ---- Save migration ----
+  runSaveMigrations: () => runSaveMigrations(),
+  resetSaveMigrations: () => resetSaveMigrations(),
   // ---- Idle rewards ----
   idleReward: () => loadIdleReward(),
   claimIdle: () => claimIdleReward(),

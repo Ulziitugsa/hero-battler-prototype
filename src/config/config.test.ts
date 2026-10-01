@@ -96,7 +96,7 @@ describe('the schema shape covers every candidate value named in the brief', () 
     expect(cfg.summon.ticketCostSingle).toBeTypeOf('number');
     expect(cfg.summon.pityThreshold).toBeTypeOf('number');
     expect(cfg.summon.featuredMainMultiplier).toBeTypeOf('number');
-    expect(cfg.campaign.recommendedPowerOverrides).toBeTypeOf('object');
+    expect(cfg.economy.masteryGoldFee).toEqual([0, 0, 500, 1500]);
     expect(cfg.economy.campaignFirstClearGems).toBeTypeOf('object');
     expect(cfg.idle.goldPerHourBase).toBeTypeOf('number');
     expect(cfg.idle.capHours).toBeTypeOf('number');

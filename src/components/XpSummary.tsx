@@ -1,11 +1,10 @@
-import { MASTERIES } from '../game/mastery/definitions';
 import type { XpGrantResult } from '../game/progression/types';
 import { Icon } from './Icon';
 import { GemAmount } from './GemIcon';
 import { GoldAmount } from './GoldIcon';
 import '../styles/rewardCard.css';
 
-/** Compact "what did that match give my account" strip, shared by the Campaign result sheet and the Quick Battle summary: +XP, a level-up, any Tactic unlocked, any Tactic Point earned. One line each, only when they apply. */
+/** Compact "what did that match give my account" strip, shared by the Campaign result sheet and the Quick Battle summary: +XP, Gems, Gold and a level-up. One line each, only when they apply. (Account Tactics belong to the legacy resolver and are no longer shown.) */
 export function XpSummary({ xp, gems = 0, gold = 0 }: { xp: XpGrantResult | null; gems?: number; gold?: number }) {
   const hasXp = !!xp && xp.gained > 0;
   const totalGems = gems + (xp?.gemsGained ?? 0);
@@ -24,18 +23,6 @@ export function XpSummary({ xp, gems = 0, gold = 0 }: { xp: XpGrantResult | null
         <span className="xp-pill level">
           <Icon name="trophy" size={13} />
           Account Level up · {xp.levelAfter}
-        </span>
-      )}
-      {hasXp && xp.masteriesUnlocked.map((id) => (
-        <span key={id} className="xp-pill mastery">
-          <Icon name="hero" size={13} />
-          {MASTERIES[id].name} Tactic unlocked
-        </span>
-      ))}
-      {hasXp && xp.masteryPointsGained > 0 && (
-        <span className="xp-pill point">
-          <Icon name="plus" size={13} />
-          {xp.masteryPointsGained} Tactic Point{xp.masteryPointsGained === 1 ? '' : 's'}
         </span>
       )}
     </div>

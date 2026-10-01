@@ -1,6 +1,8 @@
 # Moonwater collection and progression reframe
 
-Status: **terminology applied on Home, Collection chrome and Profile; Card Mastery read model implemented; migration and Faction progression designed only.** Combat, economy costs and saved data are unchanged.
+Status: **superseded in part on 2026-10-01 by the card-combat default (CARD-COMBAT-DESIGN.md section 16.5).** Card Mastery I–V is now the only card progression, on every collectible card: duplicates 1 / 2 / 3 / 4 plus 500 Gold (IV) and 1,500 Gold (V); a Unit gains HP Contribution +5 / 10 / 15 / 20%, never ATK; a Spell's Mastery is a collection mark. Legacy Level is retired from combat and UI, its Gold refunded once (`save/migrations.ts`). Deck Strength and Roster Power are removed; Home shows Starting HP and the next battle's difficulty. Tactics are hidden from the UI with their data kept. Renown stays design only. The audit below is the earlier record.
+
+Earlier status: terminology applied on Home, Collection chrome and Profile; Card Mastery read model implemented; migration and Faction progression designed only.
 
 This is Thread D of the collectible-card direction pass. It builds on [CARD-COMBAT-DESIGN.md](CARD-COMBAT-DESIGN.md) (which already renamed Ascension to "Card Mastery" on the inspect surface) and does not repeat it.
 

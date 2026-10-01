@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { grantCard, reloadCollection, setCollection } from '../collection/collection';
+import { getOwnedCount, reloadCollection, setCollection } from '../collection/collection';
 import { ascendCard } from './ascend';
-import { reloadAscension } from './store';
-import { CARD_ASCENSIONS } from './definitions';
+import { reloadAscension, setAscensionRank } from './store';
+import { PLAYTEST_ROSTER } from '../cards/roster';
 import { MAX_STARS, starsForCard, starsForNextRank } from './stars';
 
 function installLocalStoragePolyfill() {
@@ -25,71 +25,37 @@ beforeEach(() => {
   reloadAscension();
 });
 
-// This is the duplicate-progression decision gate's Model B, verified: Stars are a pure readout over
-// Ascension state, never a second store, never a second spend. See
-// docs/COMMERCIAL-PROTOTYPE-PLAN.md's Phase 2 section for the reasoning.
+// Stars are a pure readout of Card Mastery: 0 unowned, then the Mastery stage (1..5). Never a second store, never a spend.
 
-describe('Stars for a card WITH an Ascension path (6 of 52 cards)', () => {
-  it('is 0 unowned, and tracks Ascension rank 1:1 in star terms once owned', () => {
+describe('Stars read Card Mastery', () => {
+  it('is 0 unowned and the Mastery stage once owned', () => {
+    setCollection({});
     expect(starsForCard('und-bone-soldier')).toBe(0);
     setCollection({ 'und-bone-soldier': 1 });
-    expect(starsForCard('und-bone-soldier')).toBe(0); // owned, Base rank - zero stars until Ascended
-    setCollection({ 'und-bone-soldier': 1 + 1 + 2 + 3 }); // enough for all three ranks
-    ascendCard('und-bone-soldier');
-    expect(starsForCard('und-bone-soldier')).toBe(2); // rank 1 of 3 -> round(1/3*5)
-    ascendCard('und-bone-soldier');
-    expect(starsForCard('und-bone-soldier')).toBe(3); // rank 2 of 3 -> round(2/3*5)
-    ascendCard('und-bone-soldier');
-    expect(starsForCard('und-bone-soldier')).toBe(MAX_STARS); // rank 3 of 3 -> full 5 stars
+    expect(starsForCard('und-bone-soldier')).toBe(1);
+    setAscensionRank('und-bone-soldier', 2);
+    expect(starsForCard('und-bone-soldier')).toBe(3);
+    setAscensionRank('und-bone-soldier', 4);
+    expect(starsForCard('und-bone-soldier')).toBe(MAX_STARS);
   });
-  it('spends nothing of its own - Ascending is the only spend, Stars just reads the result', () => {
+  it('spends nothing of its own and a pulled duplicate does not change it', () => {
     setCollection({ 'und-bone-soldier': 2 });
-    const before = starsForCard('und-bone-soldier');
-    expect(before).toBe(0);
-    // Reading stars repeatedly changes nothing
-    starsForCard('und-bone-soldier');
-    starsForCard('und-bone-soldier');
-    expect(starsForCard('und-bone-soldier')).toBe(before);
+    expect(starsForCard('und-bone-soldier')).toBe(1);
+    setCollection({ 'und-bone-soldier': 5 });
+    expect(starsForCard('und-bone-soldier')).toBe(1);
+    expect(getOwnedCount('und-bone-soldier')).toBe(5);
+    expect(ascendCard('und-bone-soldier').ok).toBe(true);
+    expect(starsForCard('und-bone-soldier')).toBe(2);
   });
-  it('starsForNextRank previews what Ascending would be worth, without spending', () => {
-    setCollection({ 'und-bone-soldier': 2 });
-    expect(starsForNextRank('und-bone-soldier')).toBe(2); // Base -> rank 1 is worth 2 stars
-    expect(starsForCard('und-bone-soldier')).toBe(0); // unspent - the preview did not apply anything
-  });
-  it('starsForNextRank is null at max rank', () => {
-    setCollection({ 'und-bone-soldier': 1 + 1 + 2 + 3 });
-    ascendCard('und-bone-soldier');
-    ascendCard('und-bone-soldier');
-    ascendCard('und-bone-soldier');
+  it('starsForNextRank previews the next stage and is null at Mastery V', () => {
+    setCollection({ 'und-bone-soldier': 1 });
+    expect(starsForNextRank('und-bone-soldier')).toBe(2);
+    setAscensionRank('und-bone-soldier', 4);
     expect(starsForNextRank('und-bone-soldier')).toBeNull();
+    expect(starsForNextRank('wld-forest-wolf')).toBeNull();
   });
-});
-
-describe('Stars for a card with NO Ascension path yet (46 of 52 cards)', () => {
-  // inf-flame-imp: Infernal, so it is never part of the default Kingdom-only starter collection - a
-  // clean "genuinely unowned" starting point (see collection/starterCollection.ts).
-  it('is a pure ownership readout: 2nd copy = 1 star, capped at MAX_STARS, spending nothing', () => {
-    expect(starsForCard('inf-flame-imp')).toBe(0);
-    grantCard('inf-flame-imp', 1); // 1 copy
-    expect(starsForCard('inf-flame-imp')).toBe(0);
-    grantCard('inf-flame-imp', 1); // 2 copies
-    expect(starsForCard('inf-flame-imp')).toBe(1);
-    grantCard('inf-flame-imp', 10); // 12 copies - capped, not unbounded
-    expect(starsForCard('inf-flame-imp')).toBe(MAX_STARS);
-  });
-  it('starsForNextRank is null (nothing to preview - there is no Ascension path to spend into)', () => {
-    grantCard('inf-flame-imp', 3);
-    expect(starsForNextRank('inf-flame-imp')).toBeNull();
-  });
-});
-
-describe('the two tracks never overlap', () => {
-  it('every card in the roster either has a path (rank-derived stars) or does not (copy-derived stars), never both rules at once', () => {
-    for (const def of CARD_ASCENSIONS) {
-      // A card with a path never falls back to the copy-derived formula, even with many spare copies.
-      setCollection({ [def.cardId]: 20 });
-      const withManyCopiesButBaseRank = starsForCard(def.cardId);
-      expect(withManyCopiesButBaseRank).toBe(0); // Base rank -> 0 stars, regardless of 20 copies sitting unspent
-    }
+  it('every roster card reads the same rule', () => {
+    setCollection(Object.fromEntries(PLAYTEST_ROSTER.map((id) => [id, 1])));
+    expect(PLAYTEST_ROSTER.every((id) => starsForCard(id) === 1)).toBe(true);
   });
 });

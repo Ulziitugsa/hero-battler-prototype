@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useFriendlyRoom } from '../net/useFriendlyRoom';
 import type { DeckSnapshot } from '../net/friendlyTypes';
+import { PRODUCTION_RULES } from '../game/combat/resolver';
 import { listDeckOptions } from '../game/engine/deckOptions';
 import { isDeckPlayable, getActiveDeck } from '../game/engine/activeDeck';
 import '../styles/friendly.css';
@@ -51,7 +52,7 @@ export function FriendlyBattlePage({ onBack }: { onBack: () => void }) {
   const selectedDeck = deckOptions.find((d) => d.id === selectedDeckId) ?? deckOptions[0];
 
   function buildDeckSnapshot(): DeckSnapshot {
-    return { cardIds: selectedDeck.cardIds };
+    return { cardIds: selectedDeck.cardIds, rules: PRODUCTION_RULES };
   }
 
   async function handleCreate() {

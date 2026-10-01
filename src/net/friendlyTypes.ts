@@ -1,9 +1,14 @@
 import type { GameEvent, GameState, PlayerAction, Side } from '../game/types';
+import type { MatchResolver } from '../game/combat/resolver';
 
 export type RoomStatus = 'WAITING' | 'READY' | 'IN_PROGRESS' | 'COMPLETE' | 'ABANDONED';
 
 export interface DeckSnapshot {
   cardIds: string[];
+  /** The combat rules this client plays (combat/resolver.ts PRODUCTION_RULES). The server builds a match only when both
+   * players' rules match its own, so two builds never resolve one match differently. Absent on clients before card combat. */
+  rules?: MatchResolver;
+  /** Legacy fields, never read since card combat: Friendly Battle plays every card at base strength (Mastery I). */
   masteryId?: string;
   masteryRank?: number;
   ascensions?: Record<string, number>;

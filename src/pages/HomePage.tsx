@@ -12,10 +12,11 @@ import { useHubState } from '../game/home/useHubState';
 import { useAccount } from '../game/progression/useAccount';
 import { claimIdleReward, idleRewardCycleId } from '../game/campaign/idleRewards';
 import { CHAPTER_1 } from '../game/campaign/chapter1';
-import { findNode, getCurrentNodeId, isNodeCleared, loadProgress, recommendedPowerFor } from '../game/campaign/progress';
-import { useHeroLevel } from '../game/heroLevel/useHeroLevel';
+import { DIFFICULTY_LABEL, findNode, getCurrentNodeId, isNodeCleared, loadProgress } from '../game/campaign/progress';
 import { useAscension } from '../game/ascension/useAscension';
-import { rosterPowerForDeck } from '../game/heroLevel/rosterPower';
+import { deckStartingHp } from '../game/cardCombat/stats';
+import { dismissRefundNotice, pendingRefundNotice } from '../game/save/migrations';
+import { playerMasteryStages } from '../game/cardCombat/mastery';
 import { track } from '../analytics/track';
 import { listMissions } from '../game/missions/store';
 import type { MissionsState } from '../game/missions/store';
@@ -27,8 +28,6 @@ import { getBanner } from '../game/summon/banners';
 import { SUMMON_CONFIG } from '../game/summon/config';
 import { pityDisplay } from '../game/summon/view';
 import { JOURNEY_DAYS } from '../game/journey/definitions';
-import { MasteryCrest } from '../components/MasteryCrest';
-import { MASTERIES, rankNumeral } from '../game/mastery/definitions';
 import { MAX_LEVEL, xpToNextLevel } from '../game/progression/config';
 import { CardArtwork } from '../components/CardArtwork';
 import { getDailyShopGiftState, subscribeDailyShopGift } from '../game/shop/dailyGift';
@@ -54,7 +53,6 @@ function rewardLabel(node: (typeof CHAPTER_1.nodes)[number]): string | null {
 export function HomePage(props: HomeProps) {
   const hub = useHubState();
   const account = useAccount();
-  const heroLevels = useHeroLevel();
   const ascensions = useAscension();
   const deck = getActiveDeck();
   const [inspect, setInspect] = useState<string | null>(null);
@@ -62,6 +60,7 @@ export function HomePage(props: HomeProps) {
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [idleClaimedGold, setIdleClaimedGold] = useState(0);
+  const [refund, setRefund] = useState(() => pendingRefundNotice());
   const closeMissions = useCallback(() => setMissionsOpen(false), []);
   const closeJourney = useCallback(() => setJourneyOpen(false), []);
   const missions = useMissions();
@@ -78,8 +77,10 @@ export function HomePage(props: HomeProps) {
   const currentNode = hub.campaign.nextName ? findNode(getCurrentNodeId(progress) ?? '') : undefined;
   const currentStep = currentNode ? mainRoadNodes.indexOf(currentNode) + 1 : mainRoadNodes.length;
   const nextEncounter = currentNode ? (currentNode.encounter ? currentNode : CHAPTER_1.nodes.slice(CHAPTER_1.nodes.indexOf(currentNode)).find(n => !n.optional && n.encounter)) : undefined;
-  const currentPower = rosterPowerForDeck(deck.cardIds, account.level, heroLevels, ascensions);
-  const recommended = nextEncounter ? recommendedPowerFor(nextEncounter) : undefined;
+  // The active deck's real Starting HP (the battle's own helper, Card Mastery included) and the next fight's authored
+  // difficulty. No single-number deck rating: one number can't capture what a deck does in a lane.
+  const startingHp = deckStartingHp(deck.cardIds, playerMasteryStages(deck.cardIds, ascensions)).total;
+  const nextDifficulty = nextEncounter?.encounter?.difficulty;
   const nextReward = (() => {
     const start = currentNode ? CHAPTER_1.nodes.indexOf(currentNode) : CHAPTER_1.nodes.length;
     for (const node of CHAPTER_1.nodes.slice(start)) {
@@ -101,10 +102,9 @@ export function HomePage(props: HomeProps) {
     return rarity[b.rarity] - rarity[a.rarity] || (b.power ?? 0) - (a.power ?? 0);
   })[0]?.id ?? deck.cardIds[0];
   const featureDefinition = featureCard ? getCard(featureCard) : null;
-  const mastery = account.equippedMasteryId ? MASTERIES[account.equippedMasteryId] : null;
   const xpNeed = xpToNextLevel(account.level);
   const xpPct = account.level >= MAX_LEVEL ? 100 : Math.round(account.xp / xpNeed * 100);
-  const powerRead = recommended === undefined ? null : currentPower >= recommended * 1.15 ? 'Favoured' : currentPower >= recommended * 0.9 ? 'Even' : 'Challenging';
+  const DIFFICULTY_TONE = { easy: 'favoured', fair: 'even', hard: 'challenging' } as const;
   const returnState = journey.claimableDays.length > 0
     ? { key: `journey-${journey.claimableDays.join('-')}`, label: 'A Journey reward is ready to claim.' }
     : hub.note?.kind === 'idle'
@@ -151,8 +151,8 @@ export function HomePage(props: HomeProps) {
   return <main className="moon-home moon-home-hub">
     <header className="moon-home-header">
       <button type="button" className="moon-player-identity" onClick={props.onOpenProfile} aria-label={`Wanderer, account level ${account.level}. Open profile`}>
-        <span className="moon-player-avatar">{mastery ? <MasteryCrest id={mastery.id} size={23} /> : <span aria-hidden="true">☾</span>}<i>{account.level}</i></span>
-        <span className="moon-player-copy"><strong>Wanderer</strong><small>{mastery ? `${mastery.name} ${rankNumeral(account.unlockedMasteries[mastery.id] ?? 1)}` : `Wayfarer · Account Level ${account.level}`}</small><span className="moon-xp-track" role="progressbar" aria-valuemin={0} aria-valuemax={xpNeed} aria-valuenow={account.xp} aria-label="Account experience"><i style={{ width: `${xpPct}%` }} /></span></span>
+        <span className="moon-player-avatar"><span aria-hidden="true">☾</span><i>{account.level}</i></span>
+        <span className="moon-player-copy"><strong>Wanderer</strong><small>Wayfarer · Account Level {account.level}</small><span className="moon-xp-track" role="progressbar" aria-valuemin={0} aria-valuemax={xpNeed} aria-valuenow={account.xp} aria-label="Account experience"><i style={{ width: `${xpPct}%` }} /></span></span>
       </button>
       <div className="moon-home-tools" role="group" aria-label="Balances">{economy.tickets > 0 && <TicketBalance />}<GoldBalance /><GemBalance /><button className="moon-help-button" onClick={() => setHelp(true)} aria-label="How to play">?</button></div>
     </header>
@@ -163,9 +163,14 @@ export function HomePage(props: HomeProps) {
         {featureCard && featureDefinition && <button type="button" className={`home-feature-card ${featureDefinition.faction}`} onClick={() => setInspect(featureCard)} aria-label={`View ${featureDefinition.name}, featured card`}><span className="home-feature-wash"/><CardArtwork cardId={featureCard} className="home-feature-art"/><span className="home-feature-caption"><small>FEATURED CARD</small><strong>{featureDefinition.shortName}</strong></span></button>}
       </div>
       <div className="home-progress" role="progressbar" aria-label="Campaign chapter progress" aria-valuemin={0} aria-valuemax={mainRoadNodes.length} aria-valuenow={mainRoadCleared}><span style={{ width: `${mainRoadNodes.length ? mainRoadCleared / mainRoadNodes.length * 100 : 0}%` }} /></div>
-      <div className="home-power-line"><span>Deck Strength <strong>{currentPower}</strong>{powerRead && <b className={`home-power-read ${powerRead.toLowerCase()}`}>{powerRead}</b>}</span>{recommended !== undefined && <span>Recommended <strong>{recommended}</strong></span>}<span className="home-energy">Energy {hub.energy.current}/{hub.energy.max}</span></div>
+      <div className="home-power-line"><span>Starting HP <strong>{startingHp.toLocaleString()}</strong></span>{nextDifficulty && <span>Next battle <b className={`home-power-read ${DIFFICULTY_TONE[nextDifficulty]}`}>{DIFFICULTY_LABEL[nextDifficulty]}</b></span>}<span className="home-energy">Energy {hub.energy.current}/{hub.energy.max}</span></div>
       {nextReward && <div className="home-target-reward"><span className="home-reward-spark" aria-hidden="true">✦</span><span><small>NEXT CAMPAIGN REWARD · {rewardDistance.toUpperCase()}</small><strong>{nextReward.label}</strong></span>{nextReward.cardId && <span className="home-reward-art" aria-hidden="true"><CardArtwork cardId={nextReward.cardId} /></span>}</div>}
       <button className="home-continue" onClick={props.onOpenCampaign}><span>{continueLabel}</span><b aria-hidden="true">→</b></button>
+      {refund && (
+        <button type="button" className="home-return-note" onClick={() => { dismissRefundNotice(); setRefund(null); }} aria-label="Dismiss the card Level refund note">
+          Card Levels are retired: {refund.gold.toLocaleString('en-US')} Gold you put into them is back in your purse. Gold now raises Card Mastery IV and V. ✕
+        </button>
+      )}
       {returnState && !returnSeen && (returnState.key.startsWith('card-')
         ? <button type="button" className="home-return-note" onClick={props.onOpenHeroes} aria-label={`${returnState.label} View collection`}>{returnState.label} · View collection →</button>
         : <p className="home-return-note" role="status">{returnState.label}</p>)}

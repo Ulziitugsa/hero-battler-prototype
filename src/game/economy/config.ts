@@ -42,7 +42,7 @@ export const GOLD_REWARDS = {
   quickBattleDraw: 8,
 } as const;
 
-export type GoldSource = 'campaign' | 'quickBattle' | 'idle' | 'mission' | 'journey' | 'offer' | 'shop' | 'ranked' | 'event' | 'dev';
+export type GoldSource = 'campaign' | 'quickBattle' | 'idle' | 'mission' | 'journey' | 'offer' | 'shop' | 'ranked' | 'event' | 'legacyLevelRefund' | 'dev';
 
 // ---- Summon Tickets (Commercial Prototype Phase 7) -----------------------------------------------
 // Tickets perform a Summon exactly like Gems (see summon/summon.ts) but are earn-only, sourced from

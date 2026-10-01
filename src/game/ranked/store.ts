@@ -1,6 +1,5 @@
 import { grantGems, grantGold, grantTickets } from '../economy/economy';
-import type { DeckOption } from '../engine/deckOptions';
-import { getCard } from '../cards';
+import { rivalMasteryStages, tierFor, type RankedRivalDeck, type RankedTier } from './tiers';
 
 export const RANKED_STORAGE_KEY = 'moonwater:ranked:v1';
 export const RANKED_CONFIG = { winPoints: 24, lossPoints: -12, pointsPerDivision: 100 } as const;
@@ -30,11 +29,20 @@ export function claimRankReward(id: string): boolean {
   grantGems(reward.gems, 'ranked'); grantGold(reward.gold, 'ranked'); if (reward.tickets) grantTickets(reward.tickets, 'ranked');
   save({ ...s, claimed: [...s.claimed, id] }); return true;
 }
-export function chooseRankedOpponent(decks: DeckOption[], player: DeckOption, rating: number, seed = rating): DeckOption {
-  const eligible = decks.filter(d => d.id !== player.id); if (!eligible.length) return player;
-  const average = (ids: string[]) => { const powers=ids.map(id=>getCard(id)).filter(c=>c.type==='hero').map(c=>c.power??0); return powers.length ? powers.reduce((a,b)=>a+b,0)/powers.length : 0; };
-  const target = average(player.cardIds);
-  const offset=Math.abs(Math.floor(seed))%eligible.length;
-  return [...eligible.slice(offset),...eligible.slice(0,offset)].map((deck,index)=>({deck,index,distance:Math.abs(average(deck.cardIds)-target)})).sort((a,b)=>a.distance-b.distance||a.index-b.index)[0].deck;
+export interface RankedOpponent {
+  tier: RankedTier;
+  deck: RankedRivalDeck;
+  /** Card Mastery stage per card id in the rival's deck (the tier's stage). */
+  masteryStages: Record<string, number>;
+}
+
+/**
+ * The next AI rival: a deck from the current division's own pool (ranked/tiers.ts), at the division's Mastery stage.
+ * Deterministic for a given record, and never derived from the player's decks, Levels or progression.
+ */
+export function chooseRankedOpponent(s: Pick<RankedState, 'rating' | 'wins' | 'losses'> = getRanked()): RankedOpponent {
+  const tier = tierFor(rankAt(s.rating).division);
+  const deck = tier.decks[(s.wins + s.losses) % tier.decks.length];
+  return { tier, deck, masteryStages: rivalMasteryStages(tier, deck.cardIds) };
 }
 export function resetRankedForTests() { state = null; try { localStorage.removeItem(RANKED_STORAGE_KEY); } catch { /* ignore */ } listeners.forEach(fn => fn()); }

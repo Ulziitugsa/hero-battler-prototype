@@ -3,15 +3,14 @@ import type { OwnedMap } from '../collection/types';
 import { isDeckPlayable } from '../engine/activeDeck';
 import { listDeckOptions, type DeckOption } from '../engine/deckOptions';
 import { ascensionCost, MIN_COPIES_KEPT } from './config';
-import { getCardAscension, maxRankFor } from './definitions';
+import { hasMasteryPath, maxMasteryRank } from './path';
 import { getAscensionRank, getAscensionState, recordAscension, type AscensionState } from './store';
-import { starsForCard } from './stars';
 import { track } from '../../analytics/track';
-import { getCard } from '../cards';
-import { getHeroLevel } from '../heroLevel/store';
-import { rosterPowerForHero } from '../heroLevel/rosterPower';
+import { getConfig } from '../../config/config';
+import { canAffordGold, getGold, spendGold } from '../economy/economy';
 
-// Ascension rules, in one place. Ascending spends spare duplicates of the same card:
+// Card Mastery rules (stored as the legacy Ascension rank), in one place. Advancing spends spare duplicates of the same
+// card, plus a Gold fee for Mastery IV and V (ascension/config.ts):
 //   - the collection quantity IS the number of copies available, so spending lowers it directly (decks,
 //     starter unlocks and Heroes all keep reading one number); the Ascension store remembers what was spent;
 //   - the last usable copy is never spendable (MIN_COPIES_KEPT);
@@ -19,7 +18,13 @@ import { rosterPowerForHero } from '../heroLevel/rosterPower';
 //     (unlocked starters and valid saved decks) must still be fully covered after the spend. Nothing is
 //     ever silently removed from or edited in a deck - the Ascension is simply blocked, with the reason.
 
-export type AscendBlock = 'unsupported' | 'not-owned' | 'max-rank' | 'no-spare' | 'in-use';
+export type AscendBlock = 'unsupported' | 'not-owned' | 'max-rank' | 'no-spare' | 'in-use' | 'no-gold';
+
+/** Gold the advance to `toRank` costs on top of its duplicates (0 for Mastery II and III). */
+export function masteryGoldFee(toRank: number): number {
+  const fee = getConfig().economy.masteryGoldFee[toRank - 1] ?? 0;
+  return Number.isFinite(fee) ? Math.max(0, Math.floor(fee)) : 0;
+}
 
 export interface AscensionStatus {
   supported: boolean;
@@ -30,6 +35,8 @@ export interface AscensionStatus {
   nextRank: number | null;
   /** Duplicate copies the next rank costs. */
   cost: number | null;
+  /** Gold the next rank costs on top of the duplicates (0 when none). */
+  goldCost: number;
   /** Copies not needed by any usable deck and beyond the one that must stay: what can be spent right now. */
   spare: number;
   canAscend: boolean;
@@ -55,23 +62,24 @@ function deckDemand(cardId: string, owned: OwnedMap, decks: DeckOption[]): { cop
   return { copies, deck };
 }
 
-export function getAscensionStatus(cardId: string, owned: OwnedMap = getCollection(), ascension: AscensionState = getAscensionState(), decks: DeckOption[] = listDeckOptions()): AscensionStatus {
-  const supported = !!getCardAscension(cardId);
+export function getAscensionStatus(cardId: string, owned: OwnedMap = getCollection(), ascension: AscensionState = getAscensionState(), decks: DeckOption[] = listDeckOptions(), gold: number = getGold()): AscensionStatus {
+  const supported = hasMasteryPath(cardId);
   const count = getOwnedCount(cardId, owned);
   const rank = getAscensionRank(cardId, ascension);
-  const maxRank = maxRankFor(cardId);
+  const maxRank = maxMasteryRank(cardId);
   const nextRank = supported && rank < maxRank ? rank + 1 : null;
   const cost = nextRank ? ascensionCost(nextRank) : null;
+  const goldCost = nextRank ? masteryGoldFee(nextRank) : 0;
   const { copies: demand, deck } = deckDemand(cardId, owned, decks);
   const keep = Math.max(MIN_COPIES_KEPT, demand);
   const spare = Math.max(0, count - keep);
 
-  const base = { supported, owned: count, rank, maxRank, nextRank, cost, spare, blockingDeck: null as string | null };
+  const base = { supported, owned: count, rank, maxRank, nextRank, cost, goldCost, spare, blockingDeck: null as string | null };
   const blocked = (b: AscendBlock, reason: string, blockingDeck: string | null = null): AscensionStatus => ({ ...base, canAscend: false, blocked: b, reason, blockingDeck });
 
-  if (!supported) return blocked('unsupported', 'Ascension coming later.');
-  if (count <= 0) return blocked('not-owned', 'Collect this card to Ascend it.');
-  if (nextRank === null || cost === null) return blocked('max-rank', 'Fully Ascended.');
+  if (!supported) return blocked('unsupported', 'This card has no Mastery path.');
+  if (count <= 0) return blocked('not-owned', 'Collect this card to raise its Mastery.');
+  if (nextRank === null || cost === null) return blocked('max-rank', 'Mastery V reached.');
   if (count - cost < MIN_COPIES_KEPT) {
     const need = cost + MIN_COPIES_KEPT - count;
     return blocked('no-spare', `Needs ${cost} spare ${cost === 1 ? 'copy' : 'copies'} — collect ${need} more.`);
@@ -80,6 +88,7 @@ export function getAscensionStatus(cardId: string, owned: OwnedMap = getCollecti
     const short = demand - (count - cost);
     return blocked('in-use', `${deck} uses ${demand} ${demand === 1 ? 'copy' : 'copies'}. Remove ${short} from your decks or collect ${short} more first.`, deck);
   }
+  if (goldCost > 0 && !canAffordGold(goldCost, gold)) return blocked('no-gold', `Needs ${goldCost.toLocaleString('en-US')} Gold — you have ${gold.toLocaleString('en-US')}.`);
   return { ...base, canAscend: true, blocked: null, reason: null };
 }
 
@@ -88,6 +97,7 @@ export interface AscendResult {
   cardId: string;
   newRank: number;
   spent: number;
+  goldSpent: number;
   reason: string | null;
 }
 
@@ -95,29 +105,23 @@ export interface AscendResult {
 export function ascendCard(cardId: string): AscendResult {
   const status = getAscensionStatus(cardId);
   if (!status.canAscend || status.nextRank === null || status.cost === null) {
-    return { ok: false, cardId, newRank: status.rank, spent: 0, reason: status.reason };
+    return { ok: false, cardId, newRank: status.rank, spent: 0, goldSpent: 0, reason: status.reason };
   }
-  const starsBefore = starsForCard(cardId);
-  const card = getCard(cardId);
-  const level = getHeroLevel(cardId);
-  const rosterPowerBefore = card.power !== undefined ? rosterPowerForHero(card.power, level, status.rank) : 0;
-
+  // Gold first: it is the only step that can still refuse (status checked it, but the balance is re-read here), and a
+  // refused spend changes nothing. Duplicates and the new stage follow.
+  if (status.goldCost > 0 && !spendGold(status.goldCost)) {
+    return { ok: false, cardId, newRank: status.rank, spent: 0, goldSpent: 0, reason: 'Not enough Gold.' };
+  }
   removeCard(cardId, status.cost);
   recordAscension(cardId, status.nextRank, status.cost);
 
-  const starsAfter = starsForCard(cardId);
-  const rosterPowerAfter = card.power !== undefined ? rosterPowerForHero(card.power, level, status.nextRank) : 0;
-
   track('duplicate_progress_applied', { cardId, system: 'ascension', rankBefore: status.rank, rankAfter: status.nextRank, duplicatesSpent: status.cost });
   track('hero_ascended', { cardId, rankBefore: status.rank, rankAfter: status.nextRank, duplicatesSpent: status.cost });
-  track('ascension_completed', { heroId: cardId, rankBefore: status.rank, rankAfter: status.nextRank, starsBefore, starsAfter, rosterPowerBefore, rosterPowerAfter });
-  if (starsAfter !== starsBefore) track('hero_star_changed', { cardId, starsBefore, starsAfter });
-  if (rosterPowerAfter !== rosterPowerBefore) track('roster_power_changed', { cardId, source: 'ascension', rosterPowerBefore, rosterPowerAfter, delta: rosterPowerAfter - rosterPowerBefore });
 
-  return { ok: true, cardId, newRank: status.nextRank, spent: status.cost, reason: null };
+  return { ok: true, cardId, newRank: status.nextRank, spent: status.cost, goldSpent: status.goldCost, reason: null };
 }
 
-/** Player-facing name of a rank. */
-export const ascensionLabel = (rank: number): string => `Mastery ${['I', 'II', 'III', 'IV', 'V'][Math.max(0, Math.floor(rank))] ?? rank + 1}`;
-export const ascensionNumeral = (rank: number): string => ['', 'I', 'II', 'III', 'IV'][rank] ?? String(rank);
-
+/** Player-facing name of a stored rank: rank 0..4 = "Mastery I".."Mastery V". */
+export const ascensionLabel = (rank: number): string => `Mastery ${ascensionNumeral(rank)}`;
+/** The Mastery numeral of a stored rank (rank 1 = "II"). */
+export const ascensionNumeral = (rank: number): string => ['I', 'II', 'III', 'IV', 'V'][Math.max(0, Math.min(4, Math.floor(rank)))] ?? 'I';

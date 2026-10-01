@@ -1,6 +1,6 @@
 import type { CardDefinition, Rarity } from '../../game/types';
 import { getCard } from '../../game/cards';
-import { DECK_SIZE, maxCopiesFor, validateDeck } from '../../game/engine/deckRules';
+import { DECK_SIZE, MIN_UNITS, maxCopiesFor, validateDeck } from '../../game/engine/deckRules';
 import { getCollection } from '../../game/collection/collection';
 import { deckOwnershipShortfalls, describeShortfall } from '../../game/collection/deckOwnership';
 import type { OwnedMap } from '../../game/collection/types';
@@ -62,6 +62,9 @@ export function getDeckStatus(cardIds: string[], owned: OwnedMap = getCollection
   }
 
   if (count > DECK_SIZE) return { state: 'invalid', count, missing: 0, overLimit, unowned, valid, message: `${plural(count - DECK_SIZE, 'card')} over ${DECK_SIZE}` };
+
+  const units = cardIds.filter((id) => getCard(id).type === 'hero').length;
+  if (count === DECK_SIZE && units < MIN_UNITS) return { state: 'invalid', count, missing, overLimit, unowned, valid, message: `Needs ${MIN_UNITS}+ Units — has ${units}` };
 
   if (count === 0) return { state: 'building', count, missing, overLimit, unowned, valid, message: 'Empty — start filling it' };
   return { state: 'building', count, missing, overLimit, unowned, valid, message: `${plural(missing, 'more card')} to go` };

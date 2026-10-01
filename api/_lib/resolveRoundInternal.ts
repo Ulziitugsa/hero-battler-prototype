@@ -1,5 +1,7 @@
 import type { GameEvent, GameState, PlayerAction, Side } from '../../src/game/types/index.js';
 import { beginRound, resolveRound, validateDeployment } from '../../src/game/engine/resolveRound.js';
+import { beginCardRound, resolveCardRound, validateCardDeployment } from '../../src/game/cardCombat/engine.js';
+import { CARD_RESOLVER_VERSION, matchResolver } from '../../src/game/combat/resolver.js';
 import { orientEventsForViewer, orientStateForViewer } from '../../src/game/engine/perspective.js';
 import { HttpError } from './http.js';
 import { supabaseAdmin } from './supabaseAdmin.js';
@@ -55,9 +57,24 @@ function viewFromRow(row: MatchRow): ResolvedRoundView {
 /** Only ever safe to use when an action FAILED validation - keeps the match alive/deterministic instead of wedging it. */
 const NO_PLAYS: PlayerAction = { plays: [] };
 
-function legalOrEmpty(state: GameState, side: Side, action: PlayerAction | null): PlayerAction {
+/**
+ * The resolver a stored match plays, read from the match's own state (combatModel + cardCombat.version), never from a
+ * date or a deploy. Matches created before card combat carry no combatModel and keep the legacy resolver to the end;
+ * card matches need this server's card resolver version (a different version can't be continued here: 409).
+ */
+export function resolverFor(state: GameState) {
+  const r = matchResolver(state);
+  if (r.combatModel === 'card') {
+    if (r.resolverVersion !== CARD_RESOLVER_VERSION) throw new HttpError(409, `This match uses card rules v${r.resolverVersion}; this server plays v${CARD_RESOLVER_VERSION}.`);
+    return { validate: validateCardDeployment, resolve: resolveCardRound, begin: beginCardRound, continuesRng: true };
+  }
+  if (r.combatModel === 'v2') throw new HttpError(409, 'Friendly Battle never plays the experimental combat model.');
+  return { validate: validateDeployment, resolve: resolveRound, begin: beginRound, continuesRng: false };
+}
+
+function legalOrEmpty(state: GameState, side: Side, action: PlayerAction | null, validate: ReturnType<typeof resolverFor>['validate']): PlayerAction {
   if (!isActionShape(action)) return NO_PLAYS;
-  return validateDeployment(state, side, action).legal ? action : NO_PLAYS;
+  return validate(state, side, action).legal ? action : NO_PLAYS;
 }
 
 /**
@@ -110,14 +127,25 @@ export async function resolveRoundInternal(matchId: string, expectedRound: numbe
   }
 
   const canonicalState = row.canonical_state;
-  const playerAction = legalOrEmpty(canonicalState, 'player', row.player_action);
-  const enemyAction = legalOrEmpty(canonicalState, 'enemy', row.enemy_action);
+  let rules: ReturnType<typeof resolverFor>;
+  try {
+    rules = resolverFor(canonicalState);
+  } catch (err) {
+    // Release the claim untouched: the stored match stays exactly as it was, readable, never rewritten by another resolver.
+    await client.from('friendly_matches').update({ status: 'AWAITING_ACTIONS', resolution_started_at: null }).eq('id', matchId).eq('round_number', expectedRound).eq('status', 'RESOLVING');
+    throw err;
+  }
+  const playerAction = legalOrEmpty(canonicalState, 'player', row.player_action, rules.validate);
+  const enemyAction = legalOrEmpty(canonicalState, 'enemy', row.enemy_action, rules.validate);
 
-  const resolved = resolveRound(canonicalState, playerAction, enemyAction, row.seed);
+  // Card matches continue their own RNG stream from the stored state; legacy matches keep their original behaviour
+  // (every round re-seeded from the match seed) so a match created before card combat finishes exactly as it began.
+  const rng = rules.continuesRng ? canonicalState.rngState : row.seed;
+  const resolved = rules.resolve(canonicalState, playerAction, enemyAction, rng);
   let finalState = resolved.nextState;
   let events = resolved.events;
   if (finalState.status === 'IN_PROGRESS') {
-    const begun = beginRound(finalState);
+    const begun = rules.begin(finalState);
     finalState = begun.nextState;
     events = [...events, ...begun.events];
   }

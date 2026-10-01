@@ -95,13 +95,13 @@ describe('event definitions', () => {
 
 describe('event missions', () => {
   it('count wins and sum numeric properties from the analytics stream', () => {
-    win({ undeadUnitsPlayed: 4, damageDealt: 150 });
-    win({ undeadUnitsPlayed: 3, damageDealt: 300 });
-    track('battle_completed', { mode: 'quick', result: 'loss', undeadUnitsPlayed: 5, damageDealt: 20 });
+    win({ undeadUnitsPlayed: 4, damageDealt: 6_000 });
+    win({ undeadUnitsPlayed: 3, damageDealt: 9_000 });
+    track('battle_completed', { mode: 'quick', result: 'loss', undeadUnitsPlayed: 5, damageDealt: 4_000 });
     const progress = getEventProgress(EVENT.id);
     expect(progress.missions['vigil-win-battles'].count).toBe(2);
     expect(progress.missions['vigil-undead-units'].count).toBe(10);
-    expect(progress.missions['vigil-damage'].count).toBe(400); // capped at target
+    expect(progress.missions['vigil-damage'].count).toBe(18_000); // card-combat scale, capped at target
   });
 
   it('respects property filters', () => {

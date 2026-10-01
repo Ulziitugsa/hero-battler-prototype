@@ -883,6 +883,11 @@ export interface CardMatchSetup {
   /** Card Mastery stage per card id. Changes HP Contribution (so Starting HP) only. Omit for Mastery I. */
   playerMastery?: MasteryStages;
   enemyMastery?: MasteryStages;
+  /**
+   * A fixed Starting HP for one side in place of its deck's total: a Campaign boss's HP pool, or a challenge rule
+   * such as "start at 60% of your Starting HP". Units still have no HP; this is the player's HP bar only.
+   */
+  startingHpOverride?: Partial<Record<Side, number>>;
 }
 
 function shuffleDeck(ctx: Ctx, cards: string[]): string[] {
@@ -907,6 +912,10 @@ export function createCardMatch(setup: CardMatchSetup): ResolveResult {
   const decks: Record<Side, string[]> = { player: setup.playerDeck, enemy: setup.enemyDeck };
   const stages: Record<Side, Record<string, number>> = { player: playerMasteryTable(setup.playerDeck, setup.playerMastery), enemy: playerMasteryTable(setup.enemyDeck, setup.enemyMastery) };
   const hp: Record<Side, ReturnType<typeof deckStartingHp>> = { player: deckStartingHp(setup.playerDeck, stages.player), enemy: deckStartingHp(setup.enemyDeck, stages.enemy) };
+  for (const side of SIDES) {
+    const override = setup.startingHpOverride?.[side];
+    if (override !== undefined && Number.isFinite(override) && override > 0) hp[side] = { ...hp[side], total: Math.round(override) };
+  }
   const shell: GameState = {
     round: 1,
     rngState: setup.seed >>> 0,
