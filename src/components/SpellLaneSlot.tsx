@@ -11,6 +11,7 @@ export function SpellLaneSlot({
   spell,
   anim,
   interactionDisabled,
+  focused,
   onSlotClick,
   onChitClick,
 }: {
@@ -21,6 +22,8 @@ export function SpellLaneSlot({
   spell: SpellZoneInstance | null;
   anim?: ChitVisual | null;
   interactionDisabled?: boolean;
+  /** Card combat: this Spell is the card the focus panel shows. */
+  focused?: boolean;
   onSlotClick?: () => void;
   onChitClick?: (spell: SpellZoneInstance) => void;
 }) {
@@ -31,7 +34,8 @@ export function SpellLaneSlot({
     <div
       className={`battle-zone spell-zone ${targetable ? 'targetable' : ''} ${dim ? 'dim' : ''} ${spell ? 'filled' : ''} ${side}`}
       aria-label={spell ? undefined : `${side === 'player' ? 'Your' : "Enemy's"} spell slot, ${lane} lane`}
-      onClick={targetable ? onSlotClick : spell && !interactionDisabled ? () => onChitClick?.(spell) : undefined}
+      // The chit handles its own tap; this only catches a tap on the slot around it (a tap on the chit used to fire twice).
+      onClick={targetable ? onSlotClick : spell && !interactionDisabled ? (e) => e.target === e.currentTarget && onChitClick?.(spell) : undefined}
       onDragOver={(e) => {
         if (targetable) e.preventDefault();
       }}
@@ -43,7 +47,7 @@ export function SpellLaneSlot({
       {spell ? (
         // While targetable, the slot itself handles the click (placing an instant Spell that
         // passes through this lane) - the chit isn't independently clickable in that moment.
-        <SpellZoneChit spell={spell} side={side} anim={anim} disabled={interactionDisabled} onClick={targetable ? () => {} : () => onChitClick?.(spell)} />
+        <SpellZoneChit spell={spell} side={side} anim={anim} disabled={interactionDisabled} focused={focused} onClick={targetable ? () => {} : () => onChitClick?.(spell)} />
       ) : (
         <span className="zone-ghost spell-ghost">
           <Icon name="continuousSpell" size={targetable ? 18 : 15} />

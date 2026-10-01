@@ -170,6 +170,29 @@ function passiveAbilities(ctx: Ctx, side: Side, lane: LaneId): { ability: Combat
     .map((ability) => ({ ability, unit }));
 }
 
+/**
+ * Display only (battle faces): for each Unit on `side`, whether each of its conditional always-on (PASSIVE) effects has
+ * its condition met on this board, keyed by ability index. Reads the state, never changes it or logs anything.
+ * A silenced Unit's passives are all off.
+ */
+export function passiveEffectStates(state: GameState, side: Side): Map<string, Map<number, boolean>> {
+  const ctx: Ctx = { state, events: [], rng: state.rngState };
+  const out = new Map<string, Map<number, boolean>>();
+  if (!state.cardCombat) return out;
+  for (const lane of LANES) {
+    const unit = unitAt(ctx, side, lane);
+    if (!unit) continue;
+    const exec: Exec = { owner: side, kind: 'hero', lane, instanceId: unit.instanceId, name: unit.name };
+    const states = new Map<number, boolean>();
+    getCombatCard(unit.cardId).abilities.forEach((ability, index) => {
+      if (ability.trigger !== 'PASSIVE' || !ability.conditions?.length) return;
+      states.set(index, !unit.silenced && conditionsHold(ctx, exec, ability.conditions));
+    });
+    if (states.size > 0) out.set(unit.instanceId, states);
+  }
+  return out;
+}
+
 function blockedByImmunity(ctx: Ctx, side: Side, lane: LaneId, kind: 'SPELL' | 'HERO_EFFECT', sourceName: string): boolean {
   for (const { ability, unit } of passiveAbilities(ctx, side, lane)) {
     if (ability.oncePerRound && unit.usedThisRound) continue;

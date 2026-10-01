@@ -932,3 +932,24 @@ export function spellWouldFire(state: GameState, side: Side, card: { name: strin
   const exec: AbilityContext = { ownerSide: side, sourceName: card.name, sourceKind: 'spell', selfLane: lane };
   return onPlay.some((a) => evalConditions(ctx, exec, a.conditions));
 }
+
+/**
+ * Display only (battle faces and the focus panel): for each Hero on `side`, whether each of its conditional always-on
+ * (PASSIVE) effects has its condition met on this board, keyed by ability index into its live (Ascension-adjusted)
+ * abilities. The legacy twin of the card engine's passiveEffectStates: reads the state, never changes it or logs
+ * anything. A silenced Hero's passives are all off.
+ */
+export function legacyPassiveEffectStates(state: GameState, side: Side): Map<string, Map<number, boolean>> {
+  const ctx: Ctx = { state, events: [], rngState: 0 };
+  const out = new Map<string, Map<number, boolean>>();
+  for (const { lane, hero } of livingHeroes(ctx, side)) {
+    const exec: AbilityContext = { ownerSide: side, sourceName: hero.name, sourceKind: 'hero', selfLane: lane, selfInstanceId: hero.instanceId };
+    const states = new Map<number, boolean>();
+    heroAbilities(state, side, hero.cardId).forEach((ability, index) => {
+      if (ability.trigger !== 'PASSIVE' || !ability.conditions?.length) return;
+      states.set(index, !hero.silenced && evalConditions(ctx, exec, ability.conditions));
+    });
+    if (states.size > 0) out.set(hero.instanceId, states);
+  }
+  return out;
+}

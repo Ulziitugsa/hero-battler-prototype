@@ -27,12 +27,3 @@ export function HpIcon({ size = 14, className = '' }: { size?: number; className
     </svg>
   );
 }
-
-/** Effect indicator: a four-point moon star. Shown on compact faces that have an effect; tap for the exact text. */
-export function EffectIcon({ size = 12, className = '' }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className={`card-glyph card-glyph-effect ${className}`} aria-hidden="true" focusable="false">
-      <path fill="currentColor" d="M12 1.5c.7 5.6 3.4 8.8 10.5 10.5-7.1 1.7-9.8 4.9-10.5 10.5C11.3 16.9 8.6 13.7 1.5 12 8.6 10.3 11.3 7.1 12 1.5Z" />
-    </svg>
-  );
-}

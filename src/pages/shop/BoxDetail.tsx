@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { GemIcon } from '../../components/GemIcon';
 import { CardArtwork } from '../../components/CardArtwork';
-import { CollectibleCard } from '../../components/CollectibleCard';
-import { CardDetail } from '../../components/CardDetail';
+import { GameCard } from '../../components/card/GameCard';
+import { CardViewer } from '../../components/card/CardViewer';
+import { cardCopyView } from '../../game/cards/cardCopy';
 import { useDialogFocus } from '../../components/useDialogFocus';
 import { getCard } from '../../game/cards';
 import { canAfford } from '../../game/economy/economy';
@@ -61,6 +62,12 @@ function ResetDialog({ state, onCancel, onConfirm }: { state: PrototypeBoxState;
   </div></div>;
 }
 
+/** A pulled or featured card: the game's one card face, as the player's copy (Card Mastery and HP Contribution). */
+function PulledCard({ cardId }: { cardId: string }) {
+  const copy = cardCopyView(cardId);
+  return <GameCard cardId={cardId} density="tile" owned={copy.owned} masteryStage={copy.masteryStage} hpContribution={copy.hpContribution} />;
+}
+
 function PackResults({ pulls, packs, onInspect, onClose }: { pulls: PrototypeBoxPull[]; packs: number; onInspect: (id: string) => void; onClose: () => void }) {
   const ref = useDialogFocus(onClose);
   const newCount = pulls.filter(pull => pull.isNew).length;
@@ -73,7 +80,7 @@ function PackResults({ pulls, packs, onInspect, onClose }: { pulls: PrototypeBox
     </header>
     <div className="box-results-grid">
       {pulls.map((pull, index) => <button type="button" key={`${index}-${pull.cardId}`} className={`box-result r-${pull.rarity}`} onClick={() => onInspect(pull.cardId)} aria-label={`${getCard(pull.cardId).name}, ${RARITY_LABEL[pull.rarity]}${pull.isNew ? ', new' : `, ${pull.ownedCopies} owned`}`}>
-        <CollectibleCard cardId={pull.cardId} mode="standard" animated={false} />
+        <PulledCard cardId={pull.cardId} />
         <small>{pull.isNew ? <b>NEW</b> : `×${pull.ownedCopies}`}</small>
       </button>)}
     </div>
@@ -164,9 +171,8 @@ export function BoxDetail({ box, onBack }: { box: BoxProductDef; onBack: () => v
         {box.chaseCardIds.map(id => {
           const line = contents.find(entry => entry.cardId === id);
           const left = line?.remaining ?? 0;
-          return <button type="button" key={id} className={`box-chase-card ${left === 0 ? 'gone' : ''}`} onClick={() => setInspect(id)}>
-            <CollectibleCard cardId={id} mode="battle" animated={false} />
-            <span className="box-chase-name">{getCard(id).name}</span>
+          return <button type="button" key={id} className={`box-chase-card ${left === 0 ? 'gone' : ''}`} onClick={() => setInspect(id)} aria-label={`${getCard(id).name}, ${left} of ${line?.total ?? 0} left. Show details.`}>
+            <PulledCard cardId={id} />
             <span className="box-chase-left">{left === 0 ? 'None left' : `${left} of ${line?.total ?? 0} left`}</span>
           </button>;
         })}
@@ -203,6 +209,6 @@ export function BoxDetail({ box, onBack }: { box: BoxProductDef; onBack: () => v
     {showContents && <ContentsSheet state={state} onInspect={setInspect} onClose={() => setShowContents(false)} />}
     {confirmReset && <ResetDialog state={state} onCancel={() => setConfirmReset(false)} onConfirm={reset} />}
     {results && <PackResults pulls={results.pulls} packs={results.packs} onInspect={setInspect} onClose={() => setResults(null)} />}
-    {inspect && <CardDetail cardId={inspect} context="pack" onClose={() => setInspect(null)} />}
+    {inspect && <CardViewer cardId={inspect} context="pack" onClose={() => setInspect(null)} />}
   </main>;
 }

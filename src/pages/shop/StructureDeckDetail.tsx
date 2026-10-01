@@ -2,8 +2,9 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Icon } from '../../components/Icon';
 import { GemIcon } from '../../components/GemIcon';
 import { CardArtwork } from '../../components/CardArtwork';
-import { CollectibleCard } from '../../components/CollectibleCard';
-import { CardDetail } from '../../components/CardDetail';
+import { GameCard } from '../../components/card/GameCard';
+import { CardViewer } from '../../components/card/CardViewer';
+import { cardCopyView } from '../../game/cards/cardCopy';
 import { Sigil } from '../../components/CardParts';
 import { useDialogFocus } from '../../components/useDialogFocus';
 import { getCard } from '../../game/cards';
@@ -34,6 +35,12 @@ function ConfirmPurchase({ deck, onCancel, onConfirm }: { deck: StructureDeckDef
     <p className="box-test-note">Prototype: bought with in-game Gems only. No real money is involved.</p>
     <div className="box-reset-actions"><button type="button" onClick={onCancel}>Cancel</button><button type="button" className="confirm" onClick={onConfirm}>Get deck</button></div>
   </div></div>;
+}
+
+/** A featured card: the game's one card face, as the player's copy (Card Mastery and HP Contribution). */
+function FeaturedCard({ cardId }: { cardId: string }) {
+  const copy = cardCopyView(cardId);
+  return <GameCard cardId={cardId} density="tile" owned={copy.owned} masteryStage={copy.masteryStage} hpContribution={copy.hpContribution} />;
 }
 
 export function StructureDeckDetail({ deck, onBack }: { deck: StructureDeckDef; onBack: () => void }) {
@@ -100,7 +107,7 @@ export function StructureDeckDetail({ deck, onBack }: { deck: StructureDeckDef; 
       <div className="box-section-heading"><h2 id="sd-featured-title">Featured cards</h2><span>Tap for details</span></div>
       <div className="box-chase sd-featured">
         {deck.featuredCardIds.map(id => <button type="button" key={id} className="box-chase-card" onClick={() => setInspect(id)}>
-          <CollectibleCard cardId={id} mode="standard" animated={false} />
+          <FeaturedCard cardId={id} />
         </button>)}
       </div>
     </section>
@@ -119,6 +126,6 @@ export function StructureDeckDetail({ deck, onBack }: { deck: StructureDeckDef; 
     </section>
 
     {confirming && <ConfirmPurchase deck={deck} onCancel={() => setConfirming(false)} onConfirm={buy} />}
-    {inspect && <CardDetail cardId={inspect} context="shop" onClose={() => setInspect(null)} />}
+    {inspect && <CardViewer cardId={inspect} context="shop" onClose={() => setInspect(null)} />}
   </main>;
 }

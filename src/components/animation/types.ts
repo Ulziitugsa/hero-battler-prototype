@@ -12,7 +12,9 @@ export type AnimationSpeed = '1x' | '2x' | 'instant';
 /** One of a small, fixed set of duration buckets - see `timing.ts`. Every step is tagged with a
  * category rather than a raw millisecond value, so all pacing lives in one place and can be rescaled
  * (speed setting, reduced motion, a future "skip") without touching step-building logic. */
-export type TimingCategory = 'micro' | 'short' | 'combat' | 'major';
+/** 'destroy' is card combat's quick clash-loser exit (see buildAnimationSteps), kept deliberately short so each lane's
+ * destruction lands before the next lane without slowing every clash down. */
+export type TimingCategory = 'micro' | 'short' | 'combat' | 'major' | 'destroy';
 
 /** What kind of visual beat a step represents - drives which CSS classes/floaters the renderer applies. Never derived from a card id or name; always from the underlying event shape. */
 export type VisualType =
@@ -61,4 +63,10 @@ export interface AnimationStep {
    * where a brief breathing gap after this step's own duration helps the next beat read as a separate
    * event rather than a blur - see timing.ts's `resolvePause`. Never set on incidental/trivial steps. */
   pauseAfter?: boolean;
+  /**
+   * Event indices this step commits on top of the `maxEventIndex` prefix. Card combat only: a lane's clash loser is
+   * destroyed in the log after all three lanes clash, and this is how its HERO_DESTROYED (or SHIELD_CONSUMED) commits
+   * as soon as its own lane has resolved, without committing the later lanes' clash results early. See playback.ts.
+   */
+  commitIndices?: number[];
 }

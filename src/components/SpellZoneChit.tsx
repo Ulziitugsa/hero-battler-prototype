@@ -1,59 +1,35 @@
 import type { SpellZoneInstance, Side } from '../game/types';
 import { getCard } from '../game/cards';
-import { Icon } from './Icon';
-import { cardEffectSummary } from '../game/cards/effectText';
-import { cardCombatEffectSummary } from '../game/cardCombat/cardText';
-import { useCardCombatDisplay } from './combatDisplay';
+import { useBattleCardDisplay } from './combatDisplay';
 import type { ChitVisual } from './animation/chitEffects';
+import { GameCard } from './card/GameCard';
 
 /**
- * A Spell zone's filled state (Battle Screen v8). Kind is always re-derived from the card definition
- * rather than trusted from the instance, because this same component renders two different things
- * that share the `SpellZoneInstance` shape: a real Continuous Spell occupying its zone, and a
- * ONE_TIME Spell staged this round as a `pending-` preview (see `buildPreviewZones` in GamePage) -
- * both need their kind's own treatment (floating+Ready vs clamped+rune ring). `anim`, when present, is
- * this round's currently-playing animation beat for this Spell (see `components/animation`).
+ * A Spell zone's filled state: the shared card face (GameCard, spell density), a wide strip with the Spell's name and
+ * every effect in its battle wording, in every battle mode (`display.rules` picks card combat's rules or a legacy
+ * battle's). Kind is always re-derived from the card definition rather than trusted from the instance, because this
+ * same component renders two different things that share the `SpellZoneInstance` shape: a real Continuous Spell
+ * occupying its zone, and a ONE_TIME Spell staged this round as a `pending-` preview (see `buildPreviewZones` in
+ * GamePage). `anim`, when present, is this round's currently-playing animation beat for this Spell.
  */
-export function SpellZoneChit({ spell, side, anim, disabled, onClick }: { spell: SpellZoneInstance; side: Side; anim?: ChitVisual | null; disabled?: boolean; onClick: () => void }) {
+export function SpellZoneChit({ spell, side, anim, disabled, focused, onClick }: { spell: SpellZoneInstance; side: Side; anim?: ChitVisual | null; disabled?: boolean; /** The card the focus panel shows. */ focused?: boolean; onClick: () => void }) {
   const card = getCard(spell.cardId);
   const mine = side === 'player';
   const continuous = card.spellKind === 'CONTINUOUS';
   const ready = !continuous && mine; // a staged one-time Spell, ready to resolve on Fight
-  const summary = useCardCombatDisplay() ? cardCombatEffectSummary(card) : cardEffectSummary(card);
+  const display = useBattleCardDisplay();
+  const staged = spell.instanceId.startsWith('pending-');
 
   return (
     <button
       type="button"
-      className={`zone-card spell-zone-card ${mine ? 'mine' : 'theirs'} ${continuous ? 'clamped' : 'floating'} ${anim?.className ?? ''}`}
+      className={`zone-card spell-zone-card card-face ${mine ? 'mine' : 'theirs'} ${continuous ? 'clamped' : 'floating'} ${focused ? 'is-focused' : ''} ${anim?.className ?? ''}`}
       onClick={onClick}
       disabled={disabled}
-      aria-label={`${card.name}, ${continuous ? 'Continuous' : 'staged'}${summary ? `: ${summary}` : ''}`}
+      aria-label={`${card.name}, ${continuous ? 'Continuous Spell' : 'Spell'}.${staged ? ' Tap to take it back.' : ' Tap for details.'}`}
     >
-      {continuous && (
-        <>
-          <span className="zone-card-bracket left" />
-          <span className="zone-card-bracket right" />
-        </>
-      )}
-      <span className={`zone-card-art spell-art ${spell.faction}`}>
-        <span className={`spell-sigil ${continuous ? 'cont' : 'once'}`} />
-        {continuous && <span className="spell-rune-ring" />}
-      </span>
+      <GameCard cardId={spell.cardId} density="spell" rules={display?.rules ?? 'card'} name={spell.shortName} />
       {ready && <span className="zone-card-ready">Ready</span>}
-      {summary ? (
-        <span className="zone-card-footer">
-          <span className="zone-card-name">
-            <Icon name={continuous ? 'continuousSpell' : 'spell'} size={11} />
-            {spell.shortName}
-          </span>
-          <span className="zone-card-effect">{summary}</span>
-        </span>
-      ) : (
-        <span className="zone-card-name bare">
-          <Icon name={continuous ? 'continuousSpell' : 'spell'} size={11} />
-          {spell.shortName}
-        </span>
-      )}
       {anim?.floaters.map((f) => (
         <span key={f.key} className={`floater floater-${f.kind}`}>
           {f.text}

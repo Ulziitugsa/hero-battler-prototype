@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { CardDetail } from '../components/CardDetail';
-import { CollectibleCard } from '../components/CollectibleCard';
+import { CardViewer } from '../components/card/CardViewer';
 import { GemBalance } from '../components/GemIcon';
 import { GoldBalance } from '../components/GoldIcon';
 import { TicketBalance } from '../components/TicketIcon';
@@ -165,7 +164,7 @@ export function HomePage(props: HomeProps) {
       </div>
       <div className="home-progress" role="progressbar" aria-label="Campaign chapter progress" aria-valuemin={0} aria-valuemax={mainRoadNodes.length} aria-valuenow={mainRoadCleared}><span style={{ width: `${mainRoadNodes.length ? mainRoadCleared / mainRoadNodes.length * 100 : 0}%` }} /></div>
       <div className="home-power-line"><span>Deck Strength <strong>{currentPower}</strong>{powerRead && <b className={`home-power-read ${powerRead.toLowerCase()}`}>{powerRead}</b>}</span>{recommended !== undefined && <span>Recommended <strong>{recommended}</strong></span>}<span className="home-energy">Energy {hub.energy.current}/{hub.energy.max}</span></div>
-      {nextReward && <div className="home-target-reward"><span className="home-reward-spark" aria-hidden="true">✦</span><span><small>NEXT CAMPAIGN REWARD · {rewardDistance.toUpperCase()}</small><strong>{nextReward.label}</strong></span>{nextReward.cardId && <span className="home-reward-art" aria-hidden="true"><CollectibleCard cardId={nextReward.cardId} /></span>}</div>}
+      {nextReward && <div className="home-target-reward"><span className="home-reward-spark" aria-hidden="true">✦</span><span><small>NEXT CAMPAIGN REWARD · {rewardDistance.toUpperCase()}</small><strong>{nextReward.label}</strong></span>{nextReward.cardId && <span className="home-reward-art" aria-hidden="true"><CardArtwork cardId={nextReward.cardId} /></span>}</div>}
       <button className="home-continue" onClick={props.onOpenCampaign}><span>{continueLabel}</span><b aria-hidden="true">→</b></button>
       {returnState && !returnSeen && (returnState.key.startsWith('card-')
         ? <button type="button" className="home-return-note" onClick={props.onOpenHeroes} aria-label={`${returnState.label} View collection`}>{returnState.label} · View collection →</button>
@@ -190,6 +189,6 @@ export function HomePage(props: HomeProps) {
 
     <nav className="home-quiet-links" aria-label="More"><small>MORE</small><span>{!dailyShopGift.claimed && <button className="home-shop-gift-link" onClick={props.onOpenShop}>Free Shop gift · Ready</button>}<button className="home-collection-link" onClick={props.onOpenHeroes}>Collection</button>{import.meta.env.DEV && <button className="home-dev-link" onClick={props.onOpenPixelPreview}>Pixel art preview · dev</button>}</span></nav>
     <footer className="moon-home-footer"><span>☾ Moonwater village</span><span>{hub.campaign.chapterLine}</span></footer>
-    {inspect && <CardDetail cardId={inspect} onClose={() => setInspect(null)} />}{help && <HowToPlaySheet onClose={() => setHelp(false)} />}{missionsOpen && <MissionsSheet onClose={closeMissions} />}{journeyOpen && <JourneySheet onClose={closeJourney} />}
+    {inspect && <CardViewer cardId={inspect} context="other" onClose={() => setInspect(null)} />}{help && <HowToPlaySheet onClose={() => setHelp(false)} />}{missionsOpen && <MissionsSheet onClose={closeMissions} />}{journeyOpen && <JourneySheet onClose={closeJourney} />}
   </main>;
 }

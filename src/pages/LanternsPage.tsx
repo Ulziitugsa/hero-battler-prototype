@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Icon } from '../components/Icon';
-import { CollectibleCard } from '../components/CollectibleCard';
+import { GameCard } from '../components/card/GameCard';
+import { cardCopyView } from '../game/cards/cardCopy';
 import { LANTERN_TRIALS, canPlayTrial, loadLanternProgress } from '../game/story/lanterns';
 import '../styles/lanterns.css';
 
@@ -20,7 +21,7 @@ export function LanternsPage({ onBack, onFight, result, initialTrialId }: { onBa
       {result && <p className="lantern-result" role="status">{result}</p>}
       <p className="lantern-intro">Three battles. Three pieces of a buried truth. A permanent story adventure, played with your battle deck.</p>
       <nav className="lantern-chapters" aria-label="Story chapters">{LANTERN_TRIALS.map((t, i) => <button key={t.id} onClick={() => setSelected(i)} aria-pressed={i === selected}><span>{cleared.includes(t.id) ? '✓' : `0${i + 1}`}</span>{t.name}{!canPlayTrial(t.id, cleared) && <Icon name="lock" size={12} />}</button>)}</nav>
-      <section className="lantern-trial"><div className="lantern-portrait"><CollectibleCard cardId={trial.cardId} compact /></div><div><span className="lantern-subtitle">{trial.subtitle}</span><h2>{trial.name}</h2><p>{trial.briefing}</p></div></section>
+      <section className="lantern-trial"><div className="lantern-portrait"><GameCard cardId={trial.cardId} density="tile" hpContribution={cardCopyView(trial.cardId).hpContribution} /></div><div><span className="lantern-subtitle">{trial.subtitle}</span><h2>{trial.name}</h2><p>{trial.briefing}</p></div></section>
       <aside className="lantern-tactic"><Icon name="battle" size={17} /><p>{trial.tactic}</p></aside>
       {done && <section className="lantern-ending"><span>After the battle</span><p>{trial.ending}</p></section>}
       <button className="lantern-fight" disabled={!unlocked} onClick={() => onFight(trial.id, [...trial.deck], trial.name)}>{unlocked ? done ? 'Replay this watch' : 'Take the watch' : 'Complete the previous chapter'} <Icon name={unlocked ? 'battle' : 'lock'} size={18} /></button>

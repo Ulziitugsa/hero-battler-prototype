@@ -35,7 +35,8 @@ export type IconName =
   | 'cards'
   | 'lock'
   | 'sort'
-  | 'ember';
+  | 'ember'
+  | 'log';
 
 const PATHS: Record<IconName, string> = {
   home: 'M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9',
@@ -72,6 +73,7 @@ const PATHS: Record<IconName, string> = {
   lock: 'M6.5 10.5h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1ZM8.5 10.5V7.8a3.5 3.5 0 0 1 7 0v2.7M12 14v2.5',
   sort: 'M7 20V5M7 5 4 8.5M7 5l3 3.5M17 4v15M17 19l3-3.5M17 19l-3-3.5',
   ember: 'M12 3c1.2 3.2 4.5 4.4 4.5 8a4.5 4.5 0 0 1-9 0c0-2 1.2-2.8 1.2-4.6',
+  log: 'M9 6.5h10M9 12h10M9 17.5h7M5 6.5h.01M5 12h.01M5 17.5h.01',
 };
 
 /** `filled` swaps to a solid fill with no stroke - used for small glyphs (e.g. the HP heart) sitting

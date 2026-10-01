@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CardDetail } from '../../components/CardDetail';
+import { CardViewer } from '../../components/card/CardViewer';
 import { Gems } from '../../components/CardParts';
 import { Icon } from '../../components/Icon';
 import { getCard } from '../../game/cards';
@@ -67,7 +67,7 @@ export function PoolSheet({ pool, onClose }: { pool: SummonPool; onClose: () => 
           })}
         </div>
       </div>
-      {inspectId && <CardDetail cardId={inspectId} context="pack" onClose={() => setInspectId(null)} />}
+      {inspectId && <CardViewer cardId={inspectId} context="pack" onClose={() => setInspectId(null)} />}
     </div>
   );
 }

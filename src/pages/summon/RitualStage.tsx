@@ -2,8 +2,9 @@ import { SummonFilm } from '../../components/SummonFilm';
 import { CardArtwork } from '../../components/CardArtwork';
 import { MoonwellVoyage } from '../../components/MoonwellVoyage';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { CardDetail } from '../../components/CardDetail';
-import { CollectibleCard } from '../../components/CollectibleCard';
+import { CardViewer } from '../../components/card/CardViewer';
+import { GameCard } from '../../components/card/GameCard';
+import { cardCopyView } from '../../game/cards/cardCopy';
 import { useDialogFocus } from '../../components/useDialogFocus';
 import { Gems, Sigil } from '../../components/CardParts';
 import { Icon } from '../../components/Icon';
@@ -37,7 +38,7 @@ function StageCard({ pull, phase, faction }: { pull: SummonPull; phase: SeqView[
     <div className={`rc rc-${phase} r-${card.rarity}`}>
       <div className="rc-inner">
         <div className="rc-face rc-front">
-          <CollectibleCard cardId={pull.cardId} />
+          <GameCard cardId={pull.cardId} density="tile" hpContribution={cardCopyView(pull.cardId).hpContribution} />
           {pull.grant.isNew && (
             <span className="wax-new" aria-label="New card">
               <span>New</span>
@@ -222,7 +223,7 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, onIntroFin
         {!result && <button type="button" className="ritual-skip" onClick={onSkip} aria-label="Skip">Skip animation <span aria-hidden="true">↠</span></button>}
       </div>
 
-      {inspectId && <CardDetail cardId={inspectId} context="pack" onClose={() => setInspectId(null)} />}
+      {inspectId && <CardViewer cardId={inspectId} context="pack" onClose={() => setInspectId(null)} />}
     </div>
   );
 }

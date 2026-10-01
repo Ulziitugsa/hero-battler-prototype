@@ -1,4 +1,5 @@
 import type { CardDefinition, Faction, Rarity } from '../../game/types';
+import { cardSearchText, printedAtk } from '../../game/cards/cardPresentation';
 
 // Pure collection-browsing logic for the Cards (Collection) screen: filtering, stable sorting, the contextual
 // tally and the empty-state copy. No ownership rules live here - the owned set is passed in.
@@ -34,8 +35,9 @@ export function displayRole(card: CardDefinition): string {
 export function matchesQuery(card: CardDefinition, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  // The search box promises "name or effect", so rules text is searched too, plus the card type ("spell").
-  return [card.name, card.role, FACTION_LABEL[card.faction], card.type === 'hero' ? 'Unit' : 'Spell', ...card.tags, ...card.abilities.map((a) => a.text)].some((s) => s.toLowerCase().includes(q));
+  // The search box promises "name or effect": name, type, faction, traits and every effect in both wordings, exactly as
+  // the cards print them (cardPresentation.ts cardSearchText, shared with the Deck Builder).
+  return cardSearchText(card).includes(q);
 }
 
 /** Every sort is total (ties fall through to rarity, faction, name), so order never jitters between renders. */
@@ -43,7 +45,8 @@ export function compareCards(mode: SortMode): (a: CardDefinition, b: CardDefinit
   const byName = (a: CardDefinition, b: CardDefinition) => a.name.localeCompare(b.name);
   const byRarity = (a: CardDefinition, b: CardDefinition) => RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity];
   const byFaction = (a: CardDefinition, b: CardDefinition) => factionRank(a.faction) - factionRank(b.faction);
-  const byPower = (a: CardDefinition, b: CardDefinition) => (b.power ?? 0) - (a.power ?? 0);
+  // "ATK": the printed ATK the cards show (Spells, with none, sort after every Unit).
+  const byPower = (a: CardDefinition, b: CardDefinition) => (printedAtk(b) ?? -1) - (printedAtk(a) ?? -1);
   const chains = {
     rarity: [byRarity, byFaction, byName],
     power: [byPower, byRarity, byFaction, byName],

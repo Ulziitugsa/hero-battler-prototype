@@ -4,7 +4,8 @@ import { getCard } from './index';
 import { PLAYTEST_ROSTER } from './roster';
 import { TOKEN_CARDS } from './tokens';
 import { atkDelta, atkFromPower, cardFaceStats, deckStartingHp, HP_CONTRIBUTION_HELP } from './cardFace';
-import { cardEffectLines, cardEffectSummary, cardKeywords, cardSearchText, EFFECT_TIMING_LABEL, hasEffectCopy } from './effectText';
+import { cardEffectLines, hasEffectCopy, TIMING_LABEL } from './effectText';
+import { cardEffects, cardKeywords, cardSearchText } from './cardPresentation';
 
 const MINUS = '−';
 const signedAtk = (powerDelta: number) => `${powerDelta < 0 ? MINUS : '+'}${Math.abs(atkDelta(powerDelta))} ATK`;
@@ -72,7 +73,7 @@ describe('player-facing effect copy', () => {
 
   it('uses player vocabulary: no Hero, Power, abbreviations or leftover trigger prefixes', () => {
     for (const card of withEffects) {
-      const texts = [cardEffectSummary(card), ...cardEffectLines(card).map((line) => line.text)];
+      const texts = [...cardEffects(card, { rules: 'legacy' }).map((effect) => effect.compact), ...cardEffectLines(card).map((line) => line.text)];
       for (const text of texts) {
         expect(text, card.id).not.toMatch(/\bHero(es)?\b|\bPower\b|\bw\/|\bAdj\b|\bdmg\b|\brnd\b|\bBC:|\bGrv\b|;/);
         expect(text, card.id).not.toMatch(/^(On Play|Before Combat|On Death):/);
@@ -80,23 +81,31 @@ describe('player-facing effect copy', () => {
     }
   });
 
-  it('keeps summaries short enough for a compact card', () => {
-    for (const card of withEffects) expect(cardEffectSummary(card).length, card.id).toBeLessThanOrEqual(34);
-    expect(cardEffectSummary(getCard('kng-common-knight'))).toBe('');
+  it('gives every effect its own compact battle line, authored, never cut from the full rule', () => {
+    for (const card of withEffects) {
+      for (const rules of ['card', 'legacy'] as const) {
+        for (const effect of cardEffects(card, { rules })) {
+          expect(effect.compact.length, card.id).toBeGreaterThan(0);
+          expect(effect.compact, card.id).not.toMatch(/…|\.\.\.$/);
+          expect(effect.compact, card.id).toMatch(/[.!]$/);
+        }
+      }
+    }
+    expect(cardEffects('kng-common-knight')).toHaveLength(0);
   });
 
   it('labels each line with a normalized timing', () => {
     const lines = cardEffectLines(getCard('inf-pit-fiend'));
-    expect(lines.map((line) => line.label)).toEqual(['When Destroyed', 'On Clash']);
+    expect(lines.map((line) => line.label)).toEqual(['Destroyed', 'Clash']);
     expect(lines[1].text).toBe('If an enemy Unit was destroyed this round, gain +30 ATK this round.');
-    expect(Object.values(EFFECT_TIMING_LABEL)).toContain('Direct Attack');
+    expect(Object.values(TIMING_LABEL)).toContain('Direct Attack');
     expect(cardEffectLines(getCard('und-grave-knight'))[1].oncePerRound).toBe(true);
   });
 
   it('replaces the old debug shorthand on Royal Guard', () => {
     const guard = getCard('kng-royal-guard');
     expect(guard.boardText).toBe('Adj+1; Spell Immune w/ally');
-    expect(cardEffectSummary(guard)).toBe('Adjacent allies +15 ATK');
+    expect(cardEffects(guard)[0].compact).toBe('Adjacent allies +15 ATK.');
     expect(cardEffectLines(guard)[0]).toMatchObject({ label: 'On Play', text: 'Adjacent allied Units gain +15 ATK for the rest of the battle.' });
   });
 
@@ -106,8 +115,10 @@ describe('player-facing effect copy', () => {
   });
 
   it('derives explainable keywords from actions and finds effect text in search', () => {
-    expect(cardKeywords(getCard('kng-paladin'))).toEqual(['Shield']);
+    expect(cardKeywords(getCard('kng-paladin'))).toEqual(['Shield', 'Guard']);
     expect(cardKeywords(getCard('spl-battle-banner'))).toEqual(['Continuous Spell']);
     expect(cardSearchText(getCard('kng-paladin'))).toContain('shield');
+    expect(cardSearchText('kng-royal-guard')).toContain('adjacent allies +15 atk');
+    expect(cardSearchText('kng-royal-guard')).toContain('rare');
   });
 });

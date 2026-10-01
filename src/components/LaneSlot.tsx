@@ -11,6 +11,7 @@ export function LaneSlot({
   hasSelection,
   anim,
   interactionDisabled,
+  focused,
   onSlotClick,
   onChitClick,
 }: {
@@ -23,6 +24,8 @@ export function LaneSlot({
   anim?: ChitVisual | null;
   /** True while the round is resolving - the chit itself still renders (so its animation can play), but tapping it to inspect is locked out (see GamePage's resolving-state rule). */
   interactionDisabled?: boolean;
+  /** Card combat: this Unit is the card the focus panel shows. */
+  focused?: boolean;
   onSlotClick?: () => void;
   onChitClick?: (hero: HeroInstance) => void;
 }) {
@@ -42,7 +45,7 @@ export function LaneSlot({
       }}
     >
       {hero ? (
-        <BoardChit hero={hero} side={side} anim={anim} disabled={interactionDisabled} onClick={() => onChitClick?.(hero)} />
+        <BoardChit hero={hero} side={side} anim={anim} disabled={interactionDisabled} focused={focused} onClick={() => onChitClick?.(hero)} />
       ) : (
         <span className="zone-ghost">
           <span className="zone-ghost-corner tl" />

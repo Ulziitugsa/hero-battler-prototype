@@ -1,95 +1,109 @@
-import type { AbilityDefinition, CardDefinition } from '../../game/types';
-import { ATK_MEANING, cardFaceStats, formatStat, HP_CONTRIBUTION_MEANING } from '../../game/cards/cardFace';
-import { cardEffectLines, cardKeywords, EFFECT_TIMING_HELP, KEYWORD_HELP } from '../../game/cards/effectText';
-import { cardCombatEffectLines } from '../../game/cardCombat/cardText';
-import { MASTERY_HPC_PCT } from '../../game/cardCombat/stats';
-import { masteryLabel } from '../../game/cardMastery/model';
+import type { CardDefinition, Side } from '../../game/types';
+import { ATK_MEANING, HP_CONTRIBUTION_MEANING, formatStat } from '../../game/cards/cardFace';
+import { cardEffects, cardKeywords, printedAtk, KEYWORD_HELP, type CardRules } from '../../game/cards/cardPresentation';
+import { MASTERY_HPC_PCT, printedStats } from '../../game/cardCombat/stats';
+import { masteryLabel, masteryNumeral } from '../../game/cardMastery/model';
 import { AtkIcon, HpIcon } from './CardIcons';
 import '../../styles/cardInspect.css';
 
-/** In a card-combat battle: what this copy put into its owner's Starting HP, and at which Card Mastery stage. */
-export interface CardCombatInspect {
-  owner: 'player' | 'enemy';
-  /** HP Contribution with Card Mastery applied (what it added to Starting HP this match). */
-  hpContribution: number;
+// The sections of Card Inspect (CardInspect.tsx): a Unit's two stats with their meaning, and every effect's full rule.
+// Both read the card presentation model; neither writes rules text of its own.
+
+const signed = (n: number) => `${n > 0 ? '+' : '−'}${Math.abs(n)}`;
+
+export interface StatsPanelProps {
+  card: CardDefinition;
+  rules: CardRules;
+  /** ATK now (a Unit in play). Defaults to printed. */
+  atk?: number;
+  /** HP Contribution of this copy (Card Mastery applied). Defaults to printed. */
+  hpContribution?: number;
+  /** This copy's Card Mastery stage (1..5), 0 for a card not owned. */
   masteryStage: number;
+  /** In battle: whose copy this is. */
+  owner?: Side;
+  /** Legacy battles: the copy's Card Mastery rank, whose added effects the effect list marks. */
+  masteryRank?: number;
 }
 
-/** The two stats spelled out, with their meaning, for Card Inspect and the Collection sheet. */
-export function CardStatsPanel({ card, livePower, cardCombat }: { card: CardDefinition; livePower?: number; cardCombat?: CardCombatInspect }) {
-  const printed = cardFaceStats(card);
-  if (!printed) return null;
-  if (cardCombat) return <CardCombatStatsPanel printed={printed} liveAtk={livePower} info={cardCombat} />;
-  const live = livePower !== undefined ? cardFaceStats(card, livePower) : null;
-  const shift = live ? live.atk - printed.atk : 0;
+/** ATK and HP Contribution, spelled out. A legacy battle says why HP Contribution doesn't apply there. */
+export function CardStatsPanel({ card, rules, atk, hpContribution, masteryStage, owner, masteryRank = 0 }: StatsPanelProps) {
+  if (card.type !== 'hero') return null;
+  const printed = printedAtk(card, rules) ?? 0;
+  const now = atk ?? printed;
+  const shift = now - printed;
+  const printedHpc = printedStats(card)?.hpc ?? 0;
+  const hpc = hpContribution ?? printedHpc;
+  const whose = owner === 'enemy' ? 'the enemy’s' : 'your';
+  const pct = MASTERY_HPC_PCT[Math.max(1, Math.min(5, masteryStage)) - 1] ?? 0;
+  let note: string;
+  if (rules === 'legacy') note = masteryRank > 0 ? `Mastery ${masteryNumeral(masteryRank + 1)}: adds the effects marked Mastery below.` : '';
+  else if (masteryStage < 1) note = 'Card Mastery raises HP Contribution, up to +20% at Mastery V. It never changes ATK.';
+  else note = `${masteryLabel(masteryStage)}: HP Contribution ${pct > 0 ? `+${pct}%` : 'as printed'} (printed +${formatStat(printedHpc)}). Mastery never changes ATK.`;
   return (
     <section className="ci-stats" aria-label="Card stats">
       <div className="ci-stat atk">
         <AtkIcon size={22} />
         <div>
-          <strong>{formatStat(live?.atk ?? printed.atk)} <small>ATK</small></strong>
-          <p>{shift !== 0 ? `${shift > 0 ? '+' : '−'}${Math.abs(shift)} this battle · printed ${printed.atk}` : ATK_MEANING}</p>
+          <strong>
+            {formatStat(now)} <small>ATK</small>
+          </strong>
+          <p>{shift !== 0 ? `${signed(shift)} this battle · printed ${printed}` : ATK_MEANING}</p>
         </div>
       </div>
-      <div className="ci-stat hp">
-        <HpIcon size={22} />
-        <div>
-          <strong>+{formatStat(printed.hpContribution)} <small>HP</small></strong>
-          <p><b>HP Contribution.</b> {HP_CONTRIBUTION_MEANING}</p>
+      {rules === 'card' ? (
+        <div className="ci-stat hp">
+          <HpIcon size={22} />
+          <div>
+            <strong>
+              +{formatStat(hpc)} <small>HP</small>
+            </strong>
+            <p>
+              <b>HP Contribution.</b> {owner ? `Added +${formatStat(hpc)} to ${whose} Starting HP.` : HP_CONTRIBUTION_MEANING} It is not this Unit’s health.
+            </p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="ci-stat hp is-classic">
+          <HpIcon size={22} />
+          <div>
+            <strong>
+              +{formatStat(printedHpc)} <small>HP</small>
+            </strong>
+            <p>
+              <b>HP Contribution.</b> Not used in this battle: it plays classic rules, where both players start at a fixed HP.
+            </p>
+          </div>
+        </div>
+      )}
+      {note && <p className="ci-mastery-note">{note}</p>}
     </section>
   );
 }
 
-/** Card combat: live ATK (a Unit's only battle stat) and the HP Contribution this copy added before the match. */
-function CardCombatStatsPanel({ printed, liveAtk, info }: { printed: { atk: number; hpContribution: number }; liveAtk?: number; info: CardCombatInspect }) {
-  const atk = liveAtk ?? printed.atk;
-  const shift = atk - printed.atk;
-  const pct = MASTERY_HPC_PCT[Math.max(1, Math.min(5, info.masteryStage)) - 1];
-  const whose = info.owner === 'player' ? 'your' : 'the enemy’s';
-  return (
-    <section className="ci-stats" aria-label="Card stats">
-      <div className="ci-stat atk">
-        <AtkIcon size={22} />
-        <div>
-          <strong>{formatStat(atk)} <small>ATK</small></strong>
-          <p>{shift !== 0 ? `${shift > 0 ? '+' : '−'}${Math.abs(shift)} this battle · printed ${printed.atk}` : ATK_MEANING}</p>
-        </div>
-      </div>
-      <div className="ci-stat hp">
-        <HpIcon size={22} />
-        <div>
-          <strong>+{formatStat(info.hpContribution)} <small>HP</small></strong>
-          <p>
-            <b>HP Contribution.</b> Added +{formatStat(info.hpContribution)} to {whose} Starting HP. It is not this Unit’s health.
-          </p>
-        </div>
-      </div>
-      <p className="ci-mastery-note">
-        {masteryLabel(info.masteryStage)}: HP Contribution {pct > 0 ? `+${pct}%` : 'as printed'} (printed +{printed.hpContribution}). Mastery never changes ATK.
-      </p>
-    </section>
-  );
-}
-
-/** Every effect line with its timing, plus short definitions for the keywords it uses. */
-export function CardEffectList({ card, abilities = card.abilities, masteryAdded, cardCombat = false }: { card: CardDefinition; abilities?: readonly AbilityDefinition[]; masteryAdded?: ReadonlySet<AbilityDefinition>; cardCombat?: boolean }) {
-  // Card combat plays the approved card-combat definition, with its own ATK / Player HP wording.
-  const lines = cardCombat ? cardCombatEffectLines(card) : cardEffectLines(card, abilities);
-  const keywords = cardKeywords(card, abilities);
+/** Every effect's full rule under its timing label, then short definitions for the keywords it uses. */
+export function CardEffectList({ card, rules, masteryRank = 0 }: { card: CardDefinition; rules: CardRules; masteryRank?: number }) {
+  const effects = cardEffects(card, { rules, masteryRank });
+  const keywords = cardKeywords(card, { rules, masteryRank });
   return (
     <section className="ci-effects" aria-label="Card effect">
-      <h3 className="ci-heading">Effect</h3>
-      {lines.length === 0 && <p className="ci-effect-none">No effect. A straightforward stat line.</p>}
-      {lines.map((line, index) => (
+      <h3 className="ci-heading">{effects.length > 1 ? 'Effects' : 'Effect'}</h3>
+      {effects.length === 0 && <p className="ci-effect-none">No effect. A straightforward stat line.</p>}
+      {effects.map((effect, index) => (
         <div className="ci-effect" key={index}>
           <div className="ci-effect-tags">
-            <span className="ci-timing" title={EFFECT_TIMING_HELP[line.trigger]}>{line.label}</span>
-            {line.oncePerRound && <span className="ci-tag">Once per round</span>}
-            {masteryAdded?.has(abilities[index]) && <span className="ci-tag mastery">Mastery</span>}
+            <span className="ci-timing" title={effect.help}>
+              {effect.label}
+            </span>
+            {effect.label !== effect.timing && (
+              <span className="ci-tag" title={effect.help}>
+                {effect.timing}
+              </span>
+            )}
+            {effect.oncePerRound && <span className="ci-tag">Once per round</span>}
+            {effect.mastery && <span className="ci-tag mastery">Mastery</span>}
           </div>
-          <p>{line.text}</p>
+          <p>{effect.full}</p>
         </div>
       ))}
       {keywords.length > 0 && (

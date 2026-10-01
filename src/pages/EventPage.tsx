@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { CardArtwork } from '../components/CardArtwork';
-import { CardDetail } from '../components/CardDetail';
-import { CollectibleCard } from '../components/CollectibleCard';
+import { GameCard } from '../components/card/GameCard';
+import { cardCopyView } from '../game/cards/cardCopy';
+import { CardViewer } from '../components/card/CardViewer';
 import { GemIcon } from '../components/GemIcon';
 import { GoldIcon } from '../components/GoldIcon';
 import { Icon } from '../components/Icon';
@@ -138,7 +139,7 @@ export function EventPage({ onBack, onOpenShop }: { onBack: () => void; onOpenSh
       <div className="event-section-head"><h2 id="event-product-title">Featured · {def.featuredProduct.name}</h2></div>
       <p>{def.featuredProduct.blurb}</p>
       <div className="event-product-cards">
-        {def.featuredProduct.featuredCardIds.map(id => <button type="button" key={id} onClick={() => setInspect(id)} aria-label={`Inspect ${getCard(id).name}`}><CollectibleCard cardId={id} mode="standard" animated={false} /></button>)}
+        {def.featuredProduct.featuredCardIds.map(id => <button type="button" key={id} onClick={() => setInspect(id)} aria-label={`${getCard(id).name}: show details`}><GameCard cardId={id} density="tile" hpContribution={cardCopyView(id).hpContribution} /></button>)}
       </div>
       <button type="button" className="event-product-cta" onClick={() => onOpenShop(def.featuredProduct!)}>{def.featuredProduct.kind === 'box' ? 'View the Box' : 'View the Structure Deck'} <span aria-hidden="true">→</span></button>
     </section>}
@@ -146,7 +147,7 @@ export function EventPage({ onBack, onOpenShop }: { onBack: () => void; onOpenSh
     <section className={`event-section event-final ${finalClaimed ? 'claimed' : ''}`} aria-labelledby="event-final-title">
       <div className="event-section-head"><h2 id="event-final-title">Final reward</h2><small>{final.title}</small></div>
       <div className="event-final-body">
-        {final.reward.cardIds?.[0] && <button type="button" className="event-final-card" onClick={() => setInspect(final.reward.cardIds![0])} aria-label={`Inspect ${getCard(final.reward.cardIds[0]).name}`}><CollectibleCard cardId={final.reward.cardIds[0]} mode="standard" treatment="event" /></button>}
+        {final.reward.cardIds?.[0] && <button type="button" className="event-final-card" onClick={() => setInspect(final.reward.cardIds![0])} aria-label={`${getCard(final.reward.cardIds[0]).name}: show details`}><GameCard cardId={final.reward.cardIds[0]} density="tile" treatment="event" hpContribution={cardCopyView(final.reward.cardIds[0]).hpContribution} /></button>}
         <div className="event-final-copy">
           <RewardChips reward={final.reward} />
           {final.reward.backgroundId && <span className="event-final-background" style={{ backgroundImage: `url(${getBackground(final.reward.backgroundId).asset})` }} role="img" aria-label={`${getBackground(final.reward.backgroundId).name} background preview`} />}
@@ -159,6 +160,6 @@ export function EventPage({ onBack, onOpenShop }: { onBack: () => void; onOpenSh
     </section>
 
     <p className="event-footnote">Event ends {new Date(def.endsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}. Unclaimed rewards cannot be claimed after it ends. Cards and cosmetics you earn are yours to keep.</p>
-    {inspect && <CardDetail cardId={inspect} context="event" onClose={() => setInspect(null)} />}
+    {inspect && <CardViewer cardId={inspect} context="event" onClose={() => setInspect(null)} />}
   </main>;
 }

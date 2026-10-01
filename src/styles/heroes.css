@@ -336,6 +336,7 @@
 .hr-sheet-window { position: relative; display: block; overflow: hidden; }
 .hr-sheet-window .hr-art { aspect-ratio: 4 / 4.4; max-height: 42dvh; width: 100%; }
 
+.hr-sheet-close-label { display: none; }
 .hr-sheet-close {
   position: absolute;
   top: 10px;

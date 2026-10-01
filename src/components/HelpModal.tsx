@@ -1,11 +1,11 @@
 import { Icon } from './Icon';
-import { useCardCombatDisplay } from './combatDisplay';
+import { useBattleCardDisplay } from './combatDisplay';
 
 const RULES: { icon: Parameters<typeof Icon>[0]['name']; text: string }[] = [
   { icon: 'hero', text: '3 unit lanes and 3 Spell lanes face off, side by side.' },
   { icon: 'deck', text: 'Play units and Spells from your hand into any open lane.' },
-  { icon: 'power', text: 'Higher Power wins a lane - the loser is destroyed, the winner is untouched.' },
-  { icon: 'warning', text: 'Equal Power destroys both units in that lane.' },
+  { icon: 'power', text: 'Higher ATK wins a lane - the loser is destroyed, the winner stays, and the losing player takes damage.' },
+  { icon: 'warning', text: 'Equal ATK destroys both units in that lane.' },
   { icon: 'hp', text: 'An empty lane lets the enemy unit hit your HP directly.' },
   { icon: 'spell', text: 'Spells resolve before Combat, in the order you placed them.' },
   { icon: 'continuousSpell', text: 'Continuous Spells stay on the board, working every round, until removed.' },
@@ -15,8 +15,8 @@ const RULES: { icon: Parameters<typeof Icon>[0]['name']; text: string }[] = [
 
 /** Card combat (ATK + HP Contribution): the same list with the clash and HP lines in its own terms. */
 const CARD_COMBAT_RULES: typeof RULES = RULES.flatMap((rule) => {
-  if (rule.text.startsWith('Higher Power')) return [{ icon: 'power' as const, text: 'Higher ATK wins a lane - the loser is destroyed, the winner stays, and the losing player takes the ATK difference as Clash Damage (145 vs 85: 60).' }];
-  if (rule.text.startsWith('Equal Power')) return [{ icon: 'warning' as const, text: 'Equal ATK destroys both units in that lane, with no Player damage.' }];
+  if (rule.text.startsWith('Higher ATK')) return [{ icon: 'power' as const, text: 'Higher ATK wins a lane - the loser is destroyed, the winner stays, and the losing player takes the ATK difference as Clash Damage (145 vs 85: 60).' }];
+  if (rule.text.startsWith('Equal ATK')) return [{ icon: 'warning' as const, text: 'Equal ATK destroys both units in that lane, with no Player damage.' }];
   if (rule.text.startsWith('An empty lane')) {
     return [
       { icon: 'hp' as const, text: 'Your HP starts at your deck’s Starting HP: the HP Contribution of all its Units added up. Units have no HP of their own.' },
@@ -27,7 +27,7 @@ const CARD_COMBAT_RULES: typeof RULES = RULES.flatMap((rule) => {
 });
 
 export function HelpModal({ onClose }: { onClose: () => void }) {
-  const cardCombat = !!useCardCombatDisplay();
+  const cardCombat = useBattleCardDisplay()?.rules === 'card';
   return (
     <div className="overlay-backdrop" onClick={onClose}>
       <div className="modal-panel help-modal" onClick={(e) => e.stopPropagation()}>

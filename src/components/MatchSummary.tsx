@@ -1,7 +1,9 @@
 import type { MatchStats } from '../game/engine/stats';
 import type { XpGrantResult } from '../game/progression/types';
 import { XpSummary } from './XpSummary';
-import { useCardCombatDisplay } from './combatDisplay';
+import { useBattleCardDisplay } from './combatDisplay';
+import { legacyAtk } from '../game/cards/cardPresentation';
+import { ATK_PER_POWER } from '../game/cardCombat/stats';
 
 export interface FriendlyRematchActions {
   onRematch: () => void;
@@ -27,15 +29,18 @@ export function MatchSummary({
   friendlyRematch?: FriendlyRematchActions;
 }) {
   const title = stats.winner === 'player' ? 'You win' : stats.winner === 'enemy' ? 'You lose' : 'Draw';
-  // Card combat: Unit numbers are ATK, and a lost clash costs Clash Damage (winner ATK - loser ATK), not overflow.
-  const cardCombat = !!useCardCombatDisplay();
-  const stat = cardCombat ? 'ATK' : 'Power';
+  // Unit numbers are ATK in every mode: a legacy battle's Power stats show the ATK they read as (cardPresentation.ts
+  // legacyAtk), as its cards did. A lost clash costs Clash Damage: the ATK difference in card combat, a legacy battle's
+  // own HP amount otherwise.
+  const cardCombat = useBattleCardDisplay()?.rules === 'card';
+  const maxAtk = cardCombat ? stats.maxPowerReached : legacyAtk(stats.maxPowerReached);
+  const atkScale = cardCombat ? 1 : ATK_PER_POWER;
   return (
     <div className="summary-overlay">
       <div className="summary-card">
         <h2>{title}</h2>
         <div className="subtitle">
-          {stats.playerDeckLabel} vs {stats.enemyDeckLabel} - {stats.roundsPlayed} rounds - {cardCombat ? `final HP: you ${stats.finalPlayerHp}, enemy ${stats.finalEnemyHp}` : `final HP ${stats.finalPlayerHp} / ${stats.finalEnemyHp}`}
+          {stats.playerDeckLabel} vs {stats.enemyDeckLabel} - {stats.roundsPlayed} rounds - final HP: you {stats.finalPlayerHp}, enemy {stats.finalEnemyHp}
         </div>
         <XpSummary xp={xp ?? null} gold={gold} />
         <div className="summary-stats">
@@ -43,17 +48,8 @@ export function MatchSummary({
           <span className="v">{stats.roundsPlayed}</span>
           <span className="k">Total direct damage</span>
           <span className="v">{stats.totalDirectDamage}</span>
-          {cardCombat ? (
-            <>
-              <span className="k">Total Clash Damage</span>
-              <span className="v">{stats.totalClashDamage}</span>
-            </>
-          ) : (
-            <>
-              <span className="k">Total overflow damage</span>
-              <span className="v">{stats.totalOverflowDamage}</span>
-            </>
-          )}
+          <span className="k">Total Clash Damage</span>
+          <span className="v">{cardCombat ? stats.totalClashDamage : stats.totalOverflowDamage}</span>
           <span className="k">Cards drawn</span>
           <span className="v">{stats.cardsDrawn}</span>
           <span className="k">Cards played</span>
@@ -70,12 +66,12 @@ export function MatchSummary({
           <span className="v">{stats.heroesRevived}</span>
           <span className="k">Avg rounds a unit stays</span>
           <span className="v">{stats.avgRoundsHeroStaysOnBoard}</span>
-          <span className="k">Max {stat} reached</span>
-          <span className="v">{stats.maxPowerReached}</span>
-          <span className="k">Permanent {stat} gained</span>
-          <span className="v">{stats.permanentPowerGained}</span>
-          <span className="k">Temporary {stat} modified</span>
-          <span className="v">{stats.temporaryPowerModified}</span>
+          <span className="k">Max ATK reached</span>
+          <span className="v">{maxAtk}</span>
+          <span className="k">Permanent ATK gained</span>
+          <span className="v">{stats.permanentPowerGained * atkScale}</span>
+          <span className="k">Temporary ATK changes</span>
+          <span className="v">{stats.temporaryPowerModified * atkScale}</span>
           <span className="k">Graveyard size (you / enemy)</span>
           <span className="v">
             {stats.graveyardSizePlayer} / {stats.graveyardSizeEnemy}

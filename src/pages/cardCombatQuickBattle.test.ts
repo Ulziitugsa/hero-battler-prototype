@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { STARTER_DECKS } from '../game/cards/starterDecks';
 import { deckSummary } from '../game/decks/deckSummary';
 import { GamePage } from './GamePage';
+import { ENEMY_DECK, PLAYER_DECK, buildBattleScene } from './battleScenes';
 
 // The battle screen itself, rendered once per combat model: the HP meters must show each deck's own
 // Starting HP in card combat (the Deck Builder's number), and the legacy 20 everywhere else.
@@ -25,5 +26,24 @@ describe('Quick Battle screen', () => {
   it('legacy: unchanged 20 HP', () => {
     const html = render();
     expect(html).toContain('20 / 20');
+  });
+
+  it('every battle mode has the battle log a tap away; the dock opens only on a tap', () => {
+    expect(render('card')).toContain('aria-label="Battle log"');
+    expect(render()).toContain('aria-label="Battle log"');
+    const { state, events } = buildBattleScene('3');
+    const html = renderToStaticMarkup(createElement(GamePage, { playerDeck: PLAYER_DECK, enemyDeck: ENEMY_DECK, playerDeckLabel: 'Kingdom', enemyDeckLabel: 'Undead', onExit: () => {}, combatModel: 'card', initialState: state, initialEvents: events }));
+    expect(html).not.toContain('battle-dock');
+    expect(html).not.toContain('hand-fan readable peek');
+    // A board card says what a tap does.
+    expect(html).toContain('Royal Guard, 128 ATK. Tap for details.');
+    expect(html).toContain('Battle Banner, Continuous Spell. Tap for details.');
+  });
+
+  it('a legacy battle shows the same card faces, in ATK, with no HP Contribution and no Power', () => {
+    const html = render();
+    expect(html).toContain('game-card d-hand');
+    expect(html).not.toContain('gc-hpc');
+    expect(html.replace(/<[^>]+>/g, ' ')).not.toMatch(/\bPower\b(?! Surge)/);
   });
 });

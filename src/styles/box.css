@@ -40,11 +40,13 @@
 .box-section-heading > span { color:#91aaa9; font-size:11px; font-weight:800; text-align:right; }
 .box-link { min-height:36px; padding:0 10px; border:1px solid #aecac140; border-radius:10px; color:#e7dcbc; background:#15313c; font-size:11px; font-weight:900; }
 
-.box-chase { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+/* The chase cards at Collection-tile size in a row that scrolls sideways (a fourth card peeks in at 390). */
+.box-chase { display:grid; grid-auto-flow:column; grid-auto-columns:calc((100% - 16px) / 3.15); gap:8px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x mandatory; scrollbar-width:none; padding-bottom:2px; }
+.box-chase::-webkit-scrollbar { display:none; }
+.box-chase-card { scroll-snap-align:start; }
 .box-chase-card { display:grid; gap:4px; min-width:0; padding:0; border:0; background:none; color:inherit; text-align:center; }
-.box-chase-card .collectible { box-shadow:0 0 0 1px #f0d59a55,0 8px 18px #d8b76122; }
-.box-chase-card.gone .collectible { filter:grayscale(.85) brightness(.55); }
-.box-chase-name { overflow:hidden; color:#efe3c6; font-size:11px; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
+.box-chase-card .game-card { box-shadow:0 0 0 1px #f0d59a55,0 8px 18px #d8b76122; }
+.box-chase-card.gone .game-card { filter:grayscale(.85) brightness(.55); }
 .box-chase-left { color:#f0d59a; font-size:10px; font-weight:900; }
 .box-chase-card.gone .box-chase-left { color:#8c9e9b; }
 
@@ -97,11 +99,10 @@
 .box-results header p { margin:0 0 14px; color:#b9c9be; font-size:12px; }
 .box-results-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px 8px; }
 .box-result { position:relative; display:grid; gap:3px; min-width:0; padding:0; border:0; background:none; color:#e8dfc6; }
-.box-result.r-legendary .collectible { box-shadow:0 0 0 1px #f0d59a,0 0 16px #f0d59a66; }
-.box-result.r-epic .collectible { box-shadow:0 0 0 1px #c79cf2aa; }
+.box-result.r-legendary .game-card { box-shadow:0 0 0 1px #f0d59a,0 0 16px #f0d59a66; }
+.box-result.r-epic .game-card { box-shadow:0 0 0 1px #c79cf2aa; }
 .box-result small { font-size:9px; font-weight:900; text-align:center; color:#9fb3ae; }
 .box-result small b { color:#8ee0bd; }
-.box-chase-card .collectible.mode-battle { height:auto; aspect-ratio:5 / 7; }
 .box-results-done { display:block; width:100%; min-height:48px; margin-top:16px; border:1px solid #f2d99c; border-radius:14px; color:#1b2c31; background:linear-gradient(#f4e5b8,#d8bb70); font-weight:900; font-size:14px; }
 
 @media (max-width:380px) { .box-chase,.box-inventory { gap:5px; } .box-hero-copy h1 { font-size:26px; } }

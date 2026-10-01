@@ -1,0 +1,387 @@
+/* THE card (GameCard.tsx): one face for every surface - hand, board and Spell zones in every battle mode, Collection,
+   Deck Builder, Shop, Box contents, pack results, events and Card Inspect. Density changes size and how much breathing
+   room the text gets, never identity.
+
+   Material: rarity changes the frame's metal (pewter, steel, amethyst, gold), its trim and ornaments; only Legendary
+   glows. Inside the frame, four zones with the frame showing between them: a name bar, a framed art box (about half the
+   card), a stats and identity row with ATK (and HP Contribution off the battlefield) set into the frame, and a text box.
+   Hierarchy: art, then name and ATK, then the effect, then its timing.
+   Type: a fantasy serif title (Cinzel), a book serif for rules (Alegreya), small caps for timing labels (Alegreya SC).
+   Rules text is never below 9px. */
+
+.game-card {
+  --frame-hi: #75838a;
+  --frame-lo: #2b353b;
+  --trim: #a6b1b4;
+  --name-ink: #f4ead2;
+  --gc-pad: 2.5px;
+  --gc-gap: 1.5px;
+  --gc-fs: 10px;
+  --gc-lh: 1.15;
+  --gc-egap: 2px;
+  --gc-art: var(--gc-art-base, 50%);
+  --gc-art-top: 0%;
+  --gc-title-font: 'Cinzel', var(--px-font-display, Georgia, serif);
+  --gc-text-font: 'Alegreya', Georgia, 'Times New Roman', serif;
+  --gc-label-font: 'Alegreya SC', 'Alegreya', Georgia, serif;
+  --gc-ink: #eee4cd;
+  --gc-label: #c7ab70;
+  container-type: inline-size;
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 6px;
+  background: linear-gradient(160deg, var(--frame-hi), var(--frame-lo) 58%, color-mix(in srgb, var(--frame-lo) 70%, #000));
+  box-shadow: 0 2px 6px rgba(3, 8, 12, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  color: var(--name-ink);
+  text-align: left;
+  line-height: 1.15;
+}
+
+/* ---- Rarity: material, trim, ornament ------------------------------------------------------------------------------ */
+.game-card.r-rare { --frame-hi: #a8cdea; --frame-lo: #26445e; --trim: #cfe7fb; }
+.game-card.r-epic { --frame-hi: #c7a0f0; --frame-lo: #3b2458; --trim: #e7d4ff; }
+.game-card.r-legendary {
+  --frame-hi: #fbe4a6;
+  --frame-lo: #7d5018;
+  --trim: #fff3cf;
+  --name-ink: #ffe7ad;
+  box-shadow: 0 0 0 1px #2a1a07, 0 0 9px rgba(242, 196, 104, 0.38), 0 3px 8px rgba(3, 8, 12, 0.6);
+}
+.gc-frame {
+  position: absolute;
+  z-index: 3;
+  inset: 1px;
+  border: 1px solid color-mix(in srgb, var(--trim) 70%, transparent);
+  border-radius: 5px;
+  pointer-events: none;
+}
+/* Epic and Legendary: corner ornaments on the trim. */
+.game-card:is(.r-epic, .r-legendary) .gc-frame::before,
+.game-card:is(.r-epic, .r-legendary) .gc-frame::after {
+  content: '';
+  position: absolute;
+  bottom: -2.5px;
+  width: 4.5px;
+  height: 4.5px;
+  background: var(--trim);
+  transform: rotate(45deg);
+  box-shadow: 0 0 0 1px var(--frame-lo);
+}
+.gc-frame::before { left: -2.5px; }
+.gc-frame::after { right: -2.5px; }
+/* Legendary: a crest notch at the top edge, and a slow sheen that travels the frame (never the art or the text). */
+.gc-crest {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 50%;
+  width: 18%;
+  height: 5px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, #fff4d2, #d7a24a);
+  clip-path: polygon(0 0, 100% 0, 78% 100%, 50% 62%, 22% 100%);
+  pointer-events: none;
+}
+.game-card.r-legendary::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 244, 210, 0.38) 48%, transparent 60%) no-repeat;
+  background-size: 250% 100%;
+  animation: gc-sheen 5.5s ease-in-out infinite;
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  padding: var(--gc-pad);
+}
+@keyframes gc-sheen { 0%, 55% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
+@media (prefers-reduced-motion: reduce) { .game-card.r-legendary::after { animation: none; } }
+
+.gc-body {
+  position: absolute;
+  z-index: 4;
+  inset: var(--gc-pad);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gc-gap);
+  overflow: hidden;
+}
+
+/* ---- Name bar ------------------------------------------------------------------------------------------------------ */
+.gc-namebar {
+  flex: 0 0 auto;
+  min-height: var(--gc-name-h, 12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border-radius: 3px 3px 1px 1px;
+  background: linear-gradient(180deg, #1f2e3a, #0d1720);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.gc-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-align: center;
+  color: var(--name-ink);
+  font: 700 var(--gc-name-fs, 10px) / 1.2 var(--gc-title-font);
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+}
+.game-card.r-legendary .gc-name { color: #ffe0a0; }
+.game-card:is([data-name~='full-sm'], [data-name~='short-sm']) .gc-name { font-size: calc(var(--gc-name-fs, 10px) - 1.5px); }
+.gc-name-short { display: none; }
+.game-card:is([data-name~='short'], [data-name~='short-sm']) .gc-name-full { display: none; }
+.game-card:is([data-name~='short'], [data-name~='short-sm']) .gc-name-short { display: inline; }
+/* Never clipped: a name that still doesn't fit on one line wraps. */
+.game-card[data-name~='wrap'] .gc-name { white-space: normal; overflow: visible; line-height: 1.1; }
+
+/* ---- Art box ------------------------------------------------------------------------------------------------------- */
+.gc-art {
+  position: relative;
+  flex: 0 0 var(--gc-art);
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 1px;
+  background: #16283f;
+}
+.game-card.undead .gc-art { background: #12251f; }
+.game-card.infernal .gc-art { background: #331711; }
+.gc-art > canvas,
+.gc-art > .moon-art {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  /* The art is square; the box shows its upper part, where the faces are. */
+  top: var(--gc-art-top);
+  height: auto;
+  aspect-ratio: 1;
+  image-rendering: pixelated;
+}
+/* A bevel: a dark edge, a fine trim line and a soft inner shade, so the art sits in the frame like a window. */
+.gc-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.7), inset 0 0 0 2px color-mix(in srgb, var(--trim) 35%, transparent), inset 0 0 10px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.gc-flags {
+  position: absolute;
+  z-index: 2;
+  top: 3px;
+  right: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.gc-flag {
+  padding: 2px 4px;
+  border-radius: 2px;
+  background: rgba(6, 13, 20, 0.84);
+  font: 700 9px / 1 var(--gc-label-font);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.gc-flag.shield { color: #cfe7fb; box-shadow: inset 0 0 0 1px rgba(160, 205, 240, 0.6); }
+.gc-temp.up { color: #9ff0b0; box-shadow: inset 0 0 0 1px rgba(143, 224, 160, 0.55); }
+.gc-temp.down { color: #ffab98; box-shadow: inset 0 0 0 1px rgba(240, 144, 122, 0.55); }
+
+/* Collection marks on the art's top-left corner: Card Mastery past I, and copies owned past one. */
+.gc-marks { position: absolute; z-index: 2; top: 3px; left: 3px; display: flex; gap: 2px; }
+.gc-mark {
+  padding: 2px 4px;
+  border-radius: 2px;
+  background: rgba(6, 13, 20, 0.84);
+  color: #f4ead2;
+  font: 800 9.5px / 1 var(--gc-text-font);
+  font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap;
+}
+.gc-mark.mastery { color: #f2cf7e; font-family: var(--gc-title-font); font-weight: 700; box-shadow: inset 0 0 0 1px rgba(242, 207, 126, 0.45); }
+/* Not collected yet: the art veiled behind a lock. */
+.gc-veil { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; background: rgba(8, 14, 20, 0.55); color: #c9c2ad; }
+.game-card.is-missing .gc-art > canvas { filter: grayscale(0.85) brightness(0.7); }
+/* Treatment hooks (reserved; only minimal looks today). */
+.gc-treatment { position: absolute; z-index: 1; inset: 0; pointer-events: none; }
+.game-card:is(.treatment-foil, .treatment-moonlit) .gc-treatment { background: linear-gradient(115deg, transparent 20%, rgba(220, 245, 255, 0.14) 42%, transparent 62%); mix-blend-mode: screen; }
+.game-card.treatment-event { --trim: #c9b6f0; }
+
+/* ---- Stats and identity row: faction, rarity, kind, HP Contribution and ATK set into the frame --------------------- */
+.gc-statrow {
+  flex: 0 0 var(--gc-stat-h, 13px);
+  /* The sigil's layout box is larger than it draws (it is scaled down), so the row must not size to it. */
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-left: 3px;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #1b2934, #0d171f);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.gc-identity { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 1px; }
+.gc-identity .cp-sigil { transform: scale(0.72); margin: 0 -2px; }
+.gc-identity .cp-gems { gap: 1px; transform: scale(0.85); transform-origin: left center; }
+/* The first socket sits at the right end: ATK (HP Contribution before it, off the battlefield), or a Spell's kind. */
+.gc-identity + .gc-stat { margin-left: auto; }
+.gc-stat {
+  position: relative;
+  z-index: 0;
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: -1px 0;
+  padding: 0 5px 0 8px;
+  color: #fff3d6;
+}
+/* The socket: the frame's own metal around a dark inlay, cut to a point where it meets the row. */
+.gc-stat::before,
+.gc-stat::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  clip-path: polygon(6px 0, 100% 0, 100% 100%, 6px 100%, 0 50%);
+}
+.gc-stat::before { inset: 0; background: linear-gradient(180deg, var(--frame-hi), var(--frame-lo)); }
+.gc-stat::after { inset: 1px 1px 1px 1.5px; background: linear-gradient(180deg, #16242f, #070d12); }
+.gc-stat-label { font: 700 8.5px / 1 var(--gc-label-font); letter-spacing: 0.05em; color: color-mix(in srgb, var(--trim) 55%, #c7ab70); }
+.gc-stat strong { font: 800 var(--gc-atk-fs, 12px) / 1 var(--gc-text-font); font-variant-numeric: lining-nums tabular-nums; letter-spacing: 0.02em; }
+.gc-atk.up strong { color: #a6f0b6; }
+.gc-atk.down strong { color: #ffb09c; }
+.gc-atk-printed { font: 700 8.5px / 1 var(--gc-text-font); color: #a8b3b0; margin-left: 1px; }
+.gc-hpc strong { color: #ffd0cf; font-size: calc(var(--gc-atk-fs, 12px) - 1px); }
+.gc-hpc .gc-stat-label { color: #e9a7a3; }
+/* A Spell's kind sits in the same socket a Unit's ATK does. */
+.gc-kind-stat .gc-stat-label { font-size: var(--gc-kindstat-fs, 9px); color: #cdbcf4; letter-spacing: 0.06em; }
+/* A narrow card keeps both numbers: the rarity gems go first (the frame's material still says it), then the sockets
+   tighten, then the faction sigil goes too (the card's own colours and Inspect still say it). */
+.game-card:is([data-stats='no-gems'], [data-stats='tight'], [data-stats='min']) .gc-identity .cp-gems { display: none; }
+.game-card:is([data-stats='tight'], [data-stats='min']) .gc-stat { padding: 0 3px 0 7px; gap: 1px; }
+.game-card:is([data-stats='tight'], [data-stats='min']) .gc-stat-label { font-size: 7.5px; letter-spacing: 0.02em; }
+.game-card:is([data-stats='tight'], [data-stats='min']) .gc-statrow { gap: 2px; padding-left: 2px; }
+.game-card[data-stats='min'] .gc-identity { display: none; }
+.game-card[data-stats='min'] .gc-statrow { justify-content: flex-end; padding-left: 0; }
+
+/* ---- Text box ------------------------------------------------------------------------------------------------------ */
+.gc-rules {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  gap: var(--gc-egap);
+  padding: 2.5px 4px 2px;
+  overflow: hidden;
+  border-radius: 1px 1px 3px 3px;
+  background: linear-gradient(180deg, #1d1c1a, #121210);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 0 0 2px color-mix(in srgb, var(--trim) 12%, transparent);
+  color: var(--gc-ink);
+  font: 500 var(--gc-fs) / var(--gc-lh) var(--gc-text-font);
+  text-align: left;
+}
+.gc-effect { display: block; }
+/* The timing label: small caps in a muted gold, a quiet lead-in to the effect. */
+.gc-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 1px;
+  color: var(--gc-label);
+  font: 700 calc(var(--gc-fs) * 0.9) / 1 var(--gc-label-font);
+  letter-spacing: 0.02em;
+  /* Small caps set the word space for lowercase; "Your Spell" needs a little more to read as two words. */
+  word-spacing: 0.14em;
+  white-space: nowrap;
+}
+.game-card.is-spell .gc-when { color: #b9a8df; }
+/* A conditional Passive: a green dot while it is on; the effect dims while it is off. */
+.gc-state { display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-right: 1px; }
+.gc-state.on { background: #8fe0a0; box-shadow: 0 0 3px #8fe0a0; }
+.gc-state.off { background: transparent; box-shadow: inset 0 0 0 1px #a3aaa4; }
+.gc-text.is-off { color: #9aa19b; }
+.gc-silenced { color: #ffab98; font: 700 var(--gc-fs) / 1.1 var(--gc-label-font); letter-spacing: 0.03em; }
+.game-card.is-silenced .gc-effect .gc-text { text-decoration: line-through; text-decoration-color: rgba(255, 171, 152, 0.7); }
+.gc-none { color: #8f988f; font-style: italic; }
+
+/* ---- Densities ----------------------------------------------------------------------------------------------------- */
+.game-card.d-hand { --gc-fs: 10px; --gc-sm-fs: 9.5px; --gc-name-fs: 10.5px; --gc-name-h: 13px; --gc-atk-fs: 13px; --gc-stat-h: 11px; --gc-art-base: 50%; --gc-art-roomy: 54%; }
+.game-card.d-board { --gc-fs: 9.5px; --gc-sm-fs: 9px; --gc-name-fs: 9.5px; --gc-name-h: 12px; --gc-atk-fs: 12.5px; --gc-stat-h: 10px; --gc-art-base: 48%; --gc-art-roomy: 52%; }
+/* A card in a grid: the hand card's proportions and type, so a card reads the same in the Collection as in battle. */
+.game-card.d-tile {
+  height: auto;
+  aspect-ratio: 2 / 3;
+  border-radius: 7px;
+  --gc-fs: 10px;
+  --gc-sm-fs: 9.5px;
+  --gc-name-fs: 10.5px;
+  --gc-name-h: 13px;
+  --gc-atk-fs: 12.5px;
+  --gc-stat-h: 12px;
+  --gc-art-base: 50%;
+  --gc-art-roomy: 54%;
+}
+.game-card.d-inspect {
+  height: auto;
+  aspect-ratio: 5 / 7;
+  border-radius: 10px;
+  --gc-pad: 5px;
+  --gc-gap: 3px;
+  --gc-fs: 12.5px;
+  --gc-sm-fs: 12px;
+  --gc-lh: 1.25;
+  --gc-egap: 5px;
+  --gc-name-fs: 15px;
+  --gc-name-h: 22px;
+  --gc-atk-fs: 17px;
+  --gc-kindstat-fs: 11px;
+  --gc-stat-h: 21px;
+  --gc-art-base: 50%;
+  --gc-art-roomy: 54%;
+}
+.game-card.d-inspect .gc-frame { inset: 2px; border-radius: 8px; }
+.game-card.d-inspect .gc-crest { height: 8px; }
+.game-card.d-inspect .gc-namebar { padding: 2px 6px 1px; }
+.game-card.d-inspect .gc-rules { padding: 6px 8px; }
+.game-card.d-inspect .gc-stat-label { font-size: 10.5px; }
+.game-card.d-inspect .gc-identity .cp-sigil { transform: scale(0.9); margin: 0 -1px; }
+.game-card.d-inspect .gc-identity .cp-gems { transform: none; gap: 2px; }
+.game-card.d-inspect .gc-hpc { margin-right: 3px; }
+.game-card.d-inspect .gc-stat { padding: 0 8px 0 11px; }
+.game-card.d-inspect .gc-stat::before,
+.game-card.d-inspect .gc-stat::after { clip-path: polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 50%); }
+.game-card.d-inspect .gc-flag,
+.game-card.d-inspect .gc-mark { font-size: 11px; padding: 3px 6px; }
+.game-card.d-inspect .gc-marks { top: 5px; left: 5px; }
+
+/* Spell zone: a wide, short strip; name and text only. */
+.game-card.d-spell { --gc-pad: 2px; }
+.game-card.d-spell .gc-rules { display: block; padding: 3px 5px; --gc-fs: 9.5px; --gc-lh: 1.15; border-radius: 3px; }
+.game-card.d-spell .gc-name-inline { display: inline-block; max-width: 100%; margin-right: 4px; font: 700 9.5px / 1 var(--gc-title-font); color: #efe6ff; letter-spacing: 0.02em; white-space: normal; }
+.game-card.d-spell .gc-name-inline svg { display: inline; vertical-align: -1px; margin-right: 2px; color: #cdbcf4; }
+.game-card.d-spell .gc-effect { display: inline; }
+.game-card.d-spell .gc-effect + .gc-effect::before { content: ''; display: block; height: 2px; }
+
+/* Fit levels (useFitCard, on the card root). No level scrolls; rules text never goes below 9px. The fill levels set
+   --gc-art inline to whatever share of the card the effects leave, down to a floor. */
+.game-card[data-fit='roomy'] { --gc-art: var(--gc-art-roomy); }
+.game-card:is([data-fit='tight'], [data-fit$='fill']) { --gc-egap: 1px; --gc-lh: 1.1; }
+.game-card[data-fit$='fill'] .gc-rules { padding: 2px 3px 2.5px; }
+.game-card[data-fit='sm-fill'] { --gc-fs: var(--gc-sm-fs); }
+.game-card:is([data-fit='xs-fill'], [data-fit='xxs-fill']) { --gc-fs: 9px; --gc-lh: 1.1; }
+/* The last resort for the longest text: the same 9px type set 8% narrower (long card text is condensed, not cut). */
+.game-card:is([data-fit='xxs-fill'], .d-spell[data-fit='xxs']) .gc-rules { width: calc(100% / 0.92); transform: scaleX(0.92); transform-origin: left top; }
+.game-card.d-spell[data-fit='sm'] .gc-rules { --gc-fs: 9.25px; --gc-lh: 1.12; }
+.game-card.d-spell:is([data-fit='xs'], [data-fit='xxs']) .gc-rules { --gc-fs: 9px; --gc-lh: 1.1; padding: 1px 3px; }
+.game-card.d-spell:is([data-fit='xs'], [data-fit='xxs']) .gc-effect + .gc-effect::before { height: 1px; }
+.game-card.d-inspect:is([data-fit='xs-fill'], [data-fit='xxs-fill']) { --gc-fs: 11px; }

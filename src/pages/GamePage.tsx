@@ -1,18 +1,25 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { CombatModelId, DeployPlay, GameEvent, GameState, HandCard as HandCardModel, HeroInstance, LaneId, MasteryLoadout, PlayerAction, SpellZoneInstance } from '../game/types';
 import { LANES } from '../game/types';
 import { getCard } from '../game/cards';
 import { createMatch } from '../game/engine/match';
 import { beginRound, resolveRound, spellHasAValidTarget, validateDeployment } from '../game/engine/resolveRound';
 import { withEffectivePowers } from '../game/engine/power';
+import { legacyPassiveEffectStates } from '../game/engine/abilities';
 import { makeSeed } from '../game/engine/rng';
 import { combatStats } from '../game/combatV2/model';
 import { chooseAiAction } from '../game/ai/simpleAI';
-import { beginCardRound, cardAtk, cardSpellHasTarget, createCardMatch, matchHpContribution, resolveCardRound, validateCardDeployment, withEffectiveAtk } from '../game/cardCombat/engine';
+import { beginCardRound, cardAtk, cardSpellHasTarget, createCardMatch, matchHpContribution, passiveEffectStates, resolveCardRound, validateCardDeployment, withEffectiveAtk } from '../game/cardCombat/engine';
 import { chooseCardAiAction } from '../game/cardCombat/ai';
 import { getCombatCard } from '../game/cardCombat/cards';
 import { stagesFromAscensionRanks } from '../game/cardCombat/mastery';
-import { CombatDisplayContext, type CardCombatDisplay } from '../components/combatDisplay';
+import { CombatDisplayContext, type BattleCardDisplay } from '../components/combatDisplay';
+import { BattleLogPanel } from '../components/battleInfo/BattleDock';
+import { CardFocusPanel } from '../components/card/CardFocusPanel';
+import { legacyAtk, type CardRules } from '../game/cards/cardPresentation';
+import { ATK_PER_POWER } from '../game/cardCombat/stats';
+import { battleLogEntries } from '../components/battleInfo/battleLog';
+import { focusDetails, type BattleFocus } from '../components/battleInfo/focusDetails';
 import { clashCalloutForStep } from '../components/animation/chitEffects';
 import { computeMatchStats, type MatchStats } from '../game/engine/stats';
 import { saveRecentMatch } from '../game/engine/localMatchHistory';
@@ -20,7 +27,7 @@ import { SideHeader } from '../components/SideHeader';
 import { Battlefield } from '../components/Battlefield';
 import { OpponentHand } from '../components/OpponentHand';
 import { Hand } from '../components/Hand';
-import { CardDetail, type InspectContext } from '../components/CardDetail';
+import { CardInspect, type InspectBattleCopy, type InspectContext } from '../components/card/CardInspect';
 import { GraveyardSheet } from '../components/GraveyardSheet';
 import { DebugPanel } from '../components/DebugPanel';
 import { TopControls } from '../components/TopControls';
@@ -40,6 +47,7 @@ import { resolveDuration } from '../components/animation/timing';
 import type { AnimationSpeed } from '../components/animation/types';
 import type { FriendlyRematchActions } from '../components/MatchSummary';
 import type { RemoteOpponentController } from '../net/friendlyTypes';
+import '../styles/battleCardHosts.css';
 
 export type { AnimationSpeed };
 type Phase = 'DEPLOY' | 'REVEALING' | 'WAITING_FOR_OPPONENT' | 'MATCH_END';
@@ -135,6 +143,9 @@ function buildPreviewZones(
 
 export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel = 'legacy', battleMode = 'quick' }: GamePageProps) {
   const cardMode = combatModel === 'card';
+  // The rules every card in this battle describes: card combat's, or a legacy resolver's (v2 included). The card faces,
+  // focus panel, log and Card Inspect are the same in every mode; only their wording and numbers follow the rules.
+  const rules: CardRules = cardMode ? 'card' : 'legacy';
 
   function buildMatch(matchSeed: number): { state: GameState; events: GameEvent[] } {
     if (cardMode) {
@@ -166,8 +177,12 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
 
   const [pendingPlays, setPendingPlays] = useState<DeployPlay[]>([]);
   const [selectedHand, setSelectedHand] = useState<HandCardModel | null>(null);
-  const [inspect, setInspect] = useState<{ cardId: string; context: InspectContext; livePower?: number; masteryRank?: number } | null>(null);
-  const setInspectCardId = (cardId: string | null) => setInspect(cardId ? { cardId, context: 'battle' } : null);
+  const [inspect, setInspect] = useState<{ cardId: string; context: InspectContext; battle: InspectBattleCopy } | null>(null);
+  // The dock over the hand apron: the card a tap picked out, or the battle log, one at a time and between rounds only
+  // (while a round resolves the dock shows the live log instead). The log stays open from round to round until it is
+  // closed; a card's panel shows over it.
+  const [focus, setFocus] = useState<BattleFocus | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
 
   const [revealEvents, setRevealEvents] = useState<GameEvent[]>([]);
   const [baseStateForReveal, setBaseStateForReveal] = useState<GameState | null>(null);
@@ -201,6 +216,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     setPhase('DEPLOY');
     setPendingPlays([]);
     setSelectedHand(null);
+    setFocus(null);
+    setLogOpen(false);
     setRevealEvents([]);
     setBaseStateForReveal(null);
     setPendingNextState(null);
@@ -273,6 +290,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     }
     setPendingPlays([]);
     setSelectedHand(null);
+    setFocus(null);
     setSubmitError(null);
 
     if (remoteOpponent) {
@@ -312,7 +330,36 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
 
   function selectForPlacement(hand: HandCardModel) {
     if (phase !== 'DEPLOY') return;
-    setSelectedHand((prev) => (prev?.handId === hand.handId ? null : hand));
+    // A tap selects the card and opens its focus panel; tapping the card the panel shows puts it back.
+    const shown = focus?.kind === 'hand' && focus.handId === hand.handId;
+    if (shown && selectedHand?.handId === hand.handId) {
+      setSelectedHand(null);
+      setFocus(null);
+      return;
+    }
+    setSelectedHand(hand);
+    setFocus({ kind: 'hand', handId: hand.handId, cardId: hand.cardId });
+  }
+
+  /** A tap on a Unit or a Spell on the board opens its focus panel, and a second tap closes it. */
+  function toggleFocus(next: BattleFocus) {
+    setFocus((prev) => (prev && prev.kind === next.kind && 'instanceId' in prev && 'instanceId' in next && prev.instanceId === next.instanceId ? null : next));
+  }
+
+  function closeFocus() {
+    // Closing a hand card's panel puts the card back as well.
+    if (focus?.kind === 'hand' && selectedHand?.handId === focus.handId) setSelectedHand(null);
+    setFocus(null);
+  }
+
+  function toggleLog() {
+    if (phase !== 'DEPLOY') return;
+    if (logShown) {
+      setLogOpen(false);
+      return;
+    }
+    setLogOpen(true);
+    setFocus(null);
   }
 
   // Placement IS targeting - a single Hero/Spell click or drop commits the whole play; there is no
@@ -321,6 +368,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     if (!selectedHand) return;
     setPendingPlays((prev) => [...prev, { handId: selectedHand.handId, cardId: selectedHand.cardId, lane }]);
     setSelectedHand(null);
+    setFocus(null);
   }
 
   function handleHeroLaneClick(lane: LaneId) {
@@ -375,23 +423,25 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
 
   const preview = phase === 'DEPLOY' ? buildPreviewZones(displayState.player.heroZones, displayState.player.spellZones, pendingPlays, playerHeroLevels, playerAscensions, combatModel) : null;
 
-  // Tapping a chit to inspect it - like every other board interaction - is locked out while the round
-  // is resolving, so a mid-animation tap can never race the animation queue or open stale card data.
+  // Tapping a card on the board - like every other board interaction - is locked out while the round is resolving,
+  // so a mid-animation tap can never race the animation queue or open stale card data. A tap opens the card's focus
+  // panel (Card Inspect is one more tap away, on the panel); a staged play is taken back instead.
   function handlePlayerChitClick(hero: HeroInstance) {
     if (isRevealing) return;
     if (hero.instanceId.startsWith('pending-')) handleRemovePending(hero.instanceId.replace('pending-', ''));
-    else setInspect({ cardId: hero.cardId, context: 'battle', livePower: hero.maxHp === undefined ? hero.power : undefined, masteryRank: hero.ascension ?? 0 });
+    else toggleFocus({ kind: 'unit', side: 'player', instanceId: hero.instanceId });
   }
 
   function handlePlayerSpellChitClick(spell: SpellZoneInstance) {
     if (isRevealing) return;
     if (spell.instanceId.startsWith('pending-')) handleRemovePending(spell.instanceId.replace('pending-', ''));
-    else setInspectCardId(spell.cardId);
+    else toggleFocus({ kind: 'spell', side: 'player', instanceId: spell.instanceId });
   }
 
-  function handleEnemyChitClick(cardId: string, hero?: HeroInstance) {
+  function handleEnemyChitClick(hero?: HeroInstance, spell?: SpellZoneInstance) {
     if (isRevealing) return;
-    setInspect({ cardId, context: 'opponent', livePower: hero && hero.maxHp === undefined ? hero.power : undefined, masteryRank: hero?.ascension ?? 0 });
+    if (hero) toggleFocus({ kind: 'unit', side: 'enemy', instanceId: hero.instanceId });
+    else if (spell) toggleFocus({ kind: 'spell', side: 'enemy', instanceId: spell.instanceId });
   }
 
   function handleDragStart(hand: HandCardModel) {
@@ -410,6 +460,73 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const playerBoardState = cardMode ? withEffectiveAtk({ ...displayState, player: playerZonesForDisplay }, 'player') : withEffectivePowers({ ...displayState, player: playerZonesForDisplay }, 'player');
   const enemyBoardState = cardMode ? withEffectiveAtk(displayState, 'enemy') : withEffectivePowers(displayState, 'enemy');
   const clashCallout = isRevealing ? clashCalloutForStep(anim.currentStep, revealEvents, displayState) : null;
+  // Which conditional always-on effects are live on the board as shown (pending plays included).
+  const shownState = { ...displayState, player: playerZonesForDisplay };
+  const passiveFor = cardMode ? passiveEffectStates : legacyPassiveEffectStates;
+  const passiveStates = new Map([...passiveFor(shownState, 'player'), ...passiveFor(shownState, 'enemy')]);
+  const hpContributionOf = (cardId: string, owner: 'player' | 'enemy') => matchHpContribution(gameState, owner, cardId);
+  const rankOf = (cardId: string, owner: 'player' | 'enemy') => gameState.ascensions?.[owner]?.[cardId] ?? 0;
+
+  // How every card in this battle reads (combatDisplay.ts): card combat's live ATK and HP Contribution, or, in a legacy
+  // battle, the ATK a Unit's live Power reads as and the copy's Card Mastery effects (no HP Contribution there).
+  const display: BattleCardDisplay = {
+    rules,
+    unitAtk: (unit) => (cardMode ? unit.power : legacyAtk(unit.power)),
+    handAtk: (cardId) => {
+      const card = getCard(cardId);
+      if (cardMode || card.type !== 'hero') return undefined;
+      return legacyAtk((card.power ?? 0) + battlePowerBonusForLevel(gameState.heroLevels?.player?.[cardId] ?? 1));
+    },
+    tempAtk: (unit) => (cardMode ? unit.tempPower : unit.tempPower * ATK_PER_POWER),
+    masteryRank: (cardId, owner, unit) => (cardMode ? 0 : (unit?.ascension ?? rankOf(cardId, owner))),
+    masteryStage: (cardId, owner) => (cardMode ? (gameState.cardCombat?.masteryStage[owner][cardId] ?? 1) : rankOf(cardId, owner) + 1),
+    ...(cardMode ? { hpContribution: hpContributionOf } : {}),
+    passiveStates: (instanceId) => passiveStates.get(instanceId),
+  };
+
+  // The dock. Between rounds: the focus panel for the card a tap picked out (read from the board as shown), else the
+  // battle log when it is open; either way the hand peeks out under it. While a round resolves: the live log, each line
+  // appearing as playback reaches the events it describes.
+  const focusInfo = phase === 'DEPLOY' && focus ? focusDetails(focus, shownState, fullLog, { rules, hpContribution: cardMode ? hpContributionOf : undefined }) : null;
+  const historyLog = useMemo(() => (logOpen ? battleLogEntries(fullLog, undefined, rules) : []), [logOpen, fullLog, rules]);
+  const revealLog = useMemo(() => battleLogEntries(revealEvents, baseStateForReveal ?? undefined, rules), [revealEvents, baseStateForReveal, rules]);
+  let revealedUntil = anim.isDone ? revealEvents.length - 1 : -1;
+  if (!anim.isDone) for (let i = 0; i <= Math.min(anim.stepIndex, anim.steps.length - 1); i++) revealedUntil = Math.max(revealedUntil, anim.steps[i].maxEventIndex);
+  const liveLog = isRevealing ? revealLog.filter((entry) => entry.until <= revealedUntil) : [];
+  const logShown = phase === 'DEPLOY' && !focusInfo && logOpen;
+  const dockOpen = !!focusInfo || logShown;
+
+  /** Card Inspect for a card in this battle: the copy as these rules play it. */
+  function inspectCard(cardId: string, owner: 'player' | 'enemy', atk?: number) {
+    const unit = getCard(cardId).type === 'hero';
+    setInspect({
+      cardId,
+      context: owner === 'enemy' ? 'opponent' : 'battle',
+      battle: {
+        rules,
+        owner,
+        ...(unit && atk !== undefined ? { atk } : {}),
+        ...(unit && cardMode ? { hpContribution: hpContributionOf(cardId, owner), masteryStage: display.masteryStage(cardId, owner) } : {}),
+        ...(!cardMode ? { masteryRank: display.masteryRank(cardId, owner) } : {}),
+      },
+    });
+  }
+
+  function inspectFocused() {
+    if (!focusInfo) return;
+    setInspect({
+      cardId: focusInfo.cardId,
+      context: focusInfo.owner === 'enemy' ? 'opponent' : 'battle',
+      battle: {
+        rules,
+        owner: focusInfo.owner,
+        ...(focusInfo.kind === 'unit' && focusInfo.atk !== undefined ? { atk: focusInfo.atk } : {}),
+        ...(focusInfo.hpContribution !== undefined ? { hpContribution: focusInfo.hpContribution } : {}),
+        masteryStage: focusInfo.masteryStage,
+        masteryRank: focusInfo.masteryRank,
+      },
+    });
+  }
 
   // Status band above the hand (Battle Screen v8 / design source of truth section 9): during
   // resolution it's a static "Resolving", never a scrolling play-by-play of each event.
@@ -417,7 +534,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   if (phase === 'WAITING_FOR_OPPONENT') hint = 'Waiting for opponent';
   else if (isRevealing) hint = 'Resolving';
   else if (pendingPlays.length > 0 && !selectedHand) hint = 'Ready to fight';
-  else if (selectedCard) hint = selectedCard.type === 'hero' ? 'Tap a hero slot' : 'Tap a spell slot';
+  else if (selectedCard) hint = selectedCard.type === 'hero' ? 'Tap a Unit slot' : 'Tap a Spell slot';
   else hint = 'Tap a card';
 
   // Every CSS animation keyframe reads its pace from this one variable (see global.css's "Combat
@@ -425,19 +542,11 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   // (speed setting + reduced motion, both handled in timing.ts) reaches the DOM.
   const stepMs = anim.currentStep ? resolveDuration(anim.currentStep.timingCategory, animationSpeed, anim.reducedMotion) : 300;
 
-  // Card combat: hand cards, board chits and Card Inspect read ATK from the board and HP Contribution from this match.
-  const cardDisplay: CardCombatDisplay | null = cardMode
-    ? {
-        hpContribution: (cardId, owner) => matchHpContribution(gameState, owner, cardId),
-        masteryStage: (cardId, owner) => gameState.cardCombat?.masteryStage[owner][cardId] ?? 1,
-      }
-    : null;
-
   return (
-    <CombatDisplayContext.Provider value={cardDisplay}>
+    <CombatDisplayContext.Provider value={display}>
     <div className="app-shell">
       <div className="battle-stage" style={{ '--step-ms': `${Math.max(stepMs, 1)}ms` } as CSSProperties}>
-        <div className="battle-scene">
+        <div className="battle-scene card-faces">
           <div className="battle-sky" aria-hidden="true" />
           <div className="battle-terrace" aria-hidden="true" />
           <div className="battle-glow left" aria-hidden="true" />
@@ -469,11 +578,12 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             onHeroChitClick={handlePlayerChitClick}
             onSpellSlotClick={handleSpellLaneClick}
             onSpellChitClick={handlePlayerSpellChitClick}
-            onEnemyHeroChitClick={(h) => handleEnemyChitClick(h.cardId, h)}
-            onEnemySpellChitClick={(s) => handleEnemyChitClick(s.cardId)}
+            onEnemyHeroChitClick={(h) => handleEnemyChitClick(h)}
+            onEnemySpellChitClick={(s) => handleEnemyChitClick(undefined, s)}
             canFight={phase === 'DEPLOY'}
             fighting={isRevealing}
             onFight={handleFight}
+            focusedId={focusInfo && focus && focus.kind !== 'hand' ? focus.instanceId : null}
           />
 
           <SideHeader
@@ -488,11 +598,14 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             graveyardCount={displayState.player.graveyard.length}
             graveyardDisabled={isRevealing}
             onGraveyardClick={() => setGraveyardOpen(true)}
+            onLogClick={toggleLog}
+            logOpen={logShown}
             badge={playerMastery && !cardMode ? <MasteryBadge loadout={playerMastery} toast={masteryToast} /> : undefined}
           />
 
+          {/* The hint sits under the enemy bar, clear of the hand cards' art and ATK. */}
+          <div className="battle-hint">{hint}</div>
           <div className="hand-apron">
-            <div className="battle-hint">{hint}</div>
             {submitError && phase === 'DEPLOY' && (
               <div style={{ color: '#e66', textAlign: 'center', fontSize: 13 }}>
                 {submitError}{' '}
@@ -502,10 +615,13 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
               </div>
             )}
             {phase === 'DEPLOY' ? (
-              <Hand hand={gameState.player.hand} selectedHandId={selectedHand?.handId ?? null} usedHandIds={usedHandIds} onSelect={selectForPlacement} onInspect={setInspectCardId} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
+              <Hand peek={dockOpen} hand={gameState.player.hand} selectedHandId={selectedHand?.handId ?? null} usedHandIds={usedHandIds} onSelect={selectForPlacement} onInspect={(cardId) => inspectCard(cardId, 'player', display.handAtk(cardId))} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
             ) : (
               <div className="hand-fan" />
             )}
+            {focusInfo && <CardFocusPanel layout="dock" details={focusInfo} onClose={closeFocus} onInspect={inspectFocused} />}
+            {logShown && <BattleLogPanel entries={historyLog} live={false} onClose={() => setLogOpen(false)} />}
+            {isRevealing && <BattleLogPanel entries={liveLog} live round={baseStateForReveal?.round} />}
           </div>
 
           {mobileDebugOpen && (
@@ -524,11 +640,11 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
               playerGraveyard={displayState.player.graveyard}
               enemyGraveyard={displayState.enemy.graveyard}
               onClose={() => setGraveyardOpen(false)}
-              onInspect={(cardId, side) => setInspect({ cardId, context: cardMode && side === 'enemy' ? 'opponent' : 'battle' })}
+              onInspect={(cardId, side) => inspectCard(cardId, side)}
             />
           )}
 
-          {inspect && <CardDetail {...inspect} onClose={() => setInspect(null)} />}
+          {inspect && <CardInspect cardId={inspect.cardId} context={inspect.context} battle={inspect.battle} onClose={() => setInspect(null)} />}
           {phase === 'MATCH_END' && matchStats && <MatchSummary stats={matchStats} xp={xpResult} gold={goldResult} onPlayAgain={() => restartWithSeed(makeSeed())} onExit={onExit} friendlyRematch={friendlyRematch} />}
 
           {/* Friendly Battle only - deliberately minimal/unstyled (see docs/FRIENDLY-BATTLE.md: "keep
