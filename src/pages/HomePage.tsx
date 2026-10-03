@@ -13,10 +13,8 @@ import { useAccount } from '../game/progression/useAccount';
 import { claimIdleReward, idleRewardCycleId } from '../game/campaign/idleRewards';
 import { CHAPTER_1 } from '../game/campaign/chapter1';
 import { DIFFICULTY_LABEL, findNode, getCurrentNodeId, isNodeCleared, loadProgress } from '../game/campaign/progress';
-import { useAscension } from '../game/ascension/useAscension';
 import { deckStartingHp } from '../game/cardCombat/stats';
 import { dismissRefundNotice, pendingRefundNotice } from '../game/save/migrations';
-import { playerMasteryStages } from '../game/cardCombat/mastery';
 import { track } from '../analytics/track';
 import { listMissions } from '../game/missions/store';
 import type { MissionsState } from '../game/missions/store';
@@ -53,7 +51,6 @@ function rewardLabel(node: (typeof CHAPTER_1.nodes)[number]): string | null {
 export function HomePage(props: HomeProps) {
   const hub = useHubState();
   const account = useAccount();
-  const ascensions = useAscension();
   const deck = getActiveDeck();
   const [inspect, setInspect] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
@@ -77,9 +74,9 @@ export function HomePage(props: HomeProps) {
   const currentNode = hub.campaign.nextName ? findNode(getCurrentNodeId(progress) ?? '') : undefined;
   const currentStep = currentNode ? mainRoadNodes.indexOf(currentNode) + 1 : mainRoadNodes.length;
   const nextEncounter = currentNode ? (currentNode.encounter ? currentNode : CHAPTER_1.nodes.slice(CHAPTER_1.nodes.indexOf(currentNode)).find(n => !n.optional && n.encounter)) : undefined;
-  // The active deck's real Starting HP (the battle's own helper, Card Mastery included) and the next fight's authored
+  // The active deck's real Starting HP (the battle's own helper: printed HP Contributions) and the next fight's authored
   // difficulty. No single-number deck rating: one number can't capture what a deck does in a lane.
-  const startingHp = deckStartingHp(deck.cardIds, playerMasteryStages(deck.cardIds, ascensions)).total;
+  const startingHp = deckStartingHp(deck.cardIds).total;
   const nextDifficulty = nextEncounter?.encounter?.difficulty;
   const nextReward = (() => {
     const start = currentNode ? CHAPTER_1.nodes.indexOf(currentNode) : CHAPTER_1.nodes.length;
@@ -168,7 +165,7 @@ export function HomePage(props: HomeProps) {
       <button className="home-continue" onClick={props.onOpenCampaign}><span>{continueLabel}</span><b aria-hidden="true">→</b></button>
       {refund && (
         <button type="button" className="home-return-note" onClick={() => { dismissRefundNotice(); setRefund(null); }} aria-label="Dismiss the card Level refund note">
-          Card Levels are retired: {refund.gold.toLocaleString('en-US')} Gold you put into them is back in your purse. Gold now raises Card Mastery IV and V. ✕
+          Card Levels are retired: {refund.gold.toLocaleString('en-US')} Gold you put into them is back in your purse. ✕
         </button>
       )}
       {returnState && !returnSeen && (returnState.key.startsWith('card-')

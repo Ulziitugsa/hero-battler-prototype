@@ -3,7 +3,7 @@ import { Sigil } from '../../components/CardParts';
 import type { DeckSummary } from '../../game/decks/deckSummary';
 import { plural } from './deckStatus';
 
-export const STARTING_HP_HELP = 'Your HP at the start of every battle: the HP Contribution of all your Units, Card Mastery included.';
+export const STARTING_HP_HELP = 'Your HP at the start of every battle: the printed HP Contribution of all your Units.';
 
 const nf = new Intl.NumberFormat('en-US');
 

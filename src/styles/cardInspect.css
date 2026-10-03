@@ -66,13 +66,10 @@
 .ci-lore p { margin: 0; color: #b8ae96; font-size: 12.5px; line-height: 1.65; }
 .ci-stat p b { color: #e9dfc6; font-weight: 700; }
 
-.ci-mastery { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(214, 196, 150, 0.16); }
-.ci-mastery-head { display: flex; align-items: center; gap: 8px; color: #f1e8d3; font-size: 13px; font-weight: 700; }
 .ci-classic { margin: 8px 0 0; color: #b9b19c; font-size: 12px; line-height: 1.4; }
 .ci-stat.is-classic strong { color: #b9b19c; }
 .card-inspect .ci-stats,
 .card-inspect .ci-effects,
-.card-inspect .ci-mastery,
 .card-inspect .ci-collection,
 .card-inspect .ci-lore { width: 100%; max-width: 420px; margin-inline: auto; box-sizing: border-box; }
 

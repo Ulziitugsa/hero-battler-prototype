@@ -5,7 +5,7 @@ import { STARTER_DECKS } from '../cards/starterDecks';
 import { validateDeck } from '../engine/deckRules';
 import { reloadCollection } from '../collection/collection';
 import { reloadEconomy } from '../economy/economy';
-import { reloadAscension, sanitizeAscension } from '../ascension/store';
+import { ASCENSION_STORAGE_KEY, getAscensionState, reloadAscension } from '../ascension/store';
 import { reloadHeroLevels, setHeroLevel } from '../heroLevel/store';
 import { resetProgression } from '../progression/account';
 import { deckStartingHp } from '../cardCombat/stats';
@@ -43,7 +43,6 @@ beforeEach(() => {
 
 const ENCOUNTERS = CHAPTER_1.nodes.filter((n) => n.encounter);
 const KINGDOM = STARTER_DECKS.kingdom;
-const noAscension = sanitizeAscension(null);
 
 describe('Campaign on card combat: every encounter', () => {
   it('has a legal enemy deck (15 cards, 8+ Units) of its own, and an authored difficulty', () => {
@@ -70,37 +69,42 @@ describe('Campaign on card combat: every encounter', () => {
 
   it('Starting HP comes from the decks; the boss gets an HP pool, the challenge a reduced player start', () => {
     for (const node of ENCOUNTERS) {
-      const hp = campaignBattleHp(node, KINGDOM, noAscension)!;
+      const hp = campaignBattleHp(node, KINGDOM)!;
       const enc = node.encounter!;
       const own = deckStartingHp(KINGDOM).total;
       expect(hp.player, node.id).toBe(enc.playerStartingHpPct ? Math.round((own * enc.playerStartingHpPct) / 100) : own);
       expect(hp.enemy, node.id).toBe(enc.enemyStartingHp ?? deckStartingHp(campaignEnemyDeck(node.id)!).total);
     }
     const boss = ENCOUNTERS.find((n) => n.type === 'boss')!;
-    expect(campaignBattleHp(boss, KINGDOM, noAscension)!.enemy).toBe(1200);
+    expect(campaignBattleHp(boss, KINGDOM)!.enemy).toBe(1200);
   });
 
   it('the battle starts at exactly the HP the stage sheet shows, on the card resolver', () => {
     for (const node of ENCOUNTERS) {
-      const plan = campaignBattlePlan(node, KINGDOM, noAscension)!;
+      const plan = campaignBattlePlan(node, KINGDOM)!;
       const { nextState } = createCardMatch({ seed: 7, playerDeck: KINGDOM, enemyDeck: plan.enemyDeck, startingHpOverride: plan.startingHpOverride });
       expect(nextState.combatModel).toBe('card');
-      expect({ player: nextState.player.hp, enemy: nextState.enemy.hp }, node.id).toEqual(campaignBattleHp(node, KINGDOM, noAscension));
+      expect({ player: nextState.player.hp, enemy: nextState.enemy.hp }, node.id).toEqual(campaignBattleHp(node, KINGDOM));
     }
   });
 
-  it('Card Mastery raises the player Starting HP shown and played; Legacy Level does nothing', () => {
-    const node = ENCOUNTERS[0];
-    const base = campaignBattleHp(node, KINGDOM, noAscension)!.player;
+  it('6. Campaign ignores Mastery: a historical Mastery V record and Legacy Level change neither side’s Starting HP', () => {
+    const before = ENCOUNTERS.map((node) => campaignBattleHp(node, KINGDOM));
     setHeroLevel('kng-royal-guard', 60);
-    expect(campaignBattleHp(node, KINGDOM, noAscension)!.player).toBe(base);
-    const mastered = sanitizeAscension({ cards: { 'kng-royal-guard': { rank: 4, duplicatesSpent: 10 } } });
-    expect(campaignBattleHp(node, KINGDOM, mastered)!.player).toBeGreaterThan(base);
+    localStorage.setItem(ASCENSION_STORAGE_KEY, JSON.stringify({ version: 1, cards: { 'kng-royal-guard': { rank: 4, duplicatesSpent: 10 }, 'kng-paladin': { rank: 4, duplicatesSpent: 10 } } }));
+    reloadAscension();
+    expect(getAscensionState().cards['kng-royal-guard']).toEqual({ rank: 4, duplicatesSpent: 10 });
+    expect(ENCOUNTERS.map((node) => campaignBattleHp(node, KINGDOM))).toEqual(before);
+    for (const node of ENCOUNTERS) {
+      const plan = campaignBattlePlan(node, KINGDOM)!;
+      const { nextState } = createCardMatch({ seed: 7, playerDeck: KINGDOM, enemyDeck: plan.enemyDeck, startingHpOverride: plan.startingHpOverride });
+      expect({ player: nextState.player.hp, enemy: nextState.enemy.hp }, node.id).toEqual(campaignBattleHp(node, KINGDOM));
+    }
   });
 
   it('deterministic simulation: no stalls, no auto-wins or auto-losses (Kingdom starter, 12 games each)', () => {
     for (const node of ENCOUNTERS) {
-      const plan = campaignBattlePlan(node, KINGDOM, noAscension)!;
+      const plan = campaignBattlePlan(node, KINGDOM)!;
       const a = runCardSeries({ playerDeck: KINGDOM, enemyDeck: plan.enemyDeck, startingHpOverride: plan.startingHpOverride }, 12, 20261001);
       const b = runCardSeries({ playerDeck: KINGDOM, enemyDeck: plan.enemyDeck, startingHpOverride: plan.startingHpOverride }, 12, 20261001);
       expect(a, node.id).toEqual(b);

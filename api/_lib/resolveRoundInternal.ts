@@ -1,7 +1,7 @@
 import type { GameEvent, GameState, PlayerAction, Side } from '../../src/game/types/index.js';
 import { beginRound, resolveRound, validateDeployment } from '../../src/game/engine/resolveRound.js';
 import { beginCardRound, resolveCardRound, validateCardDeployment } from '../../src/game/cardCombat/engine.js';
-import { CARD_RESOLVER_VERSION, matchResolver } from '../../src/game/combat/resolver.js';
+import { CARD_RESOLVER_VERSION, isCurrentCardResolver, matchResolver } from '../../src/game/combat/resolver.js';
 import { orientEventsForViewer, orientStateForViewer } from '../../src/game/engine/perspective.js';
 import { HttpError } from './http.js';
 import { supabaseAdmin } from './supabaseAdmin.js';
@@ -60,12 +60,13 @@ const NO_PLAYS: PlayerAction = { plays: [] };
 /**
  * The resolver a stored match plays, read from the match's own state (combatModel + cardCombat.version), never from a
  * date or a deploy. Matches created before card combat carry no combatModel and keep the legacy resolver to the end;
- * card matches need this server's card resolver version (a different version can't be continued here: 409).
+ * card matches need a card resolver version this server can continue (combat/resolver.ts CONTINUABLE_CARD_RESOLVER_VERSIONS:
+ * v2 and v3); any other version can't be continued here: 409.
  */
 export function resolverFor(state: GameState) {
   const r = matchResolver(state);
   if (r.combatModel === 'card') {
-    if (r.resolverVersion !== CARD_RESOLVER_VERSION) throw new HttpError(409, `This match uses card rules v${r.resolverVersion}; this server plays v${CARD_RESOLVER_VERSION}.`);
+    if (!isCurrentCardResolver(state)) throw new HttpError(409, `This match uses card rules v${r.resolverVersion}; this server plays v${CARD_RESOLVER_VERSION}.`);
     return { validate: validateCardDeployment, resolve: resolveCardRound, begin: beginCardRound, continuesRng: true };
   }
   if (r.combatModel === 'v2') throw new HttpError(409, 'Friendly Battle never plays the experimental combat model.');

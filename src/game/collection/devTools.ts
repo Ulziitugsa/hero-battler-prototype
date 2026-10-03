@@ -5,8 +5,8 @@ import { PLAYTEST_ROSTER } from '../cards/roster';
 import type { StarterFaction } from '../cards/starterDecks';
 import { getAccount, grantXp, resetProgression, setLevel, setMasteryRank, unlockMastery } from '../progression/account';
 import type { MasteryId } from '../mastery/definitions';
-import { ascendCard, getAscensionStatus } from '../ascension/ascend';
-import { CARD_ASCENSIONS } from '../ascension/definitions';
+import { ascendCard } from '../ascension/ascend';
+import { historicalMastery } from '../cardMastery/model';
 import { getAscensionState, resetAscension, setAscensionRank } from '../ascension/store';
 import { getEconomy, grantGems, grantGold, grantTickets, isUnlimitedGems, resetEconomy, resetSummonState, setGems, setGold, setPity, setTickets, setUnlimitedGems } from '../economy/economy';
 import { performSummon } from '../summon/summon';
@@ -32,12 +32,12 @@ export const devTools = {
   setAllOwned: (copies = 2) => setAllOwned(copies),
   reset: () => resetCollection(),
   get: () => getCollection(),
-  // ---- Ascension ----
+  // ---- Historical Ascension / Mastery (save data only: no combat effect; advancing is retired and always refuses) ----
   grantCopies: (cardId: string, count = 1) => grantCard(cardId, count),
   setAscensionRank: (cardId: string, rank: number) => setAscensionRank(cardId, rank),
   resetAscension: () => resetAscension(),
   ascend: (cardId: string) => ascendCard(cardId),
-  ascensionReport: () => ({ state: getAscensionState(), cards: Object.fromEntries(CARD_ASCENSIONS.map((c) => [c.cardId, getAscensionStatus(c.cardId)])) }),
+  ascensionReport: () => ({ state: getAscensionState(), cards: Object.fromEntries(Object.keys(getAscensionState().cards).map((id) => [id, historicalMastery(id)])) }),
   // ---- Account progression ----
   account: () => getAccount(),
   addXp: (amount: number) => grantXp(amount),

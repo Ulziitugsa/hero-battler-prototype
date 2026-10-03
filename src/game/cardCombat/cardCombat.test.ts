@@ -9,7 +9,7 @@ import { createMatch } from '../engine/match.js';
 import { applyEvent } from '../engine/replay.js';
 import { deckSummary } from '../decks/deckSummary.js';
 import { COMBAT_MODEL_ROLE, PRODUCTION_COMBAT_MODEL, resolveCombatModel } from '../combat/combatModel.js';
-import { isCurrentCardResolver, matchResolver, PRODUCTION_RULES, sameRules } from '../combat/resolver.js';
+import { CONTINUABLE_CARD_RESOLVER_VERSIONS, isCurrentCardResolver, matchResolver, PRODUCTION_RULES, sameRules } from '../combat/resolver.js';
 import { withCardOverrides } from '../cardSim/cardSource.js';
 import { getVariant } from '../cardSim/balance/differenceDamage.js';
 import { choosePlays } from '../cardSim/ai.js';
@@ -17,9 +17,8 @@ import { playMatch } from '../cardSim/engine.js';
 import { cardJitter, getStatModel } from '../cardSim/statModels.js';
 import { chooseCardAiAction } from './ai.js';
 import { CARD_COMBAT_OVERRIDE_IDS, getCombatCard } from './cards.js';
-import { CARD_MAX_ROUNDS, CARD_RESOLVER_VERSION, beginCardRound, cardAtk, createCardMatch, resolveCardRound } from './engine.js';
-import { stagesFromAscensionRanks } from './mastery.js';
-import { ATK_OFFSET, GROWTH_CAP_ATK, MASTERY_HPC_PCT, atkFromPower, deckStartingHp, hpContributionAt, printedStats } from './stats.js';
+import { CARD_MAX_ROUNDS, CARD_RESOLVER_VERSION, beginCardRound, cardAtk, createCardMatch, matchHpContribution, resolveCardRound, type CardMatchSetup } from './engine.js';
+import { ATK_OFFSET, GROWTH_CAP_ATK, atkFromPower, deckStartingHp, hpContribution, printedStats } from './stats.js';
 
 const KNIGHT = 'kng-common-knight'; // vanilla: no effect, ATK 128
 const NONE: PlayerAction = { plays: [] };
@@ -78,7 +77,9 @@ describe('card combat: Starting HP', () => {
     expect(s.player.maxHp).toBe(s.player.hp);
     expect(s.enemy.hp).toBe(sumHpc(STARTER_DECKS.undead));
     expect(s.enemy.maxHp).toBe(s.enemy.hp);
-    expect(events.find((e) => e.type === 'STARTING_HP' && e.side === 'player')).toMatchObject({ hp: s.player.hp, units: 11, masteryBonus: 0 });
+    const start = events.find((e) => e.type === 'STARTING_HP' && e.side === 'player');
+    expect(start).toMatchObject({ hp: s.player.hp, units: 11 });
+    expect(start).not.toHaveProperty('masteryBonus');
     // The formula, for one card of each rarity: HPC = max(45, round(0.75 x (210 - ATK))) + rarity premium.
     expect(printedStats('kng-common-knight')).toEqual({ atk: 128, hpc: 62 });
     expect(printedStats('kng-royal-guard')).toEqual({ atk: 113, hpc: 73 + 4 });
@@ -93,16 +94,13 @@ describe('card combat: Starting HP', () => {
     expect(printedStats('spl-fireball')).toBeNull();
   });
 
-  it('17. Deck Builder Starting HP equals the battle’s Starting HP (Mastery included)', () => {
+  it('17. Deck Builder Starting HP equals the battle’s Starting HP: the printed HP Contributions', () => {
     const deck = STARTER_DECKS.kingdom;
-    // The player's Mastery is stored as Ascension ranks; both screens convert through stagesFromAscensionRanks.
-    const stages = stagesFromAscensionRanks({ 'kng-paladin': 3, 'kng-royal-guard': 1 });
-    const builder = deckSummary(deck, stages).startingHp;
-    const battle = createCardMatch({ seed: 99, playerDeck: deck, enemyDeck: STARTER_DECKS.infernal, playerMastery: stages }).nextState;
+    const builder = deckSummary(deck).startingHp;
+    const battle = createCardMatch({ seed: 99, playerDeck: deck, enemyDeck: STARTER_DECKS.infernal }).nextState;
     expect(battle.player.hp).toBe(builder);
     expect(battle.player.maxHp).toBe(builder);
-    expect(builder).toBeGreaterThan(deckSummary(deck).startingHp);
-    // The opponent plays its own deck at Mastery I: nothing is copied from the player.
+    expect(builder).toBe(sumHpc(deck));
     expect(battle.enemy.maxHp).toBe(deckSummary(STARTER_DECKS.infernal).startingHp);
   });
 
@@ -114,33 +112,44 @@ describe('card combat: Starting HP', () => {
     for (const file of ['engine.ts', 'stats.ts', 'cards.ts', 'ai.ts']) {
       const src = readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
       expect(src, file).not.toMatch(/engine\/constants|[^'"]STARTING_HP/);
-      // (stats.ts legitimately holds Mastery V's +20% HP Contribution.)
-      const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '').replace('[0, 5, 10, 15, 20]', '');
+      const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
       expect(code, file).not.toMatch(/(?<![\w.])20(?![\w.%])/);
     }
   });
 });
 
-describe('card combat: Mastery', () => {
-  it('3. Mastery changes HP Contribution only (+0/5/10/15/20%)', () => {
-    const hpc = printedStats('kng-paladin')!.hpc;
-    expect([1, 2, 3, 4, 5].map((stage) => hpContributionAt('kng-paladin', stage))).toEqual(MASTERY_HPC_PCT.map((pct) => Math.round(hpc * (1 + pct / 100))));
-    const deck = [KNIGHT, KNIGHT, 'kng-paladin'];
-    const plain = createCardMatch({ seed: 5, playerDeck: deck, enemyDeck: deck }).nextState;
-    const mastered = createCardMatch({ seed: 5, playerDeck: deck, enemyDeck: deck, playerMastery: { 'kng-paladin': 5, [KNIGHT]: 5 } }).nextState;
-    expect(mastered.player.maxHp! - plain.player.maxHp!).toBe(hpContributionAt('kng-paladin', 5) - hpc + 2 * (hpContributionAt(KNIGHT, 5) - printedStats(KNIGHT)!.hpc));
-    expect(mastered.enemy.maxHp).toBe(plain.enemy.maxHp);
+describe('card combat: no combat Card Mastery (printed cards only)', () => {
+  it('3. HP Contribution is always the printed value; match setup takes no progression', () => {
+    for (const id of [KNIGHT, 'kng-paladin', 'wld-titanroot', 'und-bone-soldier']) {
+      expect(hpContribution(id), id).toBe(printedStats(id)!.hpc);
+      expect(matchHpContribution(id), id).toBe(printedStats(id)!.hpc);
+    }
+    expect(hpContribution('spl-fireball')).toBe(0);
+    // A caller that still passes the old v2 Mastery fields (e.g. a stale build or a hand-written setup) gets the exact
+    // same match: the resolver has no input for them.
+    const deck = [KNIGHT, KNIGHT, 'kng-paladin', 'und-bone-soldier', 'und-bone-soldier', 'kng-royal-guard', 'kng-royal-guard', 'kng-archer'];
+    const plain = createCardMatch({ seed: 5, playerDeck: deck, enemyDeck: deck });
+    const stale = createCardMatch({ seed: 5, playerDeck: deck, enemyDeck: deck, playerMastery: { 'kng-paladin': 5, [KNIGHT]: 5 }, enemyMastery: { [KNIGHT]: 4 } } as unknown as CardMatchSetup);
+    expect(stale).toEqual(plain);
+    expect(plain.nextState.cardCombat).not.toHaveProperty('masteryStage');
+    expect(plain.nextState.player.maxHp).toBe(deckStartingHp(deck).total);
   });
 
-  it('4. Mastery never changes ATK', () => {
-    const s = blankMatch();
-    s.cardCombat!.masteryStage.player[KNIGHT] = 5;
-    const h = hand(s, 'player', KNIGHT);
-    const r = resolveCardRound(s, { plays: [{ handId: h.handId, cardId: KNIGHT, lane: 'left' }] }, NONE);
-    const reveal = r.events.find((e) => e.type === 'REVEAL');
+  it('4. A historical v2 Mastery table in a stored match changes nothing: same ATK, same events, same HP', () => {
+    const base = blankMatch();
+    const h = hand(base, 'player', KNIGHT);
+    put(base, 'enemy', 'left', 'und-crypt-warden', 90);
+    const run = (table?: Record<Side, Record<string, number>>) => {
+      const s = structuredClone(base);
+      if (table) s.cardCombat!.masteryStage = table;
+      const r = resolveCardRound(s, { plays: [{ handId: h.handId, cardId: KNIGHT, lane: 'left' }] }, NONE);
+      const { masteryStage: _ignored, ...meta } = r.nextState.cardCombat!;
+      return { events: r.events, hp: [r.nextState.player.hp, r.nextState.enemy.hp], meta };
+    };
+    const printed = run();
+    const reveal = printed.events.find((e) => e.type === 'REVEAL');
     expect(reveal && reveal.type === 'REVEAL' && reveal.placements[0].power).toBe(128);
-    const combat = r.events.find((e) => e.type === 'COMBAT');
-    expect(combat && combat.type === 'COMBAT' && combat.player?.power).toBe(128);
+    expect(run({ player: { [KNIGHT]: 5 }, enemy: { 'und-crypt-warden': 5 } })).toEqual(printed);
   });
 });
 
@@ -286,11 +295,10 @@ describe('card combat: ATK difference Clash Damage', () => {
     expect(r.nextState.player.hp).toBe(hp - 15);
   });
 
-  it('D8. Mastery V still never changes ATK, so it never changes Clash Damage', () => {
+  it('D8. A historical Mastery V record never changes ATK, so it never changes Clash Damage', () => {
     const run = (stage: number) => {
       const s = blankMatch();
-      s.cardCombat!.masteryStage.player[KNIGHT] = stage;
-      s.cardCombat!.masteryStage.enemy['und-crypt-warden'] = stage;
+      s.cardCombat!.masteryStage = { player: { [KNIGHT]: stage }, enemy: { 'und-crypt-warden': stage } };
       const k = hand(s, 'player', KNIGHT);
       put(s, 'enemy', 'left', 'und-crypt-warden', 90);
       const record = resolveCardRound(s, { plays: [{ handId: k.handId, cardId: KNIGHT, lane: 'left' }] }, NONE).events.find((e) => e.type === 'CLASH_DAMAGE');
@@ -555,6 +563,23 @@ describe('card combat: the production resolver everywhere', () => {
     expect(matchResolver(built)).toEqual(PRODUCTION_RULES);
     expect(isCurrentCardResolver(built)).toBe(true);
     expect(isCurrentCardResolver({ ...built, cardCombat: { ...built.cardCombat!, version: CARD_RESOLVER_VERSION + 1 } })).toBe(false);
+  });
+
+  it('resolver v3 (Mastery removed) is current; a stored v2 match is still continued, round for round', () => {
+    expect(CARD_RESOLVER_VERSION).toBe(3);
+    expect(CONTINUABLE_CARD_RESOLVER_VERSIONS).toEqual([2, 3]);
+    expect(sameRules({ combatModel: 'card', resolverVersion: 2 })).toBe(false); // new Friendly matches need v3 on both clients
+    // A v2 match as PR #12's first build stored it: version 2 plus a per-side Mastery table (Friendly: Mastery I).
+    const v3 = createCardMatch({ seed: 11, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead }).nextState;
+    const v2: GameState = { ...v3, cardCombat: { ...v3.cardCombat!, version: 2, masteryStage: { player: { 'kng-paladin': 1 }, enemy: {} } } };
+    expect(isCurrentCardResolver(v2)).toBe(true);
+    expect(isCurrentCardResolver({ ...v3, cardCombat: { ...v3.cardCombat!, version: 1 } })).toBe(false);
+    const p = chooseCardAiAction(v3, 'player', v3.rngState);
+    const e = chooseCardAiAction(v3, 'enemy', p.nextRngState);
+    const a = resolveCardRound(v3, p.action, e.action, e.nextRngState);
+    const b = resolveCardRound(v2, p.action, e.action, e.nextRngState);
+    expect(b.events).toEqual(a.events);
+    expect([b.nextState.player.hp, b.nextState.enemy.hp]).toEqual([a.nextState.player.hp, a.nextState.enemy.hp]);
   });
 
   it('an old legacy match still reads as legacy v1 (never inferred from a date)', () => {

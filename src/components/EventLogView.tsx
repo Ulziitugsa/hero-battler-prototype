@@ -4,7 +4,7 @@ import type { GameEvent } from '../game/types';
 function formatEvent(e: GameEvent, stat: 'Power' | 'ATK'): string {
   switch (e.type) {
     case 'STARTING_HP':
-      return `${e.side} Starting HP ${e.hp} (${e.units} Units${e.masteryBonus ? `, +${e.masteryBonus} from Mastery` : ''})`;
+      return `${e.side} Starting HP ${e.hp} (${e.units} Units)`;
     case 'PACIFIED':
       return `${e.name} deals no damage this round (${e.side}, ${e.lane})`;
     case 'RETURN_BLOCKED':

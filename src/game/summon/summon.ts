@@ -1,6 +1,3 @@
-import { getAscensionStatus } from '../ascension/ascend';
-import { hasMasteryPath } from '../ascension/path';
-import { starsForCard } from '../ascension/stars';
 import { getCollection, grantCard } from '../collection/collection';
 import { getStarterDeckUnlockProgress, starterDeckId } from '../collection/starterUnlock';
 import type { GrantResult, OwnedMap } from '../collection/types';
@@ -20,6 +17,12 @@ import { getConfig } from '../../config/config';
 // economy write) -> grant every card through the collection store. Everything is decided and persisted
 // HERE, before any presentation starts; the reveal animation only reads the returned outcome and can never
 // change what was pulled. The UI only calls performSummon and renders what it returns.
+//
+// DEPRECATED as a card source (product direction, 2026-10-03): Moonwell Summon is an open-ended card acquisition system
+// and is meant to be retired in a future task, with finite Boxes, future Mini Boxes and Structure Decks as the card
+// acquisition model (docs/CARD-COMBAT-DESIGN.md section 7). It still works unchanged for now. Build nothing new on it;
+// its presentation may be reused later for events or cosmetics. A duplicate it grants is a collection copy only: it no
+// longer advances anything (combat Card Mastery is retired).
 
 export type SummonKind = 'single' | 'ten';
 export type SummonCurrency = 'gems' | 'tickets';
@@ -37,12 +40,6 @@ export function summonCost(pool: SummonPool, kind: SummonKind, currency: SummonC
 
 export interface SummonPull extends SummonPullResult {
   grant: GrantResult;
-  /** A duplicate that leaves this card with an Ascension available (never auto-applied). */
-  ascensionAvailable: boolean;
-  /** Explicitly distinguishes useful Ascension copies from Stars on cards without an authored path. */
-  hasAscensionPath: boolean;
-  starsBefore: number;
-  starsAfter: number;
 }
 
 export interface StarterProgressNote {
@@ -122,24 +119,11 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
   if (!commitSummon(cost, pool.id, pityAfter, history, currency)) return { ok: false, reason: 'insufficient', currency, need: cost, have: currency === 'gems' ? getGems() : getTickets() };
 
   const grants = results.map((r) => grantCard(r.cardId, 1));
-  const after = getCollection();
   const pulls: SummonPull[] = [];
-  let progressionOwned: OwnedMap = { ...before };
   results.forEach((r, i) => {
     const grant = grants[i];
     if (!grant) return; // unreachable for a validated pool (every id is a real card)
-    const starsBefore = starsForCard(r.cardId, progressionOwned);
-    const nextOwned = { ...progressionOwned, [r.cardId]: grant.owned };
-    const starsAfter = starsForCard(r.cardId, nextOwned);
-    pulls.push({
-      ...r,
-      grant,
-      ascensionAvailable: !grant.isNew && getAscensionStatus(r.cardId, after).canAscend,
-      hasAscensionPath: hasMasteryPath(r.cardId),
-      starsBefore,
-      starsAfter,
-    });
-    progressionOwned = nextOwned;
+    pulls.push({ ...r, grant });
   });
 
   const highestRarity = highestRarityOf(pulls.map((p) => p.rarity));
@@ -148,8 +132,7 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
   for (const pull of pulls) {
     if (pull.rarity === 'legendary') track('legendary_pulled', { bannerId: pool.id, cardId: pull.cardId, wasNew: pull.grant.isNew, pityAfter });
     if (!pull.grant.isNew) {
-      track('duplicate_acquired', { cardId: pull.cardId, rarity: pull.rarity, source: 'summon', copiesOwned: pull.grant.owned, ascensionAvailable: pull.ascensionAvailable });
-      if (pull.starsAfter !== pull.starsBefore) track('hero_star_changed', { cardId: pull.cardId, starsBefore: pull.starsBefore, starsAfter: pull.starsAfter, source: 'summon' });
+      track('duplicate_acquired', { cardId: pull.cardId, rarity: pull.rarity, source: 'summon', copiesOwned: pull.grant.owned });
     }
   }
 
@@ -164,6 +147,6 @@ export function performSummon(kind: SummonKind, bannerId: string, seed: number =
     pityBefore,
     pityAfter,
     highestRarity,
-    starterProgress: starterProgressBetween(before, after),
+    starterProgress: starterProgressBetween(before, getCollection()),
   };
 }

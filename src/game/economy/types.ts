@@ -24,7 +24,7 @@ export interface SummonHistoryEntry {
 export interface PlayerEconomy {
   version: number;
   gems: number;
-  /** Soft currency - Campaign wins, idle rewards, missions. Spent on the Mastery IV / V fee (ascension/config.ts). */
+  /** Soft currency - Campaign wins, idle rewards, missions. (The old Card Mastery IV / V fee is retired and charges nothing.) */
   gold: number;
   /** Earn-only Summon currency (missions, journey) - performs a Summon exactly like Gems, sharing the
    * same per-banner pity/history (see summon/summon.ts's `paymentMethod`). Never purchasable. */

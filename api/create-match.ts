@@ -13,7 +13,7 @@ interface DeckSnapshot {
   cardIds: string[];
   /** The rules the player's client plays (src/net/friendlyTypes.ts). Absent on clients that predate card combat. */
   rules?: Partial<MatchResolver>;
-  /** Legacy fields, ignored: Friendly Battle plays every card at base strength (Mastery I). */
+  /** Legacy fields, ignored: every card plays at its printed values (there is no combat Card Mastery). */
   masteryId?: string;
   masteryRank?: number;
   ascensions?: Record<string, number>;
@@ -89,8 +89,9 @@ export default withErrorHandling(withCapacitorCors(async (req: ApiRequest, res: 
     throw new HttpError(409, 'You and your friend are on different versions of Moonwater. Both of you need the latest version to play.');
   }
 
-  // Card combat, the production rules, at base card strength for both players (Mastery I): Friendly Battle stays a
-  // fair duel of deck lists. The match records its resolver (combatModel + cardCombat.version) in its own state.
+  // Card combat, the production rules: both decks at printed card values, so Friendly Battle is a duel of deck lists.
+  // createCardMatch takes no progression at all, so no equalization is needed. The match records its resolver
+  // (combatModel + cardCombat.version) in its own state.
   const seed = makeSeed();
   const { nextState: state, events } = createCardMatch({
     seed,

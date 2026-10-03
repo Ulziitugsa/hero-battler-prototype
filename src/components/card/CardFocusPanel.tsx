@@ -1,8 +1,6 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { getCard } from '../../game/cards';
 import { cardIdentity } from '../../game/cards/cardPresentation';
-import { masteryLabel } from '../../game/cardMastery/model';
-import { MASTERY_HPC_PCT } from '../../game/cardCombat/stats';
 import { CardArtwork } from '../CardArtwork';
 import { Icon, type IconName } from '../Icon';
 import type { FocusAtkChange, FocusDetails } from '../battleInfo/focusDetails';
@@ -17,7 +15,8 @@ import '../../styles/cardFocus.css';
  *    bottom of the screen with the card itself beside its full rules (CardFocusSheet.tsx).
  * Either way it shows the card's name, rarity, faction and type, ATK (current and printed when they differ), HP
  * Contribution where it applies, every effect's full rule under its timing label, what is true of it right now
- * (bonuses and penalties by source, Shield, Silence), Card Mastery, and the way to Card Inspect.
+ * (bonuses and penalties by source, Shield, Silence), and the way to Card Inspect. Card combat has no Card Mastery, so
+ * every copy reads as printed; only a historical legacy match can name a legacy Ascension rank.
  * The details come from focusDetails.ts; this component writes no rules text of its own.
  */
 
@@ -57,13 +56,10 @@ const STATUS_TEXT: Record<string, string> = {
 };
 const ENTERED_TEXT = { revived: 'Revived', summoned: 'Summoned', entered: 'Entered' } as const;
 
-/** Card Mastery, where it changes something: HP Contribution in card combat, added effects in a legacy battle. */
+/** A historical legacy match only: the legacy Ascension effects the copy plays there. Never shown in card combat. */
 function masteryText(details: FocusDetails): string | null {
-  if (details.kind !== 'unit' || details.masteryStage < 2) return null;
-  const label = masteryLabel(details.masteryStage);
-  if (details.rules === 'legacy') return details.effects.some((e) => e.mastery) ? `${label}: adds the effects marked Mastery.` : `${label}.`;
-  const pct = MASTERY_HPC_PCT[Math.min(5, details.masteryStage) - 1] ?? 0;
-  return `${label}: HP Contribution +${pct}%. Mastery never changes ATK.`;
+  if (details.rules !== 'legacy' || details.kind !== 'unit' || details.masteryRank < 1) return null;
+  return details.effects.some((e) => e.mastery) ? 'Legacy Ascension: adds the effects marked Mastery.' : null;
 }
 
 export function CardFocusPanel({

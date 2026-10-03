@@ -3,12 +3,14 @@ import { reloadCollection, getOwnedCount } from '../collection/collection';
 import { reloadCardMarks } from '../collection/cardMarks';
 import { reloadAccount } from '../progression/account';
 import { getHeroLevel, reloadHeroLevels } from '../heroLevel/store';
-import { getAscensionRank, reloadAscension } from '../ascension/store';
+import { ASCENSION_STORAGE_KEY, getAscensionRank, getAscensionState, getDuplicatesSpent, reloadAscension, sanitizeAscension } from '../ascension/store';
+import { ascendCard } from '../ascension/ascend';
 import { getEconomy, hasGrant, reloadEconomy } from '../economy/economy';
-import { getCardMasteryView, legacyLevelGoldInvested } from '../cardMastery/model';
+import { historicalMastery, legacyLevelGoldInvested } from '../cardMastery/model';
 import { goldCostForLevelUp } from '../heroLevel/config';
 import { createCardMatch } from '../cardCombat/engine';
-import { playerMasteryStages } from '../cardCombat/mastery';
+import { deckStartingHp } from '../cardCombat/stats';
+import { grantCard } from '../collection/collection';
 import { STARTER_DECKS } from '../cards/starterDecks';
 import { LEGACY_LEVEL_REFUND_GRANT, SAVE_MIGRATION_KEY, dismissRefundNotice, legacyLevelRefundFor, pendingRefundNotice, runSaveMigrations } from './migrations';
 import { clearQueuedEvents, getQueuedEvents } from '../../analytics/track';
@@ -138,25 +140,51 @@ describe('save migration: everything else is preserved', () => {
     expect(economy).toMatchObject({ version: 5, gems: 340, tickets: 2, grants: [LEGACY_LEVEL_REFUND_GRANT] });
   });
 
-  it('reads the old Ascension ranks as the same Card Mastery stage, with copies and investment intact', () => {
+  it('10, 11 and 12. historical Ascension / Mastery data survives load and save: ranks and duplicatesSpent are never erased, refunded or rewritten', () => {
+    writeOldSave();
+    const raw = store.get(ASCENSION_STORAGE_KEY);
+    runSaveMigrations();
+    // Several launches and ordinary saves through other stores (a card grant, a retired Mastery attempt).
+    for (let i = 0; i < 3; i++) {
+      reloadAll();
+      runSaveMigrations();
+    }
+    grantCard('kng-common-knight', 1);
+    expect(ascendCard('kng-royal-guard').ok).toBe(false);
+    expect(store.get(ASCENSION_STORAGE_KEY)).toBe(raw); // byte-identical
+    expect(getAscensionRank('kng-royal-guard')).toBe(2);
+    expect(getDuplicatesSpent('kng-royal-guard')).toBe(3);
+    expect(getAscensionRank('und-bone-soldier')).toBe(3);
+    expect(getDuplicatesSpent('und-bone-soldier')).toBe(6);
+    expect(historicalMastery('kng-royal-guard')).toEqual({ cardId: 'kng-royal-guard', rank: 2, label: 'Mastery III', duplicatesSpent: 3 });
+    expect(historicalMastery('und-bone-soldier')).toEqual({ cardId: 'und-bone-soldier', rank: 3, label: 'Mastery IV', duplicatesSpent: 6 });
+    // No refund: copies stay where they were and no Gold beyond the Legacy Level refund was paid.
+    expect(getOwnedCount('kng-royal-guard')).toBe(4);
+    expect(getOwnedCount('und-bone-soldier')).toBe(5);
+    expect(getEconomy().gold).toBe(125 + EXPECTED_REFUND);
+    // The store's own round trip keeps them too.
+    expect(sanitizeAscension(JSON.parse(raw!))).toEqual(getAscensionState());
+  });
+
+  it('historical Mastery data never reaches a battle: same deck, same match, same Starting HP', () => {
     writeOldSave();
     runSaveMigrations();
-    expect(getAscensionRank('kng-royal-guard')).toBe(2);
-    expect(getCardMasteryView('kng-royal-guard')).toMatchObject({ stage: 3, copies: 4, duplicatesInvested: 3 });
-    expect(getCardMasteryView('und-bone-soldier')).toMatchObject({ stage: 4, copies: 5, duplicatesInvested: 6, nextStage: 5 });
-    // A card with no old path is Mastery I and can now advance.
-    expect(getCardMasteryView('kng-common-knight')).toMatchObject({ stage: 1, hasPath: true, maxStage: 5 });
-    expect(getOwnedCount('spl-power-surge')).toBe(2);
+    const withHistory = createCardMatch({ seed: 4, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead }).nextState;
+    expect(withHistory.player.maxHp).toBe(deckStartingHp(STARTER_DECKS.kingdom).total);
+    store.delete(ASCENSION_STORAGE_KEY);
+    reloadAscension();
+    const withoutHistory = createCardMatch({ seed: 4, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead }).nextState;
+    expect(withHistory).toEqual(withoutHistory);
   });
 
   it('Legacy Level is kept in the save but never reaches a battle', () => {
     writeOldSave();
     runSaveMigrations();
     expect(getHeroLevel('kng-royal-guard')).toBe(12);
-    const withLevels = createCardMatch({ seed: 4, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead, playerMastery: playerMasteryStages(STARTER_DECKS.kingdom) }).nextState;
+    const withLevels = createCardMatch({ seed: 4, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead }).nextState;
     store.delete('skyloom:heroLevel');
     reloadHeroLevels();
-    const withoutLevels = createCardMatch({ seed: 4, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead, playerMastery: playerMasteryStages(STARTER_DECKS.kingdom) }).nextState;
+    const withoutLevels = createCardMatch({ seed: 4, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead }).nextState;
     expect(withLevels).toEqual(withoutLevels);
   });
 });

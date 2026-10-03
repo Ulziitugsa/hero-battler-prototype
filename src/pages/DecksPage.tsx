@@ -22,7 +22,6 @@ import { countCopies, getDeckStatus, plural, sortedEntries } from './decks/deckS
 import { DeckSummaryBar, STARTING_HP_HELP, StartingHpBadge } from './decks/DeckSummaryBar';
 import { FavoriteStar } from './decks/FavoriteStar';
 import { deckSummary } from '../game/decks/deckSummary';
-import { playerMasteryStages } from '../game/cardCombat/mastery';
 import { DEFAULT_POOL_OPTIONS, SORT_LABEL, activeFilterCount, availableSorts, queryCardPool, type CardPoolOptions, type CardSort, type OwnershipFilter } from '../game/decks/cardPool';
 import { getCardPopularity } from '../game/decks/cardPopularity';
 import { autoFillDeck } from '../game/decks/autoFill';
@@ -31,9 +30,6 @@ import { toggleFavorite } from '../game/collection/cardMarks';
 import { getDeckPresentation, type DeckPresentation } from './decks/deckPresentation';
 import { primaryAcquisitionLabel } from '../game/collection/acquisition';
 import type { StarterRequirement } from '../game/collection/starterUnlock';
-import { useAscension } from '../game/ascension/useAscension';
-import { getAscensionRank } from '../game/ascension/store';
-import { ascensionNumeral } from '../game/ascension/ascend';
 import '../styles/decks.css';
 import '../styles/ascension.css';
 
@@ -70,7 +66,7 @@ function CardArt({ card, sigil }: { card: CardDefinition; sigil: 'lg' | 'md' }) 
 }
 
 /**
- * One card tile: the game's one card face (GameCard, tile density, with the copy's Card Mastery and HP Contribution)
+ * One card tile: the game's one card face (GameCard, tile density, with the copy's printed HP Contribution)
  * plus the Deck Builder's controls. In a deck view `count` is the deck's copies of it; in the pool it is "how many are
  * already in the deck" and 0 is normal.
  */
@@ -118,7 +114,7 @@ function DeckCard({
     >
       {!pool && count > 1 && <span className="dk-card-under" aria-hidden="true" />}
       <span className="dk-card-frame">
-        <GameCard cardId={card.id} density="tile" owned={!unowned} masteryStage={copy.masteryStage} hpContribution={copy.hpContribution} className="dk-card-gc" />
+        <GameCard cardId={card.id} density="tile" owned={!unowned} hpContribution={copy.hpContribution} className="dk-card-gc" />
         {badge && (
           <span className={`dk-card-count ${maxed ? 'full' : ''} ${over ? 'over' : ''}`}>
             {pool && maxed && <Icon name="lock" size={9} />}
@@ -162,7 +158,7 @@ function RequirementTile({ req, onShow }: { req: StarterRequirement; onShow: () 
   return (
     <button type="button" className={`dk-card dk-req r-${card.rarity} ${req.met ? 'met' : 'blocked'}`} onClick={onShow} aria-label={`${card.name}: ${have} of ${req.need}. Show details.`}>
       <span className="dk-card-frame">
-        <GameCard cardId={card.id} density="tile" owned={copy.owned} masteryStage={copy.masteryStage} hpContribution={copy.hpContribution} className="dk-card-gc" />
+        <GameCard cardId={card.id} density="tile" owned={copy.owned} hpContribution={copy.hpContribution} className="dk-card-gc" />
         <span className={`dk-card-count ${req.met ? 'met' : ''}`}>
           {req.met && <Icon name="check" size={10} />}
           {have}/{req.need}
@@ -178,7 +174,6 @@ function RequirementTile({ req, onShow }: { req: StarterRequirement; onShow: () 
 export function DecksPage() {
   const [decks, setDecks] = useState<DeckOption[]>(() => listDeckOptions());
   const owned = useCollection();
-  const ascensions = useAscension();
   // getActiveDeck() first: it repairs a stored active deck that is no longer playable before anything renders it.
   const [prefs, setPrefs] = useState(() => ({ ...loadPreferences(), selectedDeckId: getActiveDeck().id }));
   const [selectedId, setSelectedId] = useState(() => (decks.some((d) => d.id === prefs.selectedDeckId) ? prefs.selectedDeckId : (decks[0]?.id ?? '')));
@@ -223,8 +218,8 @@ export function DecksPage() {
   }, [notice]);
 
   const copies = useMemo(() => countCopies(cardIds), [cardIds]);
-  // Starting HP includes the player's Card Mastery, through the same helper a card-combat battle starts with.
-  const summary = useMemo(() => deckSummary(cardIds, playerMasteryStages(cardIds, ascensions)), [cardIds, ascensions]);
+  // Starting HP: the deck's printed HP Contributions, through the same helper a card-combat battle starts with.
+  const summary = useMemo(() => deckSummary(cardIds), [cardIds]);
   const status = useMemo(() => getDeckStatus(cardIds, owned), [cardIds, owned]);
   const dirty = mode === 'edit' && JSON.stringify([name, cardIds]) !== baseline;
 
@@ -350,7 +345,6 @@ export function DecksPage() {
       ownedCount: (id) => getOwnedCount(id, owned),
       favorites: marks.favorites,
       obtainedAt: marks.obtainedAt,
-      masteryRank: (id) => getAscensionRank(id, ascensions),
       popularity,
     });
     const filtered = activeFilterCount(poolOpts) > 0 || poolOpts.search.trim() !== '';
@@ -386,7 +380,6 @@ export function DecksPage() {
                 {count > 1 && <span className="dk-chit-under" aria-hidden="true" />}
                 <span className="dk-chit-frame">
                   <CardArt card={card} sigil="md" />
-                  {getAscensionRank(card.id, ascensions) > 0 && <span className="zone-card-asc">{ascensionNumeral(getAscensionRank(card.id, ascensions))}</span>}
                   <span className="dk-chit-name">{card.shortName}</span>
                   {count > 1 && <span className="dk-chit-count">×{count}</span>}
                 </span>
@@ -560,7 +553,7 @@ export function DecksPage() {
   const locked = pres.kind === 'starter-locked';
   const isActive = sel.id === activeId;
   const entries = sortedEntries(sel.cardIds);
-  const selSummary = deckSummary(sel.cardIds, playerMasteryStages(sel.cardIds, ascensions));
+  const selSummary = deckSummary(sel.cardIds);
   const saved = isSaved(sel.id);
   const hasCustom = decks.some((d) => isSaved(d.id));
 

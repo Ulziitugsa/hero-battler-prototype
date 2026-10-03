@@ -1,10 +1,9 @@
 import { PLAYTEST_ROSTER } from '../cards/roster.js';
 import { MAX_ASCENSION_RANK } from './config.js';
 
-// Which cards have a Card Mastery path. Every collectible card does - Units and Spells alike - from Mastery I to V.
-// A Unit's Mastery raises its HP Contribution; a Spell has no HP Contribution, so its Mastery is a collection mark
-// only (the frame and the stage shown in the Collection) and never changes the Spell in battle. Tokens and cards
-// outside the collectible roster have none.
+// Which cards can carry a historical Card Mastery record (ascension/store.ts keeps their rank and duplicates spent).
+// Every collectible card can; tokens and cards outside the collectible roster cannot. A record has no combat effect:
+// combat Card Mastery is removed and every card plays at its printed values.
 //
 // The legacy Ascension effect paths (ascension/definitions.ts) are separate: they belong to the historical legacy
 // resolver and no card-combat battle reads them.

@@ -8,13 +8,10 @@ import { useCollection } from '../../game/collection/useCollection';
 import { useAscension } from '../../game/ascension/useAscension';
 import { acquisitionSummary } from '../../game/collection/acquisition';
 import { productAcquisitionLines } from '../../game/collection/productSources';
-import { getCardMasteryView, masteryNumeral } from '../../game/cardMastery/model';
-import { MASTERY_HPC_PCT } from '../../game/cardCombat/stats';
+import { historicalMastery } from '../../game/cardMastery/model';
 import { listDeckOptions } from '../../game/engine/deckOptions';
 import { loadPreferences } from '../../game/engine/preferences';
 import { track } from '../../analytics/track';
-import { AscensionPanel } from '../../pages/heroes/AscensionPanel';
-import { MasteryPips } from '../../pages/heroes/MasteryPips';
 import { Icon } from '../Icon';
 import { Gems, Sigil } from '../CardParts';
 import { useDialogFocus } from '../useDialogFocus';
@@ -26,8 +23,9 @@ import '../../styles/cardInspect.css';
 /**
  * Card Inspect: layer 3, the deepest. One sheet for every card everywhere (Collection, Deck Builder, Shop and Box
  * contents, pack results, events, and in battle from the focus panel): the card at its largest, its name, rarity,
- * faction and type, ATK and HP Contribution with what they mean, every effect's full rule with its keywords, Card
- * Mastery, copies owned, where to get it, its card style, and its lore. Nothing in battle needs it: the card face and
+ * faction and type, ATK and HP Contribution with what they mean, every effect's full rule with its keywords, copies
+ * owned, where to get it, its card style, and its lore. Every card shows its printed values: there is no combat Card
+ * Mastery. A card with historical Mastery progress shows it as one quiet, non-combat line in the Collection section. Nothing in battle needs it: the card face and
  * the focus panel carry everything a decision needs.
  */
 
@@ -40,11 +38,9 @@ export interface InspectBattleCopy {
   owner: Side;
   /** A Unit's ATK now (on the board). */
   atk?: number;
-  /** Card rules: the HP Contribution this copy added to its owner's Starting HP. */
+  /** Card rules: the HP Contribution this copy added to its owner's Starting HP (its printed value). */
   hpContribution?: number;
-  /** Card rules: the Card Mastery stage the copy plays at. */
-  masteryStage?: number;
-  /** Legacy rules: the copy's Card Mastery rank, whose added effects it plays. */
+  /** Historical legacy matches only: the copy's legacy Ascension rank, whose added effects that resolver plays. */
   masteryRank?: number;
 }
 
@@ -80,22 +76,21 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
   const unit = card.type === 'hero';
   const collection = useCollection();
   const ascension = useAscension();
-  const copy = cardCopyView(cardId, collection, ascension);
+  const copy = cardCopyView(cardId, collection);
   const rules: CardRules = battle?.rules ?? 'card';
   const inBattle = !!battle;
   const owned = inBattle || copy.owned;
-  const masteryStage = battle ? (battle.rules === 'card' ? (battle.masteryStage ?? 1) : (battle.masteryRank ?? 0) + 1) : copy.masteryStage;
   const hpContribution = battle ? (battle.rules === 'card' ? battle.hpContribution : undefined) : copy.hpContribution;
-  const masteryView = getCardMasteryView(cardId, { owned: collection, ascension });
+  // Historical Mastery / Ascension progress: preserved in the save for a future cosmetic feature, no combat effect.
+  const legacyMastery = historicalMastery(cardId, ascension);
   const lore = CARD_LORE[cardId];
   const deckLabel = onOpenDecks ? findDeckFor(cardId) : null;
   const overline = battle ? `${battle.owner === 'enemy' ? 'Enemy card' : 'Your card'} · this battle` : copy.owned ? 'In your collection' : 'A card to discover';
-  const pct = MASTERY_HPC_PCT[Math.max(1, Math.min(5, copy.masteryStage)) - 1] ?? 0;
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: 0 });
     track('card_inspect_opened', { cardId, context, rarity: card.rarity });
-    if (context === 'collection') track('hero_detail_opened', { heroId: cardId, rarity: card.rarity, masteryStage: copy.owned ? copy.masteryStage : 0 });
+    if (context === 'collection') track('hero_detail_opened', { heroId: cardId, rarity: card.rarity });
     // Once per card shown, not per re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardId, context]);
@@ -133,7 +128,6 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
                 hpContribution={hpContribution}
                 owned={owned}
                 copies={inBattle ? 0 : copy.copies}
-                masteryStage={inBattle ? 0 : copy.masteryStage}
                 treatment={treatment}
               />
             </div>
@@ -155,7 +149,6 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
               <h2 className="hr-sheet-name">{card.name}</h2>
               {!inBattle && copy.owned && (
                 <span className="hr-sheet-powerline">
-                  {`${masteryView.label} · `}
                   {copy.copies} {copy.copies === 1 ? 'copy' : 'copies'}
                 </span>
               )}
@@ -177,22 +170,8 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
             </div>
             {card.tags.length > 0 && <p className="ci-traits">{card.tags.join(' · ')}</p>}
 
-            <CardStatsPanel card={card} rules={rules} atk={battle?.atk} hpContribution={hpContribution} masteryStage={masteryStage} owner={battle?.owner} masteryRank={battle?.masteryRank} />
+            <CardStatsPanel card={card} rules={rules} atk={battle?.atk} hpContribution={hpContribution} owner={battle?.owner} masteryRank={battle?.masteryRank} />
             <CardEffectList card={card} rules={rules} masteryRank={battle?.rules === 'legacy' ? (battle.masteryRank ?? 0) : 0} />
-
-            {!inBattle && copy.owned && (
-              <section className="ci-mastery" aria-label="Card Mastery">
-                <h3 className="ci-heading">Card Mastery</h3>
-                <div className="ci-mastery-head">
-                  <MasteryPips view={masteryView} />
-                  <span>
-                    {masteryView.label} of {masteryNumeral(masteryView.maxStage)}
-                    {unit ? ` · HP Contribution ${pct > 0 ? `+${pct}%` : 'as printed'}` : ' · Collection mark'}
-                  </span>
-                </div>
-                <AscensionPanel card={card} priority={masteryView.canAdvance} />
-              </section>
-            )}
 
             {!inBattle && (
               <section className="ci-collection" aria-label="Collection">
@@ -202,10 +181,12 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
                     <dt>Copies owned</dt>
                     <dd>{copy.owned ? `×${copy.copies}` : 'Not collected yet'}</dd>
                   </div>
-                  <div>
-                    <dt>Card Mastery</dt>
-                    <dd>{copy.owned ? masteryView.label : 'Starts at Mastery I'}</dd>
-                  </div>
+                  {legacyMastery.rank > 0 && (
+                    <div className="ci-legacy-mastery">
+                      <dt>Legacy Mastery</dt>
+                      <dd>{`${legacyMastery.label} on record · no effect in battle`}</dd>
+                    </div>
+                  )}
                   <div>
                     <dt>How to get it</dt>
                     <dd>{[acquisitionSummary(cardId).replaceAll('Summon ·', 'Pack set ·'), ...productAcquisitionLines(cardId)].join(' / ')}</dd>

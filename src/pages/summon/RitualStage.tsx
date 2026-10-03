@@ -81,11 +81,6 @@ function GridTile({ pull, revealed, onInspect, faction, result, highlight }: { p
           </span>
         )}
         {!pull.grant.isNew && <span className="tile-dup">×{pull.grant.owned}</span>}
-        {pull.ascensionAvailable && (
-          <span className="tile-asc" aria-label="Mastery available">
-            <Icon name="power" size={11} />
-          </span>
-        )}
         {pull.featured && <span className={`tile-feat ${pull.featured}`} aria-label="Featured" />}
       </span>
       <span className="tile-name">{card.name}</span>
@@ -107,9 +102,6 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, onIntroFin
   const dialog = useDialogFocus(result ? onDone : onSkip);
   const newCount = outcome.pulls.filter((p) => p.grant.isNew).length;
   const newHeroCount = outcome.pulls.filter((p) => p.grant.isNew && getCard(p.cardId).type === 'hero').length;
-  const ascendable = [...new Set(outcome.pulls.filter((p) => p.ascensionAvailable).map((p) => p.cardId))];
-  const starProgress = [...new Set(outcome.pulls.filter(p => p.starsAfter > p.starsBefore).map(p => p.cardId))];
-  const ascensionCopies = outcome.pulls.filter(p => !p.grant.isNew && p.hasAscensionPath).length;
   const single = outcome.pulls[0];
   const singleCard = getCard(single.cardId);
   const trackedOutcome = useRef<SummonSuccess | null>(null);
@@ -119,17 +111,16 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, onIntroFin
     if (!preview && result && legendaryFeedback.current !== outcome) {
       legendaryFeedback.current = outcome;
       if (outcome.highestRarity === 'legendary') void haptics.legendary();
-      else if (starProgress.length) void haptics.starGain();
     }
-  }, [result, outcome, preview, starProgress.length]);
+  }, [result, outcome, preview]);
 
   useEffect(() => {
     if (!result || preview || trackedOutcome.current === outcome) return;
     trackedOutcome.current = outcome;
     const duplicates = outcome.pulls.filter(p => !p.grant.isNew);
     track('summon_result_viewed', { bannerId: outcome.bannerId, count: outcome.pulls.length, highestRarity: outcome.highestRarity, pityBefore: outcome.pityBefore, pityAfter: outcome.pityAfter });
-    if (duplicates.length) track('summon_duplicate_progression_shown', { bannerId: outcome.bannerId, duplicateCount: duplicates.length, ascensionCopies: duplicates.filter(p => p.hasAscensionPath).length, ascensionReadyCount: ascendable.length, starProgressCount: starProgress.length });
-  }, [result, outcome, preview, ascendable.length, starProgress.length]);
+    if (duplicates.length) track('summon_duplicate_progression_shown', { bannerId: outcome.bannerId, duplicateCount: duplicates.length });
+  }, [result, outcome, preview]);
 
   // Which rarity the LIGHT should show: the step's tier (opening beats of a 10x show the best rarity in the batch).
   const tier = view.tier;
@@ -146,16 +137,8 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, onIntroFin
                 </span>
                 <span className="ri-chips">
                   {single.grant.isNew ? <span className="chip gold">New to your collection</span> : <span className="chip">Duplicate acquired · Owned ×{single.grant.owned}</span>}
-                  {!single.grant.isNew && single.starsAfter > single.starsBefore && <span className="chip gold">Mastery progress +{single.starsAfter - single.starsBefore}</span>}
-                  {!single.grant.isNew && single.hasAscensionPath && <span className="chip gold">{single.ascensionAvailable ? 'Mastery ready' : 'Copy added toward Mastery'}</span>}
-                  {!single.grant.isNew && !single.hasAscensionPath && single.starsAfter === single.starsBefore && <span className="chip">Collection copy added</span>}
                   {single.featured && <span className="chip gold">Featured</span>}
                   {single.pityTriggered && <span className="chip gold">Guarantee reached</span>}
-                  {single.ascensionAvailable && (
-                    <span className="chip">
-                      <Icon name="power" size={12} /> Mastery available
-                    </span>
-                  )}
                 </span>
               </div>
             )}
@@ -165,8 +148,6 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, onIntroFin
                   {newCount} new · {outcome.pulls.length - newCount} duplicate{outcome.pulls.length - newCount === 1 ? '' : 's'}
                 </span>
                 {newHeroCount > 0 && <span className="chip gold">{newHeroCount} new unit{newHeroCount === 1 ? '' : 's'}</span>}
-                {starProgress.length > 0 && <span className="chip gold">Mastery progress · {starProgress.map(id => getCard(id).shortName).join(', ')}</span>}
-                {ascensionCopies > 0 && <span className="chip">{ascendable.length ? `Mastery ready · ${ascendable.map(id => getCard(id).shortName).join(', ')}` : `${ascensionCopies} copy${ascensionCopies === 1 ? '' : 'ies'} added toward Mastery`}</span>}
                 {outcome.pulls.some((p) => p.pityTriggered) && <span className="chip gold">Guarantee reached</span>}
               </span>
             )}
@@ -210,7 +191,7 @@ export function RitualStage({ outcome, view, faction, onSkip, onDone, onIntroFin
             <div className="ritual-ten-title">Summon result</div>
             <div className="ritual-grid" aria-live="polite">
               {outcome.pulls.map((p, i) => {
-                const highlight = p.rarity === outcome.highestRarity || (p.grant.isNew && getCard(p.cardId).type === 'hero') || p.ascensionAvailable || p.starsAfter > p.starsBefore;
+                const highlight = p.rarity === outcome.highestRarity || (p.grant.isNew && getCard(p.cardId).type === 'hero');
                 return <GridTile key={i} pull={p} revealed={i < view.revealed} onInspect={result ? setInspectId : () => {}} faction={faction} result={result} highlight={highlight} />;
               })}
             </div>

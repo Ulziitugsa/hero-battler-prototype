@@ -8,7 +8,6 @@ import { getActiveDeck } from '../game/engine/activeDeck';
 import { useCollection } from '../game/collection/useCollection';
 import { getDeckPresentation } from './decks/deckPresentation';
 import { deckStartingHp } from '../game/cardCombat/stats';
-import { playerMasteryStages } from '../game/cardCombat/mastery';
 
 const FACTIONS: StarterFaction[] = ['kingdom', 'undead', 'infernal'];
 const FACTION_LABEL: Record<StarterFaction, string> = { kingdom: 'Kingdom', undead: 'Undead', infernal: 'Infernal' };
@@ -31,7 +30,7 @@ export function BattleSetupPage({ onStartBattle, onBack }: { onStartBattle: (pla
   const pres = getDeckPresentation(playerDeck, owned);
   // Each side starts at its own deck's Starting HP, from the same helper the Deck Builder shows and the battle starts
   // with. The deck rules (8+ Units) are part of `pres.playable`.
-  const playerHp = deckStartingHp(playerDeck.cardIds, playerMasteryStages(playerDeck.cardIds));
+  const playerHp = deckStartingHp(playerDeck.cardIds);
   const opponentHp = deckStartingHp(STARTER_DECKS[opponent]);
   const status = { valid: pres.playable };
 

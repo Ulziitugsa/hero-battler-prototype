@@ -10,7 +10,7 @@ Card combat is the production rule set: Quick Battle, Campaign, Ranked AI, the L
 - **Readable clashes.** Three lanes, simultaneous reveal, the higher ATK wins. A player should predict most clashes by reading two numbers.
 - **Empty lanes matter.** An open lane lets a Unit hit the opposing player for its full ATK. Blocking, leaving a lane open and forcing a lane open are the core decisions.
 - **Deckbuilding tradeoffs.** Starting HP comes from the deck, so Unit count and card choice shape how long a player can survive.
-- **Bounded progression.** Mastery and rarity make cards desirable without deciding clashes. A well-played base deck must be able to beat a maxed one.
+- **Bounded progression.** Rarity makes cards desirable without deciding clashes. Since 2026-10-03 there is no combat Card Mastery at all (section 17): every card plays at its printed values.
 - **Mobile pacing.** Portrait, one-handed, short matches: a design target of about 9–12 rounds (current balanced baseline: median 12, p90 15, accepted for playtesting; section 14.4).
 - **Safe migration.** Saves are migrated once, versioned and idempotently (section 16.5); old Friendly match records keep finishing under the rules they started with.
 
@@ -87,7 +87,9 @@ Why this shape:
 - **Two open lanes** roughly halve the clock, which is the intended punishment for losing the board.
 - 75% direct damage was tested: games ran longer and nothing improved. No cap or scaling is recommended.
 
-## 7. Mastery
+## 7. Mastery (historical: combat Card Mastery was removed 2026-10-03, section 17)
+
+This section records the HPC-only Mastery that shipped on 2026-10-01 and the studies behind it. **None of it is live any more:** no rank changes any combat value, and no copies or Gold can be spent on it. Kept for the record and for the future Prestige design.
 
 - **HPC only: +5 / +10 / +15 / +20% HPC at Mastery II–V. No ATK step.** A maxed 11-Unit deck gains about +180 Starting HP, under two average hits.
 - Mirror results (M5 against M1, same deck and pilot): HPC-only 0.52–0.54 win share. Thread D's option MA (+3% ATK, +10% HPC) scored **0.86–0.93**, because any ATK step wins 100% of same-card clashes and each won clash compounds. A well-played M1 deck still beats a badly played M5 deck 61–68% of the time under HPC-only.
@@ -426,51 +428,105 @@ Presentation only; no rule above changes.
 
 ## 16. Card combat everywhere (2026-10-01)
 
-At ozi's ask, card combat (sections 2 to 15, Clash Damage included) is the production combat of every mode. No rule, stat, effect, HP Contribution, Mastery percentage, deck-out rule, rarity or Box number changed.
+At ozi's ask, card combat (sections 2 to 15, Clash Damage included) is the production combat of every mode. No rule, stat, effect, HP Contribution, Mastery percentage, deck-out rule, rarity or Box number changed. **Amended 2026-10-03 (section 17): combat Card Mastery is removed, so the Mastery lines below are superseded.**
 
 ### 16.1 One resolver
 
 - `combat/combatModel.ts` (was `combatV2/featureFlag.ts`): a production build always plays `'card'`. There is no env list and no URL switch that routes elsewhere; `?combat=card` is accepted and changes nothing. Development builds can still open the old engines with `?combat=legacy` or `?combat=v2` for comparison.
 - Roles: card = production, legacy (`src/game/engine`) = historical, kept so an old Friendly match record can finish; Combat V2 (`src/game/combatV2`) = experimental, its lab page shows only in development builds.
-- Every match records `combatModel` and `cardCombat.version` (`CARD_RESOLVER_VERSION`, now 2) in its state; local match history stores both (`combat/resolver.ts`).
+- Every match records `combatModel` and `cardCombat.version` (`CARD_RESOLVER_VERSION`, now 3 since section 17; version 2 matches still continue) in its state; local match history stores both (`combat/resolver.ts`).
 - Decks need 8+ Units everywhere (`engine/deckRules.ts`, Deck Builder status and Battle Setup). The Arcane Control (Mage) archetype deck moved to its approved 8-Unit list.
 
 ### 16.2 Campaign
 
-- Each encounter plays its own authored deck at Mastery I against the player's deck (`campaign/battleSetup.ts`). Nothing reads the player's Level, Ascension or old Power: difficulty comes from deck construction and, for the boss, an HP pool.
+- Each encounter plays its own authored deck at printed values against the player's deck, also at printed values (section 17) (`campaign/battleSetup.ts`). Nothing reads the player's Level, Ascension or old Power: difficulty comes from deck construction and, for the boss, an HP pool.
 - Each node carries an authored `difficulty` (Easy / Fair / Hard) shown on the stage sheet and Home in place of Recommended Power and Deck Strength. The stage sheet's Starting HP preview and the battle read the same helper.
 - Boss: the Grave Tyrant fights from a **1,200 HP pool** instead of its deck's total. Challenge node Toll of the Ford starts the player at **70%** of their deck's Starting HP.
 - Objectives were re-thresholded for card-combat numbers (rounds, HP kept, Clash Damage dealt) from the simulation.
-- Simulated with `scripts/simulate-modes.mjs` (seed 20261001, 300 games per row, Kingdom starter at Mastery I): Easy nodes 81–97%, Fair 62–68%, Hard 39–53%, boss 39%, median 7–14 rounds, no match ended through a fallback.
+- Simulated with `scripts/simulate-modes.mjs` (seed 20261001, 300 games per row, Kingdom starter at printed values): Easy nodes 81–97%, Fair 62–68%, Hard 39–53%, boss 39%, median 7–14 rounds, no match ended through a fallback.
 
 ### 16.3 Ranked AI
 
-- `ranked/tiers.ts`: each division has fixed rival decks and one fixed Mastery stage (Bronze I, Silver II, Gold II, Platinum III, Diamond IV, Master V). Rivals get harder through deck construction (plain Commons, then synergy, then optimized lists) and Mastery (HP Contribution only). Nothing reads the player's decks, Legacy Level or Power.
+- `ranked/tiers.ts`: each division has fixed rival decks. Rivals get harder through deck construction only (plain Commons, then synergy, then optimized lists) and the AI. Since section 17 there are no rival Mastery tiers. Nothing reads the player's decks, Legacy Level or Power.
 - The Ranked screen shows the next rival's deck name and tier line.
-- Simulated averages over the three starters: Bronze ~88%, Silver ~71%, Gold ~53%, Platinum ~48%, Diamond ~37%, Master ~36%.
+- Simulated averages over the three starters, as shipped 2026-10-01 with rival Mastery: Bronze ~88%, Silver ~71%, Gold ~53%, Platinum ~48%, Diamond ~37%, Master ~36%. Printed-value numbers: section 17.3.
 
 ### 16.4 Friendly Battle
 
 - Both clients send `rules: { combatModel, resolverVersion }` with their deck snapshot. `api/create-match.ts` builds the match with `createCardMatch` only when both match the server's production rules; otherwise the room is abandoned with a 409 "different versions of Moonwater" message.
-- Both players play at Mastery I, so a Friendly match is decided by decks and play, not collection depth.
+- Every card plays at its printed values for both players (section 17; the old "both players at Mastery I" rule is gone because there is nothing left to equalize), so a Friendly match is decided by decks and play, not collection depth.
 - `api/_lib/resolveRoundInternal.ts` picks the resolver from the stored match: a card match must carry the current resolver version (a mismatch is a 409 and writes nothing) and continues the stored RNG state; a legacy match record still finishes on the legacy resolver; Combat V2 is refused. A client whose rules differ from the stored match shows an alert and does not submit.
-- The guest's view flips every side-keyed card-combat field; the opponent's per-card Mastery table is redacted.
+- The guest's view flips every side-keyed card-combat field. A version 2 record may still carry a per-card Mastery table; it is redacted and flipped if present, and nothing reads it.
 - Fixed in passing: clients no longer begin a round locally on top of the server's begin.
 
 ### 16.5 Progression and saves
 
-- **Card Mastery I–V is the only card progression.** Every collectible card has the path. A Unit's Mastery adds HP Contribution +0 / 5 / 10 / 15 / 20%; ATK never changes. A Spell's Mastery is a collection mark. Costs: 1 / 2 / 3 / 4 duplicate copies, plus 500 Gold (IV) and 1,500 Gold (V), configurable as `economy.masteryGoldFee`. That fee is the new Gold sink.
+- ~~Card Mastery I–V is the only card progression.~~ Superseded 2026-10-03 by section 17: there is no combat Card Mastery, no copies or Gold can be spent on it, and `economy.masteryGoldFee` is inert config.
 - **Legacy Level is retired.** It has no effect on any battle, its panel is gone, and its daily and weekly missions became "Fight 3 battles" / "Fight 15 battles". The Gold a save spent on it is refunded once (`save/migrations.ts`): the economy (now v5) records the grant id `legacy-level-refund-v1` in the same write as the Gold, so a crash or a second run can never pay twice, and the migration marker `moonwater:saveMigration` records the version. Level data itself is kept untouched. Home shows a one-time note with the amount.
 - **Deck Strength is gone.** Home shows the active deck's real Starting HP and the next Campaign battle's difficulty instead. Old Power, Hero, Tactic and Legacy Level wording is removed from player UI (a test scans the screens for it).
-- Saves keep every key: collection counts, decks, Ascension ranks (read as Mastery), Level data, Tactic data and match history.
+- Saves keep every key: collection counts, decks, Ascension ranks and duplicatesSpent (historical, no combat effect, section 17.5), Level data, Tactic data and match history.
 
 ### 16.6 Fonts
 
 Cinzel, Alegreya, Alegreya SC, Bree Serif and Nunito (all SIL OFL) are bundled from `@fontsource` (latin subset, `styles/fonts.css`) and ship inside the build, so cards render the same offline and in the Capacitor app. Google Fonts is no longer loaded.
 
+## 17. Combat Card Mastery removed (2026-10-03)
+
+At ozi's ask (Batch 12 follow-up), Moonwater ships the card-combat foundation **without combat Card Mastery**. There is one authoritative printed version of each card.
+
+### 17.1 Combat
+
+- No stored Mastery or Ascension rank changes HP Contribution, Starting HP, ATK, Clash Damage, effects, numbers, conditions, Passives, Graveyard behaviour, tokens or any other combat value. `cardCombat/mastery.ts` is deleted; `cardCombat/stats.ts` exposes only printed values (`printedStats`, `hpContribution`).
+- **Starting HP is the sum of the printed HP Contribution of the deck's Units** (`deckStartingHp`). Collection, Deck Builder, Battle Setup, Campaign, Ranked, Friendly, Quick Battle and the simulator all read that one helper.
+- `createCardMatch` takes no Mastery table. New matches no longer write `cardCombat.masteryStage`; the field is optional and only appears in version 2 records.
+- Clash Damage and immediate destruction are unchanged.
+
+### 17.2 Resolver version
+
+- `CARD_RESOLVER_VERSION` is **3**. Round resolution is identical to version 2; only match setup changed (no Mastery table, no Mastery HP bonus). A version 2 match already stores its Starting HP, so it continues to the end under the same code (`CONTINUABLE_CARD_RESOLVER_VERSIONS` in `combat/resolver.ts`, used by `api/_lib/resolveRoundInternal.ts`). New Friendly rooms require both clients on version 3. Legacy Friendly records still finish on the legacy resolver.
+
+### 17.3 Ranked and Campaign
+
+- Ranked rival Mastery tiers are gone (`ranked/tiers.ts`): difficulty comes from each division's decks and the AI only. Tier copy no longer mentions Mastery.
+- Campaign encounters were already authored at Mastery I, which equals printed values, so no encounter changed and no encounter deck was adjusted.
+- Re-simulated with printed cards (`scripts/simulate-modes.mjs`, seed 20261001, 300 Campaign / 200 Ranked games per row):
+  - **Campaign:** byte-identical to the 2026-10-01 run (the player was already simulated at printed values and encounters at Mastery I). Kingdom starter: Easy 81–97%, Fair 62–68%, Hard 49–53%, Grave Tyrant 39%; no fallback endings. No encounter deck changed.
+  - **Ranked, average of the three starters:** Bronze ~88%, Silver ~72%, Gold ~54%, Platinum ~51%, Diamond ~41%, Master ~39% (with rival Mastery it was 88 / 71 / 53 / 48 / 37 / 36). Removing rival Mastery made Diamond and Master the same three decks, so **Master now plays only Blood Onslaught and Iron Rank** (Ember Pact dropped). No card stat changed. Full tables: `mode-sim-results` from the script; this run's copy is in the PR #12 amendment report.
+
+### 17.4 UI and spending
+
+- Card Inspect, the focus panel, card faces, Deck Builder, Collection, Shop, Moonwell results and Campaign results show no Mastery progression: no "HPC +X%", no "ATK never changes", no Next Mastery, no Mastery pips or numerals, no "Card Mastery available" dots, no Mastery sort.
+- A card with historical progress shows one quiet line in Card Inspect's Collection section: "Legacy Mastery: Mastery III on record · no effect in battle". It is not called Prestige.
+- `ascendCard` refuses every request and spends nothing. No copies and no Gold can be spent on Mastery. `MASTERY_GOLD_FEE` and `economy.masteryGoldFee` remain as inert config (a test checks nothing reads the fee).
+- The daily mission "Raise a card's Mastery" became "Play a Ranked battle" (same 15 Gem reward); Journey copy that promised Mastery was rewritten.
+- Spells: no Spell Mastery, no Unit Mastery, no Mana.
+
+### 17.5 Historical data
+
+Historical Ascension/Mastery data is preserved for future cosmetic Prestige conversion and has no combat effect. Stored ranks and `duplicatesSpent` (`skyloom:ascension`) are never deleted, refunded or erased, and nothing in combat reads them. The Prestige migration is **not** performed. PR #12's other save work stays: the Legacy Level retirement and its one-time Gold refund, Deck Strength removal (not replaced by a Mastery number) and the Easy / Fair / Hard Campaign labels.
+
+### 17.6 Moonwell Summon
+
+Moonwell Summon is **deprecated for card acquisition**. It still works so existing saves and its UI keep functioning, but nothing new may depend on it; Boxes and Structure Decks are the card sources. Its Mastery chips and "Ascension available" result lines are removed.
+
+### 17.7 CARD PRESTIGE — FUTURE, NOT YET IMPLEMENTED
+
+- Cosmetic only. It never affects Ranked or Friendly, and never any combat value anywhere.
+- It may use duplicates and Gold, and may have a I–V presentation.
+- Possible stages: card frame, foil, entrance effect, animated art, Moonlit treatment.
+- The copy ladder and Gold costs are **not locked** (the old 1 / 2 / 3 / 4 copies and 500 / 1,500 Gold are not decisions for Prestige).
+- Existing investment (historical ranks and `duplicatesSpent`) should eventually carry over.
+
+### 17.8 Commanders — FUTURE, NOT YET IMPLEMENTED
+
+- A Commander is chosen with a deck and is not one of the deck's 15 cards. Each has one faction affinity. 4 at launch.
+- No gacha: Commanders come from the free starter, progression or a fixed price.
+- One printed Skill may affect Ranked, and it never scales with Commander level. Level, talents and Relics are PvE-side only.
+- Skills are designed alongside the real 120-card archetypes, not before.
+
 ## Appendix: collection, Box and save rules
 
-- Collection is a copy count per card. Card Mastery is a read model over legacy Ascension (`cardMastery/model.ts`): stored rank 0..4 is Mastery I..V, and every collectible card (all 52) has the path. See [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md).
-- The Moonfall Box is a finite 100-pack pool (500 cards: 258 Common, 168 Rare, 54 Epic, 20 Legendary; per card 14-15 / 8 / 6 / 5, so Mastery V takes 1 / 2 / 2 / 3 Boxes) that shows its remaining contents. The copy split is approved (section 14); prices are unchanged and not part of this design.
+- Collection is a copy count per card. `cardMastery/model.ts` is now a historical read model over legacy Ascension (stored rank 0..4 was Mastery I..V); it has no combat effect (section 17). See [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md).
+- The Moonfall Box is a finite 100-pack pool (500 cards: 258 Common, 168 Rare, 54 Epic, 20 Legendary; per card 14-15 / 8 / 6 / 5) that shows its remaining contents. The copy split is approved (section 14); prices are unchanged and not part of this design.
 - Keep card IDs, collection counts, deck definitions, `skyloom:*` storage keys and historical event names intact.
 - Before replacing Legacy Level or Ascension behaviour, ship an idempotent, versioned migration with tests for old saves, missing fields, max-rank cards, duplicate inventory and playable decks.

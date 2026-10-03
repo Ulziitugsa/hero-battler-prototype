@@ -21,10 +21,17 @@ export function matchResolver(state: Pick<GameState, 'combatModel' | 'cardCombat
   return { combatModel, resolverVersion: LEGACY_RESOLVER_VERSION };
 }
 
-/** True when this build's card resolver can continue a card match (same model, same version). */
+/**
+ * Card resolver versions this build can continue. v2 differs from v3 only at match setup (v2 applied per-card Mastery
+ * stages to HP Contribution; v3 plays printed values), and a stored match is already past setup with its Starting HP in
+ * its own state, so v3's round resolution continues a v2 match exactly as v2 would have. New matches are always v3.
+ */
+export const CONTINUABLE_CARD_RESOLVER_VERSIONS: readonly number[] = [2, CARD_RESOLVER_VERSION];
+
+/** True when this build's card resolver can continue a card match (card model, a continuable version). */
 export function isCurrentCardResolver(state: Pick<GameState, 'combatModel' | 'cardCombat'>): boolean {
   const r = matchResolver(state);
-  return r.combatModel === 'card' && r.resolverVersion === CARD_RESOLVER_VERSION;
+  return r.combatModel === 'card' && CONTINUABLE_CARD_RESOLVER_VERSIONS.includes(r.resolverVersion);
 }
 
 /** The rules this build plays new matches with. Friendly Battle clients send it with their deck; the server builds a match

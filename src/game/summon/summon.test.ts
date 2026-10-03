@@ -358,18 +358,16 @@ describe('performSummon', () => {
       seen.set(p.cardId, n);
       expect(p.grant.isNew).toBe(n === 1);
       expect(p.grant.owned).toBe(n);
-      expect(p.hasAscensionPath).toBe(true); // every collectible card has the Card Mastery path
-      // Stars are the Mastery stage: the first copy reaches Mastery I; a duplicate is spent by Mastery, never by a pull.
-      expect(p.starsAfter - p.starsBefore).toBe(n === 1 ? 1 : 0);
     }
   });
 
-  it('a duplicate raises ownership and can make Ascension available (never auto-applied)', () => {
+  it('a duplicate raises ownership only: it advances nothing and reports no Mastery', () => {
     setGems(1000);
     const seed = findSeed((s) => resolveSummon(vanguard, { pity: 0 }, s).cardId === 'kng-royal-guard');
     const r = performSummon('single', 'royal-vanguard', seed);
     if (!r.ok) throw new Error('expected success');
-    expect(r.pulls[0]).toMatchObject({ cardId: 'kng-royal-guard', ascensionAvailable: true, featured: 'secondary' });
+    expect(r.pulls[0]).toMatchObject({ cardId: 'kng-royal-guard', featured: 'secondary' });
+    expect(r.pulls[0]).not.toHaveProperty('ascensionAvailable');
     expect(r.pulls[0].grant).toMatchObject({ isNew: false, previous: 2, owned: 3 });
     expect(getOwnedCount('kng-royal-guard')).toBe(3);
   });

@@ -1,25 +1,17 @@
-// Card Mastery tuning (stored as the legacy Ascension rank: rank 0..4 = Mastery I..V), centralised so costs are a
-// one-file change. Duplicates are still just duplicates: advancing spends spare copies of the SAME card (the
-// collection quantity drops by the cost; the store remembers how many were spent). One flat curve for every card.
+// Historical Card Mastery tuning (stored as the legacy Ascension rank: rank 0..4 = Mastery I..V).
 //
-// Mastery changes HP Contribution only (cardCombat/stats.ts MASTERY_HPC_PCT: +0/5/10/15/20%). ATK never changes.
+// Combat Card Mastery is removed and no Mastery can be bought (ascension/ascend.ts). These numbers describe the ladder
+// players climbed before, so the store can sanitize old saves and a future cosmetic Prestige study can read what was
+// invested. They are NOT an approved Prestige economy, and nothing charges them.
 
-/** Mastery V. Every collectible card has the full path (ascension/path.ts). */
+/** Mastery V: the highest rank a save can hold. */
 export const MAX_ASCENSION_RANK = 4;
 
-/** Duplicate copies spent to reach Mastery II, III, IV, V (index 0 = rank 1). 1 + 10 spent = 11 copies for Mastery V. */
+/** Duplicate copies the old ladder spent to reach Mastery II, III, IV, V (index 0 = rank 1). Historical only. */
 export const ASCENSION_DUPLICATE_COST: readonly number[] = [1, 2, 3, 4];
 
 /**
- * Gold paid on top of the duplicates for the last two stages (index 0 = rank 1): Mastery IV costs 500 Gold, Mastery V
- * 1,500 Gold. The game's Gold sink now that Legacy Level is retired; it never replaces the duplicates, so Mastery still
- * comes from collecting the card. Overridable through config (economy.masteryGoldFee).
+ * The old Gold fee on top of the duplicates for Mastery IV (500) and V (1,500) (index 0 = rank 1). INERT: kept only as
+ * the default of config economy.masteryGoldFee for reference in a future Prestige study. Nothing reads or charges it.
  */
 export const MASTERY_GOLD_FEE: readonly number[] = [0, 0, 500, 1500];
-
-export function ascensionCost(toRank: number): number {
-  return ASCENSION_DUPLICATE_COST[toRank - 1] ?? Infinity;
-}
-
-/** The last usable copy is never spendable: after Ascending the player must still own at least this many. */
-export const MIN_COPIES_KEPT = 1;

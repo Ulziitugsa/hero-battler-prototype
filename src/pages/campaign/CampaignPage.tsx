@@ -14,7 +14,6 @@ import { StoryBeatSheet } from './StoryBeatSheet';
 import { RewardClaimSheet } from './RewardClaimSheet';
 import { StageResultSheet } from './StageResultSheet';
 import { loadIdleReward } from '../../game/campaign/idleRewards';
-import { getCardMasteryView } from '../../game/cardMastery/model';
 import { track } from '../../analytics/track';
 
 const NODE_ICON: Record<CampaignNodeType, IconName> = { battle: 'battle', story: 'spell', reward: 'trophy', challenge: 'warning', elite: 'power', boss: 'graveyard' };
@@ -201,11 +200,10 @@ export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedRes
   const recovery = ((result: BattleResultOutcome | null) => {
     if (!result || result.won) return undefined;
     const idle = loadIdleReward();
-    const activeDeck = getActiveDeck();
-    // A card in the deck that can reach its next Card Mastery stage raises the deck's Starting HP: worth pointing at.
-    const masteryReady = [...new Set(activeDeck.cardIds)].some((id) => getCardMasteryView(id).canAdvance);
-    const destination = idle.availableGold > 0 ? 'home' as const : masteryReady ? 'heroes' as const : 'decks' as const;
-    const label = destination === 'home' ? 'Claim Idle Gold' : destination === 'heroes' ? 'View Cards' : 'Edit deck';
+    // After a loss: claim idle Gold if any is waiting, else rework the deck (cards play at printed values, so a better
+    // deck is the way through).
+    const destination = idle.availableGold > 0 ? 'home' as const : 'decks' as const;
+    const label = destination === 'home' ? 'Claim Idle Gold' : 'Edit deck';
     return { label, destination };
   })(activeResult);
   const worldArtUrl = chapterWorldArtUrl(CHAPTER_1.id);

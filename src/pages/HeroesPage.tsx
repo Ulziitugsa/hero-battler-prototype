@@ -6,7 +6,6 @@ import { cardCopyView } from '../game/cards/cardCopy';
 import { Icon } from '../components/Icon';
 import { Sigil } from '../components/CardParts';
 import { useCollection } from '../game/collection/useCollection';
-import { useAscension } from '../game/ascension/useAscension';
 import { track } from '../analytics/track';
 import { GameCard } from '../components/card/GameCard';
 import { CardViewer } from '../components/card/CardViewer';
@@ -31,18 +30,17 @@ const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
 const RARITY_LABEL: Record<Rarity, string> = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
 const SORTS: SortMode[] = ['rarity', 'power', 'name', 'faction'];
 
-function HeroTile({ card, collection, ascension, onClick }: { card: CardDefinition; collection: ReturnType<typeof useCollection>; ascension: ReturnType<typeof useAscension>; onClick: () => void }) {
-  const copy = cardCopyView(card.id, collection, ascension);
+function HeroTile({ card, collection, onClick }: { card: CardDefinition; collection: ReturnType<typeof useCollection>; onClick: () => void }) {
+  const copy = cardCopyView(card.id, collection);
   return (
     <button type="button" className={`hr-card hr-card-face r-${card.rarity} ${copy.owned ? '' : 'missing'}`} onClick={onClick} aria-label={`${card.name}, ${RARITY_LABEL[card.rarity]}, ${copy.owned ? 'owned' : 'not collected'}. Show details.`}>
-      <GameCard cardId={card.id} density="tile" owned={copy.owned} copies={copy.copies} masteryStage={copy.masteryStage} hpContribution={copy.hpContribution} />
+      <GameCard cardId={card.id} density="tile" owned={copy.owned} copies={copy.copies} hpContribution={copy.hpContribution} />
     </button>
   );
 }
 
 export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
   const collection = useCollection();
-  const ascensionState = useAscension();
   const owned = useMemo(() => new Set(HERO_IDS.filter((id) => (collection[id] ?? 0) > 0)), [collection]);
   const [ownedFilter, setOwnedFilter] = useState<OwnedFilter>('all');
   const [factionFilter, setFactionFilter] = useState<Faction | 'all'>('all');
@@ -214,7 +212,7 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
       ) : (
         <div className="hr-grid">
           {list.map((card) => (
-            <HeroTile key={card.id} card={card} collection={collection} ascension={ascensionState} onClick={() => setInspectId(card.id)} />
+            <HeroTile key={card.id} card={card} collection={collection} onClick={() => setInspectId(card.id)} />
           ))}
         </div>
       )}

@@ -3,7 +3,6 @@ import { canAffordEnergy, formatCountdown, loadEnergy } from '../../game/campaig
 import { getActiveDeck } from '../../game/engine/activeDeck';
 import { getOwnedCount } from '../../game/collection/collection';
 import { Icon, type IconName } from '../../components/Icon';
-import { useAscension } from '../../game/ascension/useAscension';
 import { DIFFICULTY_LABEL } from '../../game/campaign/progress';
 import { campaignBattleHp } from '../../game/campaign/battleSetup';
 
@@ -14,15 +13,13 @@ const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', e
 /** One carved sheet for standard/elite/boss/challenge nodes - type, name, opponent, threat, objective
  * seals, first-clear vs. repeat reward, the player's active deck, cost and Fight (Campaign Screen.dc.html). */
 export function StagePreviewSheet({ node, cleared, onFight, onClose }: { node: CampaignNodeDef; cleared: boolean; onFight: () => void; onClose: () => void }) {
-  const ascensionState = useAscension();
-
   const encounter = node.encounter;
   if (!encounter) return null;
 
   const activeDeck = getActiveDeck();
   // Both Starting HPs exactly as the battle will start them (the same helper the battle calls): the player's deck at
-  // their Card Mastery, the encounter's deck or boss pool, and any challenge rule.
-  const hp = campaignBattleHp(node, activeDeck.cardIds, ascensionState);
+  // printed values, the encounter's deck or boss pool, and any challenge rule.
+  const hp = campaignBattleHp(node, activeDeck.cardIds);
 
   const energy = loadEnergy();
   const affordable = canAffordEnergy(encounter.energyCost);

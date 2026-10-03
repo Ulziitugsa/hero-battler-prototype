@@ -65,7 +65,7 @@ function ResetDialog({ state, onCancel, onConfirm }: { state: PrototypeBoxState;
 /** A pulled or featured card: the game's one card face, as the player's copy (Card Mastery and HP Contribution). */
 function PulledCard({ cardId }: { cardId: string }) {
   const copy = cardCopyView(cardId);
-  return <GameCard cardId={cardId} density="tile" owned={copy.owned} masteryStage={copy.masteryStage} hpContribution={copy.hpContribution} />;
+  return <GameCard cardId={cardId} density="tile" owned={copy.owned} hpContribution={copy.hpContribution} />;
 }
 
 function PackResults({ pulls, packs, onInspect, onClose }: { pulls: PrototypeBoxPull[]; packs: number; onInspect: (id: string) => void; onClose: () => void }) {

@@ -30,7 +30,6 @@ function battleDisplay(rules: CardRules, passive?: Map<string, Map<number, boole
     handAtk: () => undefined,
     tempAtk: (u) => (rules === 'card' ? u.tempPower : u.tempPower * 15),
     masteryRank: () => 0,
-    masteryStage: () => 1,
     hpContribution: rules === 'card' ? () => 77 : undefined,
     passiveStates: (id) => passive?.get(id),
   };
@@ -307,7 +306,7 @@ describe('legacy battles use the same card with the numbers that battle plays', 
 
 describe('the focused card detail', () => {
   it('shows the full rules, current and printed ATK, HP Contribution and the current bonus', () => {
-    const details = cardFocusDetails(ROYAL_GUARD, { rules: 'card', place: 'card', masteryStage: 1, hpContribution: 77 });
+    const details = cardFocusDetails(ROYAL_GUARD, { rules: 'card', place: 'card', hpContribution: 77 });
     const t = text(
       renderToStaticMarkup(
         createElement(CardFocusPanel, {
@@ -345,7 +344,7 @@ describe('Card Inspect and the card viewer', () => {
     expect(t).toContain('Inspect');
   });
 
-  it('Card Inspect is the deepest layer: the card, ATK, HP Contribution, full rules and Card Mastery', () => {
+  it('Card Inspect is the deepest layer: the card, ATK, HP Contribution and full rules, with no Card Mastery upgrade', () => {
     const hpc = printedStats(getCard(ROYAL_GUARD))!.hpc;
     const t = text(renderToStaticMarkup(createElement(CardInspect, { cardId: ROYAL_GUARD, context: 'collection', onClose: () => {} })));
     expect(t).toContain('Royal Guard');
@@ -353,7 +352,8 @@ describe('Card Inspect and the card viewer', () => {
     expect(t).toContain(`+${hpc} HP`);
     expect(t).toContain('HP Contribution');
     expect(t).toContain('Adjacent allied Units gain +15 ATK for the rest of the battle.');
-    expect(t).toContain('Card Mastery');
+    expect(t).not.toContain('Card Mastery');
+    expect(t).not.toMatch(/Mastery [IV]+|\+(5|10|15|20)%|never changes ATK|Next Mastery/);
     expect(t).not.toMatch(/\bPower\b|\bHero\b/);
   });
 

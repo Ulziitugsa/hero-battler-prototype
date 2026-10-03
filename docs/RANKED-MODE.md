@@ -16,9 +16,9 @@ use the production card-combat resolver (ATK, HP Contribution, Clash Damage); Co
 
 ## AI opponent selection
 
-Each division has fixed rival decks and one fixed Card Mastery stage (`src/game/ranked/tiers.ts`): Bronze I,
-Silver II, Gold II, Platinum III, Diamond IV, Master V. Mastery changes HP Contribution only, never ATK. Rivals
-get harder through deck construction (plain Commons, then synergy, then optimized lists), never by reading the
+Each division has fixed rival decks (`src/game/ranked/tiers.ts`). Every card plays at its printed values: there
+are no rival Mastery tiers (removed 2026-10-03, CARD-COMBAT-DESIGN.md section 17). Rivals get harder through deck
+construction and the AI (plain Commons, then synergy, then optimized lists), never by reading the
 player's decks, Legacy Level or Power. The rival is picked deterministically from the current rating seed and
 shown on the Ranked screen (deck name and tier line). This is not an MMR queue or a claim of human matchmaking.
 

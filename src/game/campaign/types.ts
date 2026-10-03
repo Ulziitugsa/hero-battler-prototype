@@ -45,7 +45,7 @@ export interface CampaignEncounterDef {
   enemyDeckFaction: StarterFaction;
   /**
    * The encounter's designed difficulty, shown on the stage sheet as Easy / Fair / Hard. Authored from simulation on
-   * the production card resolver (scripts/simulate-modes.mjs: the card AI piloting the Kingdom starter at Mastery I wins
+   * the production card resolver (scripts/simulate-modes.mjs: the card AI piloting the Kingdom starter at printed values wins
    * an Easy node about 80% of the time or more, a Fair one about 55-80%, a Hard one less). A description of the
    * encounter, not a prediction about the player's deck: one number can't capture deck synergy, so none is shown.
    */

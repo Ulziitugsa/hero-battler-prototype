@@ -1,5 +1,5 @@
 import { grantGems, grantGold, grantTickets } from '../economy/economy';
-import { rivalMasteryStages, tierFor, type RankedRivalDeck, type RankedTier } from './tiers';
+import { tierFor, type RankedRivalDeck, type RankedTier } from './tiers';
 
 export const RANKED_STORAGE_KEY = 'moonwater:ranked:v1';
 export const RANKED_CONFIG = { winPoints: 24, lossPoints: -12, pointsPerDivision: 100 } as const;
@@ -32,17 +32,15 @@ export function claimRankReward(id: string): boolean {
 export interface RankedOpponent {
   tier: RankedTier;
   deck: RankedRivalDeck;
-  /** Card Mastery stage per card id in the rival's deck (the tier's stage). */
-  masteryStages: Record<string, number>;
 }
 
 /**
- * The next AI rival: a deck from the current division's own pool (ranked/tiers.ts), at the division's Mastery stage.
+ * The next AI rival: a deck from the current division's own pool (ranked/tiers.ts), at printed card values.
  * Deterministic for a given record, and never derived from the player's decks, Levels or progression.
  */
 export function chooseRankedOpponent(s: Pick<RankedState, 'rating' | 'wins' | 'losses'> = getRanked()): RankedOpponent {
   const tier = tierFor(rankAt(s.rating).division);
   const deck = tier.decks[(s.wins + s.losses) % tier.decks.length];
-  return { tier, deck, masteryStages: rivalMasteryStages(tier, deck.cardIds) };
+  return { tier, deck };
 }
 export function resetRankedForTests() { state = null; try { localStorage.removeItem(RANKED_STORAGE_KEY); } catch { /* ignore */ } listeners.forEach(fn => fn()); }

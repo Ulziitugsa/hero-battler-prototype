@@ -12,7 +12,7 @@ describe('ranked progression', () => {
     const rival = chooseRankedOpponent({ rating: 100, wins: 0, losses: 0 });
     expect(rival.tier.division).toBe('Silver');
     expect(tierFor('Silver').decks.map((d) => d.id)).toContain(rival.deck.id);
-    expect(Object.values(rival.masteryStages).every((m) => m === tierFor('Silver').masteryStage)).toBe(true);
+    expect(Object.keys(rival).sort()).toEqual(['deck', 'tier']); // a deck list and its division: no Mastery stages
   });
   it('rotates through the tier pool and never reads the player (no Legacy Level, Power or progression)', () => {
     const before = [0, 1, 2, 3].map((n) => chooseRankedOpponent({ rating: 0, wins: n, losses: 0 }).deck.id);
@@ -22,10 +22,18 @@ describe('ranked progression', () => {
     expect(after).toEqual(before);
     expect(new Set(before).size).toBe(tierFor('Bronze').decks.length);
   });
-  it('every tier deck is legal and Mastery rises Bronze I to Master V', () => {
+  it('9. every tier deck is legal and no tier carries a Mastery stage or any other stat bonus', () => {
     for (const tier of RANKED_TIERS) for (const deck of tier.decks) expect(validateDeck(deck.cardIds)).toMatchObject({ valid: true });
-    expect(RANKED_TIERS.map((t) => t.masteryStage)).toEqual([1, 2, 2, 3, 4, 5]);
+    for (const tier of RANKED_TIERS) {
+      expect(Object.keys(tier).sort(), tier.division).toEqual(['blurb', 'decks', 'division']);
+      expect(tier.blurb, tier.division).not.toMatch(/Mastery/);
+    }
+    expect(RANKED_TIERS.map((t) => t.division)).toEqual(['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master']);
     recordRankedMatch('win', 'Trial', 10);
     expect(readRanked().rating).toBe(24);
+  });
+  it('no division repeats the rival lineup of the division below it (difficulty comes from decks, not stats)', () => {
+    const lineup = (t: (typeof RANKED_TIERS)[number]) => t.decks.map((d) => d.id).sort().join(',');
+    for (let i = 1; i < RANKED_TIERS.length; i++) expect(lineup(RANKED_TIERS[i]), RANKED_TIERS[i].division).not.toBe(lineup(RANKED_TIERS[i - 1]));
   });
 });

@@ -1,5 +1,3 @@
-import { CARD_ASCENSIONS } from '../ascension/definitions';
-import { getAscensionStatus } from '../ascension/ascend';
 import { CHAPTER_1 } from '../campaign/chapter1';
 import { findNode, getCurrentNodeId, isChapterComplete, isNodeCleared, type CampaignProgress } from '../campaign/progress';
 import { findRegion } from '../campaign/regions';
@@ -103,25 +101,21 @@ export interface AttentionState {
   canSummon: boolean;
   /** An unspent Mastery Point. */
   masteryPoint: boolean;
-  /** Some card has a duplicate ready to Ascend. */
-  ascensionReady: boolean;
 }
 
-export function anyAscensionReady(owned: OwnedMap): boolean {
-  return CARD_ASCENSIONS.some((c) => getAscensionStatus(c.cardId, owned).canAscend);
-}
-
-export function attentionState(input: { gems: number; unlimitedGems?: boolean; masteryPoints: number; owned: OwnedMap }): AttentionState {
+export function attentionState(input: { gems: number; unlimitedGems?: boolean; masteryPoints: number }): AttentionState {
   return {
     canSummon: !!input.unlimitedGems || input.gems >= SUMMON_CONFIG.singleCost,
     masteryPoint: input.masteryPoints > 0,
-    ascensionReady: anyAscensionReady(input.owned),
   };
 }
 
-/** Which bottom-nav destinations get a wax dot: only where something is genuinely waiting there. */
-export function navDots(a: AttentionState): { heroes: boolean; home: boolean } {
-  return { heroes: a.ascensionReady, home: a.masteryPoint };
+/**
+ * Which bottom-nav destinations get a wax dot: only where something is genuinely waiting there. Cards (heroes) has no
+ * dot of its own any more: it marked "Card Mastery available", and combat Card Mastery is retired.
+ */
+export function navDots(a: AttentionState): { home: boolean } {
+  return { home: a.masteryPoint };
 }
 
 /** One Home destination marker aggregates its genuinely actionable sub-items. */

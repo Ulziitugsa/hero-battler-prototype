@@ -31,7 +31,6 @@ const ctx = (over: Partial<CardPoolContext> = {}): CardPoolContext => ({
   ownedCount: allOwned(),
   favorites: [],
   obtainedAt: {},
-  masteryRank: () => 0,
   popularity: { status: 'unavailable' },
   ...over,
 });
@@ -102,11 +101,11 @@ describe('card pool query', () => {
     for (let i = 1; i < hp.length; i++) expect(hpContribution(hp[i - 1])).toBeGreaterThanOrEqual(hpContribution(hp[i]));
   });
 
-  it('sorts by rarity, name, mastery and recently obtained', () => {
+  it('sorts by rarity, name and recently obtained; there is no Mastery sort', () => {
     expect(queryCardPool(roster, { ...DEFAULT_POOL_OPTIONS, sort: 'rarity' }, ctx())[0].rarity).toBe('legendary');
     const byName = queryCardPool(roster, { ...DEFAULT_POOL_OPTIONS, sort: 'name' }, ctx()).map((c) => c.name);
     expect(byName).toEqual([...byName].sort((a, b) => a.localeCompare(b)));
-    expect(queryCardPool(roster, { ...DEFAULT_POOL_OPTIONS, sort: 'mastery' }, ctx({ masteryRank: (id) => (id === 'spl-dispel' ? 3 : 0) }))[0].id).toBe('spl-dispel');
+    expect(availableSorts({ status: 'unavailable' })).not.toContain('mastery');
     const recent = queryCardPool(roster, { ...DEFAULT_POOL_OPTIONS, sort: 'recent' }, ctx({ obtainedAt: { 'kng-archer': 10, 'und-mira': 20 } }));
     expect(ids(recent).slice(0, 2)).toEqual(['und-mira', 'kng-archer']);
   });

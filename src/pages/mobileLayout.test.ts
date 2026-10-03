@@ -94,10 +94,11 @@ describe('10x result layout', () => {
     expect(html).toContain('Done');
     expect(html).toMatch(/\d+ new · \d+ duplicates?/);
   });
-  it('tiles carry the New seal / xN / Ascension marks but no faction line', () => {
+  it('tiles carry the New seal / xN marks, no Mastery mark and no faction line', () => {
     expect(html).toContain('wax-new small');
     expect(html).toContain('tile-dup');
-    expect(html).toContain('tile-asc');
+    expect(html).not.toContain('tile-asc');
+    expect(html).not.toMatch(/Mastery/);
     expect(html).not.toMatch(/tile[^>]*>[^<]*Undead ·/);
   });
   it('mid-sequence, un-revealed slots stay as sealed placeholders (count is stable at ten)', () => {

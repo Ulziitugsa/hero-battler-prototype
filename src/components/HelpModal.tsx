@@ -10,7 +10,7 @@ const RULES: { icon: Parameters<typeof Icon>[0]['name']; text: string }[] = [
   { icon: 'spell', text: 'Spells resolve before combat. Continuous Spells stay and work every round until removed.' },
   { icon: 'graveyard', text: 'Destroyed cards go to the Graveyard. A card can come back from it once per match.' },
   { icon: 'check', text: 'You draw back up to 3 cards each round. An empty deck just stops drawing. Bring the enemy to 0 HP to win.' },
-  { icon: 'cards', text: 'Card Mastery (I to V) raises a Unit’s HP Contribution, up to +20%. It never changes ATK.' },
+  { icon: 'cards', text: 'Every card plays exactly as printed. Duplicates never change a card’s ATK, HP Contribution or effects.' },
 ];
 
 export function HelpModal({ onClose }: { onClose: () => void }) {

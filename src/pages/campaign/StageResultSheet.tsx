@@ -2,7 +2,6 @@ import type { BattleResultOutcome } from '../../game/campaign/progress';
 import { Icon, type IconName } from '../../components/Icon';
 import { RewardCard } from './RewardCard';
 import { XpSummary } from '../../components/XpSummary';
-import { getAscensionStatus } from '../../game/ascension/ascend';
 import { track } from '../../analytics/track';
 import { useEffect } from 'react';
 import { haptics } from '../../platform/haptics';
@@ -125,13 +124,6 @@ export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { o
                 {starterProgress.name} · {starterProgress.collected} / {starterProgress.total} cards collected
               </span>
             )}
-          </div>
-        )}
-
-        {isCardReward && cardGrant && !cardGrant.isNew && getAscensionStatus(cardGrant.cardId).canAscend && (
-          <div className="campaign-result-unlock">
-            <Icon name="power" size={15} />
-            <span>Card Mastery available — see Cards</span>
           </div>
         )}
 

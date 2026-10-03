@@ -1,6 +1,6 @@
 # Friendly Battle — private playtest
 
-Deployment: see [VERCEL-DEPLOYMENT.md](VERCEL-DEPLOYMENT.md). The Home screen now links to the themed lobby. Friendly duels play card combat at Card Mastery I for both players (no collection bonuses); the server validates both decks and both clients' rules version (see "Rules version" below). Room polling backs up Realtime delivery. Apply migration 0004 in addition to the original three.
+Deployment: see [VERCEL-DEPLOYMENT.md](VERCEL-DEPLOYMENT.md). The Home screen now links to the themed lobby. Friendly duels play card combat with every card at its printed values for both players (there is no combat Card Mastery); the server validates both decks and both clients' rules version (see "Rules version" below). Room polling backs up Realtime delivery. Apply migration 0004 in addition to the original three.
 
 Two real players play against each other remotely, using the exact same deterministic battle engine as
 Quick Battle/Campaign. No accounts, no matchmaking, no rewards - this is a private playtesting feature.
@@ -37,7 +37,7 @@ harmless to call speculatively, and the only thing that can catch a resolver tha
   the resolver from the stored state: a card match must carry the current version (else 409, nothing written) and
   continues the stored RNG state; a legacy match record created before this change finishes on the legacy
   resolver; Combat V2 is refused. A client whose rules differ from the match shows an alert and does not submit.
-- The guest's view flips every side-keyed card-combat field, and the opponent's per-card Mastery table is redacted.
+- The guest's view flips every side-keyed card-combat field. A resolver version 2 record may still carry a per-card Mastery table; it is redacted and flipped if present, and nothing reads it.
 
 ## Hidden information
 

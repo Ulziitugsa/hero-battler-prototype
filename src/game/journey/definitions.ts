@@ -15,7 +15,7 @@ export interface JourneyDayDef {
   rewardGold: number;
   rewardGems: number;
   rewardTickets: number;
-  /** A direct card grant, day 1 (introduces the card) and day 3 (a duplicate of it - introduces Card Mastery). */
+  /** A direct card grant, day 1 (introduces the card) and day 3 (a second copy of it, for a two-copy deck slot). */
   rewardCardId?: string;
   rewardCardCount?: number;
 }
@@ -23,8 +23,8 @@ export interface JourneyDayDef {
 export const JOURNEY_DAYS: JourneyDayDef[] = [
   { day: 1, title: 'A new card joins you', blurb: 'Someone answered the call.', rewardGold: 0, rewardGems: 0, rewardTickets: 0, rewardCardId: 'inf-blood-demon', rewardCardCount: 1 },
   { day: 2, title: 'Summon Tickets', blurb: 'Enough for a real Summon, on the house.', rewardGold: 0, rewardGems: 0, rewardTickets: 3 },
-  { day: 3, title: 'A second Blood Demon', blurb: 'Duplicates are never wasted - they fund Card Mastery.', rewardGold: 0, rewardGems: 0, rewardTickets: 0, rewardCardId: 'inf-blood-demon', rewardCardCount: 1 },
-  { day: 4, title: 'Gold for your collection', blurb: "Raise a card's Level.", rewardGold: 150, rewardGems: 0, rewardTickets: 0 },
+  { day: 3, title: 'A second Blood Demon', blurb: 'A deck can run two copies of a card.', rewardGold: 0, rewardGems: 0, rewardTickets: 0, rewardCardId: 'inf-blood-demon', rewardCardCount: 1 },
+  { day: 4, title: 'Gold for your purse', blurb: 'A head start for what comes next.', rewardGold: 150, rewardGems: 0, rewardTickets: 0 },
   { day: 5, title: 'More Gold', blurb: 'Keep your collection growing.', rewardGold: 200, rewardGems: 0, rewardTickets: 0 },
   { day: 6, title: 'A bigger Gem purse', blurb: 'Save it for a 10x pull.', rewardGold: 0, rewardGems: 200, rewardTickets: 0 },
   { day: 7, title: 'Infernal Lord', blurb: 'A Legendary card, free.', rewardGold: 0, rewardGems: 0, rewardTickets: 0, rewardCardId: 'inf-infernal-lord', rewardCardCount: 1 },

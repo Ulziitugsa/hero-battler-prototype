@@ -29,7 +29,7 @@ export interface EconomyConfig {
   campaignWinGold: Record<string, number>;
   quickBattleWinGold: number;
   quickBattleDrawGold: number;
-  /** Gold paid on top of the duplicates to reach Mastery II..V (index 0 = Mastery II). See ascension/config.ts. */
+  /** INERT: the retired Card Mastery Gold fee (index 0 = Mastery II). Nothing reads or charges it; kept for reference only. */
   masteryGoldFee: number[];
 }
 

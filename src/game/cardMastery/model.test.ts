@@ -2,19 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { reloadCollection } from '../collection/collection';
 import { reloadAscension, sanitizeAscension } from '../ascension/store';
 import { reloadHeroLevels, sanitizeHeroLevel } from '../heroLevel/store';
-import { ASCENSION_DUPLICATE_COST } from '../ascension/config';
 import { ascensionLabel } from '../ascension/ascend';
-import {
-  MAX_CARD_MASTERY,
-  MASTERY_LADDER,
-  ascensionRankForStage,
-  copiesToReachStage,
-  getCardMasteryView,
-  legacyLevelGoldInvested,
-  masteryLabel,
-  planCardMasteryMigration,
-  stageFromAscensionRank,
-} from './model';
+import { MAX_CARD_MASTERY, ascensionRankForStage, historicalMastery, legacyLevelGoldInvested, masteryLabel, planCardMasteryMigration, stageFromAscensionRank } from './model';
 
 function installLocalStoragePolyfill() {
   const store = new Map<string, string>();
@@ -54,43 +43,14 @@ describe('Card Mastery stage mapping', () => {
   });
 });
 
-describe('getCardMasteryView', () => {
-  it('an unowned card has no stage and cannot advance', () => {
-    const v = getCardMasteryView('kng-royal-guard', { owned: {}, ascension: noAscension });
-    expect(v).toMatchObject({ owned: false, copies: 0, stage: 0, label: '', canAdvance: false, nextStage: null, pips: { filled: 0, total: 5 } });
+describe('historicalMastery (read only, no combat effect)', () => {
+  it('reads the stored rank and duplicates spent exactly as saved', () => {
+    const ascension = sanitizeAscension({ cards: { 'kng-royal-guard': { rank: 2, duplicatesSpent: 3 }, 'und-bone-soldier': { rank: 4, duplicatesSpent: 10 } } });
+    expect(historicalMastery('kng-royal-guard', ascension)).toEqual({ cardId: 'kng-royal-guard', rank: 2, label: 'Mastery III', duplicatesSpent: 3 });
+    expect(historicalMastery('und-bone-soldier', ascension)).toEqual({ cardId: 'und-bone-soldier', rank: 4, label: 'Mastery V', duplicatesSpent: 10 });
   });
-  it('an owned card shows its stage, the next cost and what is spare', () => {
-    const ascension = sanitizeAscension({ cards: { 'kng-royal-guard': { rank: 1, duplicatesSpent: 1 } } });
-    const v = getCardMasteryView('kng-royal-guard', { owned: { 'kng-royal-guard': 8 }, ascension, gold: 0 });
-    expect(v).toMatchObject({ owned: true, copies: 8, stage: 2, label: 'Mastery II', hasPath: true, maxStage: 5, duplicatesInvested: 1, nextStage: 3, nextCost: ASCENSION_DUPLICATE_COST[1], nextGoldCost: 0, canAdvance: true });
-    expect(v.pips).toEqual({ filled: 2, total: 5 });
-  });
-  it('Mastery IV and V add their Gold fee to the next cost', () => {
-    const ascension = sanitizeAscension({ cards: { 'kng-royal-guard': { rank: 2, duplicatesSpent: 3 } } });
-    const poor = getCardMasteryView('kng-royal-guard', { owned: { 'kng-royal-guard': 8 }, ascension, gold: 100 });
-    expect(poor).toMatchObject({ nextStage: 4, nextCost: 3, nextGoldCost: 500, canAdvance: false });
-    expect(poor.blockedReason).toMatch(/500 Gold/);
-    expect(getCardMasteryView('kng-royal-guard', { owned: { 'kng-royal-guard': 8 }, ascension, gold: 500 }).canAdvance).toBe(true);
-  });
-  it('a card at Mastery V stops there', () => {
-    const ascension = sanitizeAscension({ cards: { 'und-bone-soldier': { rank: 4, duplicatesSpent: 10 } } });
-    const v = getCardMasteryView('und-bone-soldier', { owned: { 'und-bone-soldier': 2 }, ascension });
-    expect(v).toMatchObject({ stage: 5, nextStage: null, nextCost: null, canAdvance: false, duplicatesInvested: 10 });
-  });
-  it('every collectible card has the path, Spells included', () => {
-    expect(getCardMasteryView('kng-common-knight', { owned: { 'kng-common-knight': 4 }, ascension: noAscension })).toMatchObject({ stage: 1, hasPath: true, maxStage: 5, copies: 4 });
-    expect(getCardMasteryView('spl-power-surge', { owned: { 'spl-power-surge': 3 }, ascension: noAscension })).toMatchObject({ stage: 1, hasPath: true, maxStage: 5, nextStage: 2 });
-  });
-});
-
-describe('the ladder', () => {
-  it('lists the live costs and the HP Contribution bonus of every stage', () => {
-    expect(MASTERY_LADDER.slice(1).map((s) => s.duplicateCost)).toEqual([...ASCENSION_DUPLICATE_COST]);
-    expect(MASTERY_LADDER.map((s) => s.hpcPct)).toEqual([0, 5, 10, 15, 20]);
-    expect(MASTERY_LADDER).toHaveLength(MAX_CARD_MASTERY);
-  });
-  it('is bounded: Mastery V needs 11 copies in total, not an open-ended grind', () => {
-    expect([1, 2, 3, 4, 5].map(copiesToReachStage)).toEqual([1, 2, 4, 7, 11]);
+  it('a card with no progress on record has no label', () => {
+    expect(historicalMastery('kng-common-knight', noAscension)).toEqual({ cardId: 'kng-common-knight', rank: 0, label: '', duplicatesSpent: 0 });
   });
 });
 

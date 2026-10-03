@@ -7,8 +7,9 @@ import { track } from '../../analytics/track';
 //
 // What the release changes in a save, and what it keeps:
 //   - Collection, duplicates, decks, favourites, backgrounds, Campaign progress: untouched.
-//   - Ascension rank: untouched; it IS the Card Mastery stage (rank 0..4 = Mastery I..V), so every card keeps its stage
-//     and the copies already invested.
+//   - Ascension rank and duplicatesSpent: untouched, never refunded, never erased. Historical Ascension/Mastery data is
+//     preserved for future cosmetic Prestige conversion and has no combat effect (cardMastery/model.ts). That
+//     conversion is NOT done here and its rules are not decided.
 //   - Tactics (the old account "Mastery" loadout): untouched in the save; card combat doesn't read them.
 //   - Legacy Hero Level: untouched in the save (never deleted), but it no longer affects anything, so the Gold the player
 //     put into it is refunded once.

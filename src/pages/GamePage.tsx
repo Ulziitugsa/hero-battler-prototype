@@ -12,7 +12,6 @@ import { chooseAiAction } from '../game/ai/simpleAI';
 import { beginCardRound, cardAtk, cardSpellHasTarget, createCardMatch, matchHpContribution, passiveEffectStates, resolveCardRound, validateCardDeployment, withEffectiveAtk } from '../game/cardCombat/engine';
 import { chooseCardAiAction } from '../game/cardCombat/ai';
 import { getCombatCard } from '../game/cardCombat/cards';
-import { stagesFromAscensionRanks } from '../game/cardCombat/mastery';
 import { CombatDisplayContext, type BattleCardDisplay } from '../components/combatDisplay';
 import { BattleLogPanel } from '../components/battleInfo/BattleDock';
 import { CardFocusPanel } from '../components/card/CardFocusPanel';
@@ -61,7 +60,7 @@ export interface GamePageProps {
   onExit: () => void;
   /** The player's equipped Mastery, captured when the battle was set up. Omit/null for none. */
   playerMastery?: MasteryLoadout | null;
-  /** The player's Ascension ranks for the cards in their deck (cardId -> rank), captured at setup. Omit for all Base. */
+  /** Legacy resolver only (dev comparisons): Ascension ranks per card. Card combat never reads them; App passes none. */
   playerAscensions?: Record<string, number>;
   enemyAscensions?: Record<string, number>;
   /** The player's Hero Levels for the cards in their deck (cardId -> level), captured at setup. Omit for all Level 1. */
@@ -77,8 +76,6 @@ export interface GamePageProps {
   startingHp?: number;
   /** Card combat: a fixed Starting HP for one side in place of its deck's total (a Campaign boss pool or challenge rule). */
   startingHpOverride?: Partial<Record<'player' | 'enemy', number>>;
-  /** Card combat: the opponent's Card Mastery stage per card id (Ranked tiers). Omit for Mastery I. Changes HP Contribution only. */
-  enemyMasteryStages?: Record<string, number>;
   /** Fires once, the instant this match reaches MATCH_END - before the player dismisses the summary
    * screen. Campaign uses this to record node progress independent of how/when the player exits;
    * Quick Battle never passes it, so it never touches Campaign state. */
@@ -117,7 +114,7 @@ function buildPreviewZones(
     const card = getCard(play.cardId);
     if (card.type === 'hero') {
       const v2Stats = combatModel === 'v2' ? combatStats(play.cardId, heroLevels[play.cardId] ?? 1, heroAscensions[play.cardId] ?? 0) : null;
-      // Card combat: a Unit enters at its printed ATK (Level and Mastery never change ATK there).
+      // Card combat: a Unit enters at its printed ATK (no progression changes ATK there).
       const cardModeAtk = combatModel === 'card' ? cardAtk(play.cardId) : null;
       const pendingHero: HeroInstance = {
         instanceId: `pending-${play.handId}`,
@@ -150,7 +147,7 @@ function buildPreviewZones(
   return { heroZones: previewHero, spellZones: previewSpell };
 }
 
-export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, startingHpOverride, enemyMasteryStages, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel: requestedModel = 'card', battleMode = 'quick' }: GamePageProps) {
+export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, startingHpOverride, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel: requestedModel = 'card', battleMode = 'quick' }: GamePageProps) {
   // A match handed in ready-made (Friendly Battle) plays the resolver that built it; it says which in its own state.
   const combatModel: CombatModelId = initialState ? (initialState.combatModel ?? 'legacy') : requestedModel;
   const cardMode = combatModel === 'card';
@@ -162,10 +159,9 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
 
   function buildMatch(matchSeed: number): { state: GameState; events: GameEvent[] } {
     if (cardMode) {
-      // Card combat: Starting HP is each deck's own Unit HP Contributions (cardCombat/stats.ts deckStartingHp, the
-      // Deck Builder's helper). The player's Card Mastery raises their HP Contribution only; the opponent plays its own
-      // deck at its own Mastery (Mastery I unless a Ranked tier sets it) and never copies the player's Mastery or HP.
-      const built = createCardMatch({ seed: matchSeed, playerDeck, enemyDeck, playerMastery: stagesFromAscensionRanks(playerAscensions), enemyMastery: enemyMasteryStages, startingHpOverride });
+      // Card combat: Starting HP is each deck's own printed Unit HP Contributions (cardCombat/stats.ts deckStartingHp,
+      // the Deck Builder's helper). Both decks play at printed card values; no progression of either side is passed in.
+      const built = createCardMatch({ seed: matchSeed, playerDeck, enemyDeck, startingHpOverride });
       return { state: built.nextState, events: built.events };
     }
     return createMatch({
@@ -479,7 +475,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const shownState = { ...displayState, player: playerZonesForDisplay };
   const passiveFor = cardMode ? passiveEffectStates : legacyPassiveEffectStates;
   const passiveStates = new Map([...passiveFor(shownState, 'player'), ...passiveFor(shownState, 'enemy')]);
-  const hpContributionOf = (cardId: string, owner: 'player' | 'enemy') => matchHpContribution(gameState, owner, cardId);
+  const hpContributionOf = (cardId: string) => matchHpContribution(cardId);
   const rankOf = (cardId: string, owner: 'player' | 'enemy') => gameState.ascensions?.[owner]?.[cardId] ?? 0;
 
   // How every card in this battle reads (combatDisplay.ts): card combat's live ATK and HP Contribution, or, in a legacy
@@ -494,7 +490,6 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     },
     tempAtk: (unit) => (cardMode ? unit.tempPower : unit.tempPower * ATK_PER_POWER),
     masteryRank: (cardId, owner, unit) => (cardMode ? 0 : (unit?.ascension ?? rankOf(cardId, owner))),
-    masteryStage: (cardId, owner) => (cardMode ? (gameState.cardCombat?.masteryStage[owner][cardId] ?? 1) : rankOf(cardId, owner) + 1),
     ...(cardMode ? { hpContribution: hpContributionOf } : {}),
     passiveStates: (instanceId) => passiveStates.get(instanceId),
   };
@@ -521,7 +516,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
         rules,
         owner,
         ...(unit && atk !== undefined ? { atk } : {}),
-        ...(unit && cardMode ? { hpContribution: hpContributionOf(cardId, owner), masteryStage: display.masteryStage(cardId, owner) } : {}),
+        ...(unit && cardMode ? { hpContribution: hpContributionOf(cardId) } : {}),
         ...(!cardMode ? { masteryRank: display.masteryRank(cardId, owner) } : {}),
       },
     });
@@ -537,7 +532,6 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
         owner: focusInfo.owner,
         ...(focusInfo.kind === 'unit' && focusInfo.atk !== undefined ? { atk: focusInfo.atk } : {}),
         ...(focusInfo.hpContribution !== undefined ? { hpContribution: focusInfo.hpContribution } : {}),
-        masteryStage: focusInfo.masteryStage,
         masteryRank: focusInfo.masteryRank,
       },
     });

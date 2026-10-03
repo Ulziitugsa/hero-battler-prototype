@@ -138,13 +138,23 @@ describe('card combat state in Friendly Battle', () => {
     expect(guest.player.hp).toBe(meta.startingHp.enemy);
     expect(g.deckMarks).toEqual({ player: meta.deckMarks.enemy, enemy: meta.deckMarks.player });
     expect(g.graveMarks).toEqual({ player: meta.graveMarks.enemy, enemy: meta.graveMarks.player });
-    // The guest keeps their own Mastery table; the host's (which would list the host's deck) is dropped.
-    expect(g.masteryStage.player).toEqual(meta.masteryStage.enemy);
-    expect(g.masteryStage.enemy).toEqual({});
+    // Resolver v3 writes no Mastery table at all.
+    expect(meta).not.toHaveProperty('masteryStage');
+    expect(g).not.toHaveProperty('masteryStage');
     const host = orientStateForViewer(nextState, 'player');
-    expect(host.cardCombat!.masteryStage).toEqual({ player: meta.masteryStage.player, enemy: {} });
     expect(host.cardCombat!.startingHp).toEqual(meta.startingHp);
+  });
+
+  it('a stored v2 match: the historical Mastery table flips with the sides and the opponent’s is dropped', async () => {
+    const { createCardMatch } = await import('../cardCombat/engine');
+    const { STARTER_DECKS } = await import('../cards/starterDecks');
+    const { nextState: v3 } = createCardMatch({ seed: 3, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead });
+    const table = { player: { 'kng-paladin': 1 }, enemy: { 'und-vharos': 1 } };
+    const v2 = { ...v3, cardCombat: { ...v3.cardCombat!, version: 2, masteryStage: table } };
+    const guest = orientStateForViewer(v2, 'enemy').cardCombat!;
+    expect(guest.masteryStage).toEqual({ player: table.enemy, enemy: {} });
+    expect(orientStateForViewer(v2, 'player').cardCombat!.masteryStage).toEqual({ player: table.player, enemy: {} });
     // Redaction never touches the canonical state.
-    expect(nextState.cardCombat!.masteryStage.enemy).not.toEqual({});
+    expect(v2.cardCombat.masteryStage.enemy).toEqual({ 'und-vharos': 1 });
   });
 });

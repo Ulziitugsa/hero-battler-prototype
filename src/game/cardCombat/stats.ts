@@ -1,7 +1,7 @@
 import type { CardDefinition, Rarity } from '../types/index.js';
 import { getCard } from '../cards/index.js';
 
-// The approved card-combat stat model (docs/CARD-COMBAT-DESIGN.md sections 3, 4, 7 and 13), as data.
+// The approved card-combat stat model (docs/CARD-COMBAT-DESIGN.md sections 3, 4 and 13), as data.
 //
 // This module is the ONE place ATK, HP Contribution and Starting HP come from. Card faces, Card Inspect, the
 // Deck Builder's Starting HP and the card resolver all read it, so the Deck Builder preview and the battle can
@@ -9,8 +9,11 @@ import { getCard } from '../cards/index.js';
 //
 //   ATK                = 80 + 15 x (Power - 3) + an authored per-card offset (-6..+6)
 //   HP Contribution    = max(45, round(0.75 x (210 - ATK))) + rarity premium (Common 0, Rare 4, Epic 8, Legendary 11)
-//   Mastery            = HP Contribution only: +0 / +5 / +10 / +15 / +20% at Mastery I..V. Never ATK.
-//   Starting HP        = sum of HP Contribution over every Unit copy in the deck. Spells and tokens add 0.
+//   Starting HP        = sum of printed HP Contribution over every Unit copy in the deck. Spells and tokens add 0.
+//
+// Every card plays at its printed values. There is no combat Card Mastery: no stored Mastery / Ascension rank, Legacy
+// Level or other progression changes ATK, HP Contribution, Starting HP or any effect (docs/CARD-COMBAT-DESIGN.md
+// section 7). Nothing in this file takes a player's progression as an input, so it cannot.
 //
 // The offsets were chosen once by the simulator's stable per-card hash (cardSim/statModels.ts cardJitter, the
 // numbers ozi approved and the balance pass measured) and are now authored data: a test checks they still match
@@ -26,10 +29,6 @@ export const GROWTH_CAP_ATK = 45;
 export const MIN_UNITS_CARD_COMBAT = 8;
 
 export const RARITY_HPC_PREMIUM: Record<Rarity, number> = { common: 0, rare: 4, epic: 8, legendary: 11 };
-
-/** HP Contribution bonus per Card Mastery stage I..V, in percent. */
-export const MASTERY_HPC_PCT: readonly number[] = [0, 5, 10, 15, 20];
-export const MAX_MASTERY_STAGE = 5;
 
 /** Approved re-band (2026-09-29): the Power 7 Legendaries play at Power 6 in card combat. */
 export const CARD_COMBAT_POWER: Readonly<Record<string, number>> = {
@@ -105,7 +104,7 @@ export function isTokenCard(card: CardDefinition): boolean {
 
 export interface CardCombatStats {
   atk: number;
-  /** HP Contribution at Mastery I (printed value). 0 for Spells and tokens. */
+  /** Printed HP Contribution. 0 for Spells and tokens. */
   hpc: number;
 }
 
@@ -122,41 +121,25 @@ export function printedStats(cardOrId: CardDefinition | string): CardCombatStats
   return { atk, hpc: hpcForAtk(atk, card.rarity) };
 }
 
-/** Clamp any stored/derived stage to I..V (an unowned card counts as I: it plays as printed). */
-export function clampMasteryStage(stage: number | undefined): number {
-  if (stage === undefined || !Number.isFinite(stage)) return 1;
-  return Math.max(1, Math.min(MAX_MASTERY_STAGE, Math.floor(stage)));
+/** HP Contribution of one copy: always the printed value (0 for Spells and tokens). */
+export function hpContribution(cardOrId: CardDefinition | string): number {
+  return printedStats(cardOrId)?.hpc ?? 0;
 }
-
-/** HP Contribution of one copy at a Card Mastery stage. Mastery never touches ATK. */
-export function hpContributionAt(cardOrId: CardDefinition | string, stage = 1): number {
-  const stats = printedStats(cardOrId);
-  if (!stats || stats.hpc === 0) return 0;
-  const pct = MASTERY_HPC_PCT[clampMasteryStage(stage) - 1];
-  return Math.round(stats.hpc * (1 + pct / 100));
-}
-
-/** Card Mastery stage per card id. Missing ids are Mastery I. */
-export type MasteryStages = Readonly<Record<string, number>>;
 
 export interface StartingHpBreakdown {
   /** Starting HP: the number both the Deck Builder and the battle show. */
   total: number;
-  /** What the same deck would start with at Mastery I everywhere. */
-  base: number;
-  /** total - base: HP added by Card Mastery. */
-  masteryBonus: number;
   units: number;
   spells: number;
 }
 
 /**
- * THE Starting HP helper. Deck Builder, the Quick Battle setup screen and the card resolver all call this, so
- * "Deck Builder says 915" and "the battle starts at 915 / 915" are the same computation on the same inputs.
+ * THE Starting HP helper: the sum of the deck's printed Unit HP Contributions. Deck Builder, Battle Setup, Home, the
+ * Campaign stage sheet, the card resolver and the simulator all call this, so the same deck always starts at the same
+ * HP everywhere. It takes the deck only: no player's progression can reach it.
  */
-export function deckStartingHp(cardIds: readonly string[], stages: MasteryStages = {}): StartingHpBreakdown {
+export function deckStartingHp(cardIds: readonly string[]): StartingHpBreakdown {
   let total = 0;
-  let base = 0;
   let units = 0;
   let spells = 0;
   for (const id of cardIds) {
@@ -166,8 +149,7 @@ export function deckStartingHp(cardIds: readonly string[], stages: MasteryStages
       continue;
     }
     units += 1;
-    total += hpContributionAt(card, stages[id]);
-    base += hpContributionAt(card, 1);
+    total += hpContribution(card);
   }
-  return { total, base, masteryBonus: total - base, units, spells };
+  return { total, units, spells };
 }

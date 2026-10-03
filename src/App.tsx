@@ -20,7 +20,6 @@ import { AppShell, type TabId } from './components/AppShell';
 import { recordBattleResult, type BattleResultOutcome } from './game/campaign/progress';
 import { getActiveDeck } from './game/engine/activeDeck';
 import { getEquippedLoadout } from './game/progression/account';
-import { ascensionRanksFor } from './game/ascension/store';
 import type { MasteryLoadout } from './game/types';
 import { WorldBackdrop } from './components/WorldBackdrop';
 import { AnalyticsDebugPanel } from './components/AnalyticsDebugPanel';
@@ -69,9 +68,9 @@ function GameApp() {
   const [storyResult, setStoryResult] = useState<string | null>(null);
   const [lastStoryTrial, setLastStoryTrial] = useState<string | null>(null);
   // One local battle. Every mode plays card combat (game/combat/combatModel.ts); `combatModel` is only ever something
-  // else in a development build that asked for an old engine. The opponent never borrows the player's progression:
-  // Campaign and Lantern decks play at Mastery I, Ranked rivals at their division's own Mastery stage.
-  const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; mode: LocalBattleMode; combatModel: CombatModel; mastery: MasteryLoadout | null; ascensions: Record<string, number>; startingHpOverride?: Partial<Record<'player' | 'enemy', number>>; enemyMasteryStages?: Record<string, number>; rankedOpponentLabel?: string } | null>(null);
+  // else in a development build that asked for an old engine. Both sides play their deck lists at printed card values:
+  // no stored Mastery / Ascension rank or Level of either side is passed to a battle.
+  const [battleSetup, setBattleSetup] = useState<{ player: DeckChoice; enemy: DeckChoice; id: number; mode: LocalBattleMode; combatModel: CombatModel; mastery: MasteryLoadout | null; startingHpOverride?: Partial<Record<'player' | 'enemy', number>>; rankedOpponentLabel?: string } | null>(null);
   // Which Campaign node the in-progress battle belongs to, if any - set only by startCampaignBattle,
   // never by Quick Battle, so Quick Battle can never touch Campaign state (see progress.ts's own note).
   const [campaignNodeId, setCampaignNodeId] = useState<string | null>(null);
@@ -138,9 +137,7 @@ function GameApp() {
         playerDeckLabel={battleSetup.player.label}
         enemyDeckLabel={battleSetup.enemy.label}
         startingHpOverride={battleSetup.startingHpOverride}
-        enemyMasteryStages={battleSetup.enemyMasteryStages}
         playerMastery={battleSetup.mastery}
-        playerAscensions={battleSetup.ascensions}
         combatModel={battleSetup.combatModel}
         battleMode={battleSetup.mode === 'quickBattle' ? 'quick' : battleSetup.mode}
         onMatchEnd={
@@ -220,11 +217,11 @@ function GameApp() {
     startBattle('story', { label: active.label, cardIds: active.cardIds }, { label, cardIds: deck });
   }} />{storySaveFailed && <p role="alert">Your browser could not save this story result. Enable local storage before replaying.</p>}</>;
 
-  function startBattle(mode: LocalBattleMode, player: DeckChoice, enemy: DeckChoice, extra: { startingHpOverride?: Partial<Record<'player' | 'enemy', number>>; enemyMasteryStages?: Record<string, number>; rankedOpponentLabel?: string } = {}) {
+  function startBattle(mode: LocalBattleMode, player: DeckChoice, enemy: DeckChoice, extra: { startingHpOverride?: Partial<Record<'player' | 'enemy', number>>; rankedOpponentLabel?: string } = {}) {
     battleCounter.current += 1;
     setShowBattleSetup(false);
-    // The player's own Card Mastery (stored as legacy Ascension ranks) is the only progression a battle reads.
-    setBattleSetup({ player, enemy, id: battleCounter.current, mode, combatModel: combatModelForMode(mode), mastery: getEquippedLoadout(), ascensions: ascensionRanksFor(player.cardIds), ...extra });
+    // `mastery` is the account Tactic loadout, which only the dev-only legacy resolver reads; card combat ignores it.
+    setBattleSetup({ player, enemy, id: battleCounter.current, mode, combatModel: combatModelForMode(mode), mastery: getEquippedLoadout(), ...extra });
   }
 
   function startCampaignBattle(nodeId: string, player: DeckChoice, enemy: DeckChoice, startingHpOverride: Partial<Record<'player' | 'enemy', number>>) {
@@ -264,10 +261,10 @@ function GameApp() {
     screen = <RankedPage onBattle={() => {
       const player = getActiveDeck();
       const ranked = getRanked();
-      // The rival comes from the division's own pool at the division's Mastery stage (game/ranked/tiers.ts).
+      // The rival comes from the division's own deck pool, at printed card values (game/ranked/tiers.ts).
       const rival = chooseRankedOpponent(ranked);
       track('ranked_match_started', { rating: ranked.rating, opponent: rival.deck.name });
-      startBattle('ranked', { label: player.label, cardIds: player.cardIds }, { label: `${rival.tier.division} · ${rival.deck.name}`, cardIds: rival.deck.cardIds }, { enemyMasteryStages: rival.masteryStages, rankedOpponentLabel: rival.deck.name });
+      startBattle('ranked', { label: player.label, cardIds: player.cardIds }, { label: `${rival.tier.division} · ${rival.deck.name}`, cardIds: rival.deck.cardIds }, { rankedOpponentLabel: rival.deck.name });
     }} />;
   } else {
     screen = <ProfilePage onOpenStats={() => setShowStats(true)} onOpenCombatLab={import.meta.env.DEV ? () => setShowCombatLab(true) : undefined} />;

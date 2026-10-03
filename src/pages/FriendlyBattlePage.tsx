@@ -120,7 +120,7 @@ export function FriendlyBattlePage({ onBack }: { onBack: () => void }) {
       <section className="friendly-panel"><span className="moon-eyebrow">01 · YOUR FORMATION</span><h2>Who’s joining the duel?</h2>
         <label>Your name<input maxLength={24} value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Wanderer" autoComplete="nickname" /></label>
         <label>Battle deck<select value={selectedDeck?.id} onChange={e => setSelectedDeckId(e.target.value)}>{deckOptions.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}</select></label>
-        <div className="friendly-crest" aria-hidden="true">⚔</div><p className="friendly-footnote">Your deck is locked for this room. Both players use base card strength, without mastery or ascension bonuses.</p>
+        <div className="friendly-crest" aria-hidden="true">⚔</div><p className="friendly-footnote">Your deck is locked for this room. Every card plays exactly as printed for both players.</p>
       </section>
       <section className="friendly-panel"><span className="moon-eyebrow">02 · INVITE A FRIEND</span><h2>Save them a place.</h2><p>Create a private room, then send your friend the invite link or six-character code.</p>
         <button className="moon-primary" disabled={busy || !isFriendlyConfigured() || !selectedDeck} onClick={handleCreate}>{busy ? 'Connecting…' : 'Create a room →'}</button>

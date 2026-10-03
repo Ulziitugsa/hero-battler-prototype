@@ -8,7 +8,7 @@ export interface DeckSnapshot {
   /** The combat rules this client plays (combat/resolver.ts PRODUCTION_RULES). The server builds a match only when both
    * players' rules match its own, so two builds never resolve one match differently. Absent on clients before card combat. */
   rules?: MatchResolver;
-  /** Legacy fields, never read since card combat: Friendly Battle plays every card at base strength (Mastery I). */
+  /** Legacy fields, never read since card combat: every card plays at its printed values (no combat Card Mastery). */
   masteryId?: string;
   masteryRank?: number;
   ascensions?: Record<string, number>;

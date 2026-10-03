@@ -133,7 +133,7 @@ export const CHAPTER_1: CampaignChapterDef = {
           { id: 'hp', text: 'Finish with 75% of the HP you started with', check: 'healthPctAtLeast', value: 75 },
           { id: 'faction', text: 'Win with a Kingdom deck', check: 'deckFactionKingdom' },
         ],
-        firstClearReward: { label: 'Royal Guard', sub: 'Won with Kingdom steel - a spare Guard for Card Mastery', icon: 'card', cardId: 'kng-royal-guard' },
+        firstClearReward: { label: 'Royal Guard', sub: 'Won with Kingdom steel - another Royal Guard', icon: 'card', cardId: 'kng-royal-guard' },
         repeatReward: { label: '1 ember', sub: 'Every clear after the first', icon: 'ember' },
       }),
     },

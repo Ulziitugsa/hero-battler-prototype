@@ -99,7 +99,7 @@ function flipCardCombat(meta: CardCombatMeta | undefined): CardCombatMeta | unde
   return {
     ...meta,
     startingHp: flipSides(meta.startingHp),
-    masteryStage: flipSides(meta.masteryStage),
+    ...(meta.masteryStage ? { masteryStage: flipSides(meta.masteryStage) } : {}),
     deckMarks: flipSides(meta.deckMarks),
     graveMarks: flipSides(meta.graveMarks),
     died: flipSides(meta.died),

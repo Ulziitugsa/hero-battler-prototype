@@ -52,7 +52,6 @@ describe('the old rules’ words are gone from the player’s screens', () => {
     'pages/decks/DeckSummaryBar.tsx',
     'pages/campaign/StagePreviewSheet.tsx',
     'pages/campaign/StageResultSheet.tsx',
-    'pages/heroes/AscensionPanel.tsx',
     'components/card/CardInspect.tsx',
   ];
   it.each(FILES)('%s', (file) => {

@@ -4,9 +4,9 @@ import type { AnalyticsEventName } from '../../analytics/events';
 // metric is an EXISTING analytics event name (Phases 0-4) rather than a new bespoke counter, per the
 // brief's "integrate progress using analytics/game events where sensible rather than scattering bespoke
 // counters." The brief's own example list included "use 3 spells", which has no analytics event yet
-// (spell plays aren't instrumented) - substituted with "apply Ascension progress to a hero"
-// (duplicate_progress_applied, Phase 2) so every mission stays backed by something that already fires,
-// rather than adding a new instrumentation surface just for this. See
+// (spell plays aren't instrumented) - substituted with "play a Ranked battle" (ranked_match_started) so every
+// mission stays backed by something that already fires, rather than adding a new instrumentation surface
+// just for this. (It was "advance a card's Mastery" until combat Card Mastery was retired.) See
 // docs/COMMERCIAL-PROTOTYPE-PLAN.md Phase 5 for the reasoning.
 
 export type MissionPeriod = 'daily' | 'weekly';
@@ -31,7 +31,7 @@ export const DAILY_MISSIONS: MissionDef[] = [
   { id: 'daily-battles', period: 'daily', title: 'Fight 3 battles', metric: 'battle_completed', target: 3, rewardGold: 30, rewardGems: 0, rewardTickets: 0 },
   { id: 'daily-summon', period: 'daily', title: 'Perform a Summon', metric: 'summon_performed', target: 1, rewardGold: 0, rewardGems: 20, rewardTickets: 0 },
   { id: 'daily-idle-claim', period: 'daily', title: 'Claim your idle reward', metric: 'idle_reward_claimed', target: 1, rewardGold: 20, rewardGems: 0, rewardTickets: 0 },
-  { id: 'daily-ascension', period: 'daily', title: "Advance a card's Mastery", metric: 'duplicate_progress_applied', target: 1, rewardGold: 0, rewardGems: 15, rewardTickets: 0 },
+  { id: 'daily-ranked', period: 'daily', title: 'Play a Ranked battle', metric: 'ranked_match_started', target: 1, rewardGold: 0, rewardGems: 15, rewardTickets: 0 },
 ];
 
 export const WEEKLY_MISSIONS: MissionDef[] = [

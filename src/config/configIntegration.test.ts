@@ -6,7 +6,6 @@ import { goldCostForLevelUp, heroLevelCapForAccount } from '../game/heroLevel/co
 import { goldPerHour } from '../game/campaign/idleRewards';
 import { summonCost } from '../game/summon/summon';
 import { getPool } from '../game/summon/pool';
-import { masteryGoldFee } from '../game/ascension/ascend';
 import { claimMission, setMissionProgress } from '../game/missions/store';
 import { claimJourneyDay } from '../game/journey/store';
 import { reloadCollection } from '../game/collection/collection';
@@ -77,11 +76,16 @@ describe('summon/summon.ts summonCost reads live config for Tickets', () => {
   });
 });
 
-describe('Card Mastery Gold fee - config', () => {
-  it('a provider override changes the Mastery IV / V fee without a release', () => {
-    expect(masteryGoldFee(3)).toBe(500);
-    setConfigProvider(createLocalProvider({ economy: { masteryGoldFee: [0, 0, 250, 900] } }));
-    expect([1, 2, 3, 4].map(masteryGoldFee)).toEqual([0, 0, 250, 900]);
+describe('retired Card Mastery Gold fee - config', () => {
+  it('stays in config for reference only: no game code reads economy.masteryGoldFee', () => {
+    expect(DEFAULT_CONFIG.economy.masteryGoldFee).toEqual([0, 0, 500, 1500]);
+    const files = import.meta.glob(['../**/*.ts', '../**/*.tsx', '!../**/*.test.ts', '!../**/*.test.tsx', '!../config/**'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    expect(Object.keys(files).length).toBeGreaterThan(100);
+    for (const [file, src] of Object.entries(files)) {
+      if (file === '../game/ascension/config.ts') continue; // where the inert historical constant is defined
+      const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+      expect(code, file).not.toMatch(/masteryGoldFee|MASTERY_GOLD_FEE/);
+    }
   });
 });
 
