@@ -22,6 +22,7 @@ import { CHAPTER_1 } from './campaign/chapter1';
 import { chooseRankedOpponent } from './ranked/store';
 import { RANKED_TIERS } from './ranked/tiers';
 import { GameCard } from '../components/card/GameCard';
+import { CardInspect } from '../components/card/CardInspect';
 
 // Combat Card Mastery is removed (docs/CARD-COMBAT-DESIGN.md section 7). Every test here runs the same thing twice:
 // once on a save with no Mastery history, once on a save where every collectible card carries a historical Mastery V
@@ -207,5 +208,16 @@ describe('combat Card Mastery is removed: a historical Mastery V copy plays exac
     expect(base[0]).toContain(`${printedStats('kng-paladin')!.hpc}`);
     expect(base.join('')).not.toMatch(/gc-mark mastery|Card Mastery/);
     expect(cardCopyView('kng-paladin').hpContribution).toBe(matchHpContribution('kng-paladin'));
+  });
+
+  it('21. historical rank is never shown to players, and stays in the save untouched', () => {
+    setCollection({ ...getCollection(), 'kng-paladin': 3 });
+    const [base, m5] = baseAndM5(() => renderToStaticMarkup(createElement(CardInspect, { cardId: 'kng-paladin', context: 'collection', onClose: () => {} })));
+    expect(m5).toEqual(base);
+    expect(m5).not.toMatch(/Mastery|Ascension|on record/);
+    expect(localStorage.getItem(ASCENSION_STORAGE_KEY)).toBe(JSON.stringify(M5_SAVE));
+    // Only the dev tools read the historical record; no screen does.
+    const files = import.meta.glob(['../pages/**/*.tsx', '../components/**/*.tsx', '!../**/*.test.tsx'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    for (const [file, src] of Object.entries(files)) expect(src, file).not.toMatch(/historicalMastery|getDuplicatesSpent|Legacy Mastery/);
   });
 });

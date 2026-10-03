@@ -17,8 +17,8 @@ import type { HeroLevelState } from '../heroLevel/types';
 //   - the stored legacy Ascension rank (skyloom:ascension, rank 0..4 = Mastery I..V) and the duplicates spent reaching
 //     it (`duplicatesSpent`) are kept, never refunded, never erased and never rewritten;
 //   - nothing in battle, Starting HP, the Deck Builder, Ranked, Campaign or Friendly reads them;
-//   - Card Inspect shows a card's historical rank as one quiet "Legacy Mastery ... no effect in battle" line, only for
-//     a card that has progress on record.
+//   - no player-facing screen shows them (Card Inspect included); only the dev tools read them
+//     (skyloomDev.ascensionReport()).
 // The future Prestige conversion is NOT done here and its rules are not decided; this file only reads.
 //
 // Legacy Hero Level (skyloom:heroLevel) likewise affects nothing. It stays in the save, untouched; the Gold put into it

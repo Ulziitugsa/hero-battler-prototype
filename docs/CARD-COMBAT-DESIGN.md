@@ -496,7 +496,7 @@ At ozi's ask (Batch 12 follow-up), Moonwater ships the card-combat foundation **
 ### 17.4 UI and spending
 
 - Card Inspect, the focus panel, card faces, Deck Builder, Collection, Shop, Moonwell results and Campaign results show no Mastery progression: no "HPC +X%", no "ATK never changes", no Next Mastery, no Mastery pips or numerals, no "Card Mastery available" dots, no Mastery sort.
-- A card with historical progress shows one quiet line in Card Inspect's Collection section: "Legacy Mastery: Mastery III on record · no effect in battle". It is not called Prestige.
+- Historical rank is not shown anywhere in the player UI, Card Inspect included (removed 2026-10-03 so players never see an unfinished migration concept). It stays in the save for the future Prestige conversion; the dev tools still read it (`skyloomDev.ascensionReport()`).
 - `ascendCard` refuses every request and spends nothing. No copies and no Gold can be spent on Mastery. `MASTERY_GOLD_FEE` and `economy.masteryGoldFee` remain as inert config (a test checks nothing reads the fee).
 - The daily mission "Raise a card's Mastery" became "Play a Ranked battle" (same 15 Gem reward); Journey copy that promised Mastery was rewritten.
 - Spells: no Spell Mastery, no Unit Mastery, no Mana.

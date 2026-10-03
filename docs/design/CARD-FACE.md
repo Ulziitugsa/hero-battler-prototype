@@ -13,8 +13,8 @@ no rule, stat, effect, Mastery, Starting HP, deck-out or economy value changes h
    (`layout="dock"`), so the board, the HP bars and Fight stay visible; outside battle it is a bottom sheet
    (`layout="sheet"`, via `CardViewer`) with the screen's own actions (Deck Builder: Add to deck / Remove one).
 3. **Card Inspect** (`CardInspect`): the large card, rarity / faction / type, traits, ATK and HP Contribution spelled
-   out, every rule with keyword help, copies owned (plus one "Legacy Mastery … no effect in battle" line when the save holds
-   historical progress; there is no combat Card Mastery since 2026-10-03),
+   out, every rule with keyword help, copies owned (historical Mastery progress is kept in the save but never shown; there is no
+   combat Card Mastery since 2026-10-03),
    where it comes from, the deck it is in, lore, previous/next in the Collection, and treatment hooks.
 
 The battle log (`components/battleInfo/battleLog.ts`) sits beside layer 2 in battle: optional, a Log pill by the HP

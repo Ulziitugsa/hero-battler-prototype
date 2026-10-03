@@ -5,10 +5,8 @@ import { CARD_LORE } from '../../game/cards/lore';
 import { cardCopyView } from '../../game/cards/cardCopy';
 import { cardTypeLine, FACTION_NAME, RARITY_NAME, type CardRules } from '../../game/cards/cardPresentation';
 import { useCollection } from '../../game/collection/useCollection';
-import { useAscension } from '../../game/ascension/useAscension';
 import { acquisitionSummary } from '../../game/collection/acquisition';
 import { productAcquisitionLines } from '../../game/collection/productSources';
-import { historicalMastery } from '../../game/cardMastery/model';
 import { listDeckOptions } from '../../game/engine/deckOptions';
 import { loadPreferences } from '../../game/engine/preferences';
 import { track } from '../../analytics/track';
@@ -25,8 +23,9 @@ import '../../styles/cardInspect.css';
  * contents, pack results, events, and in battle from the focus panel): the card at its largest, its name, rarity,
  * faction and type, ATK and HP Contribution with what they mean, every effect's full rule with its keywords, copies
  * owned, where to get it, its card style, and its lore. Every card shows its printed values: there is no combat Card
- * Mastery. A card with historical Mastery progress shows it as one quiet, non-combat line in the Collection section. Nothing in battle needs it: the card face and
- * the focus panel carry everything a decision needs.
+ * Mastery. Historical Mastery / Ascension progress stays in the save for the future Prestige conversion but is never shown
+ * to players (dev tools: skyloomDev.ascensionReport()). Nothing in battle needs Inspect: the card face and the focus panel
+ * carry everything a decision needs.
  */
 
 /** Where Card Inspect was opened from. In battle the sheet keeps to what matters mid-match. */
@@ -75,14 +74,11 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
   const card = getCard(cardId);
   const unit = card.type === 'hero';
   const collection = useCollection();
-  const ascension = useAscension();
   const copy = cardCopyView(cardId, collection);
   const rules: CardRules = battle?.rules ?? 'card';
   const inBattle = !!battle;
   const owned = inBattle || copy.owned;
   const hpContribution = battle ? (battle.rules === 'card' ? battle.hpContribution : undefined) : copy.hpContribution;
-  // Historical Mastery / Ascension progress: preserved in the save for a future cosmetic feature, no combat effect.
-  const legacyMastery = historicalMastery(cardId, ascension);
   const lore = CARD_LORE[cardId];
   const deckLabel = onOpenDecks ? findDeckFor(cardId) : null;
   const overline = battle ? `${battle.owner === 'enemy' ? 'Enemy card' : 'Your card'} · this battle` : copy.owned ? 'In your collection' : 'A card to discover';
@@ -181,12 +177,6 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
                     <dt>Copies owned</dt>
                     <dd>{copy.owned ? `×${copy.copies}` : 'Not collected yet'}</dd>
                   </div>
-                  {legacyMastery.rank > 0 && (
-                    <div className="ci-legacy-mastery">
-                      <dt>Legacy Mastery</dt>
-                      <dd>{`${legacyMastery.label} on record · no effect in battle`}</dd>
-                    </div>
-                  )}
                   <div>
                     <dt>How to get it</dt>
                     <dd>{[acquisitionSummary(cardId).replaceAll('Summon ·', 'Pack set ·'), ...productAcquisitionLines(cardId)].join(' / ')}</dd>
