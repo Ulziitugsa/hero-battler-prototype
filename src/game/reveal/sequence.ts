@@ -1,11 +1,12 @@
 import type { Rarity } from '../types';
-import type { SummonSoundEvent } from './sound';
+import type { RevealSoundEvent } from './sound';
 
-// The Summon reveal as DATA: a flat, ordered timeline of steps built once from the already-resolved pulls.
-// One controller (pages/summon/useSummonSequence.ts) walks it with a single timer; this file is pure, so
-// pacing, skip targets and the sound-event schedule are unit-tested. Nothing here decides a card - it
-// only reads rarity + featured status of results that are already persisted.
+// The card reveal ceremony as DATA: a flat, ordered timeline of steps built once from cards that are already granted.
+// One controller (components/reveal/useRevealSequence.ts) walks it with a single timer; this file is pure, so
+// pacing, skip targets and the sound-event schedule are unit-tested. Nothing here decides a card - it only reads the
+// rarity of results that are already persisted. (It was the Moonwell Summon's reveal; pack opening now uses it.)
 //
+//   pack:   charging -> telegraph(best rarity) -> opening -> [stage] per Epic/Legendary -> result (then Pack Results)
 //   single: charging -> telegraph -> opening -> emerge -> reveal -> result
 //   ten:    charging -> telegraph(best rarity) -> opening -> [slot | stage] x10 -> result
 //           (common/rare slots pop in fast; an Epic/Legendary slot takes the stage with its own telegraph/opening/reveal)
@@ -23,7 +24,7 @@ export interface SeqStep {
   stage: boolean;
   /** The pull is the banner's main featured card: gets an extra presentation beat. */
   featured: boolean;
-  sounds: SummonSoundEvent[];
+  sounds: RevealSoundEvent[];
 }
 
 export interface SeqPull {
@@ -65,13 +66,13 @@ const REDUCED_MIN = 90;
 const scaled = (ms: number, reduced: boolean): number => (ms <= 0 ? 0 : reduced ? Math.max(REDUCED_MIN, Math.round(ms * REDUCED_SCALE)) : ms);
 
 const RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
-const RARITY_SOUND: Partial<Record<Rarity, SummonSoundEvent>> = { rare: 'rarity_rare', epic: 'rarity_epic', legendary: 'rarity_legendary' };
+const RARITY_SOUND: Partial<Record<Rarity, RevealSoundEvent>> = { rare: 'rarity_rare', epic: 'rarity_epic', legendary: 'rarity_legendary' };
 
 export function bestRarity(pulls: readonly SeqPull[]): Rarity {
   return pulls.reduce<Rarity>((b, p) => (RANK[p.rarity] > RANK[b] ? p.rarity : b), 'common');
 }
 
-function step(phase: SeqPhase, ms: number, tier: Rarity, opts: { slot?: number | null; stage?: boolean; featured?: boolean; sounds?: SummonSoundEvent[]; reduced: boolean }): SeqStep {
+function step(phase: SeqPhase, ms: number, tier: Rarity, opts: { slot?: number | null; stage?: boolean; featured?: boolean; sounds?: RevealSoundEvent[]; reduced: boolean }): SeqStep {
   return { phase, ms: scaled(ms, opts.reduced), tier, slot: opts.slot ?? null, stage: opts.stage ?? false, featured: opts.featured ?? false, sounds: opts.sounds ?? [] };
 }
 
@@ -89,12 +90,12 @@ export function buildTimeline(pulls: readonly SeqPull[], reduced = false): SeqSt
   if (pulls.length === 1) {
     const p = pulls[0];
     const b = SINGLE_BEATS[p.rarity];
-    return [step('charging', b.charge, p.rarity, { reduced, sounds: ['summon_start'] }), ...cardBeats(p.rarity, b, p.mainFeatured, null, false, reduced), step('result', 0, p.rarity, { reduced, featured: p.mainFeatured })];
+    return [step('charging', b.charge, p.rarity, { reduced, sounds: ['reveal_start'] }), ...cardBeats(p.rarity, b, p.mainFeatured, null, false, reduced), step('result', 0, p.rarity, { reduced, featured: p.mainFeatured })];
   }
   const best = bestRarity(pulls);
   const open = TEN_OPENING[best];
   const steps: SeqStep[] = [
-    step('charging', open.charge, best, { reduced, sounds: ['summon_start'] }),
+    step('charging', open.charge, best, { reduced, sounds: ['reveal_start'] }),
     step('telegraph', open.telegraph, best, { reduced, sounds: RARITY_SOUND[best] ? [RARITY_SOUND[best]!] : [] }),
     step('opening', open.open, best, { reduced, sounds: ['seal_break'] }),
   ];
@@ -147,6 +148,27 @@ export function skipTarget(timeline: readonly SeqStep[], index: number): number 
   if (cur.stage && cur.phase !== 'reveal') return timeline.findIndex((s, i) => i > index && s.phase === 'reveal' && s.slot === cur.slot);
   const next = timeline.findIndex((s, i) => i > index && s.stage && s.phase === 'telegraph');
   return next === -1 ? last : next;
+}
+
+/**
+ * Opening packs: one shared opening whose light telegraphs the best rarity in the whole opening, then each Epic and
+ * Legendary card takes the stage in order; Commons and Rares wait for the Pack Results grid, so even ten packs (fifty
+ * cards) never become a fifty-beat show: only the stage beats for the cards worth a moment grow with the packs opened.
+ */
+export function buildPackTimeline(pulls: readonly SeqPull[], reduced = false): SeqStep[] {
+  if (pulls.length === 0) return [step('result', 0, 'common', { reduced })];
+  const best = bestRarity(pulls);
+  const open = TEN_OPENING[best];
+  const steps: SeqStep[] = [
+    step('charging', open.charge, best, { reduced, sounds: ['reveal_start'] }),
+    step('telegraph', open.telegraph, best, { reduced, sounds: RARITY_SOUND[best] ? [RARITY_SOUND[best]!] : [] }),
+    step('opening', open.open, best, { reduced, sounds: ['seal_break'] }),
+  ];
+  pulls.forEach((p, i) => {
+    if (p.rarity === 'epic' || p.rarity === 'legendary') steps.push(...cardBeats(p.rarity, TEN_STAGE[p.rarity], false, i, true, reduced));
+  });
+  steps.push(step('result', 0, best, { reduced }));
+  return steps;
 }
 
 /** The film owns travel/anticipation. Continue directly into real cards, never replay sky effects. */

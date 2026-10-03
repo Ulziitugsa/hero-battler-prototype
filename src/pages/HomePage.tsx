@@ -21,10 +21,8 @@ import type { MissionsState } from '../game/missions/store';
 import { useMissions } from '../game/missions/useMissions';
 import { useJourney } from '../game/journey/useJourney';
 import { useEconomy } from '../game/economy/useEconomy';
-import { loadSelectedBanner } from '../game/summon/selectedBanner';
-import { getBanner } from '../game/summon/banners';
-import { SUMMON_CONFIG } from '../game/summon/config';
-import { pityDisplay } from '../game/summon/view';
+import { MOONFALL_BOX } from '../game/box/boxProduct';
+import { prototypeBoxPacksRemaining } from '../game/box/prototypeBox';
 import { JOURNEY_DAYS } from '../game/journey/definitions';
 import { MAX_LEVEL, xpToNextLevel } from '../game/progression/config';
 import { CardArtwork } from '../components/CardArtwork';
@@ -33,7 +31,7 @@ import { HomeEventBanner } from '../components/HomeEventBanner';
 
 interface HomeProps {
   onOpenBattleSetup: () => void; onOpenCampaign: () => void; onOpenDecks: () => void;
-  onOpenHeroes: () => void; onOpenProfile: () => void; onOpenShop: () => void; onOpenSummon: () => void;
+  onOpenHeroes: () => void; onOpenProfile: () => void; onOpenShop: () => void; onOpenPacks: () => void;
   onOpenFriendly: () => void; onOpenLanterns: () => void; onOpenPixelPreview: () => void;
   /** Opens the live event page; Home shows its single event banner only while an event is running. */
   onOpenEvent?: () => void;
@@ -89,11 +87,8 @@ export function HomePage(props: HomeProps) {
     }
     return null;
   })();
-  const banner = getBanner(loadSelectedBanner());
-  const bannerPity = banner ? (economy.summon.pity[banner.id] ?? 0) : 0;
-  const pity = pityDisplay(bannerPity);
-  const summonReady = economy.tickets > 0 || economy.gems >= SUMMON_CONFIG.singleCost;
-  const pityContext = pity.remaining <= 12;
+  const packsLeft = prototypeBoxPacksRemaining();
+  const packReady = packsLeft > 0 && (economy.tickets > 0 || economy.gems >= MOONFALL_BOX.gemsPerPack);
   const featureCard = [...deck.cardIds].map(getCard).filter(card => card.type === 'hero').sort((a, b) => {
     const rarity: Record<string, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
     return rarity[b.rarity] - rarity[a.rarity] || (b.power ?? 0) - (a.power ?? 0);
@@ -108,14 +103,14 @@ export function HomePage(props: HomeProps) {
       ? { key: `idle-${idleRewardCycleId()}`, label: `${hub.idle.availableGold.toLocaleString()} Idle Gold is ready to claim.` }
       : dailyReady + weeklyReady > 0
         ? { key: `missions-${missions.dayKey}-${missions.weekKey}-${dailyReady}-${weeklyReady}`, label: 'Mission rewards are ready to claim.' }
-        : summonReady
-          ? { key: `summon-${economy.tickets}-${economy.summon.history[0]?.at ?? 0}`, label: economy.tickets > 1 ? `${economy.tickets} Summon Tickets are ready to use.` : economy.tickets === 1 ? 'A Summon Ticket is ready to use.' : 'A Summon is available.' }
+        : packReady
+          ? { key: `pack-${economy.tickets}-${packsLeft}`, label: economy.tickets > 1 ? `${economy.tickets} Pack Tickets are ready to use.` : economy.tickets === 1 ? 'A Pack Ticket is ready to use.' : 'A pack is ready to open.' }
           : hub.note?.kind === 'recent'
             ? { key: `card-${hub.note.cardId}`, label: `${getCard(hub.note.cardId).name} joined your collection.` }
             : null;
   const returnSeen = (() => { try { return returnState ? localStorage.getItem(`moonwater:return-state:${returnState.key}`) === '1' : true; } catch { return false; } })();
   const nextJourneyDay = JOURNEY_DAYS.find(day => day.day === journey.currentDay + 1);
-  const sessionGoalsComplete = dailyAllClaimed && dailyReady + weeklyReady === 0 && journey.claimableDays.length === 0 && hub.idle.availableGold === 0 && !summonReady;
+  const sessionGoalsComplete = dailyAllClaimed && dailyReady + weeklyReady === 0 && journey.claimableDays.length === 0 && hub.idle.availableGold === 0 && !packReady;
 
   useEffect(() => {
     if (hub.note?.kind === 'idle') track('idle_reward_available', { gold: hub.note.gold, atCap: hub.note.atCap });
@@ -183,7 +178,7 @@ export function HomePage(props: HomeProps) {
       <button className={dailyReady + weeklyReady > 0 ? 'is-ready' : 'is-passive'} onClick={() => setMissionsOpen(true)}><span className="home-rail-icon">✦</span><strong>Missions</strong><small>{dailyReady + weeklyReady ? `${dailyReady + weeklyReady} ready` : 'Daily · Weekly'}</small>{dailyReady + weeklyReady > 0 && <i>READY</i>}</button>
       <button className={journey.claimableDays.length > 0 ? 'is-ready' : 'is-passive'} onClick={() => setJourneyOpen(true)}><span className="home-rail-icon">☾</span><strong>Journey</strong><small>{journey.claimableDays.length ? `${journey.claimableDays.length} ready` : nextJourneyDay ? `Tomorrow · ${nextJourneyDay.rewardTickets ? `${nextJourneyDay.rewardTickets} Ticket${nextJourneyDay.rewardTickets === 1 ? '' : 's'}` : nextJourneyDay.title}` : `Day ${journey.currentDay} of 7`}</small>{journey.claimableDays.length > 0 && <i>READY</i>}</button>
       <button className={hub.idle.availableGold > 0 ? 'is-ready' : 'is-passive'} disabled={hub.idle.availableGold <= 0} onClick={() => { const result = claimIdleReward(); hub.refreshIdle(); if (result.gold > 0) setIdleClaimedGold(result.gold); }}><span className="home-rail-icon">◈</span><strong>Idle Gold</strong><small>{hub.idle.availableGold > 0 ? `${hub.idle.availableGold.toLocaleString()} to claim` : 'Accruing'}</small>{hub.idle.availableGold > 0 && <i>READY</i>}</button>
-      <button className={summonReady ? 'is-ready' : 'is-passive'} onClick={props.onOpenSummon}><span className="home-rail-icon">✧</span><strong>Moonwell</strong><small>{economy.tickets > 0 ? `${economy.tickets} ticket${economy.tickets === 1 ? '' : 's'}` : summonReady ? 'Summon ready' : pityContext ? `${pity.remaining} pulls to guarantee` : 'Summon'}</small>{summonReady && <i>READY</i>}</button>
+      <button className={packReady ? 'is-ready' : 'is-passive'} onClick={props.onOpenPacks}><span className="home-rail-icon">✧</span><strong>Packs</strong><small>{economy.tickets > 0 ? `${economy.tickets} Pack Ticket${economy.tickets === 1 ? '' : 's'}` : packReady ? 'Open a pack' : `${packsLeft} left in Box`}</small>{packReady && <i>READY</i>}</button>
     </section>
     {sessionGoalsComplete && <p className="home-session-calm" role="status">Daily rewards claimed · Idle Gold will keep accumulating.</p>}
 

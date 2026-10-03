@@ -116,7 +116,8 @@ describe('player-facing effect copy', () => {
 
   it('derives explainable keywords from actions and finds effect text in search', () => {
     expect(cardKeywords(getCard('kng-paladin'))).toEqual(['Shield', 'Guard']);
-    expect(cardKeywords(getCard('spl-battle-banner'))).toEqual(['Continuous Spell']);
+    expect(cardKeywords(getCard('spl-battle-banner'))).toEqual(['Attached Spell']);
+    expect(cardKeywords(getCard('spl-burning-ground'))).toEqual(['Continuous Spell']);
     expect(cardSearchText(getCard('kng-paladin'))).toContain('shield');
     expect(cardSearchText('kng-royal-guard')).toContain('adjacent allies +15 atk');
     expect(cardSearchText('kng-royal-guard')).toContain('rare');

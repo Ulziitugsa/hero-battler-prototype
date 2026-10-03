@@ -367,7 +367,7 @@ describe('Toll of the Ford, Fortify and starter safety', () => {
     expect(toll?.encounter?.firstClearReward).toMatchObject({ cardId: 'kng-royal-guard', label: 'Royal Guard' });
     expect(getCardAscension('kng-royal-guard')).toBeDefined(); // a legacy effect path (historical resolver only)
     expect(FUTURE_REGION_CARDS['spl-fortify']).toBe('region-2');
-    expect(getCardAcquisitionSources('spl-fortify')).toEqual([{ kind: 'summon', bannerId: 'royal-vanguard' }, { kind: 'future', regionId: 'region-2' }]);
+    expect(getCardAcquisitionSources('spl-fortify')).toEqual([{ kind: 'box', boxId: 'moonfall-test-v1' }, { kind: 'future', regionId: 'region-2' }]);
   });
   it('a retired advance can never re-lock a starter or break a saved deck: nothing is ever spent', () => {
     const owned: Record<string, number> = { ...getCollection() };

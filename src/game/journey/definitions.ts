@@ -1,7 +1,6 @@
 // The 7-day new-player journey (Commercial Prototype Phase 6) - content as plain data, same convention
-// as campaign/chapter1.ts and missions/definitions.ts. Phase 6's Day 2 substituted Gems for Summon
-// Tickets because Tickets did not exist yet; Phase 7 introduced them and this now restores the brief's
-// original Day 2 intent (see docs/COMMERCIAL-PROTOTYPE-PLAN.md Phase 7). A Relic (Day 3) and a Cosmetic
+// as campaign/chapter1.ts and missions/definitions.ts. Day 2 gives Pack Tickets (one opens one pack of the
+// Moonfall Box; they were Summon Tickets until the Moonwell Summon was retired). A Relic (Day 3) and a Cosmetic
 // (Day 6) remain substituted - neither system exists in this codebase and neither is in scope for this
 // workstream (see the repo audit's own recommendation to defer equipment/relics and cosmetics).
 //
@@ -22,11 +21,11 @@ export interface JourneyDayDef {
 
 export const JOURNEY_DAYS: JourneyDayDef[] = [
   { day: 1, title: 'A new card joins you', blurb: 'Someone answered the call.', rewardGold: 0, rewardGems: 0, rewardTickets: 0, rewardCardId: 'inf-blood-demon', rewardCardCount: 1 },
-  { day: 2, title: 'Summon Tickets', blurb: 'Enough for a real Summon, on the house.', rewardGold: 0, rewardGems: 0, rewardTickets: 3 },
+  { day: 2, title: 'Pack Tickets', blurb: 'Three packs from the Moonfall Box, on the house.', rewardGold: 0, rewardGems: 0, rewardTickets: 3 },
   { day: 3, title: 'A second Blood Demon', blurb: 'A deck can run two copies of a card.', rewardGold: 0, rewardGems: 0, rewardTickets: 0, rewardCardId: 'inf-blood-demon', rewardCardCount: 1 },
   { day: 4, title: 'Gold for your purse', blurb: 'A head start for what comes next.', rewardGold: 150, rewardGems: 0, rewardTickets: 0 },
   { day: 5, title: 'More Gold', blurb: 'Keep your collection growing.', rewardGold: 200, rewardGems: 0, rewardTickets: 0 },
-  { day: 6, title: 'A bigger Gem purse', blurb: 'Save it for a 10x pull.', rewardGold: 0, rewardGems: 200, rewardTickets: 0 },
+  { day: 6, title: 'A bigger Gem purse', blurb: 'Enough for a pack, with Gems to spare.', rewardGold: 0, rewardGems: 200, rewardTickets: 0 },
   { day: 7, title: 'Infernal Lord', blurb: 'A Legendary card, free.', rewardGold: 0, rewardGems: 0, rewardTickets: 0, rewardCardId: 'inf-infernal-lord', rewardCardCount: 1 },
 ];
 

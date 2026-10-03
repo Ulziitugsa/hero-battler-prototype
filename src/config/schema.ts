@@ -33,19 +33,6 @@ export interface EconomyConfig {
   masteryGoldFee: number[];
 }
 
-export interface SummonConfig {
-  singleGemCost: number;
-  tenGemCost: number;
-  ticketCostSingle: number;
-  ticketCostTen: number;
-  pityThreshold: number;
-  rarityRates: { common: number; rare: number; epic: number; legendary: number };
-  heroWeight: number;
-  spellWeight: number;
-  featuredMainMultiplier: number;
-  featuredSecondaryMultiplier: number;
-}
-
 export interface HeroLevelConfig {
   maxHeroLevel: number;
   /** hero level cap = accountLevel * this, capped at maxHeroLevel. */
@@ -103,15 +90,12 @@ export interface OffersConfig {
 }
 
 export interface FeatureFlags {
-  /** Shows the Summon Gems/Tickets currency toggle even at 0 Tickets (default false - see Phase 7's "don't clutter" note). */
-  alwaysShowTicketToggle: boolean;
   /** Master switch for the Phase 10 offers surface. */
   offersEnabled: boolean;
 }
 
 export interface GameConfig {
   economy: EconomyConfig;
-  summon: SummonConfig;
   heroLevel: HeroLevelConfig;
   campaign: CampaignConfig;
   idle: IdleRewardsConfig;

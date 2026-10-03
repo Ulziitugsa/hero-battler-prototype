@@ -39,7 +39,7 @@ export function AppShell({ active, onNavigate, children }: { active: TabId; onNa
   const missions = useMissions();
   const journey = useJourney();
   const liveEvent = useLiveEvent();
-  const dots = navDots({ canSummon: false, masteryPoint: false });
+  const dots = navDots({ canOpenPack: false, masteryPoint: false });
   useEffect(() => {
     window.scrollTo(0, 0);
     const content = document.querySelector<HTMLElement>('.app-frame-content');

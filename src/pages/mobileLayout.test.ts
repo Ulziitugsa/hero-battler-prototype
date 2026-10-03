@@ -1,11 +1,6 @@
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { buildTimeline, viewAt } from '../game/summon/sequence';
-import { buildPreviewOutcome } from '../game/summon/preview';
-import { RitualStage } from './summon/RitualStage';
 
 // Responsive rules are CSS, so the important ones are pinned by reading the stylesheets: a regression that
 // re-derives page WIDTH from viewport HEIGHT (what shrank Battle/Campaign on iPhone Safari) fails here.
@@ -58,8 +53,8 @@ describe('page width is never derived from viewport height (iPhone Safari dvh sh
       expect(rule, sel).not.toMatch(/dvh\)?\s*-/);
     }
   });
-  it('the Summon ritual lays out inside a phone-width canvas, not the whole viewport', () => {
-    expect(css('summonRitual.css')).toMatch(/\.ritual-canvas \{[^}]*width:\s*min\(100%,\s*480px\)/);
+  it('the pack-opening ceremony lays out inside a phone-width canvas, not the whole viewport', () => {
+    expect(css('revealRitual.css')).toMatch(/\.ritual-canvas \{[^}]*width:\s*min\(100%,\s*480px\)/);
   });
 });
 
@@ -72,41 +67,5 @@ describe('Heroes grid', () => {
     expect(tile).not.toContain('hr-card-role');
     expect(tile).toContain('<GameCard');
     expect(tile).toContain('density="tile"');
-  });
-});
-
-describe('10x result layout', () => {
-  const outcome = buildPreviewOutcome('gravebound', 'ten-multi');
-  const timeline = buildTimeline(outcome.pulls.map((p) => ({ rarity: p.rarity, mainFeatured: p.featured === 'main' })));
-  const result = viewAt(timeline, timeline.length - 1, outcome.pulls.length);
-  const html = renderToStaticMarkup(createElement(RitualStage, { outcome, view: result, faction: 'undead', onSkip: () => {}, onDone: () => {}, onIntroFinished: () => {} }));
-
-  it('renders all ten results as tiles, inside the canvas, in one grid', () => {
-    expect(outcome.pulls).toHaveLength(10);
-    expect((html.match(/class="tile tile-open/g) ?? []).length).toBe(10);
-    expect(html).not.toContain('tile-sealed');
-    expect(html.indexOf('ritual-canvas')).toBeGreaterThan(-1);
-    expect(html.indexOf('ritual-canvas')).toBeLessThan(html.indexOf('ritual-grid'));
-    expect((html.match(/class="ritual-grid"/g) ?? []).length).toBe(1);
-  });
-  it('shows summary chips and a Done button after the grid, in normal flow', () => {
-    expect(html.indexOf('ritual-grid')).toBeLessThan(html.indexOf('ritual-info'));
-    expect(html).toContain('Done');
-    expect(html).toMatch(/\d+ new · \d+ duplicates?/);
-  });
-  it('tiles carry the New seal / xN marks, no Mastery mark and no faction line', () => {
-    expect(html).toContain('wax-new small');
-    expect(html).toContain('tile-dup');
-    expect(html).not.toContain('tile-asc');
-    expect(html).not.toMatch(/Mastery/);
-    expect(html).not.toMatch(/tile[^>]*>[^<]*Undead ·/);
-  });
-  it('mid-sequence, un-revealed slots stay as sealed placeholders (count is stable at ten)', () => {
-    const mid = viewAt(timeline, timeline.findIndex((s) => s.slot === 4), 10);
-    const partial = renderToStaticMarkup(createElement(RitualStage, { outcome, view: mid, faction: 'undead', onSkip: () => {}, onDone: () => {}, onIntroFinished: () => {} }));
-    const open = (partial.match(/class="tile tile-open/g) ?? []).length;
-    const sealed = (partial.match(/class="tile tile-sealed/g) ?? []).length;
-    expect(open + sealed).toBe(10);
-    expect(sealed).toBeGreaterThan(0);
   });
 });

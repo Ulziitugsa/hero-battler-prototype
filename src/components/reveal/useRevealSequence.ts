@@ -1,27 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useReducedMotion } from '../../components/animation/timing';
-import { buildTimeline, viewAt, type SeqStep, type SeqView } from '../../game/summon/sequence';
-import { emitSummonSound } from '../../game/summon/sound';
-import type { SummonSuccess } from '../../game/summon/summon';
+import { useReducedMotion } from '../animation/timing';
+import { buildPackTimeline, viewAt, type SeqStep, type SeqView } from '../../game/reveal/sequence';
+import { emitRevealSound } from '../../game/reveal/sound';
+import type { RevealOutcome } from '../../game/reveal/outcome';
 
-// The ONE owner of the Summon presentation clock. It walks the pure timeline (game/summon/sequence.ts)
-// with a single timer at a time; components only render the SeqView it returns. The outcome handed to
-// start() is already resolved and persisted - nothing here can change what was pulled, and skipping only
-// moves the presentation forward.
+// The ONE owner of the reveal ceremony's clock. It walks the pure timeline (game/reveal/sequence.ts) with a single
+// timer at a time; components only render the SeqView it returns. The outcome handed to start() is already granted
+// and saved - nothing here can change what was opened, and skipping only moves the presentation forward.
 
 interface Run {
-  outcome: SummonSuccess;
+  outcome: RevealOutcome;
   timeline: SeqStep[];
   index: number;
 }
 
-export function useSummonSequence(): { outcome: SummonSuccess | null; view: SeqView | null; start: (outcome: SummonSuccess) => void; skip: () => void; end: () => void; finishIntro: () => void } {
+export function useRevealSequence(): { outcome: RevealOutcome | null; view: SeqView | null; start: (outcome: RevealOutcome) => void; skip: () => void; end: () => void; finishIntro: () => void } {
   const reduced = useReducedMotion();
   const [run, setRun] = useState<Run | null>(null);
 
   const start = useCallback(
-    (outcome: SummonSuccess) => {
-      const timeline = buildTimeline(outcome.pulls.map((p) => ({ rarity: p.rarity, mainFeatured: p.featured === 'main' })), reduced);
+    (outcome: RevealOutcome) => {
+      const timeline = buildPackTimeline(outcome.cards.map((c) => ({ rarity: c.rarity, mainFeatured: false })), reduced);
       setRun({ outcome, timeline, index: 0 });
     },
     [reduced],
@@ -43,7 +42,7 @@ export function useSummonSequence(): { outcome: SummonSuccess | null; view: SeqV
   useEffect(() => {
     if (!run) return;
     const step = run.timeline[run.index];
-    for (const s of step.sounds) emitSummonSound(s);
+    for (const s of step.sounds) emitRevealSound(s);
     if (run.index >= run.timeline.length - 1) return;
     // Video completion owns the intro; reduced motion uses the ordinary short timer.
     if (run.index === 0 && !reduced) return;
@@ -52,6 +51,6 @@ export function useSummonSequence(): { outcome: SummonSuccess | null; view: SeqV
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the step, not the whole run object
   }, [runId, index, reduced]);
 
-  const view = useMemo(() => (run ? viewAt(run.timeline, run.index, run.outcome.pulls.length) : null), [run]);
+  const view = useMemo(() => (run ? viewAt(run.timeline, run.index, run.outcome.cards.length) : null), [run]);
   return { outcome: run?.outcome ?? null, view, start, skip, end, finishIntro };
 }

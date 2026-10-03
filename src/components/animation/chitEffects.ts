@@ -10,7 +10,7 @@ import type { AnimationStep } from './types';
 
 export interface FloaterSpec {
   key: string;
-  kind: 'power-up' | 'power-down' | 'heal' | 'overflow' | 'direct' | 'immune' | 'shield-consumed' | 'silence';
+  kind: 'power-up' | 'power-down' | 'heal' | 'overflow' | 'direct' | 'immune' | 'shield-consumed' | 'silence' | 'expired';
   text: string;
 }
 
@@ -248,6 +248,18 @@ function applyEventVisual(v: StepVisuals, e: GameEvent, state: GameState): void 
     case 'ON_PLAY':
       if (e.zone === 'spell') addSpellClass(v, e.instanceId, 'chit-activate');
       return;
+    case 'SPELL_ENTERED':
+      addSpellClass(v, e.instanceId, 'chit-activate');
+      return;
+    case 'SPELL_EXPIRED': {
+      // An Attached Spell leaves with its Unit: it dims, cracks and sinks toward the Graveyard (cooler and quieter than a
+      // destroyed Spell's burst, since nothing destroyed it).
+      addSpellClass(v, e.instanceId, 'chit-expire');
+      const spell = v.spellChit.get(e.instanceId)!;
+      spell.floaters.push({ key: `ex-${e.instanceId}`, kind: 'expired', text: 'Expired' });
+      v.graveyardPulse = e.side;
+      return;
+    }
     case 'SPELL_RESOLVED':
       // one-time Spells never occupy a zone, so there's no chit to target - the fade is played on the staged preview card itself, which is a UI-only construct GamePage already tracks.
       return;

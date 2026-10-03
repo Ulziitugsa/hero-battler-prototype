@@ -6,8 +6,7 @@ import { CHAPTER_1 } from '../campaign/chapter1';
 import type { CampaignProgress } from '../campaign/progress';
 import { buildStarterCollection } from '../collection/starterCollection';
 import { STARTER_DECKS } from '../cards/starterDecks';
-import { getBanner } from '../summon/banners';
-import { ContinueCampaign, EventSlot, FeaturedSummon, GemPlate, HubNoteLine } from '../../pages/home/HomeSections';
+import { ContinueCampaign, EventSlot, GemPlate, HubNoteLine } from '../../pages/home/HomeSections';
 import { RECENT_CARD_MS, STARTER_CLOSE_FRACTION, attentionState, campaignHub, closestStarter, homeAttentionReady, navDots, pickHubNote } from './hubState';
 
 function installLocalStoragePolyfill() {
@@ -113,28 +112,16 @@ describe('attention markers', () => {
     expect(homeAttentionReady({masteryPoint:false,missionReward:true,journeyReward:true,idleReward:false})).toBe(true);
     expect(homeAttentionReady({masteryPoint:false,missionReward:false,journeyReward:false,idleReward:false})).toBe(false);
   });
-  it('Summon glows only with enough Gems (or dev Unlimited Gems)', () => {
+  it('packs glow only with a pack’s Gem price, a Pack Ticket (or dev Unlimited Gems)', () => {
     const base = { masteryPoints: 0 };
-    expect(attentionState({ ...base, gems: 99 }).canSummon).toBe(false);
-    expect(attentionState({ ...base, gems: 100 }).canSummon).toBe(true);
-    expect(attentionState({ ...base, gems: 0, unlimitedGems: true }).canSummon).toBe(true);
+    expect(attentionState({ ...base, gems: 149 }).canOpenPack).toBe(false);
+    expect(attentionState({ ...base, gems: 150 }).canOpenPack).toBe(true);
+    expect(attentionState({ ...base, gems: 0, tickets: 1 }).canOpenPack).toBe(true);
+    expect(attentionState({ ...base, gems: 0, unlimitedGems: true }).canOpenPack).toBe(true);
   });
   it('nav dots: no Cards dot for spare duplicates any more (Card Mastery is retired)', () => {
     expect(navDots(attentionState({ gems: 0, masteryPoints: 1 }))).toEqual({ home: true });
     expect(navDots(attentionState({ gems: 900, masteryPoints: 0 }))).toEqual({ home: false });
-  });
-});
-
-describe('Summon presence', () => {
-  it('shows the banner, its chase card, pity and cost; the ready dot follows Gems', () => {
-    const banner = getBanner('gravebound')!;
-    const on = renderToStaticMarkup(createElement(FeaturedSummon, { banner, pity: 17, canSummon: true, onOpen: () => {} }));
-    expect(on).toContain('Gravebound');
-    expect(on).toContain('Featured · Vharos');
-    expect(on).toContain('17/40');
-    expect(on).toContain('hh-dot');
-    const off = renderToStaticMarkup(createElement(FeaturedSummon, { banner, pity: 0, canSummon: false, onOpen: () => {} }));
-    expect(off).not.toContain('hh-dot');
   });
 });
 

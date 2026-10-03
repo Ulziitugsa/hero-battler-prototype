@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useReducedMotion } from './animation/timing';
+import { useReducedMotion } from '../animation/timing';
 
 const FILMS = ['/art/pixel/moonwater-summon-intro.mp4'];
 /** Preload both shots; retain the previous frame until the continuation starts playing. */
-export function SummonFilm({ active, onFinished }: { active: boolean; onFinished: () => void }) {
+export function RevealFilm({ active, onFinished }: { active: boolean; onFinished: () => void }) {
   const videos = useRef<(HTMLVideoElement | null)[]>([]);
   const [segment, setSegment] = useState(0);
   const [visibleSegment, setVisibleSegment] = useState(0);

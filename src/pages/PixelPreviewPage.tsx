@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { SummonFilm } from '../components/SummonFilm';
+import { RevealFilm } from '../components/reveal/RevealFilm';
 import { MoonwellVoyage } from '../components/MoonwellVoyage';
 import '../styles/moonwellVoyage.css';
-import { buildTimeline, viewAt } from '../game/summon/sequence';
+import { buildTimeline, viewAt } from '../game/reveal/sequence';
 import type { Rarity } from '../game/types';
 import { useDialogFocus } from '../components/useDialogFocus';
 import { CardArtwork } from '../components/CardArtwork';
@@ -34,7 +34,7 @@ function SummonPreview({ hero, motion, onClose }: { hero: Companion; motion: boo
   useEffect(() => { if (!motion || view.isResult || step === 0) return; const timer = window.setTimeout(() => setStep(s => Math.min(s + 1, timeline.length - 1)), view.ms); return () => window.clearTimeout(timer); }, [motion, view.isResult, view.ms, step, timeline]);
   return <div className={`px-summon ${revealed ? 'px-revealed' : 'px-charging'}`} role="dialog" aria-modal="true" aria-label="Moonwell summon preview" ref={ref} tabIndex={-1}>
     <div className="px-summon-heading"><span className="px-eyebrow">THE MOONWELL</span><h2 aria-live="polite">{revealed ? 'An old friend. A new story.' : 'Across the midnight sky…'}</h2></div>
-    <SummonFilm active={motion && step === 0} onFinished={finishIntro} /><div className="px-voyage-stage"><MoonwellVoyage phase={view.phase} tier={tier} duration={view.ms} /></div>
+    <RevealFilm active={motion && step === 0} onFinished={finishIntro} /><div className="px-voyage-stage"><MoonwellVoyage phase={view.phase} tier={tier} duration={view.ms} /></div>
     {revealed ? <div className="px-reveal-card"><PixelCard hero={hero} large motion={motion} /></div> : <div className="px-voyage-space" />}
     <div className="px-summon-bottom"><p>{revealed ? hero.text : 'Every oath opens a new story.'}</p><button className="px-primary" onClick={revealed ? onClose : () => setStep(timeline.length - 1)}>{revealed ? 'Return to Moonwater' : 'Skip reveal'}</button><small>Art preview · no gems spent or cards granted</small></div>
   </div>;

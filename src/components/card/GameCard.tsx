@@ -1,6 +1,7 @@
 import { Fragment, useLayoutEffect, useRef } from 'react';
 import { getCard } from '../../game/cards';
 import { cardEffects, printedAtk, type CardEffect, type CardRules } from '../../game/cards/cardPresentation';
+import { isAttachedSpell } from '../../game/cardCombat/cards';
 import { CardArtwork } from '../CardArtwork';
 import { Gems, Sigil } from '../CardParts';
 import { Icon } from '../Icon';
@@ -11,7 +12,7 @@ import '../../styles/gameCard.css';
  * every battle mode, the Collection, the Deck Builder, Shop and Box contents, pack results, events, the outside-battle
  * focus sheet and Card Inspect. It is a collectible card in four zones inside the rarity frame: a name bar, a framed
  * art box, a stats and identity row with ATK (and, off the battlefield, HP Contribution) set into the frame, and a text
- * box with every effect as a short battle line after its small-caps timing label ("On Play: Adjacent allies +15 ATK.").
+ * box with every effect as a short battle line after its small-caps timing label ("Passive: Adjacent allies +15 ATK.").
  *
  * The words come from the card presentation model (game/cards/cardPresentation.ts), never from the screen: `rules`
  * picks the card-combat rules (the default, and every surface outside battle) or, in a legacy battle, the legacy ones.
@@ -276,13 +277,14 @@ export function GameCard({
   const passiveKey = passiveState ? [...passiveState].map(([i, on]) => `${i}${on ? '+' : '-'}`).join(',') : '';
   const fitRef = useFitCard(density, `${cardId}|${density}|${rules}|${masteryRank}|${title}|${silenced}|${passiveKey}|${current}|${hpContribution ?? ''}`);
   // A Spell names its kind where a Unit shows ATK. (Card Inspect lists a Unit's role under the card.)
-  const spellKind = continuous ? (inspect ? 'Continuous Spell' : 'Continuous') : 'Spell';
+  const attached = continuous && rules === 'card' && isAttachedSpell(cardId);
+  const spellKind = attached ? (inspect ? 'Attached Spell' : 'Attached') : continuous ? (inspect ? 'Continuous Spell' : 'Continuous') : 'Spell';
 
-  // Effects that share a label read as one paragraph under it ("On Play: Restore 135 HP. Gain a Shield.").
+  // Effects that share a label read as one paragraph under it ("Clash: Destroy enemy Continuous Spell here. +30 ATK this round.").
   const groups: EffectGroup[] = [];
   for (const effect of effects) {
-    // A one-time Spell happens when it is played, so "On Play" goes without saying on it (as on a printed card).
-    const implied = !unit && !continuous && effect.trigger === 'ON_PLAY';
+    // A one-time Spell's effect happens once, when it is cast, so its timing goes without saying (as on a printed card).
+    const implied = !unit && !continuous && (effect.trigger === 'CAST' || effect.trigger === 'ON_PLAY');
     const last = groups[groups.length - 1];
     if (last && last.label === effect.label && last.implied === implied) last.effects.push(effect);
     else groups.push({ label: effect.label, trigger: effect.trigger, implied, effects: [effect] });
@@ -294,7 +296,7 @@ export function GameCard({
     <span className="gc-rules">
       {density === 'spell' && (
         <span className="gc-name gc-name-inline">
-          <Icon name={continuous ? 'continuousSpell' : 'spell'} size={10} />
+          <Icon name={attached ? 'attachedSpell' : continuous ? 'continuousSpell' : 'spell'} size={10} />
           {title}
         </span>
       )}

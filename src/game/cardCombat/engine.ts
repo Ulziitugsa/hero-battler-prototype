@@ -1,7 +1,7 @@
 import type { ConditionDef, CountBasis, DeployPlay, Faction, GameEvent, GameState, GraveyardPick, HandCard, HeroInstance, LaneId, Placement, PlayerAction, PlayerState, ResolveResult, Side, SpellZoneInstance, TargetScope, Trigger } from '../types/index.js';
 import { LANES, TRIGGER_LABEL, adjacentLanes } from '../types/index.js';
 import { nextRandom } from '../engine/rng.js';
-import { type CombatAbility, type CombatAction, type CombatCard, getCombatCard, isCardOnlyAction, isPacify } from './cards.js';
+import { type CombatAbility, type CombatAction, type CombatCard, getCombatCard, isAttachedSpell, isCardOnlyAction, isPacify } from './cards.js';
 import { ATK_PER_POWER, DEATH_LINE_ATK, GROWTH_CAP_ATK, HP_PER_LEGACY_POINT, atkFromPower, deckStartingHp, hpContribution, printedStats } from './stats.js';
 
 // The production card-combat resolver (docs/CARD-COMBAT-DESIGN.md, Phase 1/2 of section 12).
@@ -21,18 +21,26 @@ import { ATK_PER_POWER, DEATH_LINE_ATK, GROWTH_CAP_ATK, HP_PER_LEGACY_POINT, atk
 //   - Tokens are battle-only and never enter the Graveyard.
 //   - Effects keep their legacy units in data: 1 Power step = 15 ATK, 1 legacy HP point = 45 Player HP.
 //   - A player at 0 HP loses; both at 0 in the same round is a draw. Round 40 ends the match as a draw.
-// Round order follows the live engine: Round Start -> draw to 3 -> Deploy -> Reveal -> Spells (left to right)
-// -> Unit On Play -> Before Combat -> Combat -> death chains -> After Combat -> Round End -> expiry.
+//   - There is no On Play timing (v4, docs/CARD-COMBAT-DESIGN.md section 18). A Unit's effects are Passive (always on while
+//     it is in play, read live), Round Start, Round End, Before Combat, Destroyed or reactions; a one-time Spell's effect
+//     is CAST once when it resolves. A Passive ATK aura (Royal Guard, Forest Wolf) is an overlay like a Continuous Spell's:
+//     nothing is stored on the Unit, so it ends the moment its source leaves or its condition fails. A printed Shield
+//     (Paladin) is read live too and used once per Unit in play.
+//   - A Continuous Spell belongs to its lane, or (an Attached Spell, `spellBinding: 'UNIT'`) to the Unit it was cast
+//     onto: when that Unit leaves play the Spell goes to the Graveyard with it (SPELL_EXPIRED) and the lane is free.
+// Round order: Round Start -> draw to 3 -> Deploy -> Reveal -> Spells (left to right) -> Before Combat -> Combat
+// -> death chains -> After Combat -> Round End -> expiry.
 //
 // Deterministic: every random pick draws from the match's own seeded stream (engine/rng.ts), carried in
 // GameState.rngState. Same seed + same plays = same events and the same end state.
 
 /**
- * v3 (combat Card Mastery removed): a match is built from the two deck lists alone and every card plays at its printed
- * values. v2 matches took per-card Mastery stages that raised HP Contribution at setup; their round resolution is
- * identical to v3's, so a stored v2 match can still be continued (combat/resolver.ts CONTINUABLE_CARD_RESOLVER_VERSIONS).
+ * v4 (timing cleanup): no On Play timing, Passive auras, printed Shields and Attached Spells. Several cards resolve
+ * differently from v3, so a stored v2/v3 match is not continued under v4 rules (combat/resolver.ts
+ * CONTINUABLE_CARD_RESOLVER_VERSIONS); it ends with the rules-changed notice instead of being silently reinterpreted.
+ * v3 (combat Card Mastery removed): a match is built from the two deck lists alone and every card plays at its printed values.
  */
-export const CARD_RESOLVER_VERSION = 3;
+export const CARD_RESOLVER_VERSION = 4;
 export const CARD_MAX_ROUNDS = 40;
 export const CARD_HAND_TARGET = 3;
 
@@ -112,21 +120,69 @@ export function continuousAtkBonus(state: GameState, side: Side, lane: LaneId): 
   return steps * ATK_PER_POWER;
 }
 
-/** A Unit's clash ATK right now: its stored ATK plus any Continuous Spell overlay. 0 for an empty lane. */
-export function effectiveAtk(state: GameState, side: Side, lane: LaneId): number {
-  const unit = (side === 'player' ? state.player : state.enemy).heroZones[lane];
-  return unit ? unit.power + continuousAtkBonus(state, side, lane) : 0;
+/** Conditions an ATK aura may not use: they read ATK, which the aura itself changes. */
+const ATK_READING_CONDITIONS = new Set<ConditionDef['type']>(['SELF_LOSING_LANE', 'SELF_WINNING_LANE']);
+
+/**
+ * ATK that Passive auras on the board add to the Unit at (side, lane) right now: "Adjacent allied Units have +15 ATK"
+ * (Royal Guard), "Enemy Units have −15 ATK" (Infernal Lord), "While the enemy has no Unit in this lane, this Unit has
+ * +30 ATK" (Forest Wolf). Read live, like a Continuous Spell: a Silenced source gives nothing, an aura ends when its
+ * source leaves play, and a hostile aura does not reach a Unit that is immune to Unit effects.
+ */
+export function passiveAtkBonus(state: GameState, side: Side, lane: LaneId): number {
+  return passiveAtkSources(state, side, lane).reduce((sum, source) => sum + source.atk, 0);
 }
 
-/** Display copy of `side`'s board with every Unit's `power` replaced by its effective ATK. */
+/** The Passive auras reaching the Unit at (side, lane) right now, one entry per source Unit (the focus panel names them). */
+export function passiveAtkSources(state: GameState, side: Side, lane: LaneId): { instanceId: string; name: string; atk: number }[] {
+  if (!state.cardCombat) return [];
+  const ctx: Ctx = { state, events: [], rng: state.rngState };
+  if (!unitAt(ctx, side, lane)) return [];
+  const out: { instanceId: string; name: string; atk: number }[] = [];
+  for (const srcSide of SIDES) {
+    for (const { lane: srcLane, unit } of livingUnits(ctx, srcSide)) {
+      if (isSilencedIn(ctx, srcSide, srcLane)) continue;
+      const exec: Exec = { owner: srcSide, kind: 'hero', lane: srcLane, instanceId: unit.instanceId, name: unit.name };
+      let steps = 0;
+      for (const ability of getCombatCard(unit.cardId).abilities) {
+        if (ability.trigger !== 'PASSIVE') continue;
+        if (ability.conditions?.some((c) => ATK_READING_CONDITIONS.has(c.type))) continue;
+        for (const action of ability.actions) {
+          if (action.type !== 'CHANGE_POWER') continue;
+          if (!locations(ctx, exec, action.target).some((l) => l.side === side && l.lane === lane)) continue;
+          if (!conditionsHold(ctx, exec, ability.conditions)) continue;
+          if (action.amount < 0 && srcSide !== side && hasImmunity(ctx, side, lane, 'HERO_EFFECT')) continue;
+          steps += action.amount;
+        }
+      }
+      if (steps !== 0) out.push({ instanceId: unit.instanceId, name: unit.name, atk: steps * ATK_PER_POWER });
+    }
+  }
+  return out;
+}
+
+/** A Unit's clash ATK right now: its stored ATK plus any Continuous Spell overlay and Passive aura. 0 for an empty lane. */
+export function effectiveAtk(state: GameState, side: Side, lane: LaneId): number {
+  const unit = (side === 'player' ? state.player : state.enemy).heroZones[lane];
+  return unit ? unit.power + continuousAtkBonus(state, side, lane) + passiveAtkBonus(state, side, lane) : 0;
+}
+
+/** Display copy of `side`'s board: every Unit's `power` is its effective ATK and `shielded` includes a printed Shield that is still ready. */
 export function withEffectiveAtk(state: GameState, side: Side): PlayerState {
   const p = side === 'player' ? state.player : state.enemy;
   const heroZones = { ...p.heroZones };
+  if (!state.cardCombat) return p;
+  const ctx: Ctx = { state, events: [], rng: state.rngState };
   for (const lane of LANES) {
     const hero = heroZones[lane];
-    if (hero) heroZones[lane] = { ...hero, power: effectiveAtk(state, side, lane) };
+    if (hero) heroZones[lane] = { ...hero, power: effectiveAtk(state, side, lane), shielded: hero.shielded || printedShieldReady(ctx, side, lane) };
   }
   return { ...p, heroZones };
+}
+
+/** True when the Unit at (side, lane) is Silenced right now. */
+export function isSilenced(state: GameState, side: Side, lane: LaneId): boolean {
+  return !!(side === 'player' ? state.player : state.enemy).heroZones[lane]?.silenced;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,9 +222,37 @@ function locations(ctx: Ctx, exec: Exec, scope: TargetScope): { side: Side; lane
   }
 }
 
+/** True when the Unit at (side, lane) is Silenced (by an effect this round). */
+function isSilencedIn(ctx: Ctx, side: Side, lane: LaneId): boolean {
+  return !!unitAt(ctx, side, lane)?.silenced;
+}
+
+/** Side-effect-free immunity check for auras: an always-on (not once-per-round) GRANT_IMMUNITY of `kind` whose conditions hold. */
+function hasImmunity(ctx: Ctx, side: Side, lane: LaneId, kind: 'SPELL' | 'HERO_EFFECT'): boolean {
+  const unit = unitAt(ctx, side, lane);
+  if (!unit || unit.silenced) return false;
+  const exec: Exec = { owner: side, kind: 'hero', lane, instanceId: unit.instanceId, name: unit.name };
+  return getCombatCard(unit.cardId).abilities.some(
+    (a) => a.trigger === 'PASSIVE' && !a.oncePerRound && a.actions.some((x) => x.type === 'GRANT_IMMUNITY' && x.immunity === kind && x.target === 'SELF') && conditionsHold(ctx, exec, a.conditions),
+  );
+}
+
+/**
+ * The Unit's printed Shield (a PASSIVE GRANT_SHIELD on SELF) is ready: not used yet and its conditions met. Silence does
+ * not take it away: a Shield is a state the Unit carries (as a Shield granted by an effect is), not an effect it uses.
+ */
+function printedShieldReady(ctx: Ctx, side: Side, lane: LaneId): boolean {
+  const unit = unitAt(ctx, side, lane);
+  if (!unit || unit.printedShieldUsed) return false;
+  const exec: Exec = { owner: side, kind: 'hero', lane, instanceId: unit.instanceId, name: unit.name };
+  return getCombatCard(unit.cardId).abilities.some(
+    (a) => a.trigger === 'PASSIVE' && a.actions.some((x) => x.type === 'GRANT_SHIELD' && x.target === 'SELF') && conditionsHold(ctx, exec, a.conditions),
+  );
+}
+
 function passiveAbilities(ctx: Ctx, side: Side, lane: LaneId): { ability: CombatAbility; unit: HeroInstance }[] {
   const unit = unitAt(ctx, side, lane);
-  if (!unit || unit.silenced) return [];
+  if (!unit || isSilencedIn(ctx, side, lane)) return [];
   const exec: Exec = { owner: side, kind: 'hero', lane, instanceId: unit.instanceId, name: unit.name };
   return getCombatCard(unit.cardId)
     .abilities.filter((a) => a.trigger === 'PASSIVE' && conditionsHold(ctx, exec, a.conditions))
@@ -191,7 +275,7 @@ export function passiveEffectStates(state: GameState, side: Side): Map<string, M
     const states = new Map<number, boolean>();
     getCombatCard(unit.cardId).abilities.forEach((ability, index) => {
       if (ability.trigger !== 'PASSIVE' || !ability.conditions?.length) return;
-      states.set(index, !unit.silenced && conditionsHold(ctx, exec, ability.conditions));
+      states.set(index, !isSilencedIn(ctx, side, lane) && conditionsHold(ctx, exec, ability.conditions));
     });
     if (states.size > 0) out.set(unit.instanceId, states);
   }
@@ -470,13 +554,13 @@ function takeFromGrave(ctx: Ctx, side: Side, index: number): string {
  * Picks a Graveyard copy for a return effect. Copies that already returned once are not eligible (the
  * once-per-copy rule); when the only matching copies are marked, the return is blocked and logged.
  */
-function pickFromGrave(ctx: Ctx, side: Side, maxPower: number | null | undefined, pick: GraveyardPick, faction: Faction | undefined, cardType: 'hero' | 'spell', sourceName: string, onlyUnmarked = true): number {
+function pickFromGrave(ctx: Ctx, side: Side, maxPower: number | null | undefined, pick: GraveyardPick, faction: Faction | undefined, cardType: 'hero' | 'spell', sourceName: string, onlyUnmarked = true, excludeCardId?: string): number {
   const p = playerOf(ctx, side);
   const marks = meta(ctx).graveMarks[side];
   const limit = maxPower === null || maxPower === undefined ? Infinity : maxPower;
   const matching = p.graveyard
     .map((cardId, index) => ({ cardId, index, card: getCombatCard(cardId) }))
-    .filter((e) => e.card.type === cardType && (e.card.power ?? Infinity) <= limit && (!faction || e.card.faction === faction));
+    .filter((e) => e.card.type === cardType && e.cardId !== excludeCardId && (e.card.power ?? Infinity) <= limit && (!faction || e.card.faction === faction));
   const eligible = onlyUnmarked ? matching.filter((e) => !marks[e.index]) : matching;
   if (eligible.length === 0) {
     if (matching.length > 0) push(ctx, { type: 'RETURN_BLOCKED', side, cardId: matching[0].cardId, name: matching[0].card.name, sourceName });
@@ -604,7 +688,9 @@ function execute(ctx: Ctx, action: CombatAction, exec: Exec): void {
       }
       return;
     case 'RETURN_TO_HAND': {
-      const idx = pickFromGrave(ctx, exec.owner, action.maxPower, action.pick, action.faction, action.cardType ?? 'hero', exec.name);
+      // "Other": never a copy of the card whose effect this is (Mira cannot return Mira).
+      const self = action.excludeSelf ? (exec.deathCardId ?? (exec.lane ? unitAt(ctx, exec.owner, exec.lane)?.cardId : undefined)) : undefined;
+      const idx = pickFromGrave(ctx, exec.owner, action.maxPower, action.pick, action.faction, action.cardType ?? 'hero', exec.name, true, self);
       if (idx >= 0) returnToHand(ctx, exec.owner, idx);
       return;
     }
@@ -735,7 +821,7 @@ function runAbilities(ctx: Ctx, abilities: CombatAbility[], trigger: Trigger, ex
 
 function dispatchUnit(ctx: Ctx, side: Side, lane: LaneId, trigger: Trigger, death?: { cardId: string; lane: LaneId }): void {
   const unit = unitAt(ctx, side, lane);
-  if (!unit || unit.silenced) return;
+  if (!unit || isSilencedIn(ctx, side, lane)) return;
   runAbilities(ctx, getCombatCard(unit.cardId).abilities, trigger, { owner: side, kind: 'hero', lane, instanceId: unit.instanceId, name: unit.name, deathCardId: death?.cardId, deathLane: death?.lane }, { holder: unit, zone: 'hero' });
 }
 
@@ -764,7 +850,7 @@ interface Dead {
   marked: boolean;
 }
 
-function removeUnit(ctx: Ctx, side: Side, lane: LaneId): Dead | null {
+function removeUnit(ctx: Ctx, side: Side, lane: LaneId, silencedAtDeath?: boolean): Dead | null {
   const unit = unitAt(ctx, side, lane);
   if (!unit) return null;
   if (unit.shielded) {
@@ -772,13 +858,27 @@ function removeUnit(ctx: Ctx, side: Side, lane: LaneId): Dead | null {
     push(ctx, { type: 'SHIELD_CONSUMED', side, instanceId: unit.instanceId, name: unit.name, lane });
     return null;
   }
-  playerOf(ctx, side).heroZones[lane] = null;
+  if (printedShieldReady(ctx, side, lane)) {
+    unit.printedShieldUsed = true;
+    push(ctx, { type: 'SHIELD_CONSUMED', side, instanceId: unit.instanceId, name: unit.name, lane });
+    return null;
+  }
+  const silenced = silencedAtDeath ?? isSilencedIn(ctx, side, lane);
+  const p = playerOf(ctx, side);
+  p.heroZones[lane] = null;
   if (!unit.token) {
     pushGrave(ctx, side, unit.cardId, !!unit.returned);
     meta(ctx).died[side] = true;
   }
   push(ctx, { type: 'HERO_DESTROYED', side, instanceId: unit.instanceId, cardId: unit.cardId, name: unit.name, lane, ...(unit.token ? { token: true } : {}) });
-  return { side, lane, cardId: unit.cardId, name: unit.name, silenced: unit.silenced, token: !!unit.token, marked: !!unit.returned };
+  // An Attached Spell leaves play with its Unit: to the Graveyard, and the lane's Spell zone is free.
+  const zone = p.spellZones[lane];
+  if (zone?.boundTo === unit.instanceId) {
+    p.spellZones[lane] = null;
+    pushGrave(ctx, side, zone.cardId, !!zone.returned);
+    push(ctx, { type: 'SPELL_EXPIRED', side, instanceId: zone.instanceId, cardId: zone.cardId, name: zone.name, lane, unitName: unit.name });
+  }
+  return { side, lane, cardId: unit.cardId, name: unit.name, silenced, token: !!unit.token, marked: !!unit.returned };
 }
 
 function belowDeathLine(ctx: Ctx): { side: Side; lane: LaneId }[] {
@@ -789,10 +889,12 @@ function belowDeathLine(ctx: Ctx): { side: Side; lane: LaneId }[] {
 
 function destroyAndChain(ctx: Ctx, entries: { side: Side; lane: LaneId }[]): void {
   const queue: Dead[] = [];
-  for (const e of entries) {
-    const dead = removeUnit(ctx, e.side, e.lane);
+  // Silence is read before anything leaves.
+  const silencedNow = entries.map((e) => isSilencedIn(ctx, e.side, e.lane));
+  entries.forEach((e, i) => {
+    const dead = removeUnit(ctx, e.side, e.lane, silencedNow[i]);
     if (dead) queue.push(dead);
-  }
+  });
   let guard = 0;
   while (queue.length > 0) {
     if (guard++ >= 64) {
@@ -825,12 +927,16 @@ function sweep(ctx: Ctx): void {
 // Legality
 // ---------------------------------------------------------------------------
 
-/** Same-lane DESTROY / STALL / DESTROY_SPELL_ZONE / PACIFY Spells need something to hit (thresholds read as ATK). */
-export function cardSpellHasTarget(state: GameState, side: Side, card: CombatCard, lane: LaneId): boolean {
+/**
+ * Same-lane DESTROY / STALL / DESTROY_SPELL_ZONE / PACIFY Spells need something to hit (thresholds read as ATK), and an
+ * Attached Spell needs your Unit in its lane: one already in play, or one in `plannedUnitLanes` (placed this round).
+ */
+export function cardSpellHasTarget(state: GameState, side: Side, card: CombatCard, lane: LaneId, plannedUnitLanes: Iterable<LaneId> = []): boolean {
   const foe = opposite(side);
   const zonesOf = (s: Side) => (s === 'player' ? state.player : state.enemy);
+  if (isAttachedSpell(card.id) && !zonesOf(side).heroZones[lane] && ![...plannedUnitLanes].includes(lane)) return false;
   for (const ability of card.abilities) {
-    if (ability.trigger !== 'ON_PLAY') continue;
+    if (ability.trigger !== 'CAST') continue;
     for (const action of ability.actions) {
       if (isPacify(action)) {
         if (action.target === 'ENEMY_SAME_LANE' && !zonesOf(foe).heroZones[lane]) return false;
@@ -858,6 +964,7 @@ export function validateCardDeployment(state: GameState, side: Side, action: Pla
   const usedHand = new Set<string>();
   const unitLanes = new Set<LaneId>();
   const spellLanes = new Set<LaneId>();
+  const plannedUnitLanes = action.plays.filter((play) => getCombatCard(play.cardId).type === 'hero').map((play) => play.lane);
   for (const play of action.plays) {
     if (usedHand.has(play.handId)) return { legal: false, reason: `Hand card ${play.handId} used twice` };
     usedHand.add(play.handId);
@@ -870,7 +977,7 @@ export function validateCardDeployment(state: GameState, side: Side, action: Pla
     } else {
       if (spellLanes.has(play.lane)) return { legal: false, reason: `Spell lane ${play.lane} targeted twice` };
       if (card.spellKind === 'CONTINUOUS' && p.spellZones[play.lane]) return { legal: false, reason: `Spell lane ${play.lane} already holds a Continuous Spell` };
-      if (!cardSpellHasTarget(state, side, card, play.lane)) return { legal: false, reason: `${card.name} has no valid target in ${play.lane}` };
+      if (!cardSpellHasTarget(state, side, card, play.lane, plannedUnitLanes)) return { legal: false, reason: isAttachedSpell(card.id) ? `${card.name} needs your Unit in ${play.lane}` : `${card.name} has no valid target in ${play.lane}` };
       spellLanes.add(play.lane);
     }
   }
@@ -1029,6 +1136,14 @@ export function resolveCardRound(state: GameState, playerAction: PlayerAction, e
     }
   }
   push(ctx, { type: 'REVEAL', handRemovals, placements });
+  // Attached Spells attach to the Unit in their lane as it stands after the reveal.
+  for (const side of SIDES) {
+    const p = playerOf(ctx, side);
+    for (const lane of LANES) {
+      const zone = p.spellZones[lane];
+      if (zone && !zone.boundTo && isAttachedSpell(zone.cardId) && playFor(side, lane, 'spell') && p.heroZones[lane]) zone.boundTo = p.heroZones[lane]!.instanceId;
+    }
+  }
 
   // 2. Spells, left to right; initiative breaks lane ties.
   for (const lane of LANES) {
@@ -1041,38 +1156,26 @@ export function resolveCardRound(state: GameState, playerAction: PlayerAction, e
         const echo = m.spellsThisRound[side] === 0 ? spellEchoSource(ctx, side) : null;
         if (echo) push(ctx, { type: 'TRIGGER', side, sourceName: echo, trigger: 'PASSIVE', label: TRIGGER_LABEL.PASSIVE });
         const before = ctx.events.length;
-        for (let pass = 0; pass < (echo ? 2 : 1); pass++) runAbilities(ctx, card.abilities, 'ON_PLAY', exec);
+        for (let pass = 0; pass < (echo ? 2 : 1); pass++) runAbilities(ctx, card.abilities, 'CAST', exec);
         pushGrave(ctx, side, card.id, returnedHand.has(play.handId));
         m.spellsThisRound[side] += 1;
         push(ctx, { type: 'SPELL_RESOLVED', side, lane, cardId: card.id, name: card.name, fizzled: ctx.events.length === before });
       } else {
         m.spellsThisRound[side] += 1;
         const zone = playerOf(ctx, side).spellZones[lane];
-        if (zone) push(ctx, { type: 'ON_PLAY', side, instanceId: zone.instanceId, cardId: card.id, name: card.name, lane, zone: 'spell' });
-        dispatchZone(ctx, side, lane, 'ON_PLAY');
+        const holder = zone?.boundTo ? unitAt(ctx, side, lane) : null;
+        if (zone) push(ctx, { type: 'SPELL_ENTERED', side, instanceId: zone.instanceId, cardId: card.id, name: card.name, lane, ...(holder ? { attachedTo: { instanceId: holder.instanceId, name: holder.name } } : {}) });
       }
       for (const l of LANES) for (const sd of SIDES) dispatchUnit(ctx, sd, l, sd === side ? 'ON_ALLY_SPELL_PLAYED' : 'ON_ENEMY_SPELL_PLAYED');
     }
   }
   sweep(ctx);
 
-  // 3. Unit On Play
-  for (const lane of LANES) {
-    for (const side of order) {
-      if (!playFor(side, lane, 'hero')) continue;
-      const unit = unitAt(ctx, side, lane);
-      if (!unit) continue;
-      push(ctx, { type: 'ON_PLAY', side, instanceId: unit.instanceId, cardId: unit.cardId, name: unit.name, lane, zone: 'hero' });
-      dispatchUnit(ctx, side, lane, 'ON_PLAY');
-    }
-  }
-  sweep(ctx);
-
-  // 4. Before Combat, in initiative order (ozi, 2026-09-29): the side with initiative resolves first in each
+  // 3. Before Combat, in initiative order (ozi, 2026-09-29): the side with initiative resolves first in each
   // lane, so the last word on a close contest alternates by round instead of always going to the enemy.
   dispatchAll(ctx, 'BEFORE_COMBAT', order);
 
-  // 5. Combat: higher effective ATK wins and stays; the loser is destroyed and its player takes the ATK
+  // 4. Combat: higher effective ATK wins and stays; the loser is destroyed and its player takes the ATK
   //    difference as Clash Damage; a tie destroys both with no Player damage; an unopposed Unit hits the
   //    opposing player for its full ATK. Lanes resolve left to right; no Unit ever takes damage.
   const losers: { side: Side; lane: LaneId }[] = [];
@@ -1141,7 +1244,7 @@ export function resolveCardRound(state: GameState, playerAction: PlayerAction, e
   }
   if (losers.length > 0) destroyAndChain(ctx, losers);
 
-  // 6-8. After Combat, Round End, then this-round effects expire.
+  // 5-7. After Combat, Round End, then this-round effects expire.
   dispatchAll(ctx, 'AFTER_COMBAT');
   dispatchAll(ctx, 'ROUND_END');
   delete m.clashShield;
@@ -1166,7 +1269,7 @@ export function resolveCardRound(state: GameState, playerAction: PlayerAction, e
   push(ctx, { type: 'ROUND_END', round });
   ctx.state.round = round + 1;
 
-  // 9. Win check: 0 HP loses (both at once is a draw); an exhausted board or the round cap is a draw.
+  // 8. Win check: 0 HP loses (both at once is a draw); an exhausted board or the round cap is a draw.
   const playerDead = ctx.state.player.hp <= 0;
   const enemyDead = ctx.state.enemy.hp <= 0;
   if (playerDead || enemyDead) {

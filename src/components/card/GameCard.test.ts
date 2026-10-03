@@ -54,7 +54,8 @@ describe('Royal Guard reads without Card Inspect', () => {
     const html = inBattle(createElement(HandCard, handProps(ROYAL_GUARD)));
     const t = text(html);
     expect(t).toContain('Royal Guard ATK 113');
-    expect(t).toContain('On Play: Adjacent allies +15 ATK.');
+    expect(t).toContain('Passive: Adjacent allies +15 ATK.');
+    expect(t).toContain('Destroyed: Adjacent allies gain +15 ATK.');
     expect(t).toContain('Passive: Spell Immune with Kingdom ally.');
     expect(t).not.toContain('+77');
     expect(html).toContain('game-card d-hand');
@@ -64,10 +65,11 @@ describe('Royal Guard reads without Card Inspect', () => {
 
   it('on the board: both effects, current ATK, whether the immunity is on, and no Unit health', () => {
     const guard = unit(ROYAL_GUARD);
-    const html = inBattle(createElement(BoardChit, { hero: guard, side: 'player', onClick: () => {} }), 'card', new Map([[guard.instanceId, new Map([[1, true]])]]));
+    const html = inBattle(createElement(BoardChit, { hero: guard, side: 'player', onClick: () => {} }), 'card', new Map([[guard.instanceId, new Map([[2, true]])]]));
     const t = text(html);
     expect(t).toContain('Royal Guard ATK 113');
-    expect(t).toContain('On Play: Adjacent allies +15 ATK.');
+    expect(t).toContain('Passive: Adjacent allies +15 ATK.');
+    expect(t).toContain('Destroyed: Adjacent allies gain +15 ATK.');
     expect(t).toContain('Passive: Spell Immune with Kingdom ally.');
     expect(html).toContain('gc-state on');
     expect(html).toContain('aria-label="active now"');
@@ -86,7 +88,7 @@ describe('Royal Guard reads without Card Inspect', () => {
     const hpc = printedStats(getCard(ROYAL_GUARD))!.hpc;
     const tile = text(face(ROYAL_GUARD, 'tile', { hpContribution: hpc }));
     expect(tile).toContain(`Royal Guard HP +${hpc} ATK 113`);
-    expect(tile).toContain('On Play: Adjacent allies +15 ATK. Passive: Spell Immune with Kingdom ally.');
+    expect(tile).toContain('Passive: Adjacent allies +15 ATK. Destroyed: Adjacent allies gain +15 ATK. Passive: Spell Immune with Kingdom ally.');
     const inspect = text(face(ROYAL_GUARD, 'inspect', { hpContribution: hpc }));
     expect(inspect).toContain(`HP +${hpc} ATK 113`);
     for (const density of ['hand', 'board'] as const) expect(text(face(ROYAL_GUARD, density)), density).not.toContain(`+${hpc}`);
@@ -130,13 +132,13 @@ describe('every surface shares one effect model and never drops an effect', () =
     }
   });
 
-  /** Effects that share a label read as one paragraph under it; a one-time Spell's On Play carries no label. */
+  /** Effects that share a label read as one paragraph under it; a one-time Spell's effect (Cast) carries no label. */
   function paragraphs(cardId: string, wording: 'compact' | 'board', rules: CardRules = 'card') {
     const card = getCard(cardId);
     const out: string[] = [];
     let last = '';
     for (const e of cardEffects(cardId, { rules })) {
-      const implied = card.type === 'spell' && card.spellKind !== 'CONTINUOUS' && e.trigger === 'ON_PLAY';
+      const implied = card.type === 'spell' && card.spellKind !== 'CONTINUOUS' && (e.trigger === 'CAST' || e.trigger === 'ON_PLAY');
       const lead = implied ? '' : `${e.label}: `;
       if (out.length > 0 && lead === last) out[out.length - 1] += ` ${e[wording]}`;
       else out.push(`${lead}${e[wording]}`);
@@ -166,20 +168,19 @@ describe('every surface shares one effect model and never drops an effect', () =
         if (effects.length === 0) expect(board, card.id).toContain('No effect');
       }
     }
-    expect(multi).toBeGreaterThanOrEqual(25);
+    expect(multi).toBeGreaterThanOrEqual(24);
     expect(grouped).toBeGreaterThanOrEqual(5);
   });
 
   it('effects that share a label read as one paragraph under it', () => {
     const html = face('kng-light-priest', 'hand');
-    expect(text(html)).toContain('On Play: Restore 135 HP. Gain a Shield. Your Spell: +15 ATK this round.');
-    expect(html.match(/class="gc-when"/g)).toHaveLength(2);
+    expect(text(html)).toContain('Shield: Survives being destroyed once. Round End: Restore 45 HP. Your Spell: +15 ATK this round.');
+    expect(html.match(/class="gc-when"/g)).toHaveLength(3);
     expect(text(face('und-vharos', 'board'))).toContain('Destroyed: Revive here with 95 ATK. Gain a random Graveyard Undead.');
   });
 
   it('the board drops a phrase that stops mattering once the card is in play', () => {
-    expect(text(face('und-mira', 'hand'))).toContain('On Play: With 4 or fewer in hand, gain weakest Graveyard Undead.');
-    expect(text(face('und-mira', 'board'))).toContain('On Play: Gain weakest Graveyard Undead.');
+    expect(text(face('und-mira', 'hand'))).toContain('Destroyed: Gain your weakest other Graveyard Undead.');
     expect(text(face('und-shade-thief', 'hand'))).toContain('from next round');
     expect(text(face('und-shade-thief', 'board'))).not.toContain('from next round');
   });
@@ -189,12 +190,13 @@ describe('every surface shares one effect model and never drops an effect', () =
     expect(vael).toContain('Passive: Your first one-time Spell each round repeats.');
     expect(vael).toContain('Your 2nd Spell: Deal 90 damage.');
     expect(vael).toContain('Round End: If hand is empty, gain a Graveyard Spell.');
-    expect(text(face('inf-runebreaker', 'board'))).toContain('On Play: Destroy enemy Continuous Spell here. Passive: Spell Immune with Mage Slayer ally. Enemy’s 2nd Spell: Deal 90 damage.');
+    expect(text(face('inf-runebreaker', 'board'))).toContain('Clash: Destroy enemy Continuous Spell here. Passive: Spell Immune with Mage Slayer ally. Enemy’s 2nd Spell: Deal 90 damage.');
+    expect(text(face('kng-royal-guard', 'hand'))).toContain('Passive: Adjacent allies +15 ATK.');
   });
 
   it('the Legendary Paladin shows Shield, Guard 3 and its heal, each with its timing', () => {
     const t = text(face('kng-paladin', 'board'));
-    expect(t).toContain('On Play: Gain a Shield.');
+    expect(t).toContain('Shield: Survives being destroyed once.');
     expect(t).toContain('Guard 3: +45 ATK this round if losing.');
     expect(t).toContain('Enemy Falls: If it fell here, restore 45 HP.');
   });
@@ -216,18 +218,19 @@ describe('Spells use the same card', () => {
     expect(html).toContain('game-card d-spell');
   });
 
-  it('a Spell names its kind where a Unit shows ATK, and a one-time Spell reads without an "On Play" label', () => {
+  it('a Spell names its kind where a Unit shows ATK, and a one-time Spell reads without a timing label', () => {
     const fireballHtml = face('spl-fireball', 'hand');
     const fireball = text(fireballHtml);
     expect(fireball).toContain('Fireball Spell Enemy here −60 ATK. With their Continuous Spell here, it becomes 50 ATK instead.');
-    expect(fireball).not.toContain('On Play');
+    expect(fireball).not.toMatch(/On Play|Cast:/);
     expect(fireballHtml).not.toContain('gc-atk');
     expect(face('spl-fireball', 'tile')).not.toContain('gc-hpc');
     const ground = face('spl-cursed-ground', 'hand');
     expect(ground).toMatch(/class="gc-stat gc-kind-stat"><span class="gc-stat-label">Continuous<\/span>/);
     expect(text(ground)).toContain('Enemy Falls: Your Unit here +15 ATK.');
     expect(text(face('spl-cursed-ground', 'inspect'))).toContain('Continuous Spell');
-    expect(text(face('spl-battle-banner', 'tile'))).toContain('Continuous Passive: Your Unit here +15 ATK.');
+    expect(text(face('spl-battle-banner', 'tile'))).toContain('Attached Passive: Attached Unit +15 ATK.');
+    expect(text(face('spl-battle-banner', 'inspect'))).toContain('Attached Spell');
   });
 });
 
@@ -257,17 +260,18 @@ describe('live ATK and effect state', () => {
   }
 
   it('Royal Guard’s Spell immunity reads active only while another Kingdom Unit is in play, and never while silenced', () => {
-    expect(passiveEffectStates(boardWith([{ side: 'player', lane: 'center', cardId: ROYAL_GUARD }]), 'player').get('player-center')?.get(1)).toBe(false);
+    // Royal Guard's immunity is its third ability (index 2): Passive aura, Destroyed, Passive immunity.
+    expect(passiveEffectStates(boardWith([{ side: 'player', lane: 'center', cardId: ROYAL_GUARD }]), 'player').get('player-center')?.get(2)).toBe(false);
     const both = boardWith([
       { side: 'player', lane: 'center', cardId: ROYAL_GUARD },
       { side: 'player', lane: 'left', cardId: 'kng-common-knight' },
     ]);
-    expect(passiveEffectStates(both, 'player').get('player-center')?.get(1)).toBe(true);
+    expect(passiveEffectStates(both, 'player').get('player-center')?.get(2)).toBe(true);
     const hushed = boardWith([
       { side: 'player', lane: 'center', cardId: ROYAL_GUARD, silenced: true },
       { side: 'player', lane: 'left', cardId: 'kng-common-knight' },
     ]);
-    expect(passiveEffectStates(hushed, 'player').get('player-center')?.get(1)).toBe(false);
+    expect(passiveEffectStates(hushed, 'player').get('player-center')?.get(2)).toBe(false);
     expect(passiveEffectStates(both, 'player').get('player-left')).toBeUndefined();
   });
 
@@ -322,7 +326,7 @@ describe('the focused card detail', () => {
     expect(t).toContain('113');
     expect(t).toContain('HP Contribution');
     expect(t).toContain('+77');
-    expect(t).toContain('Adjacent allied Units gain +15 ATK for the rest of the battle.');
+    expect(t).toContain('Adjacent allied Units have +15 ATK.');
     expect(t).toContain('While another Kingdom Unit is in play, enemy Spells can’t affect this Unit.');
     expect(t).toContain('Battle Banner');
     expect(t).toContain('Inspect');
@@ -340,7 +344,7 @@ describe('Card Inspect and the card viewer', () => {
   it('outside battle a tap opens the focused detail, with an Inspect action', () => {
     const t = text(renderToStaticMarkup(createElement(CardViewer, { cardId: ROYAL_GUARD, context: 'collection', onClose: () => {} })));
     expect(t).toContain('Royal Guard');
-    expect(t).toContain('Adjacent allied Units gain +15 ATK for the rest of the battle.');
+    expect(t).toContain('Adjacent allied Units have +15 ATK.');
     expect(t).toContain('Inspect');
   });
 
@@ -351,7 +355,7 @@ describe('Card Inspect and the card viewer', () => {
     expect(t).toContain('113 ATK');
     expect(t).toContain(`+${hpc} HP`);
     expect(t).toContain('HP Contribution');
-    expect(t).toContain('Adjacent allied Units gain +15 ATK for the rest of the battle.');
+    expect(t).toContain('Adjacent allied Units have +15 ATK.');
     expect(t).not.toContain('Card Mastery');
     expect(t).not.toMatch(/Mastery [IV]+|\+(5|10|15|20)%|never changes ATK|Next Mastery/);
     expect(t).not.toMatch(/\bPower\b|\bHero\b/);

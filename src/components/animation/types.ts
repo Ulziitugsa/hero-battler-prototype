@@ -34,6 +34,7 @@ export type VisualType =
   | 'immunity-blocked'
   | 'silenced'
   | 'spell-zone-destroyed'
+  | 'spell-expired'
   | 'spell-resolve-fade'
   | 'returned-to-hand'
   | 'returned-to-deck'

@@ -3,6 +3,7 @@ import { getCard } from '../game/cards';
 import { useBattleCardDisplay } from './combatDisplay';
 import type { ChitVisual } from './animation/chitEffects';
 import { GameCard } from './card/GameCard';
+import { isAttachedSpell } from '../game/cardCombat/cards';
 
 /**
  * A Spell zone's filled state: the shared card face (GameCard, spell density), a wide strip with the Spell's name and
@@ -19,14 +20,17 @@ export function SpellZoneChit({ spell, side, anim, disabled, focused, onClick }:
   const ready = !continuous && mine; // a staged one-time Spell, ready to resolve on Fight
   const display = useBattleCardDisplay();
   const staged = spell.instanceId.startsWith('pending-');
+  // Card combat: an Attached Spell belongs to the Unit in its lane and leaves with it.
+  const attached = continuous && (display?.rules ?? 'card') === 'card' && isAttachedSpell(spell.cardId);
+  const kind = attached ? 'Attached Spell' : continuous ? 'Continuous Spell' : 'Spell';
 
   return (
     <button
       type="button"
-      className={`zone-card spell-zone-card card-face ${mine ? 'mine' : 'theirs'} ${continuous ? 'clamped' : 'floating'} ${focused ? 'is-focused' : ''} ${anim?.className ?? ''}`}
+      className={`zone-card spell-zone-card card-face ${mine ? 'mine' : 'theirs'} ${continuous ? 'clamped' : 'floating'} ${attached ? 'is-attached' : ''} ${focused ? 'is-focused' : ''} ${anim?.className ?? ''}`}
       onClick={onClick}
       disabled={disabled}
-      aria-label={`${card.name}, ${continuous ? 'Continuous Spell' : 'Spell'}.${staged ? ' Tap to take it back.' : ' Tap for details.'}`}
+      aria-label={`${card.name}, ${kind}.${staged ? ' Tap to take it back.' : ' Tap for details.'}`}
     >
       <GameCard cardId={spell.cardId} density="spell" rules={display?.rules ?? 'card'} name={spell.shortName} />
       {ready && <span className="zone-card-ready">Ready</span>}

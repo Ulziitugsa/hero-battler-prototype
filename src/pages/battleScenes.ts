@@ -3,9 +3,9 @@ import { beginCardRound, createCardMatch, resolveCardRound } from '../game/cardC
 
 /**
  * QA scenes for the dev-only ?battleScene= page (BattleSceneLabPage): a card-combat battle played through the real
- * resolver to the start of round 2 or 3, with set hands. Round 2 opens with Royal Guard in hand beside Battle Banner's
- * lane; round 3 has Royal Guard on the board under the Banner and a revived Vharos across the board, with Legendary
- * Paladin in hand (scene 3) or Archmage Vael (scene vael).
+ * resolver to the start of round 2 or 3, with set hands. Round 1 attaches Battle Banner to a Knight in the center; round
+ * 2 opens with Royal Guard in hand beside the Banner's lane; round 3 has Royal Guard's aura on the Knight under the
+ * Banner and a revived Vharos across the board, with Legendary Paladin in hand (scene 3) or Archmage Vael (scene vael).
  */
 
 export const PLAYER_DECK = ['kng-common-knight', 'kng-common-knight', 'kng-royal-guard', 'kng-royal-guard', 'kng-light-priest', 'kng-archer', 'kng-archer', 'kng-battle-captain', 'kng-paladin', 'kng-archmage-vael', 'kng-apprentice-mage', 'spl-battle-banner', 'spl-power-surge', 'spl-war-cry', 'spl-aegis-ward'];
@@ -23,19 +23,35 @@ export interface ScriptedRound {
 const ROUNDS: ScriptedRound[] = [
   {
     hands: { player: ['kng-common-knight', 'spl-battle-banner', 'kng-archer'], enemy: ['und-bone-soldier', 'und-dark-priest', 'spl-hush'] },
-    plays: { player: [['kng-common-knight', 'left'], ['spl-battle-banner', 'center']], enemy: [['und-bone-soldier', 'left'], ['und-dark-priest', 'right']] },
+    plays: { player: [['kng-common-knight', 'center'], ['spl-battle-banner', 'center']], enemy: [['und-bone-soldier', 'center'], ['und-dark-priest', 'right']] },
   },
   {
     hands: { player: ['kng-royal-guard', 'kng-light-priest', 'spl-power-surge'], enemy: ['und-vharos', 'und-cursed-warrior', 'spl-stasis-field'] },
-    plays: { player: [['kng-royal-guard', 'center'], ['kng-light-priest', 'right']], enemy: [['und-vharos', 'left'], ['und-cursed-warrior', 'center']] },
+    plays: { player: [['kng-royal-guard', 'left'], ['kng-light-priest', 'right']], enemy: [['und-vharos', 'center'], ['und-cursed-warrior', 'left']] },
   },
 ];
 
-/** Each scene: how many scripted rounds come first, and the hands its round starts with. */
-const SCENES: Record<string, { rounds: number; hands: Hands }> = {
+/**
+ * Scene "expire": an Attached Spell leaving with its Unit. Battle Banner goes onto Light Priest facing Vharos; the
+ * Priest's Shield saves it once, and in round 2 it falls, so the Banner expires and the center Spell slot is free again.
+ */
+const EXPIRE_ROUNDS: ScriptedRound[] = [
+  {
+    hands: { player: ['kng-light-priest', 'spl-battle-banner', 'kng-archer'], enemy: ['und-vharos', 'und-bone-soldier', 'spl-hush'] },
+    plays: { player: [['kng-light-priest', 'center'], ['spl-battle-banner', 'center']], enemy: [['und-vharos', 'center']] },
+  },
+  {
+    hands: { player: ['kng-common-knight', 'kng-archer', 'spl-power-surge'], enemy: ['und-bone-soldier', 'und-dark-priest', 'spl-hush'] },
+    plays: { player: [['kng-common-knight', 'left']], enemy: [['und-bone-soldier', 'left']] },
+  },
+];
+
+/** Each scene: the scripted rounds that come first, and the hands its round starts with. */
+const SCENES: Record<string, { rounds: number; hands: Hands; script?: ScriptedRound[] }> = {
   '2': { rounds: 1, hands: ROUNDS[1].hands },
   '3': { rounds: 2, hands: { player: ['kng-paladin', 'spl-aegis-ward', 'spl-war-cry'], enemy: ['und-bone-soldier', 'und-mira', 'spl-stasis-field'] } },
   vael: { rounds: 2, hands: { player: ['kng-archmage-vael', 'spl-power-surge', 'spl-aegis-ward'], enemy: ['und-bone-soldier', 'und-mira', 'spl-stasis-field'] } },
+  expire: { rounds: 2, script: EXPIRE_ROUNDS, hands: { player: ['kng-royal-guard', 'spl-fortify', 'spl-war-cry'], enemy: ['und-mira', 'und-cursed-warrior', 'spl-execute'] } },
 };
 
 function withHands(state: GameState, hands: Hands): GameState {
@@ -76,6 +92,6 @@ export function scriptedMatch({ playerDeck, enemyDeck, rounds, hands, seed = 202
 }
 
 export function buildBattleScene(scene: string): { state: GameState; events: GameEvent[] } {
-  const { rounds, hands } = SCENES[scene] ?? SCENES['2'];
-  return scriptedMatch({ playerDeck: PLAYER_DECK, enemyDeck: ENEMY_DECK, rounds: ROUNDS.slice(0, rounds), hands });
+  const { rounds, hands, script = ROUNDS } = SCENES[scene] ?? SCENES['2'];
+  return scriptedMatch({ playerDeck: PLAYER_DECK, enemyDeck: ENEMY_DECK, rounds: script.slice(0, rounds), hands });
 }

@@ -2,7 +2,7 @@ import type { AbilityDefinition, CardDefinition, Faction, Trigger } from '../typ
 import { getCard } from './index.js';
 import { KEYWORD_HELP, TIMING_HELP, TIMING_LABEL, cardEffectLines, type EffectKeyword } from './effectText.js';
 import { BATTLE_LINES, cardCombatEffectLines, trimTiming, type BattleCopy } from '../cardCombat/cardText.js';
-import { getCombatCard, hasCombatOverride } from '../cardCombat/cards.js';
+import { getCombatCard, hasCombatOverride, isAttachedSpell } from '../cardCombat/cards.js';
 import { atkFromPower, printedStats } from '../cardCombat/stats.js';
 import { CARD_ASCENSIONS } from '../ascension/definitions.js';
 import { effectiveAbilities } from '../ascension/effective.js';
@@ -13,7 +13,7 @@ import { effectiveAbilities } from '../ascension/effective.js';
 // writes effect wording.
 //
 // Every effect has two explicit wordings, authored side by side (never one cut down from the other):
-//  - `compact`: the battle line on every card face ("On Play: Adjacent allies +15 ATK.");
+//  - `compact`: the battle line on every card face ("Passive: Adjacent allies +15 ATK.");
 //  - `full`: the full rule, in the focus panel and Card Inspect.
 //
 // Two rule sets exist while the legacy resolver still plays some modes:
@@ -28,7 +28,7 @@ export type CardRules = 'card' | 'legacy';
 
 export interface CardEffect {
   trigger: Trigger;
-  /** What every surface prints before the effect: the timing label ("On Play", "Clash"), or a keyword that says more ("Guard 2", "Your 2nd Spell"). */
+  /** What every surface prints before the effect: the timing label ("Round End", "Clash"), or a keyword that says more ("Guard 2", "Your 2nd Spell"). */
   label: string;
   /** The trigger's own timing label, also where `label` is a keyword (Card Inspect shows both). */
   timing: string;
@@ -203,10 +203,10 @@ export function hasMasteryCopy(ability: AbilityDefinition): boolean {
 export const FACTION_NAME: Record<Faction, string> = { kingdom: 'Kingdom', undead: 'Undead', infernal: 'Infernal', wildborn: 'Wildborn' };
 export const RARITY_NAME = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' } as const;
 
-/** "Unit", "Token", "Spell" or "Continuous Spell". */
+/** "Unit", "Token", "Spell", "Continuous Spell" or "Attached Spell" (a Continuous Spell that belongs to one Unit). */
 export function cardKind(card: CardDefinition): string {
   if (card.type === 'hero') return card.role === 'Token' || card.tags.includes('Token') ? 'Token' : 'Unit';
-  return card.spellKind === 'CONTINUOUS' ? 'Continuous Spell' : 'Spell';
+  return card.spellKind === 'CONTINUOUS' ? (isAttachedSpell(card.id) ? 'Attached Spell' : 'Continuous Spell') : 'Spell';
 }
 
 /** "Unit · Knight", "Continuous Spell". */
@@ -243,7 +243,7 @@ export function cardKeywords(cardOrId: CardDefinition | string, options: CardEff
   const abilities: readonly { actions: readonly { type: string; immunity?: string }[] }[] = legacy ? effectiveAbilities(card.id, options.masteryRank ?? 0) : getCombatCard(card.id).abilities;
   const effects = cardEffects(card, options);
   const found = new Set<EffectKeyword>();
-  if (card.spellKind === 'CONTINUOUS') found.add('Continuous Spell');
+  if (card.spellKind === 'CONTINUOUS') found.add(isAttachedSpell(card.id) ? 'Attached Spell' : 'Continuous Spell');
   if (cardKind(card) === 'Token') found.add('Token');
   if (effects.some((effect) => /^Guard \d/.test(effect.label))) found.add('Guard');
   for (const ability of abilities) {

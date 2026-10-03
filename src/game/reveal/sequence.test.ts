@@ -34,11 +34,11 @@ describe('single timeline', () => {
   });
   it('schedules sound events in order: start, rarity cue, seal break, card reveal (+ featured)', () => {
     const sounds = (p: SeqPull[]) => buildTimeline(p).flatMap((s) => s.sounds);
-    expect(sounds(one('common'))).toEqual(['summon_start', 'seal_break', 'card_reveal']);
-    expect(sounds(one('rare'))).toEqual(['summon_start', 'rarity_rare', 'seal_break', 'card_reveal']);
-    expect(sounds(one('epic'))).toEqual(['summon_start', 'rarity_epic', 'seal_break', 'card_reveal']);
-    expect(sounds(one('legendary'))).toEqual(['summon_start', 'rarity_legendary', 'seal_break', 'card_reveal']);
-    expect(sounds(one('legendary', true))).toEqual(['summon_start', 'rarity_legendary', 'seal_break', 'card_reveal', 'featured_reveal']);
+    expect(sounds(one('common'))).toEqual(['reveal_start', 'seal_break', 'card_reveal']);
+    expect(sounds(one('rare'))).toEqual(['reveal_start', 'rarity_rare', 'seal_break', 'card_reveal']);
+    expect(sounds(one('epic'))).toEqual(['reveal_start', 'rarity_epic', 'seal_break', 'card_reveal']);
+    expect(sounds(one('legendary'))).toEqual(['reveal_start', 'rarity_legendary', 'seal_break', 'card_reveal']);
+    expect(sounds(one('legendary', true))).toEqual(['reveal_start', 'rarity_legendary', 'seal_break', 'card_reveal', 'featured_reveal']);
   });
   it('reduced motion shortens every beat but keeps the same phases and the rarity ordering', () => {
     for (const r of ['common', 'rare', 'epic', 'legendary'] as const) {

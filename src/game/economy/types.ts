@@ -6,7 +6,7 @@ export const ECONOMY_VERSION = 5;
 
 export const RARITIES: readonly Rarity[] = ['common', 'rare', 'epic', 'legendary'];
 
-/** One remembered pull. Card data is looked up from the card definitions, never stored. */
+/** One remembered pull of the retired Moonwell Summon (kept in saves, read-only). Card data is looked up from the card definitions, never stored. */
 export interface SummonHistoryEntry {
   cardId: string;
   rarity: Rarity;
@@ -18,23 +18,23 @@ export interface SummonHistoryEntry {
 }
 
 /**
- * Everything the player-economy owns, persisted as ONE document so a Summon's spend + pity + history
- * land in a single write. Cards are not here - they live in the collection store.
+ * Everything the player-economy owns, persisted as ONE document. Cards are not here - they live in the collection
+ * store, and a Box's remaining packs live in the Box store.
  */
 export interface PlayerEconomy {
   version: number;
   gems: number;
   /** Soft currency - Campaign wins, idle rewards, missions. (The old Card Mastery IV / V fee is retired and charges nothing.) */
   gold: number;
-  /** Earn-only Summon currency (missions, journey) - performs a Summon exactly like Gems, sharing the
-   * same per-banner pity/history (see summon/summon.ts's `paymentMethod`). Never purchasable. */
+  /** Pack Tickets: earn-only (missions, journey, offers); one opens one pack of a finite Box. Never purchasable. */
   tickets: number;
   /** One-time grants already paid, by id (see grantGoldOnce). Absent before v5 = none paid. */
   grants: string[];
+  /** The retired Moonwell Summon's record (legacySummon.ts): read, sanitised and saved unchanged, never written. */
   summon: {
     /** Pulls since the last Legendary, per banner id (0 .. pityThreshold - 1). A missing banner is 0. */
     pity: Record<string, number>;
-    /** Most recent first, capped at SUMMON_CONFIG.historyLimit. */
+    /** Most recent first, capped at LEGACY_SUMMON.historyLimit. */
     history: SummonHistoryEntry[];
   };
 }

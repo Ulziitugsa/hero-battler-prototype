@@ -18,7 +18,7 @@ import { PLAYTEST_ROSTER } from '../game/cards/roster';
 import { useDialogFocus } from '../components/useDialogFocus';
 import { getCard } from '../game/cards';
 import { track } from '../analytics/track';
-import { MOONFALL_BOX, getBoxProduct } from '../game/box/boxProduct';
+import { MOONFALL_BOX, getBoxProduct, hasOpenedPacks } from '../game/box/boxProduct';
 import { getPrototypeBoxState, prototypeBoxPacksRemaining, prototypeBoxRarityCounts, PROTOTYPE_BOX } from '../game/box/prototypeBox';
 import { STRUCTURE_DECKS, getStructureDeck } from '../game/structureDecks/definitions';
 import { getStructureDeckState, structureDeckPurchases, subscribeStructureDecks } from '../game/structureDecks/store';
@@ -79,13 +79,13 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
   const offersEnabled = getConfig().flags.offersEnabled;
 
   const progressed = PLAYTEST_ROSTER.some((id) => getAscensionRank(id, ascensions) > 0);
-  const summoned = economy.summon.history.length > 0;
+  const openedPacks = hasOpenedPacks(economy);
   const eligibleOffers = useMemo(() => offersEnabled ? OFFERS.filter((offer) => {
-    if (offer.id === 'starter-pack') return progressed || summoned;
+    if (offer.id === 'starter-pack') return progressed || openedPacks;
     if (offer.id === 'growth-pack') return progressed;
-    if (offer.id.startsWith('gem-pack-')) return summoned;
+    if (offer.id.startsWith('gem-pack-')) return openedPacks;
     return false;
-  }) : [], [progressed, summoned, offersEnabled]);
+  }) : [], [progressed, openedPacks, offersEnabled]);
   const featured = eligibleOffers.filter((offer) => offer.id === 'starter-pack' || offer.id === 'growth-pack');
   const gemPacks = eligibleOffers.filter((offer) => offer.id.startsWith('gem-pack-'));
 
@@ -183,14 +183,14 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
   return <main className="shop-screen">
     <header className="shop-header">
       <div><span className="shop-kicker">THE MOONWATER MARKET</span><h1>Shop</h1><p>Card Boxes, Structure Decks and supplies.</p></div>
-      <div className="shop-balances"><span><GemIcon size={16} />{economy.gems.toLocaleString()}</span><span><GoldIcon size={16} />{economy.gold.toLocaleString()}</span></div>
+      <div className="shop-balances">{economy.tickets > 0 && <span aria-label={`${economy.tickets} Pack ${economy.tickets === 1 ? 'Ticket' : 'Tickets'}`}><TicketIcon size={16} />{economy.tickets.toLocaleString()}</span>}<span><GemIcon size={16} />{economy.gems.toLocaleString()}</span><span><GoldIcon size={16} />{economy.gold.toLocaleString()}</span></div>
     </header>
 
-    <div className="shop-test-note"><Icon name="check" size={14} /> Prototype store · Boxes and Structure Decks use in-game Gems; bundles and Gem packs are simulated test purchases. No real money is charged.</div>
+    <div className="shop-test-note"><Icon name="check" size={14} /> Prototype store · Boxes and Structure Decks use in-game Gems (a Pack Ticket opens one pack); bundles and Gem bundles are simulated test purchases. No real money is charged.</div>
 
     <section className="shop-section shop-first-section" aria-labelledby="shop-box-title">
       <div className="shop-section-heading"><div><span className="shop-section-eyebrow">NEWEST BOX</span><h2 id="shop-box-title">Card Boxes</h2></div><span className="shop-section-note">Exact contents shown</span></div>
-      <button type="button" className="shop-box-feature" onClick={() => setView({ kind: 'box', id: MOONFALL_BOX.id })} aria-label={`${MOONFALL_BOX.name}: ${boxPacksLeft} of ${PROTOTYPE_BOX.packCount} packs remaining. View Box`}>
+      <button type="button" className="shop-box-feature" onClick={() => setView({ kind: 'box', id: MOONFALL_BOX.id })} aria-label={`${MOONFALL_BOX.name}: ${boxPacksLeft} of ${PROTOTYPE_BOX.packCount} packs remaining. Open packs`}>
         <span className="shop-box-art" aria-hidden="true"><span className="shop-box-moon" />{MOONFALL_BOX.bannerCardIds.map((id, index) => <span key={id} className={`shop-box-figure f${index}`}><CardArtwork cardId={id} /></span>)}</span>
         <span className="shop-box-copy">
           <span className="shop-product-type">MAIN BOX · {PROTOTYPE_BOX.cardsPerPack} CARDS PER PACK</span>
@@ -198,7 +198,7 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
           <span className="shop-box-theme">{MOONFALL_BOX.theme}</span>
           <span className="shop-box-status"><span><b>{boxPacksLeft}</b> / {PROTOTYPE_BOX.packCount} packs left</span><span>{boxLegendariesLeft} Legendary {boxLegendariesLeft === 1 ? 'copy' : 'copies'} inside</span></span>
           <span className="shop-box-meter"><span style={{ width: `${(boxPacksLeft / PROTOTYPE_BOX.packCount) * 100}%` }} /></span>
-          <span className="shop-box-cta"><span><GemIcon size={14} />{MOONFALL_BOX.gemsPerPack} / pack</span><span>View<Icon name="back" size={14} /></span></span>
+          <span className="shop-box-cta"><span>{economy.tickets > 0 ? <><TicketIcon size={14} />1 / pack</> : <><GemIcon size={14} />{MOONFALL_BOX.gemsPerPack} / pack</>}</span><span>Open Pack<Icon name="back" size={14} /></span></span>
         </span>
       </button>
     </section>
@@ -233,14 +233,14 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
           <div className="shop-featured-copy"><span className="shop-product-type">{offer.id === 'starter-pack' ? 'THE FIRST EXPEDITION' : 'ROSTER GROWTH'}</span><h3>{offer.title}</h3><p>{offer.subtitle}</p>{rewardContent(offer)}</div>
           <button type="button" className="shop-buy-button" onClick={() => chooseOffer(offer.id)}><span>{prices[offer.id] ?? 'Test'}</span><small>SIMULATE</small></button>
         </article>)}
-      </div> : <div className="shop-unlock-note"><Icon name="lock" size={18} /><span>Featured bundles appear as you progress and visit the Moonwell.</span></div>}
+      </div> : <div className="shop-unlock-note"><Icon name="lock" size={18} /><span>Featured bundles appear as you progress and open your first pack.</span></div>}
     </section>
 
     <section className="shop-section shop-secondary" aria-labelledby="shop-gems-title">
-      <div className="shop-section-heading"><div><span className="shop-section-eyebrow">MOONWELL CURRENCY</span><h2 id="shop-gems-title">Gem packs</h2></div><span className="shop-section-note">Simulated</span></div>
+      <div className="shop-section-heading"><div><span className="shop-section-eyebrow">PREMIUM CURRENCY</span><h2 id="shop-gems-title">Gem bundles</h2></div><span className="shop-section-note">Simulated</span></div>
       {gemPacks.length > 0 ? <div className="shop-gem-row">{gemPacks.map((offer) => <button type="button" key={offer.id} className={`shop-gem-card ${offer.id === 'gem-pack-medium' ? 'recommended' : ''}`} onClick={() => chooseOffer(offer.id)}>
         <span className="shop-gem-crystal"><GemIcon size={27} /></span><strong>{offer.reward.gems?.toLocaleString()}</strong><span className="shop-gem-name">{offer.title.replace('Small Gem Pouch', 'Small Pouch').replace('Gem Purse', 'Gem Purse').replace('Gem Chest', 'Large Chest')}</span><span className="shop-gem-price">{prices[offer.id] ?? 'Test'} · Test</span>
-      </button>)}</div> : <div className="shop-unlock-note"><Icon name="lock" size={18} /><span>Gem packs become available after your first Moonwell summon.</span></div>}
+      </button>)}</div> : <div className="shop-unlock-note"><Icon name="lock" size={18} /><span>Gem bundles become available after you open your first pack.</span></div>}
     </section>
 
     <section className="shop-section shop-secondary shop-trade-section" aria-labelledby="shop-trade-title">

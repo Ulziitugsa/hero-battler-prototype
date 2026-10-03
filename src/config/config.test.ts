@@ -60,7 +60,7 @@ describe('createLocalProvider - deep merge', () => {
     const cfg = getConfig();
     expect(cfg.economy.startingGems).toBe(500);
     expect(cfg.economy.startingGold).toBe(DEFAULT_CONFIG.economy.startingGold); // untouched
-    expect(cfg.summon).toEqual(DEFAULT_CONFIG.summon); // untouched section
+    expect(cfg.idle).toEqual(DEFAULT_CONFIG.idle); // untouched section
   });
   it('merges nested record fields (Record<string, number>) by replacement, not per-key merge - overrides ARE the record for that field', () => {
     setConfigProvider(createLocalProvider({ economy: { campaignFirstClearGems: { battle: 999 } } }));
@@ -92,10 +92,6 @@ describe('the schema shape covers every candidate value named in the brief', () 
     const cfg = getConfig();
     expect(cfg.economy.startingGems).toBeTypeOf('number');
     expect(cfg.economy.startingGold).toBeTypeOf('number');
-    expect(cfg.summon.singleGemCost).toBeTypeOf('number');
-    expect(cfg.summon.ticketCostSingle).toBeTypeOf('number');
-    expect(cfg.summon.pityThreshold).toBeTypeOf('number');
-    expect(cfg.summon.featuredMainMultiplier).toBeTypeOf('number');
     expect(cfg.economy.masteryGoldFee).toEqual([0, 0, 500, 1500]);
     expect(cfg.economy.campaignFirstClearGems).toBeTypeOf('object');
     expect(cfg.idle.goldPerHourBase).toBeTypeOf('number');

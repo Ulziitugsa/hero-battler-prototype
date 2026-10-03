@@ -256,3 +256,6 @@ button.tile { cursor: pointer; }
 .cf-stage .cf-art .cp-sigil { transform: scale(1.9); filter: drop-shadow(0 0 10px rgba(255, 226, 180, 0.5)); }
 .cf-stage .cf-art:not(:has(img))::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 30%, rgba(255, 240, 200, 0.28), transparent 60%), linear-gradient(180deg, transparent 55%, rgba(8, 3, 6, 0.5)); }
 .ritual.single .ritual-center { top: 42%; }
+
+/* Pack opening reuses the ritual; its heading takes the Shop's display face. */
+.ritual.pack-reveal .ritual-heading strong { font-family: var(--moon-display, Georgia, serif); font-weight: 400; }

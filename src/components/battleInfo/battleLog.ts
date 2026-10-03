@@ -7,7 +7,7 @@ import { ATK_PER_POWER } from '../../game/cardCombat/stats';
 
 /**
  * The battle log: what each effect and each clash actually did, one short line each, built from the round's own event
- * log. "Royal Guard — On Play: Battle Captain and Light Priest +15 ATK", "Clash Damage — Center: 35 to Enemy (Royal
+ * log. "Light Priest — Round End: Restored 45 HP", "Battle Banner — Expired: Its Unit left play", "Clash Damage — Center: 35 to Enemy (Royal
  * Guard 128 beat Bone Soldier 93)". It explains a resolution after the fact; it never decides anything, and it reads
  * the same events replay and animation do. Every battle mode has it: a legacy battle's lines speak ATK the way its
  * cards do (the ATK a Power reads as, cardPresentation.ts legacyAtk), and its clash lines name the winner without ATK
@@ -24,7 +24,7 @@ export interface BattleLogEntry {
   side: Side | null;
   /** The card that acted, or "Clash Damage" / "Tie" for a clash. */
   who: string;
-  /** The timing or keyword label ("On Play", "Guard 2", "Direct Attack"), or the lane for a clash. */
+  /** The timing or keyword label ("Round End", "Guard 2", "Direct Attack"), or the lane for a clash. */
   label?: string;
   /** What happened, in a few words. */
   text: string;
@@ -55,7 +55,7 @@ function triggerLabel(source: string, trigger: Trigger, rules: CardRules): strin
   const id = CARD_ID_BY_NAME.get(source);
   if (!id) return TIMING_LABEL[trigger];
   const card = definition(id, rules);
-  if (card.type === 'spell' && card.spellKind !== 'CONTINUOUS' && trigger === 'ON_PLAY') return 'Spell';
+  if (card.type === 'spell' && card.spellKind !== 'CONTINUOUS' && (trigger === 'CAST' || trigger === 'ON_PLAY')) return 'Spell';
   const labels = new Set(
     cardEffects(id, { rules })
       .filter((e) => e.trigger === trigger)
@@ -104,7 +104,7 @@ function isOneTimeSpell(source: string): boolean {
 }
 
 /** Events that close an effect's group: the next announcement, a clash, or a step of the round. */
-const GROUP_END = new Set<GameEvent['type']>(['TRIGGER', 'ON_PLAY', 'COMBAT', 'CLASH_DAMAGE', 'REVEAL', 'ROUND_START', 'ROUND_END', 'MATCH_END', 'TEMP_POWER_EXPIRED']);
+const GROUP_END = new Set<GameEvent['type']>(['TRIGGER', 'ON_PLAY', 'SPELL_ENTERED', 'COMBAT', 'CLASH_DAMAGE', 'REVEAL', 'ROUND_START', 'ROUND_END', 'MATCH_END', 'TEMP_POWER_EXPIRED']);
 
 /** Who stands in each lane as the log is read, so "is Spell Immune" can name the Unit. */
 class BoardNames {
@@ -246,6 +246,11 @@ function describeEffects(events: GameEvent[], source: string, side: Side, board:
  * The log entries for `events` (one round's reveal, or a whole match's log), in the order the round resolved.
  * `base` is the board before the first event, so a blocked effect can name the Unit that ignored it.
  */
+/** "Battle Banner — Expired: Its Unit left play": an Attached Spell went to the Graveyard with its Unit. */
+function expiredEntry(ev: Extract<GameEvent, { type: 'SPELL_EXPIRED' }>, start: number, until: number): BattleLogEntry {
+  return { key: `${start}x${ev.instanceId}`, until, kind: 'effect', side: ev.side, who: ev.name, label: 'Expired', text: `Its Unit left play (${ev.unitName})` };
+}
+
 export function battleLogEntries(events: GameEvent[], base?: GameState, rules: CardRules = 'card'): BattleLogEntry[] {
   const atkOf = (power: number | undefined) => (power === undefined ? 0 : rules === 'legacy' ? legacyAtk(power) : power);
   const entries: BattleLogEntry[] = [];
@@ -281,7 +286,29 @@ export function battleLogEntries(events: GameEvent[], base?: GameState, rules: C
       // A Unit or Continuous Spell whose effect found nothing to do (no enemy in its lane, nothing in the Graveyard)
       // leaves no row: the log keeps to what changed.
       if (text !== NO_EFFECT || isOneTimeSpell(ev.sourceName)) entries.push({ key: `${start}`, until: j - 1, kind: 'effect', side: ev.side, who: ev.sourceName, label: rowLabel(triggerLabel(ev.sourceName, ev.trigger, rules), ev.side), text });
+      // An Attached Spell that left with a Unit this effect destroyed gets its own line.
+      for (const e of caused) if (e.type === 'SPELL_EXPIRED') entries.push(expiredEntry(e, start, j - 1));
       i = j;
+      continue;
+    }
+    if (ev.type === 'SPELL_EXPIRED') {
+      entries.push(expiredEntry(ev, start, i));
+      i++;
+      continue;
+    }
+    if (ev.type === 'SPELL_ENTERED') {
+      // A Continuous Spell whose effect is always on (Battle Banner) never announces itself: say what it does once. An
+      // Attached Spell says which Unit it went onto.
+      const always = cardEffects(ev.cardId, { rules }).filter((e) => e.trigger === 'CONTINUOUS');
+      const holder = ev.attachedTo?.name;
+      if (holder) {
+        const text = always.length > 0 ? always.map((e) => `${holder} ${e.compact.replace(/^Attached Unit\s*/, '').replace(/\.$/, '')}`).join(', ') : `To ${holder}`;
+        entries.push({ key: `${start}`, until: i, kind: 'effect', side: ev.side, who: ev.name, label: 'Attached', text });
+      } else if (always.length > 0) {
+        const text = always.map((e) => e.compact.replace(/^Your Unit here/, 'Unit here').replace(/\.$/, '')).join(', ');
+        entries.push({ key: `${start}`, until: i, kind: 'effect', side: ev.side, who: ev.name, label: always[0].label, text });
+      }
+      i++;
       continue;
     }
     if (ev.type === 'SPELL_RESOLVED') {

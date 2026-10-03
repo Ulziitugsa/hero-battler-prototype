@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import type { Rarity } from '../game/types';
-import type { SeqPhase } from '../game/summon/sequence';
-import { buildMeteors, meteorPoint } from '../game/summon/meteors';
+import type { SeqPhase } from '../game/reveal/sequence';
+import { buildMeteors, meteorPoint } from '../game/reveal/meteors';
 import { useReducedMotion } from './animation/timing';
 import '../styles/moonwellVoyage.css';
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { GemIcon } from '../../components/GemIcon';
 import { CardArtwork } from '../../components/CardArtwork';
@@ -7,9 +7,14 @@ import { CardViewer } from '../../components/card/CardViewer';
 import { cardCopyView } from '../../game/cards/cardCopy';
 import { useDialogFocus } from '../../components/useDialogFocus';
 import { getCard } from '../../game/cards';
-import { canAfford } from '../../game/economy/economy';
+import { TicketIcon } from '../../components/TicketIcon';
+import { RevealStage } from '../../components/reveal/RevealStage';
+import { useRevealSequence } from '../../components/reveal/useRevealSequence';
+import { canAfford, canAffordTickets } from '../../game/economy/economy';
 import { useEconomy } from '../../game/economy/useEconomy';
-import { boxPackPrice, buyBoxPacks, type BoxProductDef } from '../../game/box/boxProduct';
+import { getCollection } from '../../game/collection/collection';
+import { packRevealOutcome, starterProgressBetween, type StarterProgressNote } from '../../game/reveal/outcome';
+import { boxPackPrice, boxPackTickets, buyBoxPacks, type BoxProductDef, type PackPayment } from '../../game/box/boxProduct';
 import { canResetPrototypeBox, getPrototypeBoxState, prototypeBoxContents, prototypeBoxNextCardOdds, prototypeBoxPacksRemaining, prototypeBoxRarityCounts, PROTOTYPE_BOX, resetPrototypeBox, type PrototypeBoxPull, type PrototypeBoxState } from '../../game/box/prototypeBox';
 import type { Rarity } from '../../game/types';
 import { track } from '../../analytics/track';
@@ -68,15 +73,24 @@ function PulledCard({ cardId }: { cardId: string }) {
   return <GameCard cardId={cardId} density="tile" owned={copy.owned} hpContribution={copy.hpContribution} />;
 }
 
-function PackResults({ pulls, packs, onInspect, onClose }: { pulls: PrototypeBoxPull[]; packs: number; onInspect: (id: string) => void; onClose: () => void }) {
+/** Pack Results: every card the opening added, one grid whether it was one pack (5 cards) or ten (50). The cards were
+ * granted before the ceremony began; this only shows them. */
+export function PackResults({ pulls, packs, starterProgress = [], onInspect, onClose }: { pulls: PrototypeBoxPull[]; packs: number; starterProgress?: StarterProgressNote[]; onInspect: (id: string) => void; onClose: () => void }) {
   const ref = useDialogFocus(onClose);
   const newCount = pulls.filter(pull => pull.isNew).length;
   const best = [...pulls].sort((a, b) => RARITIES.indexOf(a.rarity) - RARITIES.indexOf(b.rarity))[0];
+  const tracked = useRef(false);
+  useEffect(() => {
+    if (tracked.current) return;
+    tracked.current = true;
+    track('pack_results_viewed', { packCount: packs, cardCount: pulls.length, newCount, highestRarity: best?.rarity ?? 'common' });
+  }, [packs, pulls.length, newCount, best?.rarity]);
   return <div className="box-results-backdrop"><div ref={ref} className="box-results" role="dialog" aria-modal="true" aria-labelledby="box-results-title" tabIndex={-1}>
     <header>
-      <span className="box-eyebrow">{packs} {packs === 1 ? 'PACK' : 'PACKS'} OPENED</span>
+      <span className="box-eyebrow">PACK RESULTS · {packs} {packs === 1 ? 'PACK' : 'PACKS'} OPENED</span>
       <h2 id="box-results-title">{pulls.length} cards added</h2>
-      <p>{newCount > 0 ? `${newCount} new to your collection` : 'All duplicates'} · best pull: {best ? (getCard(best.cardId).name.startsWith(RARITY_LABEL[best.rarity]) ? getCard(best.cardId).name : `${RARITY_LABEL[best.rarity]} ${getCard(best.cardId).name}`) : '-'}</p>
+      <p>{newCount > 0 ? `${newCount} new to your collection` : 'All duplicates'} · best card: {best ? (getCard(best.cardId).name.startsWith(RARITY_LABEL[best.rarity]) ? getCard(best.cardId).name : `${RARITY_LABEL[best.rarity]} ${getCard(best.cardId).name}`) : '-'}</p>
+      {starterProgress.map(note => <p key={note.deckId} className={`box-results-starter ${note.unlockedNow ? 'unlocked' : ''}`}>{note.unlockedNow ? `${note.name} unlocked · ready in Decks` : `${note.name} · ${note.collected} / ${note.total} cards`}</p>)}
     </header>
     <div className="box-results-grid">
       {pulls.map((pull, index) => <button type="button" key={`${index}-${pull.cardId}`} className={`box-result r-${pull.rarity}`} onClick={() => onInspect(pull.cardId)} aria-label={`${getCard(pull.cardId).name}, ${RARITY_LABEL[pull.rarity]}${pull.isNew ? ', new' : `, ${pull.ownedCopies} owned`}`}>
@@ -91,7 +105,9 @@ function PackResults({ pulls, packs, onInspect, onClose }: { pulls: PrototypeBox
 export function BoxDetail({ box, onBack }: { box: BoxProductDef; onBack: () => void }) {
   const economy = useEconomy();
   const [state, setState] = useState(() => getPrototypeBoxState());
-  const [results, setResults] = useState<{ pulls: PrototypeBoxPull[]; packs: number } | null>(null);
+  // The last opening: already granted and saved. The ceremony plays first; Pack Results shows it once the ceremony ends.
+  const [opening, setOpening] = useState<{ pulls: PrototypeBoxPull[]; packs: number; starterProgress: StarterProgressNote[] } | null>(null);
+  const reveal = useRevealSequence();
   const [inspect, setInspect] = useState<string | null>(null);
   const [showContents, setShowContents] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -107,15 +123,26 @@ export function BoxDetail({ box, onBack }: { box: BoxProductDef; onBack: () => v
     window.scrollTo?.({ top: 0 });
   }, [box.id]);
 
-  function open(count: 1 | 10) {
-    const result = buyBoxPacks(count, box);
+  const results = opening && reveal.view?.isResult ? opening : null;
+  function closeResults() {
+    setOpening(null);
+    reveal.end();
+  }
+
+  function open(count: 1 | 10, payment: PackPayment = 'gems') {
+    if (reveal.outcome) return;
+    const before = getCollection();
+    const result = buyBoxPacks(count, box, payment);
     if (!result.ok) {
-      setNotice(result.reason === 'sold-out' ? `Only ${packsLeft} packs remain in this Box.` : `You need ${boxPackPrice(box, count).toLocaleString()} Gems to open ${count === 1 ? 'a pack' : '10 packs'}.`);
+      setNotice(result.reason === 'sold-out' ? `Only ${packsLeft} packs remain in this Box.` : result.reason === 'not-enough-tickets' ? `You need ${boxPackTickets(count)} Pack ${count === 1 ? 'Ticket' : 'Tickets'} to open ${count === 1 ? 'a pack' : '10 packs'}.` : `You need ${boxPackPrice(box, count).toLocaleString()} Gems to open ${count === 1 ? 'a pack' : '10 packs'}.`);
       return;
     }
     setNotice('');
     setState(result.opening.state);
-    setResults({ pulls: result.opening.packs.flat(), packs: count });
+    const pulls = result.opening.packs.flat();
+    const starterProgress = starterProgressBetween(before, getCollection());
+    setOpening({ pulls, packs: count, starterProgress });
+    reveal.start(packRevealOutcome(box.name, count, pulls, starterProgress));
   }
 
   function reset() {
@@ -136,15 +163,21 @@ export function BoxDetail({ box, onBack }: { box: BoxProductDef; onBack: () => v
     const price = boxPackPrice(box, count);
     const soldOut = packsLeft < count;
     const short = !canAfford(price, economy.gems);
-    return <button type="button" className={`box-open ${count === 10 ? 'ten' : ''}`} onClick={() => open(count)} disabled={soldOut} aria-describedby={short ? 'box-gem-balance' : undefined}>
-      <strong>Open {count}</strong>
+    return <button type="button" className={`box-open ${count === 10 ? 'ten' : ''}`} onClick={() => open(count)} disabled={soldOut || !!reveal.outcome} aria-describedby={short ? 'box-gem-balance' : undefined}>
+      <strong>{count === 1 ? 'Open Pack' : 'Open 10 Packs'}</strong>
       <span><GemIcon size={14} />{price.toLocaleString()}</span>
       {soldOut && <small>Not enough packs left</small>}
     </button>;
   };
+  // Pack Tickets: one opens one pack of this same Box, instead of its Gem price.
+  const ticketCount: 1 | 10 = economy.tickets >= 10 && packsLeft >= 10 ? 10 : 1;
+  const ticketButton = economy.tickets > 0 && canAffordTickets(1, economy.tickets) ? <button type="button" className="box-open ticket" onClick={() => open(ticketCount, 'tickets')} disabled={packsLeft < 1 || !!reveal.outcome}>
+    <strong>{ticketCount === 1 ? 'Open Pack with a Ticket' : 'Open 10 Packs with Tickets'}</strong>
+    <span><TicketIcon size={14} />{boxPackTickets(ticketCount)} of {economy.tickets} Pack {economy.tickets === 1 ? 'Ticket' : 'Tickets'}</span>
+  </button> : null;
 
   return <main className="shop-screen box-screen">
-    <nav className="box-nav"><button type="button" onClick={onBack}><Icon name="back" size={18} />Shop</button><span id="box-gem-balance"><GemIcon size={15} />{economy.gems.toLocaleString()}</span></nav>
+    <nav className="box-nav"><button type="button" onClick={onBack}><Icon name="back" size={18} />Shop</button><span className="box-balances">{economy.tickets > 0 && <span aria-label={`${economy.tickets} Pack ${economy.tickets === 1 ? 'Ticket' : 'Tickets'}`}><TicketIcon size={15} />{economy.tickets.toLocaleString()}</span>}<span id="box-gem-balance"><GemIcon size={15} />{economy.gems.toLocaleString()}</span></span></nav>
 
     <section className="box-hero" aria-labelledby="box-title">
       <div className="box-hero-art" aria-hidden="true">
@@ -162,7 +195,7 @@ export function BoxDetail({ box, onBack }: { box: BoxProductDef; onBack: () => v
       </div>
     </section>
 
-    <div className="box-actions">{openButton(1)}{openButton(10)}</div>
+    <div className="box-actions">{ticketButton}{openButton(1)}{openButton(10)}</div>
     {notice && <p className="box-notice" role="status">{notice}</p>}
 
     <section className="box-section" aria-labelledby="box-chase-title">
@@ -197,6 +230,7 @@ export function BoxDetail({ box, onBack }: { box: BoxProductDef; onBack: () => v
         <li>A full Box holds exactly {PROTOTYPE_BOX.packCount} packs: {PROTOTYPE_BOX.cardCounts.common} Common, {PROTOTYPE_BOX.cardCounts.rare} Rare, {PROTOTYPE_BOX.cardCounts.epic} Epic and {PROTOTYPE_BOX.cardCounts.legendary} Legendary card copies.</li>
         <li>Each card is drawn at random from the copies still inside, so every remaining copy is equally likely. The "next card" odds above are exact.</li>
         <li>Packs have no guaranteed slots and there is no pity counter. Opening every pack collects every card in the Box.</li>
+        <li>A Pack Ticket opens one pack of this Box in place of its Gem price. The pack is drawn exactly like a bought one.</li>
         <li>You can reset the Box after opening at least one pack. A reset refills it to full, never removes cards you own, and only happens when you confirm it.</li>
       </ul>
       <div className="box-reset-row">
@@ -208,7 +242,8 @@ export function BoxDetail({ box, onBack }: { box: BoxProductDef; onBack: () => v
 
     {showContents && <ContentsSheet state={state} onInspect={setInspect} onClose={() => setShowContents(false)} />}
     {confirmReset && <ResetDialog state={state} onCancel={() => setConfirmReset(false)} onConfirm={reset} />}
-    {results && <PackResults pulls={results.pulls} packs={results.packs} onInspect={setInspect} onClose={() => setResults(null)} />}
+    {reveal.outcome && reveal.view && !reveal.view.isResult && <RevealStage outcome={reveal.outcome} view={reveal.view} onSkip={reveal.skip} onIntroFinished={reveal.finishIntro} />}
+    {results && <PackResults pulls={results.pulls} packs={results.packs} starterProgress={results.starterProgress} onInspect={setInspect} onClose={closeResults} />}
     {inspect && <CardViewer cardId={inspect} context="pack" onClose={() => setInspect(null)} />}
   </main>;
 }

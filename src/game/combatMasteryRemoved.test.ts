@@ -158,7 +158,7 @@ describe('combat Card Mastery is removed: a historical Mastery V copy plays exac
     expect(getGold()).toBe(9_999);
     expect(getOwnedCount('kng-royal-guard')).toBe(11);
     // No screen offers the action any more.
-    for (const file of ['../components/card/CardInspect.tsx', '../pages/HeroesPage.tsx', '../pages/DecksPage.tsx', '../pages/campaign/StageResultSheet.tsx', '../pages/summon/RitualStage.tsx']) expect(code(file), file).not.toMatch(/ascendCard|AscensionPanel|getAscensionStatus/);
+    for (const file of ['../components/card/CardInspect.tsx', '../pages/HeroesPage.tsx', '../pages/DecksPage.tsx', '../pages/campaign/StageResultSheet.tsx', '../components/reveal/RevealStage.tsx', '../pages/shop/BoxDetail.tsx']) expect(code(file), file).not.toMatch(/ascendCard|AscensionPanel|getAscensionStatus/);
   });
 
   it('15. Legacy Level remains retired: it changes no battle', () => {
