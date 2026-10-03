@@ -85,10 +85,10 @@ describe('tracking progress via analytics events', () => {
     expect(completed).toHaveLength(1);
   });
   it('a claimed mission stops advancing for the rest of its period', () => {
-    setMissionProgress('daily-hero-level', 1);
-    claimMission('daily-hero-level');
-    track('hero_levelled', {});
-    expect(getMissionProgress('daily-hero-level')).toMatchObject({ count: 1, claimed: true });
+    setMissionProgress('daily-battles', 3);
+    claimMission('daily-battles');
+    track('battle_completed', {});
+    expect(getMissionProgress('daily-battles')).toMatchObject({ count: 3, claimed: true });
   });
   it('only wires up once even if initMissions is called again', () => {
     initMissions();
@@ -104,14 +104,14 @@ describe('claimMission', () => {
     expect(r).toMatchObject({ ok: false, gold: 0, gems: 0 });
   });
   it('grants the reward exactly once and marks claimed', () => {
-    setMissionProgress('daily-hero-level', 1);
+    setMissionProgress('daily-battles', 3);
     const goldBefore = getEconomy().gold;
-    const r = claimMission('daily-hero-level');
+    const r = claimMission('daily-battles');
     expect(r.ok).toBe(true);
     expect(r.gold).toBeGreaterThan(0);
     expect(getEconomy().gold).toBe(goldBefore + r.gold);
-    expect(isMissionComplete('daily-hero-level')).toBe(true);
-    const again = claimMission('daily-hero-level');
+    expect(isMissionComplete('daily-battles')).toBe(true);
+    const again = claimMission('daily-battles');
     expect(again).toMatchObject({ ok: false, reason: 'Already claimed.' });
     expect(getEconomy().gold).toBe(goldBefore + r.gold); // not double-granted
   });
@@ -130,9 +130,9 @@ describe('claimMission', () => {
 describe('anyMissionClaimable / listMissions', () => {
   it('reflects ready-but-unclaimed missions only', () => {
     expect(anyMissionClaimable()).toBe(false);
-    setMissionProgress('daily-hero-level', 1);
+    setMissionProgress('daily-battles', 3);
     expect(anyMissionClaimable()).toBe(true);
-    claimMission('daily-hero-level');
+    claimMission('daily-battles');
     expect(anyMissionClaimable()).toBe(false);
   });
   it('listMissions filters by period and pairs every def with live progress', () => {
@@ -150,7 +150,7 @@ describe('period reset', () => {
     const now = 100 * DAY_MS + 60 * 60 * 1000; // well inside week 100/7's span, not at a boundary
     localStorage.setItem(
       MISSIONS_STORAGE_KEY,
-      JSON.stringify({ version: 1, dayKey: dayKey(now) - 1, weekKey: weekKey(now), daily: { 'daily-hero-level': { count: 1, claimed: true } }, weekly: { 'weekly-summons': { count: 3, claimed: false } } }),
+      JSON.stringify({ version: 1, dayKey: dayKey(now) - 1, weekKey: weekKey(now), daily: { 'daily-battles': { count: 1, claimed: true } }, weekly: { 'weekly-summons': { count: 3, claimed: false } } }),
     );
     reloadMissions();
     const state = getMissionsState(now);
@@ -161,20 +161,20 @@ describe('period reset', () => {
     const now = 100 * WEEK_MS + 60 * 60 * 1000;
     localStorage.setItem(
       MISSIONS_STORAGE_KEY,
-      JSON.stringify({ version: 1, dayKey: dayKey(now), weekKey: weekKey(now) - 1, daily: { 'daily-hero-level': { count: 1, claimed: false } }, weekly: { 'weekly-summons': { count: 3, claimed: true } } }),
+      JSON.stringify({ version: 1, dayKey: dayKey(now), weekKey: weekKey(now) - 1, daily: { 'daily-battles': { count: 1, claimed: false } }, weekly: { 'weekly-summons': { count: 3, claimed: true } } }),
     );
     reloadMissions();
     const state = getMissionsState(now);
-    expect(state.daily).toEqual({ 'daily-hero-level': { count: 1, claimed: false } }); // untouched
+    expect(state.daily).toEqual({ 'daily-battles': { count: 1, claimed: false } }); // untouched
     expect(state.weekly).toEqual({}); // rolled over
   });
   it('a claimed daily mission is claimable again after the day rolls over', () => {
-    setMissionProgress('daily-hero-level', 1);
-    claimMission('daily-hero-level');
-    expect(isMissionComplete('daily-hero-level')).toBe(true);
+    setMissionProgress('daily-battles', 3);
+    claimMission('daily-battles');
+    expect(isMissionComplete('daily-battles')).toBe(true);
     const tomorrow = Date.now() + DAY_MS + 1000;
     getMissionsState(tomorrow); // triggers the rollover
-    expect(getMissionProgress('daily-hero-level', getMissionsState(tomorrow))).toEqual({ count: 0, claimed: false });
+    expect(getMissionProgress('daily-battles', getMissionsState(tomorrow))).toEqual({ count: 0, claimed: false });
   });
 });
 
@@ -196,8 +196,8 @@ describe('malformed storage', () => {
 
 describe('resetMissions', () => {
   it('clears everything', () => {
-    setMissionProgress('daily-hero-level', 1);
-    claimMission('daily-hero-level');
+    setMissionProgress('daily-battles', 3);
+    claimMission('daily-battles');
     resetMissions();
     expect(getMissionsState().daily).toEqual({});
   });

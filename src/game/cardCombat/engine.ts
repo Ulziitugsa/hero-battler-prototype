@@ -2,7 +2,7 @@ import type { ConditionDef, CountBasis, DeployPlay, Faction, GameEvent, GameStat
 import { LANES, TRIGGER_LABEL, adjacentLanes } from '../types/index.js';
 import { nextRandom } from '../engine/rng.js';
 import { type CombatAbility, type CombatAction, type CombatCard, getCombatCard, isCardOnlyAction, isPacify } from './cards.js';
-import { ATK_PER_POWER, DEATH_LINE_ATK, GROWTH_CAP_ATK, HP_PER_LEGACY_POINT, type MasteryStages, atkFromPower, deckStartingHp, hpContributionAt, printedStats } from './stats.js';
+import { ATK_PER_POWER, DEATH_LINE_ATK, GROWTH_CAP_ATK, HP_PER_LEGACY_POINT, atkFromPower, deckStartingHp, hpContribution, printedStats } from './stats.js';
 
 // The production card-combat resolver (docs/CARD-COMBAT-DESIGN.md, Phase 1/2 of section 12).
 //
@@ -27,7 +27,12 @@ import { ATK_PER_POWER, DEATH_LINE_ATK, GROWTH_CAP_ATK, HP_PER_LEGACY_POINT, typ
 // Deterministic: every random pick draws from the match's own seeded stream (engine/rng.ts), carried in
 // GameState.rngState. Same seed + same plays = same events and the same end state.
 
-export const CARD_RESOLVER_VERSION = 2;
+/**
+ * v3 (combat Card Mastery removed): a match is built from the two deck lists alone and every card plays at its printed
+ * values. v2 matches took per-card Mastery stages that raised HP Contribution at setup; their round resolution is
+ * identical to v3's, so a stored v2 match can still be continued (combat/resolver.ts CONTINUABLE_CARD_RESOLVER_VERSIONS).
+ */
+export const CARD_RESOLVER_VERSION = 3;
 export const CARD_MAX_ROUNDS = 40;
 export const CARD_HAND_TARGET = 3;
 
@@ -880,9 +885,11 @@ export interface CardMatchSetup {
   seed: number;
   playerDeck: string[];
   enemyDeck: string[];
-  /** Card Mastery stage per card id. Changes HP Contribution (so Starting HP) only. Omit for Mastery I. */
-  playerMastery?: MasteryStages;
-  enemyMastery?: MasteryStages;
+  /**
+   * A fixed Starting HP for one side in place of its deck's total: a Campaign boss's HP pool, or a challenge rule
+   * such as "start at 60% of your Starting HP". Units still have no HP; this is the player's HP bar only.
+   */
+  startingHpOverride?: Partial<Record<Side, number>>;
 }
 
 function shuffleDeck(ctx: Ctx, cards: string[]): string[] {
@@ -896,17 +903,18 @@ function shuffleDeck(ctx: Ctx, cards: string[]): string[] {
 
 const EMPTY_ZONES = { left: null, center: null, right: null };
 
-function playerMasteryTable(deck: string[], stages: MasteryStages | undefined): Record<string, number> {
-  const table: Record<string, number> = {};
-  for (const id of new Set(deck)) if (getCombatCard(id).type === 'hero') table[id] = Math.max(1, Math.min(5, Math.floor(stages?.[id] ?? 1)));
-  return table;
-}
-
-/** Builds a card-combat match through Round 1's draw. Starting HP comes from `deckStartingHp`, the Deck Builder's helper. */
+/**
+ * Builds a card-combat match through Round 1's draw. Starting HP comes from `deckStartingHp`, the Deck Builder's helper:
+ * the deck's printed Unit HP Contributions. The setup carries no progression of either player, so stored Mastery /
+ * Ascension ranks, Legacy Level and the like cannot reach a battle.
+ */
 export function createCardMatch(setup: CardMatchSetup): ResolveResult {
   const decks: Record<Side, string[]> = { player: setup.playerDeck, enemy: setup.enemyDeck };
-  const stages: Record<Side, Record<string, number>> = { player: playerMasteryTable(setup.playerDeck, setup.playerMastery), enemy: playerMasteryTable(setup.enemyDeck, setup.enemyMastery) };
-  const hp: Record<Side, ReturnType<typeof deckStartingHp>> = { player: deckStartingHp(setup.playerDeck, stages.player), enemy: deckStartingHp(setup.enemyDeck, stages.enemy) };
+  const hp: Record<Side, ReturnType<typeof deckStartingHp>> = { player: deckStartingHp(setup.playerDeck), enemy: deckStartingHp(setup.enemyDeck) };
+  for (const side of SIDES) {
+    const override = setup.startingHpOverride?.[side];
+    if (override !== undefined && Number.isFinite(override) && override > 0) hp[side] = { ...hp[side], total: Math.round(override) };
+  }
   const shell: GameState = {
     round: 1,
     rngState: setup.seed >>> 0,
@@ -917,7 +925,6 @@ export function createCardMatch(setup: CardMatchSetup): ResolveResult {
     cardCombat: {
       version: CARD_RESOLVER_VERSION,
       startingHp: { player: hp.player.total, enemy: hp.enemy.total },
-      masteryStage: stages,
       deckMarks: { player: [], enemy: [] },
       graveMarks: { player: [], enemy: [] },
       died: { player: false, enemy: false },
@@ -932,7 +939,7 @@ export function createCardMatch(setup: CardMatchSetup): ResolveResult {
     const p = playerOf(ctx, side);
     p.deck = shuffleDeck(ctx, decks[side]);
     meta(ctx).deckMarks[side] = p.deck.map(() => false);
-    push(ctx, { type: 'STARTING_HP', side, hp: hp[side].total, units: hp[side].units, masteryBonus: hp[side].masteryBonus });
+    push(ctx, { type: 'STARTING_HP', side, hp: hp[side].total, units: hp[side].units });
   }
   shell.rngState = ctx.rng;
   const begun = beginCardRound(shell);
@@ -1180,8 +1187,7 @@ export function resolveCardRound(state: GameState, playerAction: PlayerAction, e
   return { nextState: ctx.state, events: ctx.events };
 }
 
-/** HP Contribution of one copy in this match (Mastery applied), for Card Inspect in battle. */
-export function matchHpContribution(state: GameState, side: Side, cardId: string): number {
-  const stage = state.cardCombat?.masteryStage[side][cardId] ?? 1;
-  return hpContributionAt(getCombatCard(cardId) as never, stage);
+/** HP Contribution one copy added to its owner's Starting HP, for Card Inspect in battle: the printed value. */
+export function matchHpContribution(cardId: string): number {
+  return hpContribution(getCombatCard(cardId) as never);
 }

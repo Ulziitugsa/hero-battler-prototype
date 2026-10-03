@@ -1,4 +1,4 @@
-import { getCardAscension } from './definitions';
+import { maxMasteryRank } from './path';
 
 // Persisted Ascension progression: per card, the rank reached and how many duplicates were spent getting
 // there. Only progression state - the card definitions and Ascension paths stay the source of truth, and
@@ -20,15 +20,16 @@ export interface AscensionState {
 
 const whole = (n: unknown): number => (typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0);
 
-/** Keeps only cards that have an Ascension path, clamps rank to the path's length, drops rank-0 entries. */
+/** Keeps only cards that have a Card Mastery path, clamps rank to Mastery V, drops rank-0 entries. A save from before
+ * every card had a path (ranks 1..3 on six cards) reads unchanged: same card, same rank, same copies spent. */
 export function sanitizeAscension(raw: unknown): AscensionState {
   const cards: Record<string, CardAscensionState> = {};
   const src = raw && typeof raw === 'object' ? (raw as { cards?: unknown }).cards : undefined;
   if (src && typeof src === 'object' && !Array.isArray(src)) {
     for (const [cardId, v] of Object.entries(src as Record<string, unknown>)) {
-      const def = getCardAscension(cardId);
-      if (!def || !v || typeof v !== 'object') continue;
-      const rank = Math.min(def.ranks.length, whole((v as { rank?: unknown }).rank));
+      const max = maxMasteryRank(cardId);
+      if (max <= 0 || !v || typeof v !== 'object') continue;
+      const rank = Math.min(max, whole((v as { rank?: unknown }).rank));
       if (rank <= 0) continue;
       cards[cardId] = { rank, duplicatesSpent: whole((v as { duplicatesSpent?: unknown }).duplicatesSpent) };
     }
@@ -101,7 +102,7 @@ export function ascensionRanksFor(cardIds: string[], state: AscensionState = get
 export function setAscensionRank(cardId: string, rank: number): void {
   const state = getAscensionState();
   const next = { ...state.cards };
-  const clamped = Math.min(getCardAscension(cardId)?.ranks.length ?? 0, Math.max(0, Math.floor(rank)));
+  const clamped = Math.min(maxMasteryRank(cardId), Math.max(0, Math.floor(rank)));
   if (clamped <= 0) delete next[cardId];
   else next[cardId] = { rank: clamped, duplicatesSpent: next[cardId]?.duplicatesSpent ?? 0 };
   commit({ ...state, cards: next });

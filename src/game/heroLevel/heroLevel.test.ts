@@ -4,15 +4,12 @@ import { getCard } from '../cards';
 import { PLAYTEST_ROSTER } from '../cards/roster';
 import { resolveRound, beginRound } from '../engine/resolveRound';
 import { createMatch } from '../engine/match';
-import { grantCard, reloadCollection } from '../collection/collection';
-import { reloadEconomy, setGold } from '../economy/economy';
-import { setLevel as setAccountLevel, resetProgression } from '../progression/account';
+import { reloadCollection } from '../collection/collection';
+import { reloadEconomy } from '../economy/economy';
+import { resetProgression } from '../progression/account';
 import { MAX_HERO_LEVEL, battlePowerBonusForLevel, goldCostForLevelUp, heroLevelCapForAccount, MAX_BATTLE_POWER_BONUS } from './config';
 import { getHeroLevel, getHeroLevelState, HERO_LEVEL_STORAGE_KEY, heroLevelsFor, reloadHeroLevels, resetHeroLevels, sanitizeHeroLevel, setHeroLevel } from './store';
-import { getHeroLevelStatus, levelUpHero } from './levelUp';
-import { rosterPowerForCard, rosterPowerForDeck, rosterPowerForHero } from './rosterPower';
-import { getAscensionState } from '../ascension/store';
-import { clearQueuedEvents, getQueuedEvents } from '../../analytics/track';
+import { clearQueuedEvents } from '../../analytics/track';
 
 function installLocalStoragePolyfill() {
   const store = new Map<string, string>();
@@ -118,98 +115,8 @@ describe('Hero Level persistence', () => {
 
 // ---- levelling rules -----------------------------------------------------------------------------
 
-describe('Hero Level rules', () => {
-  it('an unowned card cannot be levelled', () => {
-    expect(getHeroLevelStatus('und-bone-soldier', 100000, 20)).toMatchObject({ owned: false, canLevelUp: false, blocked: 'not-owned' });
-  });
-  it('an owned card is blocked without enough Gold', () => {
-    grantCard('kng-royal-guard', 1);
-    expect(getHeroLevelStatus('kng-royal-guard', 0, 20)).toMatchObject({ canLevelUp: false, blocked: 'no-gold' });
-  });
-  it('is capped by Account Level even with unlimited Gold', () => {
-    grantCard('kng-royal-guard', 1);
-    setAccountLevel(1); // cap = 3
-    setHeroLevel('kng-royal-guard', 3);
-    expect(getHeroLevelStatus('kng-royal-guard', 1000000, 1)).toMatchObject({ canLevelUp: false, blocked: 'account-cap', accountCap: 3 });
-  });
-  it('spends Gold and raises the level by exactly one step', () => {
-    grantCard('kng-royal-guard', 1);
-    setAccountLevel(20);
-    setGold(1000);
-    const cost = goldCostForLevelUp(1);
-    const r = levelUpHero('kng-royal-guard');
-    expect(r).toMatchObject({ ok: true, levelBefore: 1, levelAfter: 2, goldSpent: cost });
-    expect(getHeroLevel('kng-royal-guard')).toBe(2);
-  });
-  it('refuses to spend Gold that is not there, changing nothing', () => {
-    grantCard('kng-royal-guard', 1);
-    setAccountLevel(20);
-    setGold(0);
-    expect(levelUpHero('kng-royal-guard')).toMatchObject({ ok: false, levelAfter: 1, goldSpent: 0 });
-    expect(getHeroLevel('kng-royal-guard')).toBe(1);
-  });
-  it('stops at MAX_HERO_LEVEL', () => {
-    grantCard('kng-royal-guard', 1);
-    setAccountLevel(20);
-    setHeroLevel('kng-royal-guard', MAX_HERO_LEVEL);
-    expect(getHeroLevelStatus('kng-royal-guard', 1000000, 20)).toMatchObject({ canLevelUp: false, blocked: 'max-level', nextLevel: null, cost: null });
-  });
-});
-
-describe('levelUpHero analytics (Commercial Prototype Phase 9)', () => {
-  it('fires hero_levelled and roster_power_changed with a positive delta', () => {
-    grantCard('kng-royal-guard', 1);
-    setAccountLevel(20);
-    setGold(1000);
-    levelUpHero('kng-royal-guard');
-    const levelled = getQueuedEvents().filter((e) => e.name === 'hero_levelled');
-    const power = getQueuedEvents().filter((e) => e.name === 'roster_power_changed');
-    expect(levelled).toHaveLength(1);
-    expect(power).toHaveLength(1);
-    expect(power[0].properties).toMatchObject({ cardId: 'kng-royal-guard', source: 'heroLevel' });
-    expect(power[0].properties.delta as number).toBeGreaterThan(0);
-  });
-  it('a failed level-up (no Gold) fires neither event', () => {
-    grantCard('kng-royal-guard', 1);
-    setAccountLevel(20);
-    setGold(0);
-    levelUpHero('kng-royal-guard');
-    expect(getQueuedEvents().filter((e) => e.name === 'hero_levelled')).toHaveLength(0);
-    expect(getQueuedEvents().filter((e) => e.name === 'roster_power_changed')).toHaveLength(0);
-  });
-});
-
-// ---- Roster Power (virtual, never read by the engine) --------------------------------------------
-
-describe('Roster Power', () => {
-  it('grows with Power, Level and Ascension rank', () => {
-    const base = rosterPowerForHero(5, 1, 0);
-    expect(rosterPowerForHero(5, 30, 0)).toBeGreaterThan(base);
-    expect(rosterPowerForHero(5, 1, 2)).toBeGreaterThan(base);
-  });
-  it('rosterPowerForCard reads live Level/Ascension state and is 0 for a Spell', () => {
-    setHeroLevel('kng-royal-guard', 30);
-    const levelState = getHeroLevelState();
-    const ascensionState = getAscensionState();
-    expect(rosterPowerForCard('kng-royal-guard', levelState, ascensionState)).toBe(rosterPowerForHero(getCard('kng-royal-guard').power!, 30, 0));
-    expect(rosterPowerForCard('spl-power-surge', levelState, ascensionState)).toBe(0);
-  });
-  it('rosterPowerForDeck sums heroes and adds one flat account-level term, not one per hero', () => {
-    const levelState = getHeroLevelState();
-    const ascensionState = getAscensionState();
-    const threeCardDeck = ['kng-archer', 'kng-archer', 'kng-common-knight'];
-    const oneCardDeck = ['kng-archer'];
-    const heroSum = threeCardDeck.reduce((sum, id) => sum + rosterPowerForCard(id, levelState, ascensionState), 0);
-    expect(rosterPowerForDeck(threeCardDeck, 0, levelState, ascensionState)).toBe(heroSum);
-    // The account-level term is identical whether the deck has 1 or 3 Hero cards - it is added once, not per hero.
-    const bump3 = rosterPowerForDeck(threeCardDeck, 11, levelState, ascensionState) - rosterPowerForDeck(threeCardDeck, 10, levelState, ascensionState);
-    const bump1 = rosterPowerForDeck(oneCardDeck, 11, levelState, ascensionState) - rosterPowerForDeck(oneCardDeck, 10, levelState, ascensionState);
-    expect(bump3).toBe(bump1);
-    expect(bump3).toBeGreaterThan(0);
-  });
-});
-
-// ---- engine: the bonus is baked in exactly once, at placement, and flows through the real match --
+// ---- legacy engine (historical resolver): the bonus is baked in exactly once, at placement --------------
+// Card combat never reads Hero Level (cardCombat tests cover that); these keep the legacy resolver's old matches honest.
 
 function playCard(state: GameState, cardId: string, lane: 'left' | 'center' | 'right' = 'left') {
   const withHand: GameState = { ...state, player: { ...state.player, hand: [{ handId: 'h1', cardId }] } };

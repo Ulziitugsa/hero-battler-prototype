@@ -8,7 +8,7 @@ import { buildStarterCollection } from '../collection/starterCollection';
 import { STARTER_DECKS } from '../cards/starterDecks';
 import { getBanner } from '../summon/banners';
 import { ContinueCampaign, EventSlot, FeaturedSummon, GemPlate, HubNoteLine } from '../../pages/home/HomeSections';
-import { RECENT_CARD_MS, STARTER_CLOSE_FRACTION, anyAscensionReady, attentionState, campaignHub, closestStarter, homeAttentionReady, navDots, pickHubNote } from './hubState';
+import { RECENT_CARD_MS, STARTER_CLOSE_FRACTION, attentionState, campaignHub, closestStarter, homeAttentionReady, navDots, pickHubNote } from './hubState';
 
 function installLocalStoragePolyfill() {
   const store = new Map<string, string>();
@@ -114,17 +114,14 @@ describe('attention markers', () => {
     expect(homeAttentionReady({masteryPoint:false,missionReward:false,journeyReward:false,idleReward:false})).toBe(false);
   });
   it('Summon glows only with enough Gems (or dev Unlimited Gems)', () => {
-    const base = { masteryPoints: 0, owned: starter };
+    const base = { masteryPoints: 0 };
     expect(attentionState({ ...base, gems: 99 }).canSummon).toBe(false);
     expect(attentionState({ ...base, gems: 100 }).canSummon).toBe(true);
     expect(attentionState({ ...base, gems: 0, unlimitedGems: true }).canSummon).toBe(true);
   });
-  it('nav dots: Home leads to the Profile mastery point, Heroes to a duplicate ready to Ascend', () => {
-    expect(anyAscensionReady(starter)).toBe(false);
-    const spare = { ...starter, 'kng-royal-guard': 3 };
-    expect(anyAscensionReady(spare)).toBe(true);
-    expect(navDots(attentionState({ gems: 0, masteryPoints: 1, owned: spare }))).toEqual({ heroes: true, home: true });
-    expect(navDots(attentionState({ gems: 900, masteryPoints: 0, owned: starter }))).toEqual({ heroes: false, home: false });
+  it('nav dots: no Cards dot for spare duplicates any more (Card Mastery is retired)', () => {
+    expect(navDots(attentionState({ gems: 0, masteryPoints: 1 }))).toEqual({ home: true });
+    expect(navDots(attentionState({ gems: 900, masteryPoints: 0 }))).toEqual({ home: false });
   });
 });
 

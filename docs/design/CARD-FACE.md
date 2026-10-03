@@ -9,11 +9,12 @@ no rule, stat, effect, Mastery, Starting HP, deck-out or economy value changes h
    after its timing label. Collection-style tiles add HP Contribution beside ATK; battle faces never show it.
 2. **Focused card detail** (`CardFocusPanel`): the full rule of every effect, current and printed ATK, HP
    Contribution where it applies, live state (each ATK change by source and how long it lasts, Shield, Silence, entry
-   ATK, a Continuous Spell's lane), Card Mastery, and an Inspect button. In battle it is a dock over the hand apron
+   ATK, a Continuous Spell's lane), and an Inspect button. In battle it is a dock over the hand apron
    (`layout="dock"`), so the board, the HP bars and Fight stay visible; outside battle it is a bottom sheet
    (`layout="sheet"`, via `CardViewer`) with the screen's own actions (Deck Builder: Add to deck / Remove one).
 3. **Card Inspect** (`CardInspect`): the large card, rarity / faction / type, traits, ATK and HP Contribution spelled
-   out, every rule with keyword help, Card Mastery (stage, HP Contribution step, the Mastery panel), copies owned,
+   out, every rule with keyword help, copies owned (historical Mastery progress is kept in the save but never shown; there is no
+   combat Card Mastery since 2026-10-03),
    where it comes from, the deck it is in, lore, previous/next in the Collection, and treatment hooks.
 
 The battle log (`components/battleInfo/battleLog.ts`) sits beside layer 2 in battle: optional, a Log pill by the HP
@@ -37,7 +38,7 @@ Both wordings are authored side by side (`BATTLE_LINES` in `cardCombat/cardText.
 `MASTERY_LINES` in `cardPresentation.ts`); the compact line is never cut from the full rule. Other helpers:
 `printedAtk`, `legacyAtk`, `cardKeywords`, `cardIdentity` ("Rare · Kingdom · Unit · Knight"), `cardSearchText`
 (Collection and Deck Builder search), `masteryRankCopy`. `src/game/cards/cardCopy.ts` `cardCopyView` gives the player's
-copy of a card (owned, copies, Mastery stage, Mastery-adjusted HP Contribution).
+copy of a card (owned, copies, printed HP Contribution).
 
 Timing labels: On Play, Passive, Clash, After Clash, Destroyed, Ally Falls, Enemy Falls, Round Start, Round End, Your
 Spell, Enemy Spell, Direct Attack. Keyword labels replace the timing where they say more (Guard N, Your 2nd Spell,
@@ -46,7 +47,7 @@ Enemy's 2nd Spell).
 ## Densities
 
 `<GameCard cardId density rules? masteryRank? atk? tempAtk? silenced? shielded? passiveState? name? hpContribution?
-owned? copies? masteryStage? treatment? artId? animated? />`
+owned? copies? treatment? artId? animated? />`
 
 | Density | Where | Notes |
 | --- | --- | --- |
@@ -70,11 +71,11 @@ Every battle mode renders the same faces, focus dock, log and Inspect. `CombatDi
 
 - `card` (card combat): the approved ATK, effects and HP Contribution (Starting HP; shown in the focus detail and
   Inspect only).
-- `legacy` (modes still on the legacy resolver): ATK is the Power band (15 × Power + 35), effects are the legacy rules
-  plus the copy's Card Mastery abilities (marked), HP Contribution is not shown in battle (Inspect says it is not used
+- `legacy` (historical rules; since 2026-10-01 only a development build's `?combat=legacy` and an old Friendly match record that is still finishing play them, see CARD-COMBAT-DESIGN.md section 16): ATK is the Power band (15 × Power + 35), effects are the legacy rules
+  plus the copy's legacy Ascension abilities (marked), HP Contribution is not shown in battle (Inspect says it is not used
   there), and Legacy Level shows as an ATK change. So a card in play never claims a number the battle will not use.
 
-Resolver gating (`featureFlag.ts`) is untouched; only the presentation is global.
+Every production battle plays `card`, so a card shows the same numbers and wording in battle as in the Collection. Resolver selection lives in `combat/combatModel.ts`.
 
 ## Tests
 

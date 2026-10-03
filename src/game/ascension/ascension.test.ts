@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { GameEvent, GameState, HeroInstance, PlayerState } from '../types';
 import { getCard } from '../cards';
 import { STARTER_DECKS } from '../cards/starterDecks';
-import { getCollection, getOwnedCount, grantCard, reloadCollection, resetCollection, setCollection } from '../collection/collection';
+import { getCollection, getOwnedCount, grantCard, reloadCollection, removeCard, setCollection } from '../collection/collection';
 import { upsertSavedDeck } from '../engine/localDecks';
 import { migrateToRealCollection } from '../campaign/collectionMigration';
 import { recordBattleResult } from '../campaign/progress';
@@ -15,8 +15,10 @@ import { replayUpTo } from '../engine/replay';
 import { ASCENSION_DUPLICATE_COST, MAX_ASCENSION_RANK } from './config';
 import { CARD_ASCENSIONS, getCardAscension, supportsAscension } from './definitions';
 import { effectiveAbilities, getEffectiveCardDefinition } from './effective';
-import { ascendCard, getAscensionStatus } from './ascend';
-import { ASCENSION_STORAGE_KEY, ascensionRanksFor, getAscensionRank, getAscensionState, getDuplicatesSpent, reloadAscension, resetAscension, sanitizeAscension, setAscensionRank } from './store';
+import { MASTERY_RETIRED_REASON, ascendCard } from './ascend';
+import { hasMasteryPath } from './path';
+import { getGold, reloadEconomy, setGold } from '../economy/economy';
+import { ASCENSION_STORAGE_KEY, ascensionRanksFor, getAscensionRank, getAscensionState, getDuplicatesSpent, recordAscension, reloadAscension, resetAscension, sanitizeAscension, setAscensionRank } from './store';
 import { clearQueuedEvents, getQueuedEvents } from '../../analytics/track';
 
 function installLocalStoragePolyfill() {
@@ -37,6 +39,7 @@ beforeEach(() => {
   installLocalStoragePolyfill();
   reloadCollection();
   reloadAscension();
+  reloadEconomy();
   clearQueuedEvents();
 });
 
@@ -49,7 +52,7 @@ describe('Ascension persistence', () => {
   });
   it('saves and reloads rank and duplicates spent', () => {
     grantCard('kng-royal-guard', 1); // owns 3
-    expect(ascendCard('kng-royal-guard').ok).toBe(true);
+    historicalAdvance('kng-royal-guard', 1, 1);
     reloadAscension();
     expect(getAscensionRank('kng-royal-guard')).toBe(1);
     expect(getDuplicatesSpent('kng-royal-guard')).toBe(1);
@@ -60,12 +63,13 @@ describe('Ascension persistence', () => {
     reloadAscension();
     expect(getAscensionState().cards).toEqual({});
     const s = sanitizeAscension({ cards: { 'kng-royal-guard': { rank: 99, duplicatesSpent: -4 }, 'kng-common-knight': { rank: 2 }, ghost: { rank: 1 }, 'und-bone-soldier': { rank: 0 } } });
-    expect(s.cards).toEqual({ 'kng-royal-guard': { rank: MAX_ASCENSION_RANK, duplicatesSpent: 0 } }); // clamped; unsupported / unknown / rank-0 dropped
+    // clamped to Mastery V; every collectible card has the path now; unknown ids and rank-0 entries dropped
+    expect(s.cards).toEqual({ 'kng-royal-guard': { rank: MAX_ASCENSION_RANK, duplicatesSpent: 0 }, 'kng-common-knight': { rank: 2, duplicatesSpent: 0 } });
     expect(sanitizeAscension(null).cards).toEqual({});
   });
   it('a dev rank set is clamped to the card\'s path', () => {
     setAscensionRank('und-bone-soldier', 50);
-    expect(getAscensionRank('und-bone-soldier')).toBe(3);
+    expect(getAscensionRank('und-bone-soldier')).toBe(4); // Mastery V
     setAscensionRank('und-bone-soldier', 0);
     expect(getAscensionRank('und-bone-soldier')).toBe(0);
     resetAscension();
@@ -78,94 +82,56 @@ describe('Ascension persistence', () => {
   });
 });
 
-// ---- eligibility and spending ----------------------------------------------------------------
+// ---- advancement is retired ---------------------------------------------------------------------
 
-describe('Ascension eligibility and spending', () => {
-  it('costs are a flat, centralised curve of 1 / 2 / 3 duplicates', () => {
-    expect(ASCENSION_DUPLICATE_COST).toEqual([1, 2, 3]);
-    expect(CARD_ASCENSIONS.every((c) => c.ranks.length === MAX_ASCENSION_RANK)).toBe(true);
+/** What an advance made before combat Card Mastery was retired left in the save: copies spent, rank and spend recorded. */
+function historicalAdvance(cardId: string, toRank: number, spent: number) {
+  removeCard(cardId, spent);
+  recordAscension(cardId, toRank, spent);
+}
+
+describe('Card Mastery advancement is retired', () => {
+  it('13 and 14. no advance can spend Gold or copies, at any stage, whatever the player owns', () => {
+    setCollection({ ...getCollection(), 'und-bone-soldier': 11, 'kng-royal-guard': 6, 'spl-power-surge': 5 });
+    setGold(10_000);
+    localStorage.removeItem(ASCENSION_STORAGE_KEY);
+    for (const id of ['und-bone-soldier', 'kng-royal-guard', 'spl-power-surge']) {
+      for (let i = 0; i < 5; i++) expect(ascendCard(id), id).toEqual({ ok: false, cardId: id, newRank: 0, spent: 0, goldSpent: 0, reason: MASTERY_RETIRED_REASON });
+    }
+    expect(getGold()).toBe(10_000);
+    expect(getOwnedCount('und-bone-soldier')).toBe(11);
+    expect(getOwnedCount('kng-royal-guard')).toBe(6);
+    expect(getAscensionState().cards).toEqual({});
+    expect(localStorage.getItem(ASCENSION_STORAGE_KEY)).toBeNull(); // the store was never written
   });
-  it('a card without an Ascension path is unsupported; a missing one is not owned', () => {
-    expect(getAscensionStatus('kng-common-knight')).toMatchObject({ supported: false, canAscend: false, blocked: 'unsupported', reason: 'Ascension coming later.' });
-    expect(supportsAscension('und-mira')).toBe(false);
-    expect(getAscensionStatus('und-bone-soldier')).toMatchObject({ blocked: 'not-owned', canAscend: false });
+  it('a card with historical progress cannot go further either, and keeps its record untouched', () => {
+    setCollection({ ...getCollection(), 'und-bone-soldier': 9 });
+    historicalAdvance('und-bone-soldier', 2, 3);
+    setGold(5_000);
+    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: false, newRank: 2, spent: 0, goldSpent: 0 });
+    expect(getAscensionRank('und-bone-soldier')).toBe(2);
+    expect(getDuplicatesSpent('und-bone-soldier')).toBe(3);
+    expect(getOwnedCount('und-bone-soldier')).toBe(6);
+    expect(getGold()).toBe(5_000);
   });
-  it('one copy cannot Ascend (the last usable copy is never spent)', () => {
-    setCollection({ 'und-bone-soldier': 1 });
-    const s = getAscensionStatus('und-bone-soldier');
-    expect(s).toMatchObject({ canAscend: false, blocked: 'no-spare', spare: 0, cost: 1 });
-    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: false, spent: 0 });
-    expect(getOwnedCount('und-bone-soldier')).toBe(1);
+  it('fires no progression analytics', () => {
+    setCollection({ ...getCollection(), 'und-bone-soldier': 5 });
+    ascendCard('und-bone-soldier');
+    for (const name of ['duplicate_progress_applied', 'hero_ascended', 'hero_star_changed', 'roster_power_changed']) expect(getQueuedEvents().filter((e) => e.name === name), name).toHaveLength(0);
   });
-  it('two copies (no deck using them) can spend one duplicate and keep one', () => {
-    setCollection({ 'und-bone-soldier': 2 });
-    expect(getAscensionStatus('und-bone-soldier')).toMatchObject({ canAscend: true, spare: 1, nextRank: 1, cost: 1 });
-    const r = ascendCard('und-bone-soldier');
-    expect(r).toMatchObject({ ok: true, newRank: 1, spent: 1 });
-    expect(getOwnedCount('und-bone-soldier')).toBe(1);
-    expect(getAscensionRank('und-bone-soldier')).toBe(1);
+  it('the historical ladder stays documented (for a future Prestige study), and charges nothing', () => {
+    expect(ASCENSION_DUPLICATE_COST).toEqual([1, 2, 3, 4]);
+    expect(MAX_ASCENSION_RANK).toBe(4);
+    // The legacy effect paths (historical resolver only) keep their three authored ranks.
+    expect(CARD_ASCENSIONS.every((c) => c.ranks.length === 3)).toBe(true);
   });
-  it('insufficient duplicates block the next rank with a clear reason', () => {
-    setCollection({ 'und-bone-soldier': 2 });
-    ascendCard('und-bone-soldier'); // -> rank 1, owns 1
-    grantCard('und-bone-soldier', 2); // owns 3, rank II costs 2 -> keeps 1: allowed
-    expect(getAscensionStatus('und-bone-soldier').canAscend).toBe(true);
-    removeOne('und-bone-soldier'); // owns 2, rank II needs 2 spare
-    const s = getAscensionStatus('und-bone-soldier');
-    expect(s).toMatchObject({ canAscend: false, blocked: 'no-spare', cost: 2 });
-    expect(s.reason).toMatch(/spare cop/);
-  });
-  it('spends the correct cost per rank and blocks at max rank', () => {
-    setCollection({ 'und-bone-soldier': 1 + 1 + 2 + 3 }); // enough for all three ranks
-    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: true, newRank: 1, spent: 1 });
-    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: true, newRank: 2, spent: 2 });
-    expect(ascendCard('und-bone-soldier')).toMatchObject({ ok: true, newRank: 3, spent: 3 });
-    expect(getOwnedCount('und-bone-soldier')).toBe(1); // one usable copy always remains
-    expect(getDuplicatesSpent('und-bone-soldier')).toBe(6);
-    const max = getAscensionStatus('und-bone-soldier');
-    expect(max).toMatchObject({ canAscend: false, blocked: 'max-rank', nextRank: null, cost: null });
-    expect(ascendCard('und-bone-soldier').ok).toBe(false);
-    expect(getOwnedCount('und-bone-soldier')).toBe(1); // never negative, never below one
-  });
-  it('protects a usable deck: 2 copies both in the Kingdom starter cannot be spent', () => {
-    // fresh profile: Royal Guard x2, Kingdom starter uses both
-    const s = getAscensionStatus('kng-royal-guard');
-    expect(s).toMatchObject({ owned: 2, canAscend: false, blocked: 'in-use', spare: 0, blockingDeck: 'Kingdom Starter' });
-    expect(s.reason).toContain('Kingdom Starter uses 2');
-    expect(ascendCard('kng-royal-guard').ok).toBe(false);
-    expect(getOwnedCount('kng-royal-guard')).toBe(2); // nothing spent, decks untouched
-  });
-  it('with a spare third copy, Ascending leaves every deck legal', () => {
-    grantCard('kng-royal-guard', 1);
-    expect(getAscensionStatus('kng-royal-guard')).toMatchObject({ owned: 3, canAscend: true, spare: 1 });
-    expect(ascendCard('kng-royal-guard').ok).toBe(true);
-    expect(getOwnedCount('kng-royal-guard')).toBe(2);
-    expect(STARTER_DECKS.kingdom.filter((id) => id === 'kng-royal-guard')).toHaveLength(2);
-    const s = getAscensionStatus('kng-royal-guard');
-    expect(s.canAscend).toBe(false); // rank II costs 2: nothing spare left, and the starter still needs both
-  });
-  it('a saved deck using the copies protects them too, and an invalid deck does not', () => {
-    setCollection({ 'und-bone-soldier': 2 });
-    upsertSavedDeck({ id: 'deck-x', name: 'Draft', faction: 'undead', cardIds: ['und-bone-soldier', 'und-bone-soldier'] });
-    expect(getAscensionStatus('und-bone-soldier').canAscend).toBe(true); // an incomplete draft is not "in use"
-  });
-  it('a locked starter deck does not count as in use', () => {
-    // Undead starter is locked on a fresh profile: 3 Bone Soldiers are all spendable down to one
-    setCollection({ ...getCollection(), 'und-bone-soldier': 3 });
-    expect(getAscensionStatus('und-bone-soldier')).toMatchObject({ spare: 2, canAscend: true });
-  });
-  it('a Campaign duplicate makes Ascension available (no automatic Ascension)', () => {
-    resetCollection();
-    expect(getAscensionStatus('kng-royal-guard').canAscend).toBe(false);
-    grantCard('kng-royal-guard', 1);
-    expect(getAscensionStatus('kng-royal-guard').canAscend).toBe(true);
-    expect(getAscensionRank('kng-royal-guard')).toBe(0); // still Base until the player chooses
+  it('every collectible card can carry a historical record; a non-roster id cannot', () => {
+    expect(supportsAscension('und-mira')).toBe(false); // no legacy effect path...
+    expect(hasMasteryPath('und-mira')).toBe(true); // ...but its record is kept
+    expect(hasMasteryPath('spl-power-surge')).toBe(true);
+    expect(hasMasteryPath('wld-forest-wolf')).toBe(false); // not a collectible card
   });
 });
-
-function removeOne(cardId: string) {
-  setCollection({ ...getCollection(), [cardId]: getOwnedCount(cardId) - 1 });
-}
 
 // ---- effective card definitions --------------------------------------------------------------
 
@@ -307,21 +273,21 @@ describe('Ascension in the engine', () => {
 // ---- accounting, migration and starter safety --------------------------------------------------
 
 describe('duplicate accounting', () => {
-  it('available copies are just the collection quantity: spending is subtracted exactly once', () => {
+  it('available copies are just the collection quantity: a historical spend is subtracted exactly once', () => {
     setCollection({ 'und-bone-soldier': 6 });
-    ascendCard('und-bone-soldier'); // -1
-    ascendCard('und-bone-soldier'); // -2
+    historicalAdvance('und-bone-soldier', 1, 1);
+    historicalAdvance('und-bone-soldier', 2, 2);
     expect(getOwnedCount('und-bone-soldier')).toBe(3);
     expect(getDuplicatesSpent('und-bone-soldier')).toBe(3);
     // the spend record never feeds back into availability, at rest or after reloads
     reloadCollection();
     reloadAscension();
     expect(getOwnedCount('und-bone-soldier')).toBe(3);
-    expect(getAscensionStatus('und-bone-soldier')).toMatchObject({ owned: 3, spare: 2 });
+    expect(getDuplicatesSpent('und-bone-soldier')).toBe(3);
   });
   it('a reload or a migration run cannot double-spend or refund', () => {
     setCollection({ 'und-bone-soldier': 4 });
-    ascendCard('und-bone-soldier');
+    historicalAdvance('und-bone-soldier', 1, 1);
     const before = getOwnedCount('und-bone-soldier');
     for (let i = 0; i < 3; i++) {
       reloadCollection();
@@ -335,7 +301,7 @@ describe('duplicate accounting', () => {
     const stats = { roundsPlayed: 3, finalPlayerHp: 20 } as unknown as MatchStats;
     recordBattleResult('battle-broken-palisade', 'PLAYER_WIN', stats, [], 'kingdom'); // Bone Soldier x3
     expect(getOwnedCount('und-bone-soldier')).toBe(3);
-    ascendCard('und-bone-soldier'); // spends 1 -> owns 2
+    historicalAdvance('und-bone-soldier', 1, 1); // spent 1 before the retirement -> owns 2
     localStorage.removeItem('skyloom:collection'); // collection lost, Campaign + Ascension progress kept
     reloadCollection();
     migrateToRealCollection();
@@ -346,7 +312,7 @@ describe('duplicate accounting', () => {
   it('an older-version top-up does not add copies back that Ascension spent', () => {
     const stats = { roundsPlayed: 3, finalPlayerHp: 20 } as unknown as MatchStats;
     recordBattleResult('battle-broken-palisade', 'PLAYER_WIN', stats, [], 'kingdom');
-    ascendCard('und-bone-soldier');
+    historicalAdvance('und-bone-soldier', 1, 1);
     const raw = JSON.parse(localStorage.getItem('skyloom:collection')!);
     localStorage.setItem('skyloom:collection', JSON.stringify({ ...raw, version: 2 })); // pretend an older stamp
     reloadCollection();
@@ -399,69 +365,18 @@ describe('Toll of the Ford, Fortify and starter safety', () => {
   it('Toll of the Ford deliberately awards a spare Royal Guard, and Fortify is an explicit future-region source', () => {
     const toll = CHAPTER_1.nodes.find((n) => n.id === 'challenge-toll-of-the-ford');
     expect(toll?.encounter?.firstClearReward).toMatchObject({ cardId: 'kng-royal-guard', label: 'Royal Guard' });
-    expect(getCardAscension('kng-royal-guard')).toBeDefined(); // the spare exists to be Ascended
+    expect(getCardAscension('kng-royal-guard')).toBeDefined(); // a legacy effect path (historical resolver only)
     expect(FUTURE_REGION_CARDS['spl-fortify']).toBe('region-2');
     expect(getCardAcquisitionSources('spl-fortify')).toEqual([{ kind: 'summon', bannerId: 'royal-vanguard' }, { kind: 'future', regionId: 'region-2' }]);
   });
-  it('Ascension cannot re-lock an unlocked starter deck', () => {
-    // Undead starter unlocked with exactly the cards it needs: Bone Soldier x2 (needed) cannot be spent
+  it('a retired advance can never re-lock a starter or break a saved deck: nothing is ever spent', () => {
     const owned: Record<string, number> = { ...getCollection() };
     for (const id of STARTER_DECKS.undead) owned[id] = STARTER_DECKS.undead.filter((x) => x === id).length;
-    setCollection(owned);
-    expect(getAscensionStatus('und-bone-soldier')).toMatchObject({ canAscend: false, blocked: 'in-use', blockingDeck: 'Undead Starter' });
-    expect(ascendCard('und-bone-soldier').ok).toBe(false);
-    expect(getOwnedCount('und-bone-soldier')).toBe(2);
-    // with one spare it may spend that one - and the starter is still fully covered afterwards
     setCollection({ ...owned, 'und-bone-soldier': 3 });
-    expect(ascendCard('und-bone-soldier').ok).toBe(true);
-    expect(getOwnedCount('und-bone-soldier')).toBe(2);
-    expect(isStarterDeckUnlocked('starter-undead')).toBe(true);
-  });
-  it('Ascension cannot invalidate a playable saved deck', () => {
     const deck = [...STARTER_DECKS.kingdom.slice(0, 13), 'und-bone-soldier', 'und-bone-soldier'];
-    setCollection({ ...getCollection(), 'und-bone-soldier': 3 });
     upsertSavedDeck({ id: 'deck-live', name: 'Live', faction: 'kingdom', cardIds: deck });
-    const s = getAscensionStatus('und-bone-soldier');
-    expect(s.spare).toBe(1);
-    expect(s.canAscend).toBe(true); // 3 owned, deck uses 2, cost 1 keeps 2
-    ascendCard('und-bone-soldier');
-    expect(getAscensionStatus('und-bone-soldier')).toMatchObject({ canAscend: false }); // rank II (cost 2) would break the deck
-    expect(getOwnedCount('und-bone-soldier')).toBe(2);
-  });
-});
-
-// ---- analytics (Commercial Prototype Phase 9) --------------------------------------------------
-
-describe('ascendCard analytics', () => {
-  it('fires duplicate_progress_applied and hero_ascended together, with matching rank properties', () => {
-    setCollection({ 'und-bone-soldier': 2 });
-    ascendCard('und-bone-soldier');
-    const dup = getQueuedEvents().filter((e) => e.name === 'duplicate_progress_applied');
-    const asc = getQueuedEvents().filter((e) => e.name === 'hero_ascended');
-    expect(dup).toHaveLength(1);
-    expect(asc).toHaveLength(1);
-    expect(asc[0].properties).toMatchObject({ cardId: 'und-bone-soldier', rankBefore: 0, rankAfter: 1 });
-  });
-  it('fires hero_star_changed when the Ascension rank crosses a star boundary', () => {
-    setCollection({ 'und-bone-soldier': 1 + 1 + 2 + 3 }); // enough for all three ranks
-    ascendCard('und-bone-soldier'); // rank 0 -> 1: stars 0 -> 2
-    const events = getQueuedEvents().filter((e) => e.name === 'hero_star_changed');
-    expect(events).toHaveLength(1);
-    expect(events[0].properties).toMatchObject({ cardId: 'und-bone-soldier', starsBefore: 0, starsAfter: 2 });
-  });
-  it('fires roster_power_changed with a positive delta', () => {
-    setCollection({ 'und-bone-soldier': 2 });
-    ascendCard('und-bone-soldier');
-    const events = getQueuedEvents().filter((e) => e.name === 'roster_power_changed');
-    expect(events).toHaveLength(1);
-    expect(events[0].properties.source).toBe('ascension');
-    expect(events[0].properties.delta as number).toBeGreaterThan(0);
-  });
-  it('a failed Ascend (blocked) fires none of these events', () => {
-    setCollection({ 'und-bone-soldier': 1 }); // no spare - blocked
-    ascendCard('und-bone-soldier');
-    expect(getQueuedEvents().filter((e) => e.name === 'hero_ascended')).toHaveLength(0);
-    expect(getQueuedEvents().filter((e) => e.name === 'hero_star_changed')).toHaveLength(0);
-    expect(getQueuedEvents().filter((e) => e.name === 'roster_power_changed')).toHaveLength(0);
+    expect(ascendCard('und-bone-soldier').ok).toBe(false);
+    expect(getOwnedCount('und-bone-soldier')).toBe(3);
+    expect(isStarterDeckUnlocked('starter-undead')).toBe(true);
   });
 });

@@ -366,10 +366,13 @@ export type CombatModelId = 'legacy' | 'v2' | 'card';
 export interface CardCombatMeta {
   /** Resolver/rules version, so a replay or a remote client can reject a mismatch. */
   version: number;
-  /** Starting HP per side: the sum of the deck's Unit HP Contributions, Mastery included. */
+  /** Starting HP per side: the sum of the deck's printed Unit HP Contributions (or a Campaign override). */
   startingHp: Record<Side, number>;
-  /** Card Mastery stage (1..5) per card id per side, fixed at match start. Changes HP Contribution only. */
-  masteryStage: Record<Side, Record<string, number>>;
+  /**
+   * Historical only: v2 matches recorded the Card Mastery stage per card per side here. Resolver v3 never writes or
+   * reads it (combat Card Mastery is removed); it stays in the type so a stored v2 match still loads unchanged.
+   */
+  masteryStage?: Record<Side, Record<string, number>>;
   /** Parallel to PlayerState.deck / graveyard: true where that copy has already returned from the Graveyard. */
   deckMarks: Record<Side, boolean[]>;
   graveMarks: Record<Side, boolean[]>;
@@ -558,7 +561,7 @@ export type GameEvent =
   /** STALL_COMBAT froze this Hero: no combat will happen in its lane this round. */
   | { type: 'COMBAT_STALLED'; side: Side; instanceId: string; name: string; lane: LaneId }
   /** Card combat: a side's Starting HP, derived from its deck at match start (Units' HP Contributions, Mastery included). */
-  | { type: 'STARTING_HP'; side: Side; hp: number; units: number; masteryBonus: number }
+  | { type: 'STARTING_HP'; side: Side; hp: number; units: number; /** Historical v2 logs only; never written now. */ masteryBonus?: number }
   /** Card combat: Stasis Field - this Unit deals no damage this round. */
   | { type: 'PACIFIED'; side: Side; instanceId: string; name: string; lane: LaneId }
   /** Card combat: a Graveyard return found only copies that already returned once this match, so nothing came back. */

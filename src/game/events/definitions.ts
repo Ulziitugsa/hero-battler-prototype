@@ -27,7 +27,7 @@ export const THE_LONG_VIGIL: EventDefinition = {
   missions: [
     { id: 'vigil-win-battles', title: 'Win 3 battles', objective: { kind: 'count', event: 'battle_completed', where: { result: 'win' } }, target: 3, reward: { gold: 80 } },
     { id: 'vigil-undead-units', title: 'Play 10 Undead Units', objective: { kind: 'sum', event: 'battle_completed', property: 'undeadUnitsPlayed' }, target: 10, reward: { gems: 20 } },
-    { id: 'vigil-damage', title: 'Deal 400 damage to opponents', objective: { kind: 'sum', event: 'battle_completed', property: 'damageDealt' }, target: 400, reward: { gold: 100 } },
+    { id: 'vigil-damage', title: 'Deal 18,000 damage to opponents', objective: { kind: 'sum', event: 'battle_completed', property: 'damageDealt' }, target: 18_000, reward: { gold: 100 } },
     { id: 'vigil-ranked-wins', title: 'Win 2 Ranked matches', objective: { kind: 'count', event: 'ranked_match_won' }, target: 2, reward: { tickets: 1 } },
     { id: 'vigil-campaign-wins', title: 'Win 3 Campaign battles', objective: { kind: 'count', event: 'campaign_won' }, target: 3, reward: { gold: 80 } },
     { id: 'vigil-open-packs', title: 'Open 5 Moonfall packs', objective: { kind: 'sum', event: 'prototype_box_opened', property: 'packCount', where: { boxId: MOONFALL_BOX.id } }, target: 5, reward: { gems: 30 } },

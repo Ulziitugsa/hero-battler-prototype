@@ -1,4 +1,4 @@
-import type { CombatOutcome, GameEvent, GameState, PlayerAction, Side } from '../types/index.js';
+import type { CardCombatMeta, CombatOutcome, GameEvent, GameState, PlayerAction, Side } from '../types/index.js';
 import { opposite } from './board.js';
 import { redactEventsForViewer, redactStateForViewer } from './redact.js';
 
@@ -89,6 +89,26 @@ function flipSideKeyedRecord<T>(record: Partial<Record<Side, T>> | undefined): P
   return flipped;
 }
 
+function flipSides<T>(record: Record<Side, T>): Record<Side, T> {
+  return { player: record.enemy, enemy: record.player };
+}
+
+/** Card combat's per-match bookkeeping is keyed by side throughout; every side-keyed field flips together. */
+function flipCardCombat(meta: CardCombatMeta | undefined): CardCombatMeta | undefined {
+  if (!meta) return meta;
+  return {
+    ...meta,
+    startingHp: flipSides(meta.startingHp),
+    ...(meta.masteryStage ? { masteryStage: flipSides(meta.masteryStage) } : {}),
+    deckMarks: flipSides(meta.deckMarks),
+    graveMarks: flipSides(meta.graveMarks),
+    died: flipSides(meta.died),
+    spellsThisRound: flipSides(meta.spellsThisRound),
+    contDestroyed: flipSides(meta.contDestroyed),
+    ...(meta.clashShield ? { clashShield: flipSides(meta.clashShield) } : {}),
+  };
+}
+
 /** Same treatment as orientEventsForViewer, but for a whole GameState snapshot. */
 export function orientStateForViewer(state: GameState, viewerCanonicalSide: Side): GameState {
   const redacted = redactStateForViewer(state, viewerCanonicalSide);
@@ -100,6 +120,7 @@ export function orientStateForViewer(state: GameState, viewerCanonicalSide: Side
     masteries: flipSideKeyedRecord(redacted.masteries),
     ascensions: flipSideKeyedRecord(redacted.ascensions),
     heroLevels: flipSideKeyedRecord(redacted.heroLevels),
+    ...(redacted.cardCombat ? { cardCombat: flipCardCombat(redacted.cardCombat) } : {}),
   };
 }
 

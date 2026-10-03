@@ -3,13 +3,16 @@ import type { CampaignChapterDef } from './types';
 // Region 1 / Chapter 1 - "The Ashen Road". The one real, playable chapter of this vertical slice (see
 // types.ts). Thirteen nodes: an intro story beat, six standard battles, one optional challenge spur,
 // one story beat, one elite, one boss and two reward claims - matching the design's own "teaches one
-// mechanic per node" progression (placement, spells, continuous spells, overflow, conditional
+// mechanic per node" progression (placement, spells, continuous spells, Clash Damage, conditional
 // effects, graveyard synergy, then the boss combines them).
 //
-// encounterDecks.ts supplies a distinct legal deck for each tactical lesson. Only the boss uses the
-// full Undead starter. Vharos is in its deck; drawing him is subject to normal shuffle/draw rules.
+// Every battle plays card combat. encounterDecks.ts supplies a distinct legal deck for each tactical lesson;
+// `difficulty` and the objective thresholds were set from scripts/simulate-modes.mjs on the production resolver.
+// Objectives read card-combat numbers: rounds, a share of the player's own Starting HP, Clash Damage dealt.
+// Only the boss uses the full Undead starter, behind a boss HP pool. Vharos is in its deck; drawing him is
+// subject to normal shuffle/draw rules.
 
-const UNDEAD_ENCOUNTER = (overrides: Partial<import('./types').CampaignEncounterDef> & Pick<import('./types').CampaignEncounterDef, 'foeName' | 'foeCardId' | 'threat' | 'energyCost' | 'objectives' | 'firstClearReward' | 'repeatReward'>): import('./types').CampaignEncounterDef => ({
+const UNDEAD_ENCOUNTER = (overrides: Partial<import('./types').CampaignEncounterDef> & Pick<import('./types').CampaignEncounterDef, 'foeName' | 'foeCardId' | 'threat' | 'energyCost' | 'difficulty' | 'objectives' | 'firstClearReward' | 'repeatReward'>): import('./types').CampaignEncounterDef => ({
   foeFaction: 'undead',
   enemyDeckFaction: 'undead',
   ...overrides,
@@ -48,8 +51,8 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeName: 'Cursed Warrior band',
         foeCardId: 'und-bone-soldier',
         threat: 1,
+        difficulty: 'easy',
         energyCost: 5,
-        recommendedRosterPower: 400,
         objectives: [],
         firstClearReward: { label: 'Bone Soldier', sub: 'Three Undead recruits join your road', icon: 'card', cardId: 'und-bone-soldier', count: 3 },
         repeatReward: { label: '1 ember', sub: 'Every clear after the first', icon: 'ember' },
@@ -67,11 +70,11 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeName: 'Bone Soldier warband',
         foeCardId: 'und-bone-soldier',
         threat: 2,
+        difficulty: 'easy',
         energyCost: 5,
-        recommendedRosterPower: 450,
         objectives: [
-          { id: 'rounds', text: 'Win within 5 rounds', check: 'roundsWithin', value: 5 },
-          { id: 'hp', text: 'Take less than 8 damage', check: 'healthAtLeast', value: 12 },
+          { id: 'rounds', text: 'Win within 7 rounds', check: 'roundsWithin', value: 7 },
+          { id: 'hp', text: 'Keep 80% of your Starting HP', check: 'healthPctAtLeast', value: 80 },
         ],
         firstClearReward: { label: 'Second Chance', sub: 'Your first Undead spells', icon: 'card', cardId: 'spl-second-chance', count: 2 },
         repeatReward: { label: '2 embers', sub: 'Every clear after the first', icon: 'ember' },
@@ -99,11 +102,11 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeName: 'Bone Soldier warband',
         foeCardId: 'und-bone-soldier',
         threat: 2,
+        difficulty: 'easy',
         energyCost: 5,
-        recommendedRosterPower: 500,
         objectives: [
-          { id: 'rounds', text: 'Win within 5 rounds', check: 'roundsWithin', value: 5 },
-          { id: 'hp', text: 'Take less than 8 damage', check: 'healthAtLeast', value: 12 },
+          { id: 'rounds', text: 'Win within 7 rounds', check: 'roundsWithin', value: 7 },
+          { id: 'hp', text: 'Keep 85% of your Starting HP', check: 'healthPctAtLeast', value: 85 },
         ],
         firstClearReward: { label: 'Grave Totem', sub: 'A Continuous spell for the long road', icon: 'card', cardId: 'spl-grave-totem' },
         repeatReward: { label: '2 embers', sub: 'Every clear after the first', icon: 'ember' },
@@ -122,15 +125,15 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeName: 'Cursed Warrior band',
         foeCardId: 'und-bone-soldier',
         threat: 3,
+        difficulty: 'fair',
         energyCost: 5,
-        startingHp: 12,
-        recommendedRosterPower: 550,
-        modifier: { title: 'Challenge rule', text: 'You start at 12 health instead of 20.' },
+        playerStartingHpPct: 70,
+        modifier: { title: 'Challenge rule', text: 'You start at 70% of your deck’s Starting HP.' },
         objectives: [
-          { id: 'hp', text: 'Never fall below 5 health', check: 'healthAtLeast', value: 5 },
+          { id: 'hp', text: 'Finish with 75% of the HP you started with', check: 'healthPctAtLeast', value: 75 },
           { id: 'faction', text: 'Win with a Kingdom deck', check: 'deckFactionKingdom' },
         ],
-        firstClearReward: { label: 'Royal Guard', sub: 'Won with Kingdom steel - a spare Guard for Card Mastery', icon: 'card', cardId: 'kng-royal-guard' },
+        firstClearReward: { label: 'Royal Guard', sub: 'Won with Kingdom steel - another Royal Guard', icon: 'card', cardId: 'kng-royal-guard' },
         repeatReward: { label: '1 ember', sub: 'Every clear after the first', icon: 'ember' },
       }),
     },
@@ -138,7 +141,7 @@ export const CHAPTER_1: CampaignChapterDef = {
       id: 'battle-grey-orchard',
       type: 'battle',
       name: 'Grey Orchard',
-      teach: 'Overflow damage',
+      teach: 'Clash Damage',
       x: 490,
       y: 566,
       requires: ['battle-ford-of-ash'],
@@ -146,11 +149,11 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeName: 'Bone Soldier warband',
         foeCardId: 'und-bone-soldier',
         threat: 3,
+        difficulty: 'fair',
         energyCost: 5,
-        recommendedRosterPower: 550,
         objectives: [
-          { id: 'rounds', text: 'Win within 6 rounds', check: 'roundsWithin', value: 6 },
-          { id: 'overflow', text: 'Deal 5+ overflow damage', check: 'overflowDealtAtLeast', value: 5 },
+          { id: 'rounds', text: 'Win within 7 rounds', check: 'roundsWithin', value: 7 },
+          { id: 'overflow', text: 'Deal 150+ Clash Damage', check: 'clashDamageDealtAtLeast', value: 150 },
         ],
         firstClearReward: { label: 'Cursed Warrior', sub: 'Two more blades for the barrows', icon: 'card', cardId: 'und-cursed-warrior', count: 2 },
         repeatReward: { label: '2 embers', sub: 'Every clear after the first', icon: 'ember' },
@@ -183,11 +186,11 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeName: 'Dark Priest coven',
         foeCardId: 'und-bone-soldier',
         threat: 3,
+        difficulty: 'fair',
         energyCost: 5,
-        recommendedRosterPower: 600,
         objectives: [
-          { id: 'rounds', text: 'Win within 6 rounds', check: 'roundsWithin', value: 6 },
-          { id: 'hp', text: 'Take less than 10 damage', check: 'healthAtLeast', value: 10 },
+          { id: 'rounds', text: 'Win within 7 rounds', check: 'roundsWithin', value: 7 },
+          { id: 'hp', text: 'Keep 90% of your Starting HP', check: 'healthPctAtLeast', value: 90 },
         ],
         firstClearReward: { label: 'Dark Priest', sub: 'Two Dark Priests answer the call', icon: 'card', cardId: 'und-dark-priest', count: 2 },
         repeatReward: { label: '2 embers', sub: 'Every clear after the first', icon: 'ember' },
@@ -205,12 +208,12 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeName: 'Mira',
         foeCardId: 'und-mira',
         threat: 4,
+        difficulty: 'hard',
         energyCost: 7,
-        recommendedRosterPower: 650,
         modifier: { title: 'Encounter rule', text: 'Mira’s warband leans hard on the graveyard - expect returned and revived Units all match.' },
         objectives: [
           { id: 'nohero', text: 'Win without losing a Unit', check: 'noHeroLost' },
-          { id: 'overflow', text: 'Deal 10+ overflow damage', check: 'overflowDealtAtLeast', value: 10 },
+          { id: 'overflow', text: 'Deal 300+ Clash Damage', check: 'clashDamageDealtAtLeast', value: 300 },
         ],
         firstClearReward: { label: 'Mira', sub: 'The Grave Warden changes sides', icon: 'card', cardId: 'und-mira', count: 2 },
         repeatReward: { label: '3 embers', sub: 'Every clear after the first', icon: 'ember' },
@@ -228,11 +231,11 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeName: 'Grave Knight vanguard',
         foeCardId: 'und-bone-soldier',
         threat: 4,
+        difficulty: 'hard',
         energyCost: 5,
-        recommendedRosterPower: 700,
         objectives: [
-          { id: 'rounds', text: 'Win within 6 rounds', check: 'roundsWithin', value: 6 },
-          { id: 'hp', text: 'Take less than 10 damage', check: 'healthAtLeast', value: 10 },
+          { id: 'rounds', text: 'Win within 9 rounds', check: 'roundsWithin', value: 9 },
+          { id: 'hp', text: 'Keep 90% of your Starting HP', check: 'healthPctAtLeast', value: 90 },
         ],
         firstClearReward: { label: 'Grave Knight', sub: 'Three Grave Knights ride out', icon: 'card', cardId: 'und-grave-knight', count: 3 },
         repeatReward: { label: '2 embers', sub: 'Every clear after the first', icon: 'ember' },
@@ -250,17 +253,14 @@ export const CHAPTER_1: CampaignChapterDef = {
         foeName: 'Vharos, the Grave Tyrant',
         foeCardId: 'und-vharos',
         threat: 5,
+        difficulty: 'hard',
         energyCost: 10,
-        // The visible progression wall (docs/COMMERCIAL-PROTOTYPE-PLAN.md Phase 3): comfortably above what
-        // pure card collection alone yields (~575-765 across the whole 1-20 account range with no
-        // deliberate Level/Ascension spend, measured directly from rosterPowerForDeck - see the "diag"
-        // note in campaign/powerCurve.test.ts). A few Hero Levels or the free Ascension from the Toll of
-        // the Ford challenge close the gap; strategy still decides the fight itself.
-        recommendedRosterPower: 800,
-        modifier: { title: 'Encounter rule', text: 'The full Undead starter deck, Vharos included - every mechanic Chapter 1 taught, at once.' },
+        // Boss HP pool (docs/CARD-COMBAT-DESIGN.md 12.7): about 1.25x the Undead starter's own 971.
+        enemyStartingHp: 1200,
+        modifier: { title: 'Boss', text: 'Vharos fights with 1,200 HP and the full Undead starter deck, Vharos included: every mechanic Chapter 1 taught, at once.' },
         objectives: [
-          { id: 'rounds', text: 'Win within 8 rounds', check: 'roundsWithin', value: 8 },
-          { id: 'hp', text: 'Keep 10 or more health', check: 'healthAtLeast', value: 10 },
+          { id: 'rounds', text: 'Win within 11 rounds', check: 'roundsWithin', value: 11 },
+          { id: 'hp', text: 'Keep 85% of your Starting HP', check: 'healthPctAtLeast', value: 85 },
         ],
         firstClearReward: { label: 'Vharos', sub: 'Legendary + chapter seal', icon: 'card', cardId: 'und-vharos' },
         repeatReward: { label: '5 embers', sub: 'Every clear after the first', icon: 'ember' },

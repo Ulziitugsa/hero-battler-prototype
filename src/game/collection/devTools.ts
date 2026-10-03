@@ -5,17 +5,16 @@ import { PLAYTEST_ROSTER } from '../cards/roster';
 import type { StarterFaction } from '../cards/starterDecks';
 import { getAccount, grantXp, resetProgression, setLevel, setMasteryRank, unlockMastery } from '../progression/account';
 import type { MasteryId } from '../mastery/definitions';
-import { ascendCard, getAscensionStatus } from '../ascension/ascend';
-import { CARD_ASCENSIONS } from '../ascension/definitions';
+import { ascendCard } from '../ascension/ascend';
+import { historicalMastery } from '../cardMastery/model';
 import { getAscensionState, resetAscension, setAscensionRank } from '../ascension/store';
 import { getEconomy, grantGems, grantGold, grantTickets, isUnlimitedGems, resetEconomy, resetSummonState, setGems, setGold, setPity, setTickets, setUnlimitedGems } from '../economy/economy';
 import { performSummon } from '../summon/summon';
 import { SUMMON_BANNERS } from '../summon/banners';
 import { forceNextRarity } from '../summon/devControls';
 import type { Rarity } from '../types';
-import { getHeroLevelStatus, levelUpHero } from '../heroLevel/levelUp';
-import { getHeroLevelState, resetHeroLevels, setHeroLevel } from '../heroLevel/store';
-import { rosterPowerForDeck } from '../heroLevel/rosterPower';
+import { resetHeroLevels, setHeroLevel } from '../heroLevel/store';
+import { resetSaveMigrations, runSaveMigrations } from '../save/migrations';
 import { claimIdleReward, loadIdleReward, resetIdleRewards } from '../campaign/idleRewards';
 import { claimMission, getMissionsState, resetMissions, setMissionProgress } from '../missions/store';
 import { claimJourneyDay, getJourneyState, resetJourney } from '../journey/store';
@@ -33,12 +32,12 @@ export const devTools = {
   setAllOwned: (copies = 2) => setAllOwned(copies),
   reset: () => resetCollection(),
   get: () => getCollection(),
-  // ---- Ascension ----
+  // ---- Historical Ascension / Mastery (save data only: no combat effect; advancing is retired and always refuses) ----
   grantCopies: (cardId: string, count = 1) => grantCard(cardId, count),
   setAscensionRank: (cardId: string, rank: number) => setAscensionRank(cardId, rank),
   resetAscension: () => resetAscension(),
   ascend: (cardId: string) => ascendCard(cardId),
-  ascensionReport: () => ({ state: getAscensionState(), cards: Object.fromEntries(CARD_ASCENSIONS.map((c) => [c.cardId, getAscensionStatus(c.cardId)])) }),
+  ascensionReport: () => ({ state: getAscensionState(), cards: Object.fromEntries(Object.keys(getAscensionState().cards).map((id) => [id, historicalMastery(id)])) }),
   // ---- Account progression ----
   account: () => getAccount(),
   addXp: (amount: number) => grantXp(amount),
@@ -54,12 +53,12 @@ export const devTools = {
   setGold: (amount: number) => setGold(amount),
   addTickets: (amount: number) => grantTickets(amount, 'dev'),
   setTickets: (amount: number) => setTickets(amount),
-  // ---- Hero Level / Roster Power ----
-  heroLevel: (cardId: string) => getHeroLevelStatus(cardId),
+  // ---- Legacy Hero Level (save data only: no effect anywhere; refunded once by save/migrations.ts) ----
   setHeroLevel: (cardId: string, level: number) => setHeroLevel(cardId, level),
-  levelUpHero: (cardId: string) => levelUpHero(cardId),
   resetHeroLevels: () => resetHeroLevels(),
-  rosterPower: (cardIds: string[], accountLevel: number) => rosterPowerForDeck(cardIds, accountLevel, getHeroLevelState(), getAscensionState()),
+  // ---- Save migration ----
+  runSaveMigrations: () => runSaveMigrations(),
+  resetSaveMigrations: () => resetSaveMigrations(),
   // ---- Idle rewards ----
   idleReward: () => loadIdleReward(),
   claimIdle: () => claimIdleReward(),

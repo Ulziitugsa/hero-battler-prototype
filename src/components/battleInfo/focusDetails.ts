@@ -51,10 +51,8 @@ export interface FocusDetails {
   lane?: LaneId;
   kind: 'unit' | 'spell' | 'continuous';
   rules: CardRules;
-  /** Legacy rules: the Card Mastery rank whose abilities the copy plays. */
+  /** Legacy rules only: the legacy Ascension rank whose abilities a historical legacy match plays. Always 0 in card combat. */
   masteryRank: number;
-  /** A Unit copy's Card Mastery stage (1..5) where known; 0 for none (a card not owned, a Spell, a token). */
-  masteryStage: number;
   /** A Unit's ATK: on the board, its current clash ATK (Continuous Spells included); elsewhere, its printed ATK. */
   atk?: number;
   printedAtk?: number;
@@ -77,14 +75,7 @@ export interface FocusOptions {
   hpContribution?: (cardId: string, owner: Side) => number | undefined;
 }
 
-/** The Card Mastery stage a side's copy of a card plays at: card combat records it per match; legacy is rank + 1. */
-function stageOf(state: GameState, side: Side, cardId: string, rules: CardRules, rank: number): number {
-  if (getCard(cardId).type !== 'hero') return 0;
-  return rules === 'card' ? (state.cardCombat?.masteryStage[side][cardId] ?? 1) : rank + 1;
-}
-
 const other = (side: Side): Side => (side === 'player' ? 'enemy' : 'player');
-const isToken = (cardId: string) => getCard(cardId).role === 'Token' || getCard(cardId).tags.includes('Token');
 
 function kindOf(cardId: string): FocusDetails['kind'] {
   const card = getCard(cardId);
@@ -98,7 +89,7 @@ function effectLines(cardId: string, rules: CardRules, masteryRank: number, stat
   });
 }
 
-/** The Card Mastery rank `side` brought for this card (legacy battles). */
+/** The legacy Ascension rank `side` brought for this card (historical legacy matches only). */
 const rankOf = (state: GameState, side: Side, cardId: string) => state.ascensions?.[side]?.[cardId] ?? 0;
 
 /** ATK a Continuous Spell overlay adds to the Unit at (side, lane) right now, under these rules. */
@@ -147,11 +138,10 @@ function atkChanges(state: GameState, side: Side, lane: LaneId, log: readonly Ga
  * A card outside battle, or in the player's hand: its printed ATK, its HP Contribution where given, and every effect's
  * full rule.
  */
-export function cardFocusDetails(cardId: string, options: { rules?: CardRules; masteryRank?: number; masteryStage?: number; hpContribution?: number; place?: 'hand' | 'card' } = {}): FocusDetails {
+export function cardFocusDetails(cardId: string, options: { rules?: CardRules; masteryRank?: number; hpContribution?: number; place?: 'hand' | 'card' } = {}): FocusDetails {
   const kind = kindOf(cardId);
   const rules = options.rules ?? 'card';
-  const masteryRank = rules === 'legacy' ? (options.masteryRank ?? 0) : 0;
-  const masteryStage = kind === 'unit' ? (options.masteryStage ?? (masteryRank > 0 ? masteryRank + 1 : 0)) : 0;
+  const masteryRank = rules === 'legacy' && kind === 'unit' ? (options.masteryRank ?? 0) : 0;
   const atk = printedAtk(cardId, rules) ?? undefined;
   return {
     cardId,
@@ -161,7 +151,6 @@ export function cardFocusDetails(cardId: string, options: { rules?: CardRules; m
     kind,
     rules,
     masteryRank,
-    masteryStage,
     ...(kind === 'unit' ? { atk, printedAtk: atk, ...(options.hpContribution !== undefined && rules === 'card' ? { hpContribution: options.hpContribution } : {}) } : {}),
     effects: effectLines(cardId, rules, masteryRank),
     changes: [],
@@ -190,7 +179,6 @@ export function focusDetails(focus: BattleFocus, state: GameState, log: readonly
     const details = cardFocusDetails(card.cardId, {
       rules,
       masteryRank: rank,
-      masteryStage: stageOf(state, 'player', card.cardId, rules, rank),
       hpContribution: kindOf(card.cardId) === 'unit' ? options.hpContribution?.(card.cardId, 'player') : undefined,
       place: 'hand',
     });
@@ -214,7 +202,6 @@ export function focusDetails(focus: BattleFocus, state: GameState, log: readonly
       kind: kindOf(spell.cardId),
       rules,
       masteryRank: 0,
-      masteryStage: 0,
       effects: effectLines(spell.cardId, rules, 0),
       changes: [],
       status: [],
@@ -243,7 +230,6 @@ export function focusDetails(focus: BattleFocus, state: GameState, log: readonly
     kind: 'unit',
     rules,
     masteryRank,
-    masteryStage: isToken(unit.cardId) ? 0 : stageOf(state, focus.side, unit.cardId, rules, masteryRank),
     atk: current,
     printedAtk: printed,
     ...(arrival && arrival.atk !== printed ? { entered: arrival } : {}),

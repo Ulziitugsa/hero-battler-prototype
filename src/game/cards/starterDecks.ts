@@ -1,4 +1,4 @@
-import { DECK_SIZE, validateDeck } from '../engine/deckRules';
+import { DECK_SIZE, validateDeck } from '../engine/deckRules.js';
 
 // The three Card Set v0.1 starter decks (README "Starter Decks"). Each is a reasonably functional
 // 15-card deck built from that faction's roster slice, respecting the copy-limit rules. They also

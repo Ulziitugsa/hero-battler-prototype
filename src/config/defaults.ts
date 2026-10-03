@@ -1,3 +1,4 @@
+import { MASTERY_GOLD_FEE } from '../game/ascension/config.js';
 import type { GameConfig } from './schema.js';
 
 // The hardcoded default config (Commercial Prototype Phase 8) - every value here equals exactly what was
@@ -19,6 +20,7 @@ export const DEFAULT_CONFIG: GameConfig = {
     campaignWinGold: { battle: 30, challenge: 40, elite: 55, boss: 90, story: 0, reward: 0 },
     quickBattleWinGold: 20,
     quickBattleDrawGold: 8,
+    masteryGoldFee: [...MASTERY_GOLD_FEE],
   },
   summon: {
     singleGemCost: 100,
@@ -44,7 +46,6 @@ export const DEFAULT_CONFIG: GameConfig = {
     energyRegenIntervalMs: 5 * 60 * 1000,
     energyRegenAmount: 1,
     nodeEnergyCostByType: { battle: 5, elite: 7, boss: 10, challenge: 5, story: 0, reward: 0 },
-    recommendedPowerOverrides: {},
   },
   idle: {
     capHours: 12,

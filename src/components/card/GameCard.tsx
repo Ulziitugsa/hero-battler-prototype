@@ -1,7 +1,6 @@
 import { Fragment, useLayoutEffect, useRef } from 'react';
 import { getCard } from '../../game/cards';
 import { cardEffects, printedAtk, type CardEffect, type CardRules } from '../../game/cards/cardPresentation';
-import { masteryNumeral } from '../../game/cardMastery/model';
 import { CardArtwork } from '../CardArtwork';
 import { Gems, Sigil } from '../CardParts';
 import { Icon } from '../Icon';
@@ -22,7 +21,7 @@ import '../../styles/gameCard.css';
  *  board:   compact but complete; short name; board wording; shows whether conditional Passives are active.
  *  spell:   a Spell in a Spell zone: a wide, short strip with its name and text.
  *  tile:    a card in a grid (Collection, Deck Builder, Shop, pack results, events): the hand card, plus HP Contribution
- *           and the collection marks (copies, Card Mastery, not owned).
+ *           and the collection marks (copies, not owned).
  *  inspect: the large face in Card Inspect and the outside-battle focus sheet.
  *
  * Text never ellipsizes and the card body never scrolls. If the effects don't fit, `useFitCard` tightens spacing,
@@ -45,7 +44,7 @@ export interface GameCardProps {
   density: GameCardDensity;
   /** Which rules the text and ATK describe: card combat (default) or a legacy battle's. */
   rules?: CardRules;
-  /** Legacy rules: this copy's Card Mastery (Ascension) rank, whose added effects the legacy resolver plays. */
+  /** Legacy rules only (historical legacy matches): the copy's legacy Ascension rank, whose added effects that resolver plays. */
   masteryRank?: number;
   /** A Unit's current ATK (on the board: base, changes and Continuous Spells). Defaults to its printed ATK. */
   atk?: number;
@@ -63,8 +62,6 @@ export interface GameCardProps {
   owned?: boolean;
   /** Copies owned; a ×N mark shows from 2. */
   copies?: number;
-  /** Card Mastery stage (1..5); a numeral shows from Mastery II. */
-  masteryStage?: number;
   treatment?: CardTreatment;
   /** Art to paint instead of the card's own (alternate art). */
   artId?: string;
@@ -258,7 +255,6 @@ export function GameCard({
   hpContribution,
   owned = true,
   copies = 0,
-  masteryStage = 0,
   treatment = 'base',
   artId,
   animated,
@@ -281,8 +277,6 @@ export function GameCard({
   const fitRef = useFitCard(density, `${cardId}|${density}|${rules}|${masteryRank}|${title}|${silenced}|${passiveKey}|${current}|${hpContribution ?? ''}`);
   // A Spell names its kind where a Unit shows ATK. (Card Inspect lists a Unit's role under the card.)
   const spellKind = continuous ? (inspect ? 'Continuous Spell' : 'Continuous') : 'Spell';
-  // Every owned card is at least Mastery I; the numeral marks the copies that went further.
-  const stage = masteryStage >= 2 ? masteryNumeral(masteryStage) : '';
 
   // Effects that share a label read as one paragraph under it ("On Play: Restore 135 HP. Gain a Shield.").
   const groups: EffectGroup[] = [];
@@ -369,13 +363,8 @@ export function GameCard({
                   <Icon name="lock" size={inspect ? 18 : 13} />
                 </span>
               )}
-              {marks && (copies > 1 || stage) && (
+              {marks && copies > 1 && (
                 <span className="gc-marks">
-                  {stage && (
-                    <span className="gc-mark mastery" title={`Card Mastery ${stage}`}>
-                      {stage}
-                    </span>
-                  )}
                   {copies > 1 && <span className="gc-mark copies">×{copies}</span>}
                 </span>
               )}

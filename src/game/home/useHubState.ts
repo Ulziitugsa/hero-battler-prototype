@@ -50,7 +50,7 @@ export function useHubState(): HubState {
     idle,
     masteryPoints,
     note: pickHubNote({ idle, masteryPoints, owned, history: summon.history, now }),
-    attention: attentionState({ gems, unlimitedGems: unlimited, masteryPoints, owned }),
+    attention: attentionState({ gems, unlimitedGems: unlimited, masteryPoints }),
     refreshIdle: () => setIdleTick((t) => t + 1),
     refreshTimeSystems,
   };

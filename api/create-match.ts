@@ -2,7 +2,8 @@ import type { ApiRequest, ApiResponse } from './_lib/http.js';
 import { HttpError, withCapacitorCors, withErrorHandling } from './_lib/http.js';
 import { authenticateCaller, canonicalSideFromRoom } from './_lib/auth.js';
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
-import { createMatch } from '../src/game/engine/match.js';
+import { createCardMatch } from '../src/game/cardCombat/engine.js';
+import { PRODUCTION_RULES, sameRules, type MatchResolver } from '../src/game/combat/resolver.js';
 import { validateDeck } from '../src/game/engine/deckRules.js';
 import { makeSeed } from '../src/game/engine/rng.js';
 import { orientEventsForViewer, orientStateForViewer } from '../src/game/engine/perspective.js';
@@ -10,6 +11,9 @@ import type { Side } from '../src/game/types/index.js';
 
 interface DeckSnapshot {
   cardIds: string[];
+  /** The rules the player's client plays (src/net/friendlyTypes.ts). Absent on clients that predate card combat. */
+  rules?: Partial<MatchResolver>;
+  /** Legacy fields, ignored: every card plays at its printed values (there is no combat Card Mastery). */
   masteryId?: string;
   masteryRank?: number;
   ascensions?: Record<string, number>;
@@ -78,12 +82,23 @@ export default withErrorHandling(withCapacitorCors(async (req: ApiRequest, res: 
       throw new HttpError(400, 'A selected deck is invalid. Please create a room with a legal deck.');
     }
   }
+  // Both clients must play the same combat rules as this server, or the two players would see one match resolve
+  // differently. A client from before card combat (no rules) or a different resolver version can't play this match.
+  if (!sameRules(hostDeck.rules) || !sameRules(guestDeck.rules)) {
+    await client.from('friendly_rooms').update({ status: 'ABANDONED' }).eq('id', body.roomId);
+    throw new HttpError(409, 'You and your friend are on different versions of Moonwater. Both of you need the latest version to play.');
+  }
+
+  // Card combat, the production rules: both decks at printed card values, so Friendly Battle is a duel of deck lists.
+  // createCardMatch takes no progression at all, so no equalization is needed. The match records its resolver
+  // (combatModel + cardCombat.version) in its own state.
   const seed = makeSeed();
-  const { state, events } = createMatch({
+  const { nextState: state, events } = createCardMatch({
     seed,
     playerDeck: hostDeck.cardIds,
     enemyDeck: guestDeck.cardIds,
   });
+  if (state.combatModel !== PRODUCTION_RULES.combatModel) throw new HttpError(500, 'Match was built with the wrong rules');
 
   const hostView = orientStateForViewer(state, 'player');
   const guestView = orientStateForViewer(state, 'enemy');

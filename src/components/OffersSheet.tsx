@@ -11,12 +11,10 @@ import { getCard } from '../game/cards';
 import { useDialogFocus } from './useDialogFocus';
 import '../styles/missions.css';
 import '../styles/offers.css';
-import { useHeroLevel } from '../game/heroLevel/useHeroLevel';
 import { useAscension } from '../game/ascension/useAscension';
 import { useEconomy } from '../game/economy/useEconomy';
 import { PLAYTEST_ROSTER } from '../game/cards/roster';
 import { getAscensionRank } from '../game/ascension/store';
-import { getHeroLevel } from '../game/heroLevel/store';
 import { track } from '../analytics/track';
 
 const PRIMARY_OFFERS = OFFERS.filter((o) => ['starter-pack', 'growth-pack', 'gem-pack-medium'].includes(o.id));
@@ -36,10 +34,9 @@ export function OffersSheet({ onClose }: { onClose: () => void }) {
   }, [onClose]);
   const dialog = useDialogFocus(handleClose);
   const purchases = useOffers();
-  const heroLevels = useHeroLevel();
   const ascensions = useAscension();
   const { summon } = useEconomy();
-  const hasProgressedHero = PLAYTEST_ROSTER.some((id) => getHeroLevel(id, heroLevels) > 1 || getAscensionRank(id, ascensions) > 0);
+  const hasProgressedHero = PLAYTEST_ROSTER.some((id) => getAscensionRank(id, ascensions) > 0);
   const hasSummoned = summon.history.length > 0;
   const eligible = useMemo(() => OFFERS.filter((offer) => {
     if (offer.id === 'starter-pack') return hasProgressedHero || hasSummoned;
@@ -193,7 +190,7 @@ export function OffersSheet({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        {visibleOffers.length === 0 && <p className="offers-empty-note">Explore Campaign, Summons, and Card Mastery. Relevant offers may appear here as you play.</p>}
+        {visibleOffers.length === 0 && <p className="offers-empty-note">Explore Campaign, Ranked and the Shop. Relevant offers may appear here as you play.</p>}
 
         {!showMore && <button type="button" className="offers-more-options" aria-expanded={false} onClick={() => setShowMore(true)}>Show all offers</button>}
 

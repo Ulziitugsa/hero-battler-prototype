@@ -24,7 +24,7 @@ function emit(): void {
 }
 
 function commit(next: PlayerEconomy): void {
-  snapshot = Object.freeze({ ...next, summon: Object.freeze({ pity: { ...next.summon.pity }, history: [...next.summon.history] }) }) as PlayerEconomy;
+  snapshot = Object.freeze({ ...next, grants: Object.freeze([...next.grants]), summon: Object.freeze({ pity: { ...next.summon.pity }, history: [...next.summon.history] }) }) as PlayerEconomy;
   writeStoredEconomy(snapshot);
   emit();
 }
@@ -143,6 +143,25 @@ export function spendGold(amount: number): boolean {
   if (!canAffordGold(amount, economy.gold)) return false;
   if (amount > 0 && !isUnlimitedGems()) commit({ ...economy, gold: economy.gold - amount });
   return true;
+}
+
+/** True once the one-time grant `grantId` has been paid. */
+export function hasGrant(grantId: string): boolean {
+  return getEconomy().grants.includes(grantId);
+}
+
+/**
+ * Pays a one-time Gold grant (a refund, a migration award) at most once per save: the Gold and the grant id land in the
+ * same single-document write, so a crash can't pay it without recording it, and a second call is a no-op. Returns
+ * whether this call paid it.
+ */
+export function grantGoldOnce(grantId: string, amount: number, source: GoldSource): GoldGrantResult & { paid: boolean } {
+  const economy = getEconomy();
+  if (economy.grants.includes(grantId)) return { gained: 0, balance: economy.gold, source, paid: false };
+  const want = Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
+  const balance = Math.min(MAX_GOLD, economy.gold + want);
+  commit({ ...economy, gold: balance, grants: [...economy.grants, grantId] });
+  return { gained: balance - economy.gold, balance, source, paid: true };
 }
 
 export function setGold(amount: number): void {

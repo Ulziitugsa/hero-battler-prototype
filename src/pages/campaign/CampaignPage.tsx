@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import type { DeckChoice } from '../BattleSetupPage';
 import { CHAPTER_1 } from '../../game/campaign/chapter1';
 import { REGIONS } from '../../game/campaign/regions';
-import { loadProgress, isNodeCleared, isNodeUnlocked, getCurrentNodeId, findNode, clearNonBattleNode, recommendedPowerFor, type BattleResultOutcome, type CampaignProgress } from '../../game/campaign/progress';
+import { loadProgress, isNodeCleared, isNodeUnlocked, getCurrentNodeId, findNode, clearNonBattleNode, type BattleResultOutcome, type CampaignProgress } from '../../game/campaign/progress';
 import { loadEnergy, spendEnergy, formatCountdown, type EnergyState } from '../../game/campaign/energy';
 import { chapterWorldArtUrl } from '../../game/campaign/art';
 import { getActiveDeck } from '../../game/engine/activeDeck';
-import { STARTER_DECKS, STARTER_DECK_NAMES } from '../../game/cards/starterDecks';
-import { campaignEnemyDeck } from '../../game/campaign/encounterDecks';
+import { campaignBattlePlan } from '../../game/campaign/battleSetup';
 import type { CampaignNodeDef, CampaignNodeType } from '../../game/campaign/types';
 import { Icon, type IconName } from '../../components/Icon';
 import { StagePreviewSheet } from './StagePreviewSheet';
@@ -15,13 +14,7 @@ import { StoryBeatSheet } from './StoryBeatSheet';
 import { RewardClaimSheet } from './RewardClaimSheet';
 import { StageResultSheet } from './StageResultSheet';
 import { loadIdleReward } from '../../game/campaign/idleRewards';
-import { getHeroLevelStatus } from '../../game/heroLevel/levelUp';
-import { getCard } from '../../game/cards';
 import { track } from '../../analytics/track';
-import { getAccount } from '../../game/progression/account';
-import { getHeroLevelState } from '../../game/heroLevel/store';
-import { getAscensionState } from '../../game/ascension/store';
-import { rosterPowerForDeck } from '../../game/heroLevel/rosterPower';
 
 const NODE_ICON: Record<CampaignNodeType, IconName> = { battle: 'battle', story: 'spell', reward: 'trophy', challenge: 'warning', elite: 'power', boss: 'graveyard' };
 
@@ -38,7 +31,7 @@ const ASH_DOTS = Array.from({ length: 7 }, (_, i) => ({ left: 30 + i * 95, top: 
 
 export interface CampaignPageProps {
   onExit: () => void;
-  onFightNode: (nodeId: string, player: DeckChoice, enemy: DeckChoice, startingHp?: number) => void;
+  onFightNode: (nodeId: string, player: DeckChoice, enemy: DeckChoice, startingHpOverride: Partial<Record<'player' | 'enemy', number>>) => void;
   /** The last completed Campaign battle's outcome, or null between battles. Set by App.tsx from
    * GamePage's onMatchEnd; consumed (cleared) once this page has shown/dismissed its result sheet. */
   pendingResult: BattleResultOutcome | null;
@@ -170,9 +163,11 @@ export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedRes
     setEnergy(spendEnergy(encounter.energyCost));
     const activeDeck = getActiveDeck();
     const playerChoice: DeckChoice = { label: activeDeck.label, cardIds: activeDeck.cardIds };
-    const enemyChoice: DeckChoice = { label: encounter.foeName || STARTER_DECK_NAMES[encounter.enemyDeckFaction], cardIds: campaignEnemyDeck(openNode_.id) ?? STARTER_DECKS[encounter.enemyDeckFaction] };
+    const plan = campaignBattlePlan(openNode_, activeDeck.cardIds);
+    if (!plan) return;
+    const enemyChoice: DeckChoice = { label: encounter.foeName, cardIds: plan.enemyDeck };
     setOpenNodeId(null);
-    onFightNode(openNode_.id, playerChoice, enemyChoice, encounter.startingHp);
+    onFightNode(openNode_.id, playerChoice, enemyChoice, plan.startingHpOverride);
   }
 
   function handleStoryDone() {
@@ -205,14 +200,11 @@ export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedRes
   const recovery = ((result: BattleResultOutcome | null) => {
     if (!result || result.won) return undefined;
     const idle = loadIdleReward();
-    const activeDeck = getActiveDeck();
-    const upgradeReady = activeDeck.cardIds.some((id) => getCard(id).type === 'hero' && getHeroLevelStatus(id).canLevelUp);
-    const destination = idle.availableGold > 0 ? 'home' as const : upgradeReady ? 'heroes' as const : 'decks' as const;
-    const label = destination === 'home' ? 'Claim Idle Gold' : destination === 'heroes' ? 'View Cards' : 'Edit deck';
-    const power = rosterPowerForDeck(activeDeck.cardIds, getAccount().level, getHeroLevelState(), getAscensionState());
-    const recommendation = recommendedPowerFor(result.node);
-    const deficit = recommendation === undefined ? undefined : Math.max(0, recommendation - power);
-    return { label, destination, deficit };
+    // After a loss: claim idle Gold if any is waiting, else rework the deck (cards play at printed values, so a better
+    // deck is the way through).
+    const destination = idle.availableGold > 0 ? 'home' as const : 'decks' as const;
+    const label = destination === 'home' ? 'Claim Idle Gold' : 'Edit deck';
+    return { label, destination };
   })(activeResult);
   const worldArtUrl = chapterWorldArtUrl(CHAPTER_1.id);
 
@@ -440,10 +432,10 @@ export function CampaignPage({ onExit, onFightNode, pendingResult, onConsumedRes
           {openNode_?.type && ['battle', 'elite', 'boss', 'challenge'].includes(openNode_.type) && <StagePreviewSheet node={openNode_} cleared={isNodeCleared(openNode_.id, progress)} onFight={handleFight} onClose={() => setOpenNodeId(null)} />}
           {openNode_?.type === 'story' && openNode_.story && <StoryBeatSheet story={openNode_.story} onDone={handleStoryDone} />}
           {openNode_?.type === 'reward' && <RewardClaimSheet node={openNode_} onClaim={handleClaimReward} />}
-          {activeResult && <StageResultSheet outcome={activeResult} onContinue={handleResultContinue} recovery={recovery ? { label: recovery.label, kind: recovery.destination, deficit: recovery.deficit, onSelect: () => {
+          {activeResult && <StageResultSheet outcome={activeResult} onContinue={handleResultContinue} recovery={recovery ? { label: recovery.label, kind: recovery.destination, onSelect: () => {
             onConsumedResult();
             if (claimResult) setClaimResult(null);
-            track('campaign_upgrade_after_loss', { stageId: activeResult.node.id, destination: recovery.destination, rosterPowerDeficit: recovery.deficit });
+            track('campaign_upgrade_after_loss', { stageId: activeResult.node.id, destination: recovery.destination });
             (onRecoveryDestination ? () => onRecoveryDestination(recovery.destination) : onExit)();
           } } : undefined} onRetry={() => { handleResultContinue(); setOpenNodeId(activeResult.node.id); }} />}
         </div>

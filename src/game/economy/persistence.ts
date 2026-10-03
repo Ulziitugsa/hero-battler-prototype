@@ -11,7 +11,7 @@ export const ECONOMY_STORAGE_KEY = 'skyloom:economy';
 const KNOWN_IDS = new Set(ALL_CARDS.map((c) => c.id));
 
 export function defaultEconomy(): PlayerEconomy {
-  return { version: ECONOMY_VERSION, gems: STARTING_GEMS, gold: STARTING_GOLD, tickets: STARTING_TICKETS, summon: { pity: {}, history: [] } };
+  return { version: ECONOMY_VERSION, gems: STARTING_GEMS, gold: STARTING_GOLD, tickets: STARTING_TICKETS, grants: [], summon: { pity: {}, history: [] } };
 }
 
 const whole = (n: unknown, fallback: number): number => (typeof n === 'number' && Number.isFinite(n) ? Math.floor(n) : fallback);
@@ -42,6 +42,11 @@ function sanitizePity(raw: unknown): Record<string, number> {
   return out;
 }
 
+function sanitizeGrants(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.filter((g): g is string => typeof g === 'string' && g.length > 0 && g.length <= 80))].slice(0, 200);
+}
+
 /** Coerces anything into a valid economy: gems clamped to [0, MAX_GEMS], pity per known banner clamped to [0, threshold - 1], unknown history entries dropped. */
 export function sanitizeEconomy(raw: unknown): PlayerEconomy {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return defaultEconomy();
@@ -54,6 +59,8 @@ export function sanitizeEconomy(raw: unknown): PlayerEconomy {
     gold: Math.max(0, Math.min(MAX_GOLD, whole(r.gold, 0))),
     // Same treatment for `tickets`, absent before v4.
     tickets: Math.max(0, Math.min(MAX_TICKETS, whole(r.tickets, 0))),
+    // Absent before v5: no one-time grant has been paid yet.
+    grants: sanitizeGrants(r.grants),
     summon: { pity: sanitizePity(summon.pity), history: sanitizeHistory(summon.history) },
   };
 }

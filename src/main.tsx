@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import './styles/fonts.css'
 import './index.css'
 import App from './App.tsx'
 import { migrateToRealCollection } from './game/campaign/collectionMigration'
@@ -7,10 +8,13 @@ import { getActiveDeck } from './game/engine/activeDeck'
 import { track } from './analytics/track'
 import { initMissions } from './game/missions/store'
 import { initEvents } from './game/events/store'
+import { runSaveMigrations } from './game/save/migrations'
 
 // Before anything renders: make sure a real collection exists (existing prototype progress is carried
 // over, see collectionMigration.ts) and that the stored active deck is one the player can actually field.
 migrateToRealCollection()
+// The card-combat release's save migration (versioned, idempotent): refunds Legacy Level Gold once, keeps everything else.
+runSaveMigrations()
 getActiveDeck()
 // Subscribes missions to the analytics stream BEFORE any gameplay event can fire, so progress is tracked
 // even if the player never opens the Missions sheet this session (see game/missions/store.ts).

@@ -9,7 +9,7 @@ import type { CardPopularity } from './cardPopularity.js';
 export type CardTypeFilter = 'all' | 'hero' | 'spell';
 /** owned: cards you can add (the default). all: every card in the set, unowned ones shown locked. missing: only cards you don't own yet. */
 export type OwnershipFilter = 'owned' | 'all' | 'missing';
-export type CardSort = 'default' | 'atk' | 'hp' | 'rarity' | 'recent' | 'name' | 'mastery' | 'popular';
+export type CardSort = 'default' | 'atk' | 'hp' | 'rarity' | 'recent' | 'name' | 'popular';
 
 export interface CardPoolOptions {
   search: string;
@@ -27,7 +27,6 @@ export interface CardPoolContext {
   ownedCount: (cardId: string) => number;
   favorites: readonly string[];
   obtainedAt: Readonly<Record<string, number>>;
-  masteryRank: (cardId: string) => number;
   popularity: CardPopularity;
 }
 
@@ -40,13 +39,12 @@ export const SORT_LABEL: Record<CardSort, string> = {
   rarity: 'Rarity',
   recent: 'Recently obtained',
   name: 'Name',
-  mastery: 'Mastery',
   popular: 'Popular in Ranked',
 };
 
 /** Sorts offered in the UI. 'popular' only appears when real aggregate data exists. */
 export function availableSorts(popularity: CardPopularity): CardSort[] {
-  const base: CardSort[] = ['default', 'atk', 'hp', 'rarity', 'recent', 'name', 'mastery'];
+  const base: CardSort[] = ['default', 'atk', 'hp', 'rarity', 'recent', 'name'];
   return popularity.status === 'available' ? [...base, 'popular'] : base;
 }
 
@@ -93,8 +91,6 @@ function comparator(sort: CardSort, ctx: CardPoolContext): (a: CardDefinition, b
     case 'recent':
       // Cards with no record (owned before tracking began, or never obtained) keep the default order after dated ones.
       return byNumber((c) => ctx.obtainedAt[c.id] ?? null);
-    case 'mastery':
-      return (a, b) => ctx.masteryRank(b.id) - ctx.masteryRank(a.id) || defaultCardOrder(a, b);
     case 'popular':
       return ctx.popularity.status === 'available' ? byNumber((c) => (ctx.popularity as { deckShare: Record<string, number> }).deckShare[c.id] ?? null) : defaultCardOrder;
     default:

@@ -16,7 +16,7 @@ The deck summary line also shows Units, Spells, average base ATK, and Unit count
 
 - **Search** matches every typed word against name, short name, role, Unit/Spell, faction, rarity, tags, board text and full effect text.
 - **Filters** (AND): type, faction, rarity, ownership (Owned / All / Missing), favorites only. Unowned cards appear locked and open Card Inspect instead of being added.
-- **Sort**: default (Units, rarity, name), ATK, HP Contribution, rarity, recently obtained, name, Mastery (current Ascension rank). ATK and HP sorts show that value on each tile.
+- **Sort**: default (Units, rarity, name), ATK, HP Contribution, rarity, recently obtained, name. ATK and HP sorts show that value on each tile.
 
 ## Favorites and "recently obtained"
 

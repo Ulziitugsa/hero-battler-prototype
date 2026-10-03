@@ -3,7 +3,7 @@ import type { CardRules } from '../game/cards/cardPresentation';
 import { GameCard } from '../components/card/GameCard';
 import { CardFocusPanel } from '../components/card/CardFocusPanel';
 import { cardFocusDetails } from '../components/battleInfo/focusDetails';
-import { hpContributionAt } from '../game/cardCombat/stats';
+import { hpContribution } from '../game/cardCombat/stats';
 
 /**
  * Dev-only QA sheet (?battleCardLab): every card on the game's one card face (GameCard) at the sizes the 390x844 screens
@@ -27,7 +27,7 @@ export function BattleCardLabPage({ onBack }: { onBack: () => void }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
           {cards.map((card) => (
             <div key={card.id} data-lab-panel={card.id} style={{ ...size(390, 188), flex: '0 0 auto' }}>
-              <CardFocusPanel layout="dock" details={cardFocusDetails(card.id, { rules, place: 'hand', hpContribution: card.type === 'hero' && rules === 'card' ? hpContributionAt(card.id) : undefined })} onClose={() => {}} onInspect={() => {}} />
+              <CardFocusPanel layout="dock" details={cardFocusDetails(card.id, { rules, place: 'hand', hpContribution: card.type === 'hero' && rules === 'card' ? hpContribution(card.id) : undefined })} onClose={() => {}} onInspect={() => {}} />
             </div>
           ))}
         </div>
@@ -53,7 +53,7 @@ export function BattleCardLabPage({ onBack }: { onBack: () => void }) {
               </div>
             )}
             <div data-lab-variant="tile" style={{ position: 'relative', width: Math.round(108 * k) }}>
-              <GameCard cardId={card.id} density="tile" rules={rules} hpContribution={card.type === 'hero' ? hpContributionAt(card.id) : undefined} />
+              <GameCard cardId={card.id} density="tile" rules={rules} hpContribution={card.type === 'hero' ? hpContribution(card.id) : undefined} />
             </div>
           </div>
         ))}

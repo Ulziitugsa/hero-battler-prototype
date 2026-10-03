@@ -24,8 +24,12 @@ function redactedPlayerState(p: PlayerState): PlayerState {
  */
 export function redactStateForViewer(state: GameState, viewerCanonicalSide: Side): GameState {
   const opponentSide = opposite(viewerCanonicalSide);
-  if (opponentSide === 'player') return { ...state, player: redactedPlayerState(state.player) };
-  return { ...state, enemy: redactedPlayerState(state.enemy) };
+  // A stored v2 card match keeps a historical Mastery table per side keyed by every card id in the deck, which would
+  // list the opponent's deck. Nothing reads it any more (v3 never writes it), so the opponent's table is dropped.
+  const cardCombat = state.cardCombat?.masteryStage ? { ...state.cardCombat, masteryStage: { ...state.cardCombat.masteryStage, [opponentSide]: {} } } : state.cardCombat;
+  const base = cardCombat ? { ...state, cardCombat } : state;
+  if (opponentSide === 'player') return { ...base, player: redactedPlayerState(state.player) };
+  return { ...base, enemy: redactedPlayerState(state.enemy) };
 }
 
 /**

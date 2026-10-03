@@ -1,8 +1,7 @@
 import type { CardDefinition, Side } from '../../game/types';
 import { ATK_MEANING, HP_CONTRIBUTION_MEANING, formatStat } from '../../game/cards/cardFace';
 import { cardEffects, cardKeywords, printedAtk, KEYWORD_HELP, type CardRules } from '../../game/cards/cardPresentation';
-import { MASTERY_HPC_PCT, printedStats } from '../../game/cardCombat/stats';
-import { masteryLabel, masteryNumeral } from '../../game/cardMastery/model';
+import { printedStats } from '../../game/cardCombat/stats';
 import { AtkIcon, HpIcon } from './CardIcons';
 import '../../styles/cardInspect.css';
 
@@ -16,18 +15,16 @@ export interface StatsPanelProps {
   rules: CardRules;
   /** ATK now (a Unit in play). Defaults to printed. */
   atk?: number;
-  /** HP Contribution of this copy (Card Mastery applied). Defaults to printed. */
+  /** HP Contribution of this copy (always its printed value in card combat). Defaults to printed. */
   hpContribution?: number;
-  /** This copy's Card Mastery stage (1..5), 0 for a card not owned. */
-  masteryStage: number;
   /** In battle: whose copy this is. */
   owner?: Side;
-  /** Legacy battles: the copy's Card Mastery rank, whose added effects the effect list marks. */
+  /** Historical legacy matches only: the copy's legacy Ascension rank, whose added effects the effect list marks. */
   masteryRank?: number;
 }
 
 /** ATK and HP Contribution, spelled out. A legacy battle says why HP Contribution doesn't apply there. */
-export function CardStatsPanel({ card, rules, atk, hpContribution, masteryStage, owner, masteryRank = 0 }: StatsPanelProps) {
+export function CardStatsPanel({ card, rules, atk, hpContribution, owner, masteryRank = 0 }: StatsPanelProps) {
   if (card.type !== 'hero') return null;
   const printed = printedAtk(card, rules) ?? 0;
   const now = atk ?? printed;
@@ -35,11 +32,9 @@ export function CardStatsPanel({ card, rules, atk, hpContribution, masteryStage,
   const printedHpc = printedStats(card)?.hpc ?? 0;
   const hpc = hpContribution ?? printedHpc;
   const whose = owner === 'enemy' ? 'the enemy’s' : 'your';
-  const pct = MASTERY_HPC_PCT[Math.max(1, Math.min(5, masteryStage)) - 1] ?? 0;
-  let note: string;
-  if (rules === 'legacy') note = masteryRank > 0 ? `Mastery ${masteryNumeral(masteryRank + 1)}: adds the effects marked Mastery below.` : '';
-  else if (masteryStage < 1) note = 'Card Mastery raises HP Contribution, up to +20% at Mastery V. It never changes ATK.';
-  else note = `${masteryLabel(masteryStage)}: HP Contribution ${pct > 0 ? `+${pct}%` : 'as printed'} (printed +${formatStat(printedHpc)}). Mastery never changes ATK.`;
+  // Card combat: every copy plays its printed numbers, so there is nothing to add. A historical legacy match names the
+  // legacy Ascension effects it plays.
+  const note = rules === 'legacy' && masteryRank > 0 ? 'Legacy Ascension: adds the effects marked Mastery below.' : '';
   return (
     <section className="ci-stats" aria-label="Card stats">
       <div className="ci-stat atk">

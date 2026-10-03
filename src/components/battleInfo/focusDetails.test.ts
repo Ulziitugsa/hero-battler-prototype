@@ -10,13 +10,13 @@ import { matchHpContribution } from '../../game/cardCombat/engine';
 // On Play), Vharos revived at 95 ATK and Dark Priest across the board.
 
 const { state, events } = buildBattleScene('3');
-const hpc = (cardId: string, owner: Side) => matchHpContribution(state, owner, cardId);
+const hpc = (cardId: string) => matchHpContribution(cardId);
 const unit = (side: Side, lane: LaneId, s: GameState = state) => focusDetails({ kind: 'unit', side, instanceId: s[side].heroZones[lane]!.instanceId }, s, events, { rules: 'card', hpContribution: hpc })!;
 
 describe('focus panel details', () => {
   it('Royal Guard on the board: current ATK, full rules, its passive on, and the Banner’s bonus by name', () => {
     const guard = unit('player', 'center');
-    expect(guard).toMatchObject({ name: 'Royal Guard', owner: 'player', place: 'board', lane: 'center', kind: 'unit', atk: 128, printedAtk: 113, hpContribution: hpc('kng-royal-guard', 'player') });
+    expect(guard).toMatchObject({ name: 'Royal Guard', owner: 'player', place: 'board', lane: 'center', kind: 'unit', atk: 128, printedAtk: 113, hpContribution: hpc('kng-royal-guard') });
     expect(guard.effects).toMatchObject([
       { label: 'On Play', text: 'Adjacent allied Units gain +15 ATK for the rest of the battle.' },
       { label: 'Passive', text: 'While another Kingdom Unit is in play, enemy Spells can’t affect this Unit.', active: true },
@@ -58,9 +58,8 @@ describe('focus panel details', () => {
 
   it('a card in hand: printed ATK, HP Contribution and every rule', () => {
     const paladin = state.player.hand.find((h) => h.cardId === 'kng-paladin')!;
-    const stage = state.cardCombat?.masteryStage.player['kng-paladin'] ?? 1;
     expect(focusDetails({ kind: 'hand', handId: paladin.handId, cardId: paladin.cardId }, state, events, { rules: 'card', hpContribution: hpc })).toEqual(
-      cardFocusDetails('kng-paladin', { rules: 'card', place: 'hand', masteryStage: stage, hpContribution: hpc('kng-paladin', 'player') }),
+      cardFocusDetails('kng-paladin', { rules: 'card', place: 'hand', hpContribution: hpc('kng-paladin') }),
     );
     const vael = cardFocusDetails('kng-archmage-vael', { place: 'hand', hpContribution: 98 });
     expect(vael).toMatchObject({ kind: 'unit', atk: 94, printedAtk: 94, hpContribution: 98 });

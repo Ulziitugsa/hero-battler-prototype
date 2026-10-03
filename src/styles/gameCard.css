@@ -195,7 +195,7 @@
 .gc-temp.up { color: #9ff0b0; box-shadow: inset 0 0 0 1px rgba(143, 224, 160, 0.55); }
 .gc-temp.down { color: #ffab98; box-shadow: inset 0 0 0 1px rgba(240, 144, 122, 0.55); }
 
-/* Collection marks on the art's top-left corner: Card Mastery past I, and copies owned past one. */
+/* Collection marks on the art's top-left corner: copies owned past one. */
 .gc-marks { position: absolute; z-index: 2; top: 3px; left: 3px; display: flex; gap: 2px; }
 .gc-mark {
   padding: 2px 4px;
@@ -206,7 +206,6 @@
   font-variant-numeric: lining-nums tabular-nums;
   white-space: nowrap;
 }
-.gc-mark.mastery { color: #f2cf7e; font-family: var(--gc-title-font); font-weight: 700; box-shadow: inset 0 0 0 1px rgba(242, 207, 126, 0.45); }
 /* Not collected yet: the art veiled behind a lock. */
 .gc-veil { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; background: rgba(8, 14, 20, 0.55); color: #c9c2ad; }
 .game-card.is-missing .gc-art > canvas { filter: grayscale(0.85) brightness(0.7); }

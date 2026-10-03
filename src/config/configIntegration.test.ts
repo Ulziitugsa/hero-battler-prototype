@@ -6,8 +6,6 @@ import { goldCostForLevelUp, heroLevelCapForAccount } from '../game/heroLevel/co
 import { goldPerHour } from '../game/campaign/idleRewards';
 import { summonCost } from '../game/summon/summon';
 import { getPool } from '../game/summon/pool';
-import { recommendedPowerFor } from '../game/campaign/progress';
-import { CHAPTER_1 } from '../game/campaign/chapter1';
 import { claimMission, setMissionProgress } from '../game/missions/store';
 import { claimJourneyDay } from '../game/journey/store';
 import { reloadCollection } from '../game/collection/collection';
@@ -78,26 +76,25 @@ describe('summon/summon.ts summonCost reads live config for Tickets', () => {
   });
 });
 
-describe('Campaign recommendedPowerFor - config override map', () => {
-  it('an override replaces a specific node\'s recommendation without touching chapter1.ts', () => {
-    const node = CHAPTER_1.nodes.find((n) => n.encounter?.recommendedRosterPower !== undefined)!;
-    const authored = node.encounter!.recommendedRosterPower!;
-    expect(recommendedPowerFor(node)).toBe(authored);
-    setConfigProvider(createLocalProvider({ campaign: { recommendedPowerOverrides: { [node.id]: authored + 500 } } }));
-    expect(recommendedPowerFor(node)).toBe(authored + 500);
-  });
-  it('a node with no override and no authored value stays undefined', () => {
-    const storyNode = CHAPTER_1.nodes.find((n) => n.type === 'story')!;
-    expect(recommendedPowerFor(storyNode)).toBeUndefined();
+describe('retired Card Mastery Gold fee - config', () => {
+  it('stays in config for reference only: no game code reads economy.masteryGoldFee', () => {
+    expect(DEFAULT_CONFIG.economy.masteryGoldFee).toEqual([0, 0, 500, 1500]);
+    const files = import.meta.glob(['../**/*.ts', '../**/*.tsx', '!../**/*.test.ts', '!../**/*.test.tsx', '!../config/**'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    expect(Object.keys(files).length).toBeGreaterThan(100);
+    for (const [file, src] of Object.entries(files)) {
+      if (file === '../game/ascension/config.ts') continue; // where the inert historical constant is defined
+      const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+      expect(code, file).not.toMatch(/masteryGoldFee|MASTERY_GOLD_FEE/);
+    }
   });
 });
 
 describe('Missions - config reward override map', () => {
   it('claimMission grants the override amount instead of the definition\'s own reward', () => {
-    setMissionProgress('daily-hero-level', 1);
-    setConfigProvider(createLocalProvider({ missions: { rewardOverrides: { 'daily-hero-level': { gold: 5000 } } } }));
+    setMissionProgress('daily-battles', 3);
+    setConfigProvider(createLocalProvider({ missions: { rewardOverrides: { 'daily-battles': { gold: 5000 } } } }));
     const before = getEconomy().gold;
-    const r = claimMission('daily-hero-level');
+    const r = claimMission('daily-battles');
     expect(r.gold).toBe(5000);
     expect(getEconomy().gold).toBe(before + 5000);
   });

@@ -2,7 +2,6 @@ import type { BattleResultOutcome } from '../../game/campaign/progress';
 import { Icon, type IconName } from '../../components/Icon';
 import { RewardCard } from './RewardCard';
 import { XpSummary } from '../../components/XpSummary';
-import { getAscensionStatus } from '../../game/ascension/ascend';
 import { track } from '../../analytics/track';
 import { useEffect } from 'react';
 import { haptics } from '../../platform/haptics';
@@ -13,7 +12,7 @@ const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', e
  * Chapter Complete (the wax chapter seal + a next-region note) are the same carved sheet with rows
  * switched on, matching the design's "seal" screens. A loss gets its own much quieter variant - the
  * design has no defeat screen to port, so this is the minimal honest equivalent. */
-export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { outcome: BattleResultOutcome; onContinue: () => void; recovery?: { label: string; kind: string; deficit?: number; onSelect: () => void }; onRetry?: () => void }) {
+export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { outcome: BattleResultOutcome; onContinue: () => void; recovery?: { label: string; kind: string; onSelect: () => void }; onRetry?: () => void }) {
   const { node, won, reward, objectivesMet, chapterComplete, cardGrant, starterProgress, xp, gems, gold } = outcome;
   const isCardReward = !!(reward?.firstClear && reward.def.cardId);
 
@@ -30,7 +29,7 @@ export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { o
           </div>
           <span className="campaign-result-kicker">{node.name}</span>
           <span className="campaign-result-title">Not this time</span>
-          <span className="campaign-result-blurb">The road is still there. {recovery?.deficit ? `Your Deck Strength is ${recovery.deficit} below the recommendation. ` : ''}A small change can help.</span>
+          <span className="campaign-result-blurb">The road is still there. A small change to your deck or your lane plan can help.</span>
           <XpSummary xp={xp} />
           {recovery && <button type="button" className="campaign-result-cta" onClick={() => { track('post_loss_action_selected', { stageId: node.id, action: recovery.kind }); recovery.onSelect(); }}>{recovery.label}</button>}
           <button type="button" className="campaign-result-secondary" onClick={() => { track('post_loss_action_selected', { stageId: node.id, action: 'retry' }); (onRetry ?? onContinue)(); }}>Try again</button>
@@ -125,13 +124,6 @@ export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { o
                 {starterProgress.name} · {starterProgress.collected} / {starterProgress.total} cards collected
               </span>
             )}
-          </div>
-        )}
-
-        {isCardReward && cardGrant && !cardGrant.isNew && getAscensionStatus(cardGrant.cardId).canAscend && (
-          <div className="campaign-result-unlock">
-            <Icon name="power" size={15} />
-            <span>Card Mastery available — see Cards</span>
           </div>
         )}
 

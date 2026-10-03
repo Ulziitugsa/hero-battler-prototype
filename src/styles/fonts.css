@@ -1,0 +1,23 @@
+/*
+ * Moonwater's typefaces, bundled with the app (no Google Fonts request): they load offline, inside the Capacitor
+ * Android build and on a first visit without network. All five are SIL Open Font License 1.1 (packaged by Fontsource;
+ * the licence ships in each node_modules/@fontsource/<family>/LICENSE). Only the weights the UI uses, Latin subset only
+ * (all of the game's text; anything outside it falls back to the system serif/sans).
+ *
+ *   Cinzel 600/700        card names (name bar)
+ *   Alegreya 500/700/800  rules text
+ *   Alegreya SC 500/700   timing labels (On Play, Passive...)
+ *   Bree Serif 400        display headings
+ *   Nunito 600/700/800    UI text
+ */
+@import '@fontsource/cinzel/latin-600.css';
+@import '@fontsource/cinzel/latin-700.css';
+@import '@fontsource/alegreya/latin-500.css';
+@import '@fontsource/alegreya/latin-700.css';
+@import '@fontsource/alegreya/latin-800.css';
+@import '@fontsource/alegreya-sc/latin-500.css';
+@import '@fontsource/alegreya-sc/latin-700.css';
+@import '@fontsource/bree-serif/latin-400.css';
+@import '@fontsource/nunito/latin-600.css';
+@import '@fontsource/nunito/latin-700.css';
+@import '@fontsource/nunito/latin-800.css';

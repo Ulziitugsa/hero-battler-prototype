@@ -13,7 +13,7 @@ export function RewardCard({ cardId, grant, copies = 1 }: { cardId: string; gran
   return (
     <div className={`reward-card r-${card.rarity}`}>
       <span className="reward-card-face">
-        <GameCard cardId={cardId} density="tile" masteryStage={copy.masteryStage} hpContribution={copy.hpContribution} />
+        <GameCard cardId={cardId} density="tile" hpContribution={copy.hpContribution} />
       </span>
       <span className="reward-card-line">
         {copies > 1 && <span className="reward-card-copies">×{copies}</span>}

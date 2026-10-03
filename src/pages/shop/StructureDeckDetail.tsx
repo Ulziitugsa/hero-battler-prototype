@@ -40,7 +40,7 @@ function ConfirmPurchase({ deck, onCancel, onConfirm }: { deck: StructureDeckDef
 /** A featured card: the game's one card face, as the player's copy (Card Mastery and HP Contribution). */
 function FeaturedCard({ cardId }: { cardId: string }) {
   const copy = cardCopyView(cardId);
-  return <GameCard cardId={cardId} density="tile" owned={copy.owned} masteryStage={copy.masteryStage} hpContribution={copy.hpContribution} />;
+  return <GameCard cardId={cardId} density="tile" owned={copy.owned} hpContribution={copy.hpContribution} />;
 }
 
 export function StructureDeckDetail({ deck, onBack }: { deck: StructureDeckDef; onBack: () => void }) {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GEM_REWARDS, GOLD_REWARDS, MAX_GEMS, MAX_GOLD, MAX_TICKETS, STARTING_GEMS, STARTING_GOLD, STARTING_TICKETS } from './config';
-import { canAfford, canAffordGold, canAffordTickets, commitSummon, getEconomy, getGems, getGold, getPity, getTickets, grantGems, grantGold, grantTickets, isUnlimitedGems, reloadEconomy, resetEconomy, resetSummonState, setGems, setGold, setPity, setTickets, setUnlimitedGems, spendGems, spendGold, spendTickets, subscribeEconomy } from './economy';
+import { canAfford, canAffordGold, canAffordTickets, commitSummon, getEconomy, getGems, getGold, getPity, getTickets, grantGems, grantGold, grantGoldOnce, grantTickets, hasGrant, isUnlimitedGems, reloadEconomy, resetEconomy, resetSummonState, setGems, setGold, setPity, setTickets, setUnlimitedGems, spendGems, spendGold, spendTickets, subscribeEconomy } from './economy';
 import { ECONOMY_STORAGE_KEY, sanitizeEconomy } from './persistence';
 import { campaignFirstClearGems, campaignWinGold, chapterCompleteGems, levelGems, quickBattleGold } from './rewards';
 
@@ -27,10 +27,31 @@ const stored = () => JSON.parse(localStorage.getItem(ECONOMY_STORAGE_KEY)!);
 
 describe('fresh economy', () => {
   it('starts with the configured starting Gems/Gold/Tickets, pity 0 and no history, and persists that on first read', () => {
-    expect(getEconomy()).toEqual({ version: 4, gems: STARTING_GEMS, gold: STARTING_GOLD, tickets: STARTING_TICKETS, summon: { pity: {}, history: [] } });
+    expect(getEconomy()).toEqual({ version: 5, gems: STARTING_GEMS, gold: STARTING_GOLD, tickets: STARTING_TICKETS, grants: [], summon: { pity: {}, history: [] } });
     expect(stored().gems).toBe(STARTING_GEMS);
     expect(stored().gold).toBe(STARTING_GOLD);
     expect(stored().tickets).toBe(STARTING_TICKETS);
+  });
+});
+
+describe('one-time Gold grants (v5)', () => {
+  it('pays once: the Gold and the grant id land in one write, and a second call pays nothing', () => {
+    setGold(100);
+    expect(grantGoldOnce('refund-x', 250, 'legacyLevelRefund')).toMatchObject({ paid: true, gained: 250, balance: 350 });
+    expect(stored()).toMatchObject({ gold: 350, grants: ['refund-x'] });
+    expect(grantGoldOnce('refund-x', 250, 'legacyLevelRefund')).toMatchObject({ paid: false, gained: 0, balance: 350 });
+    reloadEconomy();
+    expect(hasGrant('refund-x')).toBe(true);
+    expect(grantGoldOnce('refund-x', 250, 'legacyLevelRefund').paid).toBe(false);
+    expect(getEconomy().gold).toBe(350);
+  });
+  it('a v4 save (no grants field) reads as no grants paid; junk entries are dropped', () => {
+    localStorage.setItem(ECONOMY_STORAGE_KEY, JSON.stringify({ version: 4, gems: 5, gold: 7, tickets: 0, summon: { pity: {}, history: [] } }));
+    reloadEconomy();
+    expect(getEconomy()).toMatchObject({ version: 5, gold: 7, grants: [] });
+    localStorage.setItem(ECONOMY_STORAGE_KEY, JSON.stringify({ gold: 1, grants: ['a', 'a', 3, '', null, 'b'] }));
+    reloadEconomy();
+    expect(getEconomy().grants).toEqual(['a', 'b']);
   });
 });
 

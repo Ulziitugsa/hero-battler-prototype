@@ -1,6 +1,6 @@
 # Friendly Battle — private playtest
 
-Deployment: see [VERCEL-DEPLOYMENT.md](VERCEL-DEPLOYMENT.md). The Home screen now links to the themed lobby. Friendly duels enforce base strength without local mastery/ascension bonuses; the server validates both decks. Room polling backs up Realtime delivery. Apply migration 0004 in addition to the original three.
+Deployment: see [VERCEL-DEPLOYMENT.md](VERCEL-DEPLOYMENT.md). The Home screen now links to the themed lobby. Friendly duels play card combat with every card at its printed values for both players (there is no combat Card Mastery); the server validates both decks and both clients' rules version (see "Rules version" below). Room polling backs up Realtime delivery. Apply migration 0004 in addition to the original three.
 
 Two real players play against each other remotely, using the exact same deterministic battle engine as
 Quick Battle/Campaign. No accounts, no matchmaking, no rewards - this is a private playtesting feature.
@@ -27,6 +27,17 @@ Browser -> POST /api/submit-action -> stores the action, and if both sides have 
 
 `/api/resolve-round` is a separate, idempotent recovery endpoint sharing the same internal resolver -
 harmless to call speculatively, and the only thing that can catch a resolver that crashed mid-resolve.
+
+## Rules version (card combat, 2026-10-01)
+
+- Each client sends `rules: { combatModel, resolverVersion }` with its deck snapshot. `api/create-match.ts`
+  builds the match with `createCardMatch` only if both equal the server's production rules
+  (`src/game/combat/resolver.ts`); otherwise it abandons the room and returns 409 ("different versions of Moonwater").
+- The match state stores `combatModel: 'card'` and `cardCombat.version`. `api/_lib/resolveRoundInternal.ts` picks
+  the resolver from the stored state: a card match must carry the current version (else 409, nothing written) and
+  continues the stored RNG state; a legacy match record created before this change finishes on the legacy
+  resolver; Combat V2 is refused. A client whose rules differ from the match shows an alert and does not submit.
+- The guest's view flips every side-keyed card-combat field. A resolver version 2 record may still carry a per-card Mastery table; it is redacted and flipped if present, and nothing reads it.
 
 ## Hidden information
 

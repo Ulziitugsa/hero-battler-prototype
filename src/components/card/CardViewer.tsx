@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { cardCopyView } from '../../game/cards/cardCopy';
 import { useCollection } from '../../game/collection/useCollection';
-import { useAscension } from '../../game/ascension/useAscension';
 import { cardFocusDetails } from '../battleInfo/focusDetails';
 import { useDialogFocus } from '../useDialogFocus';
 import { CardFocusPanel, type FocusAction } from './CardFocusPanel';
@@ -14,8 +13,8 @@ import { GameCard, type CardTreatment } from './GameCard';
  */
 export function CardFocusSheet({ cardId, onClose, onInspect, actions }: { cardId: string; onClose: () => void; onInspect: () => void; actions?: FocusAction[] }) {
   const dialog = useDialogFocus(onClose);
-  const copy = cardCopyView(cardId, useCollection(), useAscension());
-  const details = cardFocusDetails(cardId, { rules: 'card', masteryStage: copy.masteryStage, hpContribution: copy.hpContribution });
+  const copy = cardCopyView(cardId, useCollection());
+  const details = cardFocusDetails(cardId, { rules: 'card', hpContribution: copy.hpContribution });
   return (
     <div className="cf-sheet-backdrop" onClick={onClose}>
       <div ref={dialog} tabIndex={-1} className="cf-sheet-host" onClick={(e) => e.stopPropagation()}>
@@ -25,7 +24,7 @@ export function CardFocusSheet({ cardId, onClose, onInspect, actions }: { cardId
           onClose={onClose}
           onInspect={onInspect}
           actions={actions}
-          side={<GameCard cardId={cardId} density="tile" hpContribution={copy.hpContribution} owned={copy.owned} copies={copy.copies} masteryStage={copy.masteryStage} />}
+          side={<GameCard cardId={cardId} density="tile" hpContribution={copy.hpContribution} owned={copy.owned} copies={copy.copies} />}
         />
       </div>
     </div>
