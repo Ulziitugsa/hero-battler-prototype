@@ -4,6 +4,8 @@ import { HomePage } from './pages/HomePage';
 const PixelPreviewPage = lazy(() => import('./pages/PixelPreviewPage').then(m => ({ default: m.PixelPreviewPage })));
 const BattleCardLabPage = lazy(() => import('./pages/BattleCardLabPage').then(m => ({ default: m.BattleCardLabPage })));
 const BattleSceneLabPage = lazy(() => import('./pages/BattleSceneLabPage').then(m => ({ default: m.BattleSceneLabPage })));
+// Dev/QA only: a production build drops this page entirely.
+const RevealFixturePage = import.meta.env.DEV ? lazy(() => import('./pages/RevealFixturePage').then(m => ({ default: m.RevealFixturePage }))) : null;
 const FriendlyBattlePage = lazy(() => import('./pages/FriendlyBattlePage').then(m => ({ default: m.FriendlyBattlePage })));
 import { BattleSetupPage, type DeckChoice } from './pages/BattleSetupPage';
 import { DecksPage } from './pages/DecksPage';
@@ -46,6 +48,8 @@ function GameApp() {
   const [showPixelPreview, setShowPixelPreview] = useState(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('pixelPreview'));
   const [showBattleCardLab, setShowBattleCardLab] = useState(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('battleCardLab'));
   const [battleScene, setBattleScene] = useState(() => (import.meta.env.DEV ? new URLSearchParams(window.location.search).get('battleScene') : null));
+  // Dev/QA only: the pack-opening ceremony over a fixed opening (nothing granted), for screenshots.
+  const [revealFixture, setRevealFixture] = useState(() => { const v = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('revealFixture') : null; return v === 'one' || v === 'ten' ? (v as 'one' | 'ten') : null; });
   const [showFriendly, setShowFriendly] = useState(() => new URLSearchParams(window.location.search).has('friendly'));
   const [showStats, setShowStats] = useState(false);
   const [showCombatLab, setShowCombatLab] = useState(false);
@@ -115,6 +119,7 @@ function GameApp() {
   useEffect(() => registerBackButton(() => backHandler.current()), []);
 
   if (showBattleCardLab) return <BattleCardLabPage onBack={() => { setShowBattleCardLab(false); window.history.replaceState(null, '', window.location.pathname); }} />;
+  if (revealFixture && RevealFixturePage) return <RevealFixturePage kind={revealFixture} onBack={() => { setRevealFixture(null); window.history.replaceState(null, '', window.location.pathname); }} />;
   if (battleScene) return <BattleSceneLabPage scene={battleScene} onBack={() => { setBattleScene(null); window.history.replaceState(null, '', window.location.pathname); }} />;
   if (showPixelPreview) return <PixelPreviewPage onBack={() => { setShowPixelPreview(false); window.history.replaceState(null, '', window.location.pathname); }} />;
 

@@ -14,6 +14,8 @@ import { canAfford, canAffordTickets } from '../../game/economy/economy';
 import { useEconomy } from '../../game/economy/useEconomy';
 import { getCollection } from '../../game/collection/collection';
 import { packRevealOutcome, starterProgressBetween, type StarterProgressNote } from '../../game/reveal/outcome';
+import { ArchiveAudio } from '../../game/reveal/audio';
+import { onRevealSound } from '../../game/reveal/sound';
 import { boxPackPrice, boxPackTickets, buyBoxPacks, type BoxProductDef, type PackPayment } from '../../game/box/boxProduct';
 import { canResetPrototypeBox, getPrototypeBoxState, prototypeBoxContents, prototypeBoxNextCardOdds, prototypeBoxPacksRemaining, prototypeBoxRarityCounts, PROTOTYPE_BOX, resetPrototypeBox, type PrototypeBoxPull, type PrototypeBoxState } from '../../game/box/prototypeBox';
 import type { Rarity } from '../../game/types';
@@ -75,16 +77,16 @@ function PulledCard({ cardId }: { cardId: string }) {
 
 /** Pack Results: every card the opening added, one grid whether it was one pack (5 cards) or ten (50). The cards were
  * granted before the ceremony began; this only shows them. */
-export function PackResults({ pulls, packs, starterProgress = [], onInspect, onClose }: { pulls: PrototypeBoxPull[]; packs: number; starterProgress?: StarterProgressNote[]; onInspect: (id: string) => void; onClose: () => void }) {
+export function PackResults({ pulls, packs, starterProgress = [], onInspect, onClose, preview = false }: { pulls: PrototypeBoxPull[]; packs: number; starterProgress?: StarterProgressNote[]; onInspect: (id: string) => void; onClose: () => void; preview?: boolean }) {
   const ref = useDialogFocus(onClose);
   const newCount = pulls.filter(pull => pull.isNew).length;
   const best = [...pulls].sort((a, b) => RARITIES.indexOf(a.rarity) - RARITIES.indexOf(b.rarity))[0];
   const tracked = useRef(false);
   useEffect(() => {
-    if (tracked.current) return;
+    if (tracked.current || preview) return;
     tracked.current = true;
     track('pack_results_viewed', { packCount: packs, cardCount: pulls.length, newCount, highestRarity: best?.rarity ?? 'common' });
-  }, [packs, pulls.length, newCount, best?.rarity]);
+  }, [packs, pulls.length, newCount, best?.rarity, preview]);
   return <div className="box-results-backdrop"><div ref={ref} className="box-results" role="dialog" aria-modal="true" aria-labelledby="box-results-title" tabIndex={-1}>
     <header>
       <span className="box-eyebrow">PACK RESULTS · {packs} {packs === 1 ? 'PACK' : 'PACKS'} OPENED</span>
@@ -112,11 +114,19 @@ export function BoxDetail({ box, onBack }: { box: BoxProductDef; onBack: () => v
   const [showContents, setShowContents] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [notice, setNotice] = useState('');
+  // The ceremony's small synthesized score: off by default, switched on by a tap (browsers only allow audio after one).
+  const [audio] = useState(() => new ArchiveAudio());
+  const [soundOn, setSoundOn] = useState(false);
   const packsLeft = prototypeBoxPacksRemaining(state);
   const rarityLeft = prototypeBoxRarityCounts(state);
   const odds = prototypeBoxNextCardOdds(state);
   const contents = prototypeBoxContents(state);
   const opened = PROTOTYPE_BOX.packCount - packsLeft;
+
+  useEffect(() => {
+    const unsubscribe = onRevealSound((event) => audio.play(event));
+    return () => { unsubscribe(); audio.close(); };
+  }, [audio]);
 
   useEffect(() => {
     track('box_viewed', { boxId: box.id, packsRemaining: prototypeBoxPacksRemaining() });
@@ -196,6 +206,10 @@ export function BoxDetail({ box, onBack }: { box: BoxProductDef; onBack: () => v
     </section>
 
     <div className="box-actions">{ticketButton}{openButton(1)}{openButton(10)}</div>
+    <button type="button" className="box-sound" aria-pressed={soundOn} onClick={async () => {
+      if (soundOn) { audio.disable(); setSoundOn(false); }
+      else setSoundOn(await audio.enable());
+    }}>Pack-opening sound {soundOn ? 'on' : 'off'}</button>
     {notice && <p className="box-notice" role="status">{notice}</p>}
 
     <section className="box-section" aria-labelledby="box-chase-title">
@@ -242,7 +256,7 @@ export function BoxDetail({ box, onBack }: { box: BoxProductDef; onBack: () => v
 
     {showContents && <ContentsSheet state={state} onInspect={setInspect} onClose={() => setShowContents(false)} />}
     {confirmReset && <ResetDialog state={state} onCancel={() => setConfirmReset(false)} onConfirm={reset} />}
-    {reveal.outcome && reveal.view && !reveal.view.isResult && <RevealStage outcome={reveal.outcome} view={reveal.view} onSkip={reveal.skip} onIntroFinished={reveal.finishIntro} />}
+    {reveal.outcome && reveal.plan && reveal.view && !reveal.view.isResult && <RevealStage outcome={reveal.outcome} plan={reveal.plan} view={reveal.view} onAdvance={reveal.advance} onSkip={reveal.skip} onIntroFinished={reveal.finishIntro} />}
     {results && <PackResults pulls={results.pulls} packs={results.packs} starterProgress={results.starterProgress} onInspect={setInspect} onClose={closeResults} />}
     {inspect && <CardViewer cardId={inspect} context="pack" onClose={() => setInspect(null)} />}
   </main>;

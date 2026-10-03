@@ -1,7 +1,7 @@
-// Audio-ready event hooks for the Summon presentation. No audio ships - nothing here plays a sound - but
-// the sequence controller emits these at the right beats, so a future audio layer only has to subscribe.
+// Sound events for the pack-opening ceremony. The sequence controller emits them at the right beats; the Box screen's
+// opt-in Sound toggle subscribes the small synthesized score in audio.ts (off by default, unlocked by a tap).
 
-export type RevealSoundEvent = 'reveal_start' | 'rarity_rare' | 'rarity_epic' | 'rarity_legendary' | 'seal_break' | 'card_reveal' | 'featured_reveal';
+export type RevealSoundEvent = 'reveal_start' | 'rarity_rare' | 'rarity_epic' | 'rarity_legendary' | 'seal_break' | 'card_reveal' | 'headline_reveal';
 
 type Listener = (event: RevealSoundEvent) => void;
 const listeners = new Set<Listener>();

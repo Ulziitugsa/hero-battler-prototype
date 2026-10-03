@@ -20,7 +20,7 @@ export class ArchiveAudio {
     const score: Record<RevealSoundEvent, number[]> = {
       reveal_start: [130.81, 196], rarity_rare: [261.63, 392], rarity_epic: [261.63, 329.63, 493.88],
       rarity_legendary: [130.81, 196, 261.63, 392], seal_break: [65.41, 130.81],
-      card_reveal: [523.25, 659.25, 783.99], featured_reveal: [783.99, 1046.5],
+      card_reveal: [523.25, 659.25, 783.99], headline_reveal: [783.99, 1046.5],
     };
     score[event].forEach((frequency, i) => {
       const start = ctx.currentTime + i * .07;

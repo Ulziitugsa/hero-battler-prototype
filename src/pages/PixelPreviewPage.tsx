@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { RevealFilm } from '../components/reveal/RevealFilm';
 import { MoonwellVoyage } from '../components/MoonwellVoyage';
 import '../styles/moonwellVoyage.css';
-import { buildTimeline, viewAt } from '../game/reveal/sequence';
+import { buildPackTimeline, viewAt } from '../game/reveal/sequence';
 import type { Rarity } from '../game/types';
 import { useDialogFocus } from '../components/useDialogFocus';
 import { CardArtwork } from '../components/CardArtwork';
@@ -25,9 +25,9 @@ function PixelCard({ hero, large = false, motion = true }: { hero: Companion; la
 
 function SummonPreview({ hero, motion, onClose }: { hero: Companion; motion: boolean; onClose: () => void }) {
   const tier = hero.rarity.toLowerCase() as Rarity;
-  const timeline = useMemo(() => buildTimeline([{ rarity: tier, mainFeatured: true }]), [tier]);
+  const timeline = useMemo(() => buildPackTimeline([tier]), [tier]);
   const [step, setStep] = useState(() => motion ? 0 : timeline.length - 1);
-  const view = viewAt(timeline, step, 1);
+  const view = viewAt(timeline, step);
   const revealed = view.phase === 'emerge' || view.phase === 'reveal' || view.isResult;
   const finishIntro = useCallback(() => setStep(s => s === 0 ? 1 : s), []);
   const ref = useDialogFocus(onClose);

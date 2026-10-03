@@ -50,5 +50,5 @@ export function starterProgressBetween(before: OwnedMap, after: OwnedMap): Start
 
 export function packRevealOutcome(boxName: string, packs: number, cards: readonly { cardId: string; rarity: Rarity; isNew: boolean; ownedCopies: number }[], starterProgress: StarterProgressNote[] = []): RevealOutcome {
   const list = cards.map((c) => ({ cardId: c.cardId, rarity: c.rarity, isNew: c.isNew, owned: c.ownedCopies }));
-  return { boxName, packs, cards: list, highestRarity: bestRarity(list.map((c) => ({ rarity: c.rarity, mainFeatured: false }))), starterProgress };
+  return { boxName, packs, cards: list, highestRarity: bestRarity(list.map((c) => c.rarity)), starterProgress };
 }
