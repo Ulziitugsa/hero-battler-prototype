@@ -5,7 +5,7 @@ import { cardArtUrl } from '../game/cards/art';
 import { CardArtwork } from './CardArtwork';
 import { Icon } from './Icon';
 import { useBattleCardDisplay } from './combatDisplay';
-import { printedAtk } from '../game/cards/cardPresentation';
+import { cardKind, printedAtk } from '../game/cards/cardPresentation';
 
 /**
  * A real, inspectable Graveyard (mechanics foundation pass). Graveyard contents are treated as
@@ -63,7 +63,7 @@ export function GraveyardSheet({
               const card = getCard(cardId);
               const artUrl = cardArtUrl(cardId);
               const atk = printedAtk(card, rules);
-              const typeLabel = card.type === 'hero' ? 'Unit' : card.spellKind === 'CONTINUOUS' ? 'Continuous Spell' : 'Spell';
+              const typeLabel = card.type === 'hero' ? 'Unit' : rules === 'card' ? cardKind(card) : card.spellKind === 'CONTINUOUS' ? 'Continuous Spell' : 'Spell';
               return (
                 <button type="button" className="graveyard-card-row" key={`${cardId}-${i}`} onClick={() => onInspect(cardId, side)}>
                   <span className="graveyard-card-art">

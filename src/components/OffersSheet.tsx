@@ -8,6 +8,7 @@ import { GemIcon } from './GemIcon';
 import { TicketIcon } from './TicketIcon';
 import { Icon } from './Icon';
 import { getCard } from '../game/cards';
+import { hasOpenedPacks } from '../game/box/boxProduct';
 import { useDialogFocus } from './useDialogFocus';
 import '../styles/missions.css';
 import '../styles/offers.css';
@@ -35,15 +36,15 @@ export function OffersSheet({ onClose }: { onClose: () => void }) {
   const dialog = useDialogFocus(handleClose);
   const purchases = useOffers();
   const ascensions = useAscension();
-  const { summon } = useEconomy();
+  const economy = useEconomy();
   const hasProgressedHero = PLAYTEST_ROSTER.some((id) => getAscensionRank(id, ascensions) > 0);
-  const hasSummoned = summon.history.length > 0;
+  const openedPacks = hasOpenedPacks(economy);
   const eligible = useMemo(() => OFFERS.filter((offer) => {
-    if (offer.id === 'starter-pack') return hasProgressedHero || hasSummoned;
+    if (offer.id === 'starter-pack') return hasProgressedHero || openedPacks;
     if (offer.id === 'growth-pack') return hasProgressedHero;
-    if (offer.id.startsWith('gem-pack-')) return hasSummoned;
+    if (offer.id.startsWith('gem-pack-')) return openedPacks;
     return true;
-  }), [hasProgressedHero, hasSummoned]);
+  }), [hasProgressedHero, openedPacks]);
   const [confirming, setConfirming] = useState<OfferId | null>(null);
   const [justGranted, setJustGranted] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);

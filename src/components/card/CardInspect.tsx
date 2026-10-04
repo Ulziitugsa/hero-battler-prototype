@@ -68,6 +68,12 @@ function findDeckFor(cardId: string): string | null {
 /** Where the back button returns to. */
 const BACK_LABEL: Record<InspectContext, string> = { collection: 'Cards', deck: 'Deck', battle: 'Battle', opponent: 'Battle', pack: 'Back', shop: 'Shop', event: 'Event', other: 'Back' };
 
+/** Every way to get the card, once each: the acquisition summary (starter, Campaign, Box packs) plus Structure Decks and live events. */
+function sourcesLine(cardId: string): string {
+  const summary = acquisitionSummary(cardId);
+  return [summary, ...productAcquisitionLines(cardId).filter((line) => !summary.includes(line))].join(' / ');
+}
+
 export function CardInspect({ cardId, onClose, context = 'other', battle, treatment = 'base', onPrev, onNext, onOpenDecks }: CardInspectProps) {
   const dialog = useDialogFocus(onClose);
   const scroller = useRef<HTMLDivElement>(null);
@@ -179,7 +185,7 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
                   </div>
                   <div>
                     <dt>How to get it</dt>
-                    <dd>{[acquisitionSummary(cardId).replaceAll('Summon ·', 'Pack set ·'), ...productAcquisitionLines(cardId)].join(' / ')}</dd>
+                    <dd>{sourcesLine(cardId)}</dd>
                   </div>
                   <div>
                     <dt>Card style</dt>

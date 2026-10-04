@@ -1,7 +1,7 @@
 import { CardArtwork } from '../../components/CardArtwork';
 import type { ReactNode } from 'react';
 import { Gems, Sigil } from '../../components/CardParts';
-import { GemBalance, GemIcon } from '../../components/GemIcon';
+import { GemBalance } from '../../components/GemIcon';
 import { Icon } from '../../components/Icon';
 import { MasteryCrest } from '../../components/MasteryCrest';
 import { getCard } from '../../game/cards';
@@ -15,11 +15,9 @@ import type { CampaignHub, HubNote } from '../../game/home/hubState';
 import { MASTERIES, rankNumeral } from '../../game/mastery/definitions';
 import { MAX_LEVEL, xpToNextLevel } from '../../game/progression/config';
 import type { AccountState } from '../../game/progression/types';
-import type { SummonBanner } from '../../game/summon/banners';
-import { SUMMON_CONFIG } from '../../game/summon/config';
 
 // The Home hub's sections. Each one is presentational: it takes real state as props and reports one intent
-// (open Campaign, open Summon, ...). The hierarchy - what is big, what is small, what is reserved - is set by
+// (open Campaign, open the Shop, ...). The hierarchy - what is big, what is small, what is reserved - is set by
 // HomePage and home.css, not here.
 
 const FACTION_LABEL: Record<StarterFaction, string> = { kingdom: 'Kingdom', undead: 'Undead', infernal: 'Infernal' };
@@ -137,40 +135,6 @@ export function ContinueCampaign({ hub, energy, onOpen }: { hub: CampaignHub; en
           </span>
         )}
       </span>
-    </button>
-  );
-}
-
-/** Summon's presence on Home: the banner you last browsed, its chase card, its Legendary guarantee and the price. Compact - rates live in Summon. */
-export function FeaturedSummon({ banner, pity, canSummon, onOpen }: { banner: SummonBanner; pity: number; canSummon: boolean; onOpen: () => void }) {
-  const main = getCard(banner.featured.main);
-  const url = cardArtUrl(main.id);
-  return (
-    <button type="button" className={`hh-plate hh-summon theme-${banner.faction} ${canSummon ? 'ready' : ''}`} onClick={onOpen} aria-label={`Summon - ${banner.name}`}>
-      <span className="hh-summon-card">
-        <span className="hh-summon-card-art">{url ? <CardArtwork cardId={main.id} /> : <Sigil faction={banner.faction} size="md" />}</span>
-      </span>
-      <span className="hh-summon-text">
-        <span className="hh-kicker">Summon</span>
-        <span className="hh-summon-name">{banner.name}</span>
-        <span className="hh-summon-feat">Featured · {main.shortName}</span>
-        <span className="hh-summon-guar">
-          <span>Guarantee</span>
-          <span>
-            {pity}/{SUMMON_CONFIG.pityThreshold}
-          </span>
-        </span>
-        <span className="hh-summon-foot">
-          <span className="hh-summon-pity" aria-label={`Legendary guarantee ${pity} of ${SUMMON_CONFIG.pityThreshold}`}>
-            <span style={{ width: `${(pity / SUMMON_CONFIG.pityThreshold) * 100}%` }} />
-          </span>
-          <span className="hh-summon-cost">
-            <GemIcon size={12} />
-            {SUMMON_CONFIG.singleCost}
-          </span>
-        </span>
-      </span>
-      {canSummon && <WaxDot label="Enough Gems to summon" />}
     </button>
   );
 }

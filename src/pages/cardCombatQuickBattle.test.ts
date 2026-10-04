@@ -44,8 +44,8 @@ describe('Quick Battle screen', () => {
     expect(html).not.toContain('battle-dock');
     expect(html).not.toContain('hand-fan readable peek');
     // A board card says what a tap does.
-    expect(html).toContain('Royal Guard, 128 ATK. Tap for details.');
-    expect(html).toContain('Battle Banner, Continuous Spell. Tap for details.');
+    expect(html).toContain('Common Knight, 158 ATK. Tap for details.');
+    expect(html).toContain('Battle Banner, Attached Spell. Tap for details.');
   });
 
   it('a legacy battle shows the same card faces, in ATK, with no HP Contribution and no Power', () => {

@@ -20,24 +20,24 @@ export interface MissionDef {
   target: number;
   rewardGold: number;
   rewardGems: number;
-  /** Summon Tickets (Commercial Prototype Phase 7) - deliberately weekly-only, so Tickets stay a
-   * weekly-commitment reward rather than a daily trickle (the 7-day journey already covers "a free
-   * ticket early on"; see game/journey/definitions.ts Day 2). */
+  /** Pack Tickets (1 Ticket = 1 pack = 5 cards). Only the weekly "Open 5 packs" mission gives one, so recurring
+   * free Ticket income is 1 pack a week (ozi, 2026-10-04; baseline in docs/ECONOMY-BASELINE.md). The Journey's
+   * Day 2 covers "a free pack early on"; see game/journey/definitions.ts. */
   rewardTickets: number;
 }
 
 export const DAILY_MISSIONS: MissionDef[] = [
   { id: 'daily-campaign-wins', period: 'daily', title: 'Win 2 Campaign battles', metric: 'campaign_won', target: 2, rewardGold: 40, rewardGems: 0, rewardTickets: 0 },
   { id: 'daily-battles', period: 'daily', title: 'Fight 3 battles', metric: 'battle_completed', target: 3, rewardGold: 30, rewardGems: 0, rewardTickets: 0 },
-  { id: 'daily-summon', period: 'daily', title: 'Perform a Summon', metric: 'summon_performed', target: 1, rewardGold: 0, rewardGems: 20, rewardTickets: 0 },
+  { id: 'daily-open-pack', period: 'daily', title: 'Open a pack', metric: 'pack_opened', target: 1, rewardGold: 0, rewardGems: 20, rewardTickets: 0 },
   { id: 'daily-idle-claim', period: 'daily', title: 'Claim your idle reward', metric: 'idle_reward_claimed', target: 1, rewardGold: 20, rewardGems: 0, rewardTickets: 0 },
   { id: 'daily-ranked', period: 'daily', title: 'Play a Ranked battle', metric: 'ranked_match_started', target: 1, rewardGold: 0, rewardGems: 15, rewardTickets: 0 },
 ];
 
 export const WEEKLY_MISSIONS: MissionDef[] = [
-  { id: 'weekly-campaign-wins', period: 'weekly', title: 'Win 10 Campaign battles', metric: 'campaign_won', target: 10, rewardGold: 200, rewardGems: 0, rewardTickets: 1 },
-  { id: 'weekly-summons', period: 'weekly', title: 'Perform 5 Summons', metric: 'summon_performed', target: 5, rewardGold: 0, rewardGems: 100, rewardTickets: 2 },
-  { id: 'weekly-battles', period: 'weekly', title: 'Fight 15 battles', metric: 'battle_completed', target: 15, rewardGold: 150, rewardGems: 0, rewardTickets: 1 },
+  { id: 'weekly-campaign-wins', period: 'weekly', title: 'Win 10 Campaign battles', metric: 'campaign_won', target: 10, rewardGold: 200, rewardGems: 0, rewardTickets: 0 },
+  { id: 'weekly-open-packs', period: 'weekly', title: 'Open 5 packs', metric: 'pack_opened', target: 5, rewardGold: 0, rewardGems: 100, rewardTickets: 1 },
+  { id: 'weekly-battles', period: 'weekly', title: 'Fight 15 battles', metric: 'battle_completed', target: 15, rewardGold: 150, rewardGems: 0, rewardTickets: 0 },
 ];
 
 export const ALL_MISSIONS: MissionDef[] = [...DAILY_MISSIONS, ...WEEKLY_MISSIONS];

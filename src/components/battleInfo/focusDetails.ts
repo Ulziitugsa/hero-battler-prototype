@@ -1,7 +1,8 @@
 import type { GameEvent, GameState, HeroInstance, LaneId, Side } from '../../game/types';
 import { LANES } from '../../game/types';
 import { getCard } from '../../game/cards';
-import { continuousAtkBonus, passiveEffectStates } from '../../game/cardCombat/engine';
+import { continuousAtkBonus, effectiveAtk, passiveAtkSources, passiveEffectStates, withEffectiveAtk } from '../../game/cardCombat/engine';
+import { isAttachedSpell } from '../../game/cardCombat/cards';
 import { computeContinuousBonus } from '../../game/engine/power';
 import { legacyPassiveEffectStates } from '../../game/engine/abilities';
 import { battlePowerBonusForLevel } from '../../game/heroLevel/battlePower';
@@ -38,8 +39,8 @@ export interface FocusAtkChange {
   amount: number;
   /** The card it came from, "its own effect", or "Legacy Level". */
   source: string;
-  /** Until Round End; while that Continuous Spell stays in the lane; or for the rest of the battle. */
-  lasts: 'round' | 'spell' | 'battle';
+  /** Until Round End; while that Continuous Spell stays in the lane; while that Unit's Passive aura reaches it; or for the rest of the battle. */
+  lasts: 'round' | 'spell' | 'aura' | 'battle';
 }
 
 export interface FocusDetails {
@@ -49,7 +50,7 @@ export interface FocusDetails {
   /** In hand, on the board, in a Spell zone, or a card outside battle. */
   place: 'hand' | 'board' | 'spellZone' | 'card';
   lane?: LaneId;
-  kind: 'unit' | 'spell' | 'continuous';
+  kind: 'unit' | 'spell' | 'continuous' | 'attached';
   rules: CardRules;
   /** Legacy rules only: the legacy Ascension rank whose abilities a historical legacy match plays. Always 0 in card combat. */
   masteryRank: number;
@@ -67,6 +68,8 @@ export interface FocusDetails {
   status: string[];
   /** A Continuous Spell: the Units standing in its lane. */
   laneUnits?: { yours?: string; theirs?: string };
+  /** An Attached Spell in play: the Unit it is attached to (it leaves play with that Unit). */
+  attachedTo?: string;
 }
 
 export interface FocusOptions {
@@ -79,7 +82,7 @@ const other = (side: Side): Side => (side === 'player' ? 'enemy' : 'player');
 
 function kindOf(cardId: string): FocusDetails['kind'] {
   const card = getCard(cardId);
-  return card.type === 'hero' ? 'unit' : card.spellKind === 'CONTINUOUS' ? 'continuous' : 'spell';
+  return card.type === 'hero' ? 'unit' : card.spellKind === 'CONTINUOUS' ? (isAttachedSpell(cardId) ? 'attached' : 'continuous') : 'spell';
 }
 
 function effectLines(cardId: string, rules: CardRules, masteryRank: number, states?: ReadonlyMap<number, boolean>, silenced = false): FocusEffectLine[] {
@@ -131,6 +134,7 @@ function atkChanges(state: GameState, side: Side, lane: LaneId, log: readonly Ga
     if (own && ownPart !== 0) changes.push({ amount: ownPart, source: own.name, lasts: 'spell' });
     if (foe && total - ownPart !== 0) changes.push({ amount: total - ownPart, source: foe.name, lasts: 'spell' });
   }
+  if (rules === 'card') for (const aura of passiveAtkSources(state, side, lane)) changes.push({ amount: aura.atk, source: aura.instanceId === unit.instanceId ? 'its own effect' : aura.name, lasts: 'aura' });
   return changes;
 }
 
@@ -193,6 +197,7 @@ export function focusDetails(focus: BattleFocus, state: GameState, log: readonly
     const spell = state[focus.side].spellZones[lane]!;
     const mine = state.player.heroZones[lane];
     const theirs = state.enemy.heroZones[lane];
+    const holder = spell.boundTo ? state[focus.side].heroZones[lane] : null;
     return {
       cardId: spell.cardId,
       name: spell.name,
@@ -206,6 +211,7 @@ export function focusDetails(focus: BattleFocus, state: GameState, log: readonly
       changes: [],
       status: [],
       laneUnits: { ...(mine ? { yours: mine.name } : {}), ...(theirs ? { theirs: theirs.name } : {}) },
+      ...(holder && holder.instanceId === spell.boundTo ? { attachedTo: holder.name } : {}),
     };
   }
   const unit = state[focus.side].heroZones[lane]!;
@@ -216,11 +222,13 @@ export function focusDetails(focus: BattleFocus, state: GameState, log: readonly
   const levelBonus = rules === 'legacy' && (!arrival || arrival.how === 'entered') ? battlePowerBonusForLevel(unit.level ?? 1) * ATK_PER_POWER : 0;
   const states = rules === 'legacy' ? legacyPassiveEffectStates(state, focus.side) : passiveEffectStates(state, focus.side);
   const status: string[] = [];
-  if (unit.shielded) status.push('Shield');
+  // Card rules read a printed Shield live (Paladin's); a granted one is stored, as in legacy rules.
+  const shown = rules === 'card' ? withEffectiveAtk(state, focus.side).heroZones[lane]! : unit;
+  if (shown.shielded) status.push('Shield');
   if (unit.silenced) status.push('Silenced this round');
   if (unit.pacified) status.push('Deals no damage this round');
   if (unit.stalled) status.push('No clash this round');
-  const current = rules === 'legacy' ? legacyAtk(unit.power + computeContinuousBonus(state, focus.side, lane)) : unit.power + continuousAtkBonus(state, focus.side, lane);
+  const current = rules === 'legacy' ? legacyAtk(unit.power + computeContinuousBonus(state, focus.side, lane)) : effectiveAtk(state, focus.side, lane);
   return {
     cardId: unit.cardId,
     name: unit.name,

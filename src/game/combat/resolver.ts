@@ -22,11 +22,13 @@ export function matchResolver(state: Pick<GameState, 'combatModel' | 'cardCombat
 }
 
 /**
- * Card resolver versions this build can continue. v2 differs from v3 only at match setup (v2 applied per-card Mastery
- * stages to HP Contribution; v3 plays printed values), and a stored match is already past setup with its Starting HP in
- * its own state, so v3's round resolution continues a v2 match exactly as v2 would have. New matches are always v3.
+ * Card resolver versions this build can continue. v4 (the timing cleanup: no On Play, Passive auras, printed Shields,
+ * Attached Spells) resolves several cards differently from v3, so a stored v2/v3 match is not continued under v4 rules:
+ * that would change what cards already in play do, mid-match. Such a match shows the rules-changed notice
+ * (`rulesChangeNotice`) and the Friendly server refuses its rounds (409). (v2 and v3 differed only at match setup, which
+ * is why v3 continued v2 matches.)
  */
-export const CONTINUABLE_CARD_RESOLVER_VERSIONS: readonly number[] = [2, CARD_RESOLVER_VERSION];
+export const CONTINUABLE_CARD_RESOLVER_VERSIONS: readonly number[] = [CARD_RESOLVER_VERSION];
 
 /** True when this build's card resolver can continue a card match (card model, a continuable version). */
 export function isCurrentCardResolver(state: Pick<GameState, 'combatModel' | 'cardCombat'>): boolean {
@@ -41,4 +43,15 @@ export const PRODUCTION_RULES: MatchResolver = { combatModel: 'card', resolverVe
 /** True when a client's declared rules match this build's. A client that declares nothing predates versioning. */
 export function sameRules(declared: Partial<MatchResolver> | null | undefined, current: MatchResolver = PRODUCTION_RULES): boolean {
   return !!declared && declared.combatModel === current.combatModel && declared.resolverVersion === current.resolverVersion;
+}
+
+/**
+ * What a player is told when a stored card match can't be continued by this build: an older match ended by a rules
+ * change, or a match from a newer build. Null when the match can be continued.
+ */
+export function rulesChangeNotice(state: Pick<GameState, 'combatModel' | 'cardCombat'>): string | null {
+  if (isCurrentCardResolver(state)) return null;
+  const r = matchResolver(state);
+  if (r.combatModel === 'card' && r.resolverVersion > CARD_RESOLVER_VERSION) return 'This match was started on a newer version of Moonwater. Update the game to keep playing.';
+  return 'This match was started under earlier card rules. Card timings have changed since, so it can’t be continued. Start a new match to play under the current rules.';
 }

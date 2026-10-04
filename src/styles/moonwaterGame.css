@@ -149,8 +149,6 @@
 .moon-game .opp-card-back-gem { background:#dbc185; box-shadow:none; }
 .moon-game .hand-apron::before { background:#102a36; border-top:1px solid #9eb49377; border-radius:0; box-shadow:none; }
 .moon-game .hand-apron::after { background:none; }
-.moon-game .fight-seal-core { background:#e4c080; color:#292618; border-radius:3px; box-shadow:inset 0 0 0 2px #a5824e; }
-.moon-game .fight-seal-label { color:#292618; text-shadow:none; }
 .moon-game .zone-card-power,.moon-game .hand-card-power { border-radius:2px; background:#203c3d; border-color:#c3c49a; box-shadow:0 2px 0 #061722; }
 .moon-game .zone-card { border:1px solid #a0ac83; background:#17313a; box-shadow:0 0 0 2px #0c1922,0 4px 9px #0007; }
 .moon-game .zone-card-art canvas { position:absolute; inset:0; }

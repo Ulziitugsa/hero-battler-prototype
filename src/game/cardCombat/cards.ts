@@ -1,5 +1,5 @@
 import type { AbilityDefinition, ActionDef, CardDefinition, ConditionDef, TargetScope, Trigger } from '../types/index.js';
-import { getCard } from '../cards/index.js';
+import { ALL_CARDS, getCard } from '../cards/index.js';
 
 // Card data for the card-combat model: the live card definitions with ozi's approved balance-pass changes
 // (docs/CARD-COMBAT-DESIGN.md section 14, project file moonwater/balance/final/card-changes.csv) applied.
@@ -12,6 +12,11 @@ import { getCard } from '../cards/index.js';
 //   - CHANGE_POWER / SET_POWER amounts are legacy Power steps; the resolver applies 15 ATK per step.
 //   - PLAYER_DAMAGE / PLAYER_HEAL amounts are legacy HP points; the resolver applies 45 Player HP per point.
 // Player-facing copy (cardText.ts) prints the converted numbers.
+//
+// Timing cleanup (resolver v4, docs/CARD-COMBAT-DESIGN.md section 18): card combat has no On Play timing. Every Unit
+// effect is Passive, Round Start, Round End, Clash (Before Combat), Destroyed or a reaction (Your Spell, Ally Falls, ...);
+// a one-time Spell's effect is CAST, resolved once when it is cast. Every Continuous Spell names what it belongs to
+// (`spellBinding`): its Unit (an Attached Spell, which leaves with that Unit) or its lane.
 
 /** Card-combat-only primitive (balance pass Thread B, approved): the Unit deals no damage this round, in a clash or directly. */
 export interface PacifyAction {
@@ -82,11 +87,15 @@ function boneSoldierSteps(maxSteps: number): CombatAbility[] {
   );
 }
 
+/** Shield, printed: "the first time this Unit would be destroyed, it survives instead" (once per Unit in play, read live). */
+function printedShield(text: string, conditions?: ConditionDef[]): CombatAbility {
+  return ability('PASSIVE', [{ type: 'GRANT_SHIELD', target: 'SELF' }], text, conditions ? { conditions } : {});
+}
+
 /** Every card whose card-combat definition differs from the live file. Later changes of the same card are already merged here. */
 const OVERRIDES: CombatCard[] = [
   // Approved re-band: Power 7 Legendaries play at Power 6.
   rewrite('und-vharos', { power: 6 }),
-  rewrite('inf-infernal-lord', { power: 6 }),
 
   // Thread A (Defensive): Guard replaces the uncapped growth lines.
   rewrite('und-dark-priest', {
@@ -102,21 +111,22 @@ const OVERRIDES: CombatCard[] = [
   rewrite('spl-stasis-field', {
     boardText: 'No damage; −15 ATK',
     abilities: [
-      ability('ON_PLAY', [{ type: 'PACIFY', target: 'ENEMY_SAME_LANE' }], 'The enemy Unit in this lane deals no damage this round.'),
-      ability('ON_PLAY', [{ type: 'CHANGE_POWER', amount: -1, duration: 'PERMANENT', target: 'ENEMY_SAME_LANE' }], 'It gets −15 ATK for the rest of the battle.'),
+      ability('CAST', [{ type: 'PACIFY', target: 'ENEMY_SAME_LANE' }], 'The enemy Unit in this lane deals no damage this round.'),
+      ability('CAST', [{ type: 'CHANGE_POWER', amount: -1, duration: 'PERMANENT', target: 'ENEMY_SAME_LANE' }], 'It gets −15 ATK for the rest of the battle.'),
     ],
   }),
   rewrite('spl-aegis-ward', {
     boardText: 'Ignore next dmg; ally Shield',
     abilities: [
-      ability('ON_PLAY', [{ type: 'PREVENT_NEXT_DAMAGE', count: 1 }], 'The next damage your player would take this round, including Clash Damage, is prevented.'),
-      ability('ON_PLAY', [{ type: 'GRANT_SHIELD', target: 'ALLY_SAME_LANE' }], 'Your Unit in this lane gains a Shield.'),
+      ability('CAST', [{ type: 'PREVENT_NEXT_DAMAGE', count: 1 }], 'The next damage your player would take this round, including Clash Damage, is prevented.'),
+      ability('CAST', [{ type: 'GRANT_SHIELD', target: 'ALLY_SAME_LANE' }], 'Your Unit in this lane gains a Shield.'),
     ],
   }),
+  // Timing cleanup: the Spell it returned when played now comes back when it is destroyed (as Apprentice Mage's does).
   rewrite('und-grave-sage', {
-    boardText: 'Return a Spell; 2nd Spell: Shield',
+    boardText: 'Death: return a Spell; 2nd Spell: Shield',
     abilities: [
-      ability('ON_PLAY', [RETURN_SPELL], 'On Play: return a random Spell from your Graveyard to your hand.'),
+      ability('ON_DEATH', [RETURN_SPELL], 'When Destroyed: return a random Spell from your Graveyard to your hand.'),
       ability('ON_ALLY_SPELL_PLAYED', [{ type: 'GRANT_SHIELD', target: 'ADJACENT_ALLIES' }], 'The second time you cast a Spell in a round, adjacent allied Units gain a Shield.', {
         oncePerRound: true,
         conditions: [{ type: 'SPELLS_PLAYED_THIS_ROUND_AT_LEAST', count: 2 }],
@@ -160,10 +170,11 @@ const OVERRIDES: CombatCard[] = [
       ability('BEFORE_COMBAT', [{ type: 'CHANGE_POWER', amount: 2, duration: 'UNTIL_ROUND_END', target: 'SELF' }], 'Before Combat: if an allied Unit died this round, gain +30 ATK this round.', { conditions: [{ type: 'ALLY_DIED_THIS_ROUND' }] }),
     ],
   }),
+  // Timing cleanup: the Shield it gained when played is printed (a Passive Shield).
   rewrite('kng-paladin', {
     boardText: 'Shield; Guard 3; lane win: Heal 45',
     abilities: [
-      live('kng-paladin').abilities[0],
+      printedShield('This Unit has a Shield: the first time it would be destroyed, it survives instead.'),
       ability('BEFORE_COMBAT', [{ type: 'CHANGE_POWER', amount: 3, duration: 'UNTIL_ROUND_END', target: 'SELF' }], 'Guard 3: Before Combat, if this Unit would lose its lane, gain +45 ATK this round.', { conditions: [{ type: 'SELF_LOSING_LANE' }] }),
       ability('ON_ENEMY_DEATH', [{ type: 'PLAYER_HEAL', amount: 1 }], 'When the enemy Unit in this lane is destroyed, restore 45 HP to your player (once per round).', {
         oncePerRound: true,
@@ -174,22 +185,128 @@ const OVERRIDES: CombatCard[] = [
   rewrite('tok-ward', { boardText: 'Token', abilities: [] }),
 
   // Thread E: Commons get a lane holder; Kingdom's lasting swings come down a step.
+  // Timing cleanup: Crypt Warden's Shield is printed, and works while the Graveyard holds 2+ cards (checked when it would be destroyed).
   rewrite('und-crypt-warden', {
-    boardText: 'Guard 2; Shield if 2+ Grave',
-    abilities: [guard(2), ...live('und-crypt-warden').abilities],
+    boardText: 'Guard 2; Shield w/ 2+ Grave',
+    abilities: [guard(2), printedShield('While your Graveyard has 2 or more cards, this Unit has a Shield: the first time it would be destroyed, it survives instead.', [{ type: 'GRAVEYARD_COUNT_AT_LEAST', count: 2 }])],
   }),
+  // Timing cleanup: an Attached Spell. It needs your Unit in its lane and leaves with that Unit.
   rewrite('spl-battle-banner', {
-    boardText: '+15 ATK while active',
-    abilities: [ability('CONTINUOUS', [{ type: 'CHANGE_POWER', amount: 1, duration: 'PERMANENT', target: 'ALLY_SAME_LANE' }], 'Your Unit in this lane has +15 ATK.')],
+    boardText: 'Attached: +15 ATK',
+    spellBinding: 'UNIT',
+    abilities: [ability('CONTINUOUS', [{ type: 'CHANGE_POWER', amount: 1, duration: 'PERMANENT', target: 'ALLY_SAME_LANE' }], 'The Unit it is attached to has +15 ATK.')],
   }),
   rewrite('spl-war-cry', {
-    abilities: [ability('ON_PLAY', [{ type: 'CHANGE_POWER', amount: 1, duration: 'UNTIL_ROUND_END', target: 'ALL_ALLIES' }], 'All allied Units gain +15 ATK this round.'), live('spl-war-cry').abilities[1]],
+    abilities: [
+      ability('CAST', [{ type: 'CHANGE_POWER', amount: 1, duration: 'UNTIL_ROUND_END', target: 'ALL_ALLIES' }], 'All allied Units gain +15 ATK this round.'),
+      { ...live('spl-war-cry').abilities[1], trigger: 'CAST' },
+    ],
   }),
+
+  // ---- Timing cleanup (resolver v4): every On Play Unit effect, re-authored -------------------------------------
+  // Royal Guard: the lasting +15 it gave adjacent allies when played becomes an aura (+15 while it is in play), and the lasting
+  // part moves to when it falls: adjacent allies keep +15 for the rest of the battle. The aura alone left the Kingdom
+  // Starter 8 points down (sim/after: Kingdom vs Undead 48% -> 21%).
+  rewrite('kng-royal-guard', {
+    boardText: 'Adjacent +15; Death: adj. +15; Spell Immune w/ally',
+    abilities: [ability('PASSIVE', [{ type: 'CHANGE_POWER', amount: 1, duration: 'PERMANENT', target: 'ADJACENT_ALLIES' }], 'Adjacent allied Units have +15 ATK.'), ability('ON_DEATH', [{ type: 'CHANGE_POWER', amount: 1, duration: 'PERMANENT', target: 'ADJACENT_ALLIES' }], 'When Destroyed: adjacent allied Units gain +15 ATK for the rest of the battle.'), live('kng-royal-guard').abilities[1]],
+  }),
+  // Light Priest: one 135 HP heal when played becomes 45 HP at every Round End it is in play; its Shield is printed.
+  rewrite('kng-light-priest', {
+    boardText: 'Shield; Round End: Heal 45; Spell: +15',
+    abilities: [
+      printedShield('This Unit has a Shield: the first time it would be destroyed, it survives instead.'),
+      ability('ROUND_END', [{ type: 'PLAYER_HEAL', amount: 1 }], 'Round End: restore 45 HP to your player.'),
+      live('kng-light-priest').abilities[2],
+    ],
+  }),
+  // Forest Wolf: the lasting +30 it gained when played into an open lane is now +30 ATK while no enemy Unit is in its lane.
+  rewrite('wld-forest-wolf', {
+    boardText: '+30 while lane empty',
+    abilities: [ability('PASSIVE', [{ type: 'CHANGE_POWER', amount: 2, duration: 'PERMANENT', target: 'SELF' }], 'While the enemy has no Unit in this lane, this Unit has +30 ATK.', { conditions: [{ type: 'LANE_EMPTY_ENEMY_SIDE' }] })],
+  }),
+  // Mira: the Undead she returned when played comes back when she is destroyed (never Mira herself).
+  rewrite('und-mira', {
+    boardText: 'Death: return weakest Undead; Immune w/3+',
+    abilities: [
+      ability('ON_DEATH', [{ type: 'RETURN_TO_HAND', maxPower: Infinity, pick: 'LOWEST_POWER', faction: 'undead', excludeSelf: true }], 'When Destroyed: return your weakest other Undead Unit from your Graveyard to your hand.'),
+      live('und-mira').abilities[1],
+    ],
+  }),
+  // Hellhound: the one-round Silence it cast when played is retired. Every lasting form of it (a Passive, or every Clash)
+  // switched the Unit facing it off for good, Shields, Guard and death effects included (sim/after: Undead vs Infernal
+  // 38% -> 0%, Infernal Starter 90%). Its Clash −30 ATK on the enemy here stays as it was.
+  rewrite('inf-hellhound', {
+    boardText: 'Clash: enemy here −30 rnd',
+    abilities: [live('inf-hellhound').abilities[1]],
+  }),
+  // Runebreaker: the enemy Continuous Spell it destroyed when played is now destroyed before every clash in its lane.
+  rewrite('inf-runebreaker', {
+    abilities: [ability('BEFORE_COMBAT', [{ type: 'DESTROY_SPELL_ZONE', target: 'ENEMY_SAME_LANE' }], 'Before Combat: destroy the enemy Continuous Spell in this lane.'), live('inf-runebreaker').abilities[1], live('inf-runebreaker').abilities[2]],
+  }),
+  // Infernal Lord (approved re-band to Power 6): a one-round −30 on every other Unit (its own side's too) when played becomes
+  // a dying curse, −15 ATK on every enemy Unit for the rest of the battle when it is destroyed, and its lane's enemy Continuous
+  // Spell is destroyed before every clash. (An aura, −15 on every enemy or on the enemy here, measured too strong.)
+  rewrite('inf-infernal-lord', {
+    power: 6,
+    boardText: 'Death: enemies −15; Destroy enemy Spell here',
+    abilities: [
+      ability('ON_DEATH', [{ type: 'CHANGE_POWER', amount: -1, duration: 'PERMANENT', target: 'ALL_ENEMIES' }], 'When Destroyed: every enemy Unit gets −15 ATK for the rest of the battle.'),
+      ability('BEFORE_COMBAT', [{ type: 'DESTROY_SPELL_ZONE', target: 'ENEMY_SAME_LANE' }], 'Before Combat: destroy the enemy Continuous Spell in this lane.'),
+    ],
+  }),
+
+  // ---- Spell lifetime (resolver v4): what every Continuous Spell belongs to -------------------------------------------
+  // Fortify is an Attached Spell: it fortifies one Unit and leaves with it. Its lane condition went (it always has its Unit);
+  // +15 per Round End is unchanged (+30 measured too strong in Trickster).
+  rewrite('spl-fortify', {
+    boardText: 'Attached: Round End +15',
+    spellBinding: 'UNIT',
+    abilities: [ability('ROUND_END', [{ type: 'CHANGE_POWER', amount: 1, duration: 'PERMANENT', target: 'ALLY_SAME_LANE' }], 'Round End: the Unit it is attached to gains +15 ATK.')],
+  }),
+  rewrite('spl-growth-totem', { spellBinding: 'LANE' }),
+  rewrite('spl-burning-ground', { spellBinding: 'LANE' }),
+  rewrite('spl-cursed-ground', { spellBinding: 'LANE' }),
+  rewrite('spl-siege-fire', { spellBinding: 'LANE' }),
+  rewrite('spl-grave-totem', { spellBinding: 'LANE' }),
 ];
+
+/**
+ * A one-time Spell's effect is CAST: it resolves once, when the Spell is cast (card combat has no On Play timing). The live
+ * files keep ON_PLAY for the legacy resolver; every one-time Spell without an override is converted here, as data.
+ */
+function castSpell(card: CardDefinition): CombatCard {
+  return { ...card, abilities: card.abilities.map((a) => (a.trigger === 'ON_PLAY' ? { ...a, trigger: 'CAST' as const } : a)) } as CombatCard;
+}
+
+for (const card of ALL_CARDS) {
+  if (card.type !== 'spell' || card.spellKind !== 'ONE_TIME' || OVERRIDES.some((c) => c.id === card.id)) continue;
+  OVERRIDES.push(castSpell(card));
+}
 
 const OVERRIDE_BY_ID = new Map(OVERRIDES.map((c) => [c.id, c]));
 
-/** Ids the approved balance pass changed for the card model (for tests and the report). */
+/**
+ * Cards whose card-combat rules the timing cleanup (resolver v4) re-authored: every former On Play Unit effect, and the
+ * Continuous Spells that became Attached Spells. (One-time Spells only renamed ON_PLAY to CAST, and the lane-bound
+ * Continuous Spells only gained `spellBinding: 'LANE'`; neither plays differently.) For tests and the report.
+ */
+export const TIMING_CLEANUP_IDS: readonly string[] = [
+  'kng-royal-guard',
+  'kng-light-priest',
+  'kng-paladin',
+  'wld-forest-wolf',
+  'und-mira',
+  'und-grave-sage',
+  'und-crypt-warden',
+  'inf-hellhound',
+  'inf-runebreaker',
+  'inf-infernal-lord',
+  'spl-battle-banner',
+  'spl-fortify',
+];
+
+/** Ids whose card-combat definition differs from the live file (the balance pass, the timing cleanup and Spell lifetime; for tests and the report). */
 export const CARD_COMBAT_OVERRIDE_IDS: readonly string[] = OVERRIDES.map((c) => c.id);
 
 /** The card as the card resolver plays it: the approved card-combat definition, or the live card when unchanged. */
@@ -200,4 +317,15 @@ export function getCombatCard(cardId: string): CombatCard {
 /** True when the card-combat definition differs from the live (legacy) card. */
 export function hasCombatOverride(cardId: string): boolean {
   return OVERRIDE_BY_ID.has(cardId);
+}
+
+/** What a Continuous Spell belongs to in card combat ('UNIT': an Attached Spell; 'LANE'). Null for one-time Spells and Units. */
+export function spellBinding(cardId: string): 'UNIT' | 'LANE' | null {
+  const card = getCombatCard(cardId);
+  return card.type === 'spell' && card.spellKind === 'CONTINUOUS' ? (card.spellBinding ?? 'LANE') : null;
+}
+
+/** True for an Attached Spell: it needs your Unit in its lane to be cast and leaves play with that Unit. */
+export function isAttachedSpell(cardId: string): boolean {
+  return spellBinding(cardId) === 'UNIT';
 }

@@ -49,6 +49,19 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
       // The board entity itself was already placed at REVEAL, and its hand card already removed -
       // this event is just the trigger announcement/log marker.
       return next;
+    case 'SPELL_ENTERED': {
+      // Card resolver v4: the Spell zone was placed at REVEAL; an Attached Spell records its Unit.
+      const zone = (event.side === 'player' ? p : e).spellZones[event.lane];
+      if (zone && event.attachedTo) zone.boundTo = event.attachedTo.instanceId;
+      return next;
+    }
+    case 'SPELL_EXPIRED': {
+      // An Attached Spell left play with its Unit.
+      const side = event.side === 'player' ? p : e;
+      side.spellZones[event.lane] = null;
+      side.graveyard.push(event.cardId);
+      return next;
+    }
     case 'SPELL_RESOLVED': {
       const side = event.side === 'player' ? p : e;
       side.graveyard.push(event.cardId); // a one-time Spell always ends up in the Graveyard once resolved
@@ -162,7 +175,9 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
       if (lane) {
         const hero = side.heroZones[lane];
         if (hero) {
-          hero.shielded = false;
+          // A granted Shield goes first; card combat's printed Shield (Paladin) is used up after it.
+          if (hero.shielded) hero.shielded = false;
+          else if (next.combatModel === 'card') hero.printedShieldUsed = true;
           if (next.combatModel === 'v2' && (hero.hp ?? 1) <= 0) hero.hp = 1;
         }
       }

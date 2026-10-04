@@ -1,4 +1,4 @@
-import type { SummonSoundEvent } from './sound';
+import type { RevealSoundEvent } from './sound';
 
 /** Small original synthesized score. Audio is opt-in and unlocked by a user gesture. */
 export class ArchiveAudio {
@@ -14,13 +14,13 @@ export class ArchiveAudio {
   }
   disable() { this.enabled = false; void this.context?.suspend().catch(() => {}); }
   close() { this.enabled = false; void this.context?.close().catch(() => {}); this.context = null; }
-  play(event: SummonSoundEvent) {
+  play(event: RevealSoundEvent) {
     const ctx = this.context;
     if (!this.enabled || !ctx || ctx.state !== 'running') return;
-    const score: Record<SummonSoundEvent, number[]> = {
-      summon_start: [130.81, 196], rarity_rare: [261.63, 392], rarity_epic: [261.63, 329.63, 493.88],
+    const score: Record<RevealSoundEvent, number[]> = {
+      reveal_start: [130.81, 196], rarity_rare: [261.63, 392], rarity_epic: [261.63, 329.63, 493.88],
       rarity_legendary: [130.81, 196, 261.63, 392], seal_break: [65.41, 130.81],
-      card_reveal: [523.25, 659.25, 783.99], featured_reveal: [783.99, 1046.5],
+      card_reveal: [523.25, 659.25, 783.99], headline_reveal: [783.99, 1046.5],
     };
     score[event].forEach((frequency, i) => {
       const start = ctx.currentTime + i * .07;

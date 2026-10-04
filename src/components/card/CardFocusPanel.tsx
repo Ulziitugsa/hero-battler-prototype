@@ -39,7 +39,7 @@ const LANE_NAME = { left: 'left', center: 'center', right: 'right' } as const;
 
 function changeText(change: FocusAtkChange): string {
   const lasts = change.lasts === 'round' ? ' this round' : '';
-  const tail = change.lasts === 'spell' ? ', while it stays' : '';
+  const tail = change.lasts === 'spell' ? ', while it stays' : change.lasts === 'aura' ? (change.source === 'its own effect' ? ', while that holds' : ', while it is in play') : '';
   return `${signed(change.amount)} ATK${lasts} from ${change.source}${tail}`;
 }
 
@@ -141,7 +141,7 @@ export function CardFocusPanel({
                   )}
                 </>
               ) : (
-                <span className="cf-kind">{details.kind === 'continuous' ? 'Continuous Spell' : 'Spell'}</span>
+                <span className="cf-kind">{details.kind === 'continuous' ? 'Continuous Spell' : details.kind === 'attached' ? 'Attached Spell' : 'Spell'}</span>
               )}
             </span>
           </>
@@ -201,6 +201,11 @@ export function CardFocusPanel({
         {status.length > 0 && (
           <p className="cf-now">
             <span className="cf-label">Status:</span> {status.join('; ')}.
+          </p>
+        )}
+        {details.attachedTo && (
+          <p className="cf-now">
+            <span className="cf-label">Attached to:</span> {details.attachedTo}. It goes to the Graveyard when that Unit leaves play.
           </p>
         )}
         {lane && (lane.yours || lane.theirs) && (

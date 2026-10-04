@@ -61,7 +61,7 @@ const NO_PLAYS: PlayerAction = { plays: [] };
  * The resolver a stored match plays, read from the match's own state (combatModel + cardCombat.version), never from a
  * date or a deploy. Matches created before card combat carry no combatModel and keep the legacy resolver to the end;
  * card matches need a card resolver version this server can continue (combat/resolver.ts CONTINUABLE_CARD_RESOLVER_VERSIONS:
- * v2 and v3); any other version can't be continued here: 409.
+ * v4, the timing cleanup); any other version, v2 and v3 included, can't be continued here: 409.
  */
 export function resolverFor(state: GameState) {
   const r = matchResolver(state);

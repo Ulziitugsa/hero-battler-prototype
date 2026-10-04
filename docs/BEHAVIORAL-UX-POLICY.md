@@ -6,9 +6,9 @@ This policy applies to the current local commercial prototype. It records the ex
 
 | Screen | Primary action | Secondary action | Current loudest treatment | Alignment |
 | --- | --- | --- | --- | --- |
-| Home | Continue the Campaign | Visit the Moonwell | Campaign action; Summon is secondary | Aligned after the Home hierarchy pass. Missions/Journey only receive a restrained mark when a reward is claimable; Offers stays quiet. |
+| Home | Continue the Campaign | Open packs | Campaign action; Packs is secondary | Aligned after the Home hierarchy pass. Missions/Journey only receive a restrained mark when a reward is claimable; Offers stays quiet. |
 | Campaign / stage preview | Fight or claim the shown reward | Review objectives and formation | Fight / claim | Aligned. First-clear and repeat rewards are shown before entry; recommended Roster Power is contextual guidance, not a block. |
-| Summon | Summon, after choosing a banner and currency | Inspect pool/rates or history | Summon controls inside the voluntarily opened screen | Aligned. The pity count, remaining guarantee copy, pool rates, and Ticket/Gem choice remain visible. Ticket and Gem pulls share the same banner pity. |
+| Box (packs) | Open Pack with Gems or a Pack Ticket | Inspect the Box's remaining contents | Open Pack inside the voluntarily opened Box | Aligned. The finite Box shows exactly what is left; there is no pity or guarantee copy. Pack Tickets open the same Box (cleanup pass, 2026-10-03; the Moonwell Summon is retired). |
 | Heroes | Browse and inspect the collection | Filter or sort | Hero artwork and collection progress | Aligned. Owned state, copies, Stars, level, and Ascension are attached to the character detail. |
 | Missions / Journey | Claim a ready reward | Review progress | A ready claim; otherwise progress rows | Aligned. No claim badge is shown when nothing is claimable; Journey remains reachable after completion. |
 | Offers | Choose a test offer | Read contents and first-purchase bonus | Offer choice inside the voluntarily opened sheet | Aligned. Prices are config labels, all actions remain explicitly test-only, and the session opens with three choices. |
@@ -22,9 +22,9 @@ when it can be received, and unclaimed Ranked milestones.
 
 ## Presentation rules
 
-- Home has one dominant Campaign action. Summon is secondary; Missions, Journey, and Offers are quieter navigation.
+- Home has one dominant Campaign action. Packs is secondary; Missions, Journey, and Offers are quieter navigation.
 - Reward-ready styling means the reward is actually claimable. No broad red-dot or permanent pulse system is used.
-- Summon exposes the current pity progress and the truthful remaining count; no near-miss presentation or separate Ticket luck is introduced.
+- The Box exposes its truthful remaining contents; no near-miss presentation or separate Ticket luck is introduced. The pack reveal only presents cards already granted.
 - The Hero collection already shows an owned/total ledger that follows its filters. Hero identity and artwork remain ahead of level, Star, and economy details.
 - Campaign previews show first-clear and repeat rewards before play. Hero upgrades preview the real Roster Power change.
 - No automatic paid offer is currently presented. Offers are opened from Home navigation only. Therefore automatic commercial popups per session are currently zero; future automatic offers must be limited to one per session, must remain accessible from navigation after dismissal, and must never stack with one another.

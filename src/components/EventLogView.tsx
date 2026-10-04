@@ -17,6 +17,10 @@ function formatEvent(e: GameEvent, stat: 'Power' | 'ATK'): string {
       return e.zone === 'spell'
         ? `CONTINUOUS SPELL: ${e.name} activates in ${e.lane} - remains active (${e.side})`
         : `${e.name} enters ${e.lane} (${e.side})`;
+    case 'SPELL_ENTERED':
+      return `CONTINUOUS SPELL: ${e.name} enters ${e.lane}${e.attachedTo ? `, attached to ${e.attachedTo.name}` : ''} (${e.side})`;
+    case 'SPELL_EXPIRED':
+      return `${e.name} expired - its Unit (${e.unitName}) left play -> Graveyard (${e.side}, ${e.lane})`;
     case 'SPELL_RESOLVED':
       return `SPELL: ${e.name} activates in ${e.lane}${e.fizzled ? ' (no effect)' : ''} -> Graveyard (${e.side})`;
     case 'SPELL_ZONE_DESTROYED':

@@ -1,20 +1,21 @@
 import { MAX_GEMS, MAX_GOLD, MAX_TICKETS, type GemSource, type GoldSource, type TicketSource } from './config';
 import { clearStoredEconomy, defaultEconomy, readStoredEconomy, sanitizeEconomy, writeStoredEconomy } from './persistence';
-import type { GemGrantResult, GoldGrantResult, PlayerEconomy, SummonHistoryEntry, TicketGrantResult } from './types';
-import { SUMMON_CONFIG } from '../summon/config';
+import type { GemGrantResult, GoldGrantResult, PlayerEconomy, TicketGrantResult } from './types';
 
-// The single source of truth for Gems and the Summon counters. Same shape as the collection/account
+// The single source of truth for Gems, Gold and Pack Tickets. Same shape as the collection/account
 // stores: an in-memory snapshot mirroring localStorage, replaced on every write, with subscribers - so
 // any mounted screen updates the moment Gems change. Every mutation goes through this file.
 //
-// MIGRATION NOTE: a save with no economy state starts with STARTING_GEMS (one single Summon). Previous
+// MIGRATION NOTE: a save with no economy state starts with STARTING_GEMS. Previous
 // Campaign clears are deliberately NOT converted into retroactive Gems; use skyloomDev.addGems() to test.
 // v1 -> v2 (per-banner pity): the old single pity counter is dropped; Gems and history carry over.
 //
-// CRASH-SAFETY NOTE: Gems, pity and history are ONE document, so a Summon's spend + pity + history are a
-// single atomic write. The pulled cards are written to the collection store afterwards (a second key), so
-// a crash between the two writes would cost the Gems without delivering the cards. localStorage has no
-// cross-key transaction; for a local prototype that window is a few synchronous microseconds.
+// The retired Moonwell Summon's per-banner guarantee counters and pull history stay in this document, read-only
+// (legacySummon.ts): nothing writes them any more, and they are saved back unchanged.
+//
+// CRASH-SAFETY NOTE: opening packs spends here first, then writes the Box and the collection (other keys), so a
+// crash between the writes could cost the price without delivering the cards. localStorage has no cross-key
+// transaction; for a local prototype that window is a few synchronous microseconds.
 
 let snapshot: PlayerEconomy | null = null;
 const listeners = new Set<() => void>();
@@ -168,10 +169,10 @@ export function setGold(amount: number): void {
   commit(sanitizeEconomy({ ...getEconomy(), gold: amount }));
 }
 
-// ---- Summon Tickets (Commercial Prototype Phase 7) -----------------------------------------------
-// Same shape as Gold/Gems again. Tickets are earn-only (missions, journey) - there is deliberately no
-// "buy Tickets" path anywhere, so unlike Gems there is no future purchase path to keep this shape ready
-// for; it exists purely so a Summon can be paid for without touching Gems at all.
+// ---- Pack Tickets -------------------------------------------------------------------------------
+// Same shape as Gold/Gems again. One Pack Ticket opens one pack of a finite Box instead of paying its Gem price
+// (box/boxProduct.ts). Tickets are earn-only (missions, journey, offers) - there is deliberately no "buy Tickets"
+// path anywhere. (They were Summon Tickets until the Moonwell Summon was retired; a save keeps its balance.)
 
 export function getTickets(): number {
   return getEconomy().tickets;
@@ -204,50 +205,16 @@ export function setTickets(amount: number): void {
   commit(sanitizeEconomy({ ...getEconomy(), tickets: amount }));
 }
 
-// ---- Summon state -----------------------------------------------------------------------------
+// ---- Retired Summon record (read-only; see legacySummon.ts) -----------------------------------
 
 export function getSummonState(): PlayerEconomy['summon'] {
   return getEconomy().summon;
-}
-
-/** Pulls since the last Legendary on this banner - shared by Gem and Ticket pulls alike (never a second pool). */
-export function getPity(bannerId: string): number {
-  return getEconomy().summon.pity[bannerId] ?? 0;
-}
-
-/**
- * Spends `cost` of either Gems or Tickets and records the banner's pity counter + history in ONE write -
- * both payment methods feed the exact same `summon.pity`/`summon.history`, by construction: this is the
- * single write path either one goes through, and `bannerId` is the only pity key that exists. Returns
- * false (changing nothing) when the player can't afford it. `entries` are the pulls in order; history
- * keeps the newest first.
- */
-export function commitSummon(cost: number, bannerId: string, pityAfter: number, entries: SummonHistoryEntry[], currency: 'gems' | 'tickets' = 'gems'): boolean {
-  const economy = getEconomy();
-  const balance = currency === 'gems' ? economy.gems : economy.tickets;
-  const afford = currency === 'gems' ? canAfford(cost, balance) : canAffordTickets(cost, balance);
-  if (!afford) return false;
-  const history = [...[...entries].reverse(), ...economy.summon.history].slice(0, SUMMON_CONFIG.historyLimit);
-  const pity = { ...economy.summon.pity, [bannerId]: pityAfter };
-  const spend = isUnlimitedGems() ? balance : balance - cost;
-  commit({ ...economy, [currency === 'gems' ? 'gems' : 'tickets']: spend, summon: { pity, history } });
-  return true;
 }
 
 // ---- Dev / test helpers (exposed to the UI only through devTools.ts, dev server only) -----------
 
 export function setGems(amount: number): void {
   commit(sanitizeEconomy({ ...getEconomy(), gems: amount }));
-}
-
-export function setPity(bannerId: string, pity: number): void {
-  const economy = getEconomy();
-  commit(sanitizeEconomy({ ...economy, summon: { ...economy.summon, pity: { ...economy.summon.pity, [bannerId]: pity } } }));
-}
-
-/** Clears every banner's pity and the history (Gems are kept). */
-export function resetSummonState(): void {
-  commit({ ...getEconomy(), summon: { pity: {}, history: [] } });
 }
 
 /** Back to a brand-new economy (STARTING_GEMS, no pity, no history). */

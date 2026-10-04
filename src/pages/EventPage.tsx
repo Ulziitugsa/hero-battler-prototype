@@ -13,8 +13,8 @@ import { getBackground } from '../game/backgrounds/definitions';
 import { getCard } from '../game/cards';
 import { useCollection } from '../game/collection/useCollection';
 import { daysRemaining } from '../game/events/definitions';
-import { claimEventMilestone, claimEventMission, claimLoginReward, completionRatio, isMissionComplete, loginRewardClaimable, requirementProgress, type EventClaimResult } from '../game/events/store';
-import type { EventFeaturedProduct, EventMilestoneDef, EventReward } from '../game/events/types';
+import { claimEventMilestone, claimEventMission, claimLoginReward, completionRatio, isMilestoneDone, isMissionComplete, isMissionDone, loginRewardClaimable, requirementProgress, type EventClaimResult } from '../game/events/store';
+import { hasDirectReward, type EventFeaturedProduct, type EventMilestoneDef, type EventReward } from '../game/events/types';
 import { useLiveEvent } from '../game/events/useLiveEvent';
 import '../styles/event.css';
 
@@ -22,7 +22,7 @@ function RewardChips({ reward }: { reward: EventReward }) {
   return <span className="event-reward-chips">
     {reward.gold ? <span><GoldIcon size={13} />{reward.gold}</span> : null}
     {reward.gems ? <span><GemIcon size={13} />{reward.gems}</span> : null}
-    {reward.tickets ? <span><TicketIcon size={13} />{reward.tickets}</span> : null}
+    {reward.tickets ? <span className="event-reward-ticket" aria-label={`${reward.tickets} Pack ${reward.tickets === 1 ? 'Ticket' : 'Tickets'}`}><TicketIcon size={13} />{reward.tickets}</span> : null}
     {reward.cardIds?.map((id, index) => <span key={`${id}-${index}`} className="event-reward-card">{getCard(id).shortName}</span>)}
     {reward.backgroundId ? <span className="event-reward-cosmetic">{getBackground(reward.backgroundId).name} background</span> : null}
   </span>;
@@ -32,10 +32,18 @@ function describeGrant(reward: EventReward): string {
   const parts: string[] = [];
   if (reward.gold) parts.push(`${reward.gold} Gold`);
   if (reward.gems) parts.push(`${reward.gems} Gems`);
-  if (reward.tickets) parts.push(`${reward.tickets} Ticket${reward.tickets === 1 ? '' : 's'}`);
+  if (reward.tickets) parts.push(`${reward.tickets} Pack Ticket${reward.tickets === 1 ? '' : 's'}`);
   for (const id of reward.cardIds ?? []) parts.push(getCard(id).name);
   if (reward.backgroundId) parts.push(`${getBackground(reward.backgroundId).name} background`);
   return parts.length ? `+ ${parts.join(' · ')}` : 'Reward claimed';
+}
+
+/** A progress-only objective: no reward to show or claim. It completes on its own and counts toward event progress. */
+function ObjectiveRow({ title, current, needed, done }: { title: string; current: number; needed: number; done: boolean }) {
+  return <li className={`event-row objective ${done ? 'done' : ''}`}>
+    <span className="event-row-copy"><strong>{title}</strong><span className="event-objective-tag">Objective</span><ProgressBar current={Math.min(current, needed)} needed={needed} label={`${title} progress`} /></span>
+    <span className="event-row-state">{done ? <span className="event-objective-done"><Icon name="check" size={13} />Complete</span> : `${Math.min(current, needed)}/${needed}`}</span>
+  </li>;
 }
 
 function ProgressBar({ current, needed, label }: { current: number; needed: number; label: string }) {
@@ -70,14 +78,16 @@ export function EventPage({ onBack, onOpenShop }: { onBack: () => void; onOpenSh
   const { def, progress, now } = live;
   const days = daysRemaining(def, now);
   const loginReady = loginRewardClaimable(def, progress, now);
-  const completion = Math.round(completionRatio(def, progress) * 100);
+  const completion = Math.round(completionRatio(def, progress, owned) * 100);
   const handle = (result: EventClaimResult) => setFeedback(result.ok ? describeGrant(result.granted) : result.reason);
+  const checkIn = (day: number) => { const result = claimLoginReward(def.id); setFeedback(result.ok ? (result.checkpoint ? `Day ${day} checkpoint reached` : describeGrant(result.granted)) : result.reason); };
   const final = def.finalReward;
   const finalProgress = requirementProgress(def, final.requirement, progress, owned);
   const finalClaimed = progress.claimed.includes(final.id);
 
   const milestoneRow = (milestone: EventMilestoneDef) => {
     const { current, needed } = requirementProgress(def, milestone.requirement, progress, owned);
+    if (!hasDirectReward(milestone.reward)) return <ObjectiveRow key={milestone.id} title={milestone.title} current={current} needed={needed} done={isMilestoneDone(def, milestone, progress, owned)} />;
     const claimed = progress.claimed.includes(milestone.id);
     const ready = !claimed && current >= needed;
     return <li key={milestone.id} className={`event-row ${claimed ? 'claimed' : ready ? 'ready' : ''}`}>
@@ -95,25 +105,26 @@ export function EventPage({ onBack, onOpenShop }: { onBack: () => void; onOpenSh
         <h1>{def.name}</h1>
         <p>{def.tagline}</p>
       </div>
-      <div className="event-completion"><span>Event progress <strong>{completion}%</strong></span><ProgressBar current={completion} needed={100} label="Event rewards claimed" /></div>
+      <div className="event-completion"><span>Event progress <strong>{completion}%</strong></span><ProgressBar current={completion} needed={100} label="Event progress" /></div>
     </header>
     <p className="event-lore">{def.lore}</p>
     {feedback && <RewardFeedback tone="small">{feedback}</RewardFeedback>}
 
     <section className="event-section" aria-labelledby="event-login-title">
-      <div className="event-section-head"><h2 id="event-login-title">Login rewards</h2><small>One per day · {progress.loginClaims}/{def.loginRewards.length}</small></div>
+      <div className="event-section-head"><h2 id="event-login-title">Daily login</h2><small>One per day · {progress.loginClaims}/{def.loginRewards.length}</small></div>
       <ol className="event-login-track">
         {def.loginRewards.map((day, index) => {
           const claimed = index < progress.loginClaims;
           const today = index === progress.loginClaims && loginReady;
-          return <li key={day.day} className={claimed ? 'claimed' : today ? 'ready' : ''}>
+          const checkpoint = !hasDirectReward(day.reward);
+          return <li key={day.day} className={`${claimed ? 'claimed' : today ? 'ready' : ''} ${checkpoint ? 'checkpoint' : 'reward-day'}`.trim()}>
             <small>Day {day.day}</small>
-            <RewardChips reward={day.reward} />
-            {claimed ? <Icon name="check" size={13} /> : today ? <button type="button" onClick={() => handle(claimLoginReward(def.id))}>Claim</button> : null}
+            {hasDirectReward(day.reward) ? <RewardChips reward={day.reward} /> : <span className="event-checkpoint">Check&shy;point</span>}
+            {claimed ? <Icon name="check" size={13} /> : today ? <button type="button" onClick={() => checkIn(day.day)}>{checkpoint ? 'Check in' : 'Claim'}</button> : null}
           </li>;
         })}
       </ol>
-      {!loginReady && progress.loginClaims < def.loginRewards.length && <p className="event-note">Next login reward tomorrow.</p>}
+      {!loginReady && progress.loginClaims < def.loginRewards.length && <p className="event-note">{hasDirectReward(def.loginRewards[progress.loginClaims].reward) ? 'Next login reward tomorrow.' : 'Next check-in tomorrow.'}</p>}
     </section>
 
     <section className="event-section" aria-labelledby="event-missions-title">
@@ -121,6 +132,7 @@ export function EventPage({ onBack, onOpenShop }: { onBack: () => void; onOpenSh
       <ul className="event-list">
         {def.missions.map(mission => {
           const entry = progress.missions[mission.id] ?? { count: 0, claimed: false };
+          if (!hasDirectReward(mission.reward)) return <ObjectiveRow key={mission.id} title={mission.title} current={entry.count} needed={mission.target} done={isMissionDone(mission, progress)} />;
           const ready = !entry.claimed && entry.count >= mission.target;
           return <li key={mission.id} className={`event-row ${entry.claimed ? 'claimed' : ready ? 'ready' : ''}`}>
             <span className="event-row-copy"><strong>{mission.title}</strong><RewardChips reward={mission.reward} /><ProgressBar current={entry.count} needed={mission.target} label={`${mission.title} progress`} /></span>

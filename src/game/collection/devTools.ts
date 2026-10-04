@@ -8,11 +8,8 @@ import type { MasteryId } from '../mastery/definitions';
 import { ascendCard } from '../ascension/ascend';
 import { historicalMastery } from '../cardMastery/model';
 import { getAscensionState, resetAscension, setAscensionRank } from '../ascension/store';
-import { getEconomy, grantGems, grantGold, grantTickets, isUnlimitedGems, resetEconomy, resetSummonState, setGems, setGold, setPity, setTickets, setUnlimitedGems } from '../economy/economy';
-import { performSummon } from '../summon/summon';
-import { SUMMON_BANNERS } from '../summon/banners';
-import { forceNextRarity } from '../summon/devControls';
-import type { Rarity } from '../types';
+import { getEconomy, grantGems, grantGold, grantTickets, isUnlimitedGems, resetEconomy, setGems, setGold, setTickets, setUnlimitedGems } from '../economy/economy';
+import { buyBoxPacks } from '../box/boxProduct';
 import { resetHeroLevels, setHeroLevel } from '../heroLevel/store';
 import { resetSaveMigrations, runSaveMigrations } from '../save/migrations';
 import { claimIdleReward, loadIdleReward, resetIdleRewards } from '../campaign/idleRewards';
@@ -45,7 +42,7 @@ export const devTools = {
   unlockMastery: (id: MasteryId, rank = 1) => unlockMastery(id, rank),
   setMasteryRank: (id: MasteryId, rank: number) => setMasteryRank(id, rank),
   resetProgression: () => resetProgression(),
-  // ---- Economy / Summon ----
+  // ---- Economy / packs ----
   economy: () => getEconomy(),
   addGems: (amount: number) => grantGems(amount, 'dev'),
   setGems: (amount: number) => setGems(amount),
@@ -96,21 +93,13 @@ export const devTools = {
   // ---- Full reset (Commercial Prototype Phase 11) ----
   /** Every piece of local state, back to a fresh install. Does NOT reload the page itself (the UI's Profile button does that) - a console call can inspect the result immediately. */
   resetEverything: () => resetEverything(),
-  banners: () => SUMMON_BANNERS.map((b) => b.id),
-  /** Pity is per banner: skyloomDev.setPity('gravebound', 39). */
-  setPity: (bannerId: string, count: number) => setPity(bannerId, count),
-  /** Real summons (spend Gems unless Unlimited Gems is on). Pass a seed for a reproducible pull. */
-  summonOnce: (bannerId = SUMMON_BANNERS[0].id, seed?: number) => performSummon('single', bannerId, seed),
-  summonTen: (bannerId = SUMMON_BANNERS[0].id, seed?: number) => performSummon('ten', bannerId, seed),
-  /** Same, paid with Tickets instead of Gems - shares the same pity/history (see economy/economy.ts's commitSummon). */
-  summonOnceWithTickets: (bannerId = SUMMON_BANNERS[0].id, seed?: number) => performSummon('single', bannerId, seed, 'tickets'),
-  summonTenWithTickets: (bannerId = SUMMON_BANNERS[0].id, seed?: number) => performSummon('ten', bannerId, seed, 'tickets'),
-  /** Dev only: summons are free while on (production builds ignore this). */
+  /** Real pack openings from the Moonfall Box (spend Gems, or Pack Tickets, unless Unlimited Gems is on). */
+  openPack: () => buyBoxPacks(1),
+  openTenPacks: () => buyBoxPacks(10),
+  openPackWithTicket: () => buyBoxPacks(1, undefined, 'tickets'),
+  /** Dev only: Gems and Pack Tickets are not spent while on (production builds ignore this). */
   setUnlimitedGems: (on: boolean) => setUnlimitedGems(on),
   unlimitedGems: () => isUnlimitedGems(),
-  /** Dev only: the NEXT summon's rarity is replaced (a single, or slot 6 of a 10x) - then it clears itself. */
-  forceNextRarity: (rarity: Rarity | null) => forceNextRarity(rarity),
-  resetSummon: () => resetSummonState(),
   resetEconomy: () => resetEconomy(),
   /** Grants exactly the missing copies a starter deck needs (e.g. 'undead'), unlocking it. */
   grantStarterRequirements: (faction: StarterFaction) => {

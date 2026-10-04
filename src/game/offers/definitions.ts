@@ -6,6 +6,11 @@
 // `offers.priceLabels` (Phase 8) - not hardcoded here, so they're one of the "future offer prices"
 // candidate config values the brief named.
 //
+// PROTOTYPE PLACEHOLDERS: every reward quantity here (including the Pack Tickets in the Starter and Growth
+// Packs: 5 and 3 Tickets, i.e. 25 and 15 cards) and every real-money price label is a placeholder, kept as
+// it was through the Summon -> Pack migration on purpose. A separate monetization/economy pass will set them;
+// see docs/ECONOMY-BASELINE.md.
+//
 // Deliberately small: 2 bundles + 3 Gem packs + 1 locked preview, not "ten packs" (brief: "Do not create
 // ten packs"). The First-Purchase Bonus (brief) is not a separate catalog entry - it's a flag/state
 // (game/offers/store.ts's hasEverPurchased) applied to whichever offer completes first, per the brief's
@@ -36,7 +41,7 @@ export const OFFERS: OfferDef[] = [
   {
     id: 'starter-pack',
     title: 'Starter Pack',
-    subtitle: 'A generous first step - Gold, Gems, Tickets and a card.',
+    subtitle: 'A generous first step - Gold, Gems, Pack Tickets and a card.',
     reward: { gold: 500, gems: 300, tickets: 5, cardId: 'kng-battle-captain', cardCount: 1 },
   },
   {
@@ -46,7 +51,7 @@ export const OFFERS: OfferDef[] = [
     reward: { gold: 1500, gems: 400, tickets: 3 },
   },
   { id: 'gem-pack-small', title: 'Small Gem Pouch', subtitle: 'A quick top-up.', reward: { gems: 100 } },
-  { id: 'gem-pack-medium', title: 'Gem Purse', subtitle: 'Enough for a 10x Summon.', reward: { gems: 900 } },
+  { id: 'gem-pack-medium', title: 'Gem Purse', subtitle: 'Enough for six packs.', reward: { gems: 900 } },
   { id: 'gem-pack-large', title: 'Gem Chest', subtitle: 'The generous option.', reward: { gems: 2000 } },
   { id: 'season-pass-preview', title: 'Season Pass', subtitle: 'Coming soon - track your Missions to prepare.', reward: {}, comingSoon: true },
 ];

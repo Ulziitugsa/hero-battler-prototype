@@ -116,11 +116,11 @@ describe('claimMission', () => {
     expect(getEconomy().gold).toBe(goldBefore + r.gold); // not double-granted
   });
   it('emits mission_claimed with the granted amounts', () => {
-    setMissionProgress('daily-summon', 1);
-    const r = claimMission('daily-summon');
+    setMissionProgress('daily-open-pack', 1);
+    const r = claimMission('daily-open-pack');
     const events = getQueuedEvents().filter((e) => e.name === 'mission_claimed');
     expect(events).toHaveLength(1);
-    expect(events[0].properties).toMatchObject({ missionId: 'daily-summon', gems: r.gems });
+    expect(events[0].properties).toMatchObject({ missionId: 'daily-open-pack', gems: r.gems });
   });
   it('an unknown mission id is refused cleanly', () => {
     expect(claimMission('not-a-real-mission')).toMatchObject({ ok: false, reason: 'Unknown mission.' });
@@ -136,10 +136,10 @@ describe('anyMissionClaimable / listMissions', () => {
     expect(anyMissionClaimable()).toBe(false);
   });
   it('listMissions filters by period and pairs every def with live progress', () => {
-    setMissionProgress('weekly-summons', 2);
+    setMissionProgress('weekly-open-packs', 2);
     const weekly = listMissions('weekly');
     expect(weekly).toHaveLength(3);
-    expect(weekly.find((r) => r.def.id === 'weekly-summons')?.progress.count).toBe(2);
+    expect(weekly.find((r) => r.def.id === 'weekly-open-packs')?.progress.count).toBe(2);
     const daily = listMissions('daily');
     expect(daily).toHaveLength(5);
   });
@@ -150,18 +150,18 @@ describe('period reset', () => {
     const now = 100 * DAY_MS + 60 * 60 * 1000; // well inside week 100/7's span, not at a boundary
     localStorage.setItem(
       MISSIONS_STORAGE_KEY,
-      JSON.stringify({ version: 1, dayKey: dayKey(now) - 1, weekKey: weekKey(now), daily: { 'daily-battles': { count: 1, claimed: true } }, weekly: { 'weekly-summons': { count: 3, claimed: false } } }),
+      JSON.stringify({ version: 1, dayKey: dayKey(now) - 1, weekKey: weekKey(now), daily: { 'daily-battles': { count: 1, claimed: true } }, weekly: { 'weekly-open-packs': { count: 3, claimed: false } } }),
     );
     reloadMissions();
     const state = getMissionsState(now);
     expect(state.daily).toEqual({}); // rolled over
-    expect(state.weekly).toEqual({ 'weekly-summons': { count: 3, claimed: false } }); // untouched
+    expect(state.weekly).toEqual({ 'weekly-open-packs': { count: 3, claimed: false } }); // untouched
   });
   it('a stored week in the past resets the weekly bucket regardless of the daily one', () => {
     const now = 100 * WEEK_MS + 60 * 60 * 1000;
     localStorage.setItem(
       MISSIONS_STORAGE_KEY,
-      JSON.stringify({ version: 1, dayKey: dayKey(now), weekKey: weekKey(now) - 1, daily: { 'daily-battles': { count: 1, claimed: false } }, weekly: { 'weekly-summons': { count: 3, claimed: true } } }),
+      JSON.stringify({ version: 1, dayKey: dayKey(now), weekKey: weekKey(now) - 1, daily: { 'daily-battles': { count: 1, claimed: false } }, weekly: { 'weekly-open-packs': { count: 3, claimed: true } } }),
     );
     reloadMissions();
     const state = getMissionsState(now);
@@ -187,10 +187,10 @@ describe('malformed storage', () => {
   it('drops entries for unknown ids or the wrong period', () => {
     localStorage.setItem(
       MISSIONS_STORAGE_KEY,
-      JSON.stringify({ version: 1, dayKey: dayKey(), weekKey: weekKey(), daily: { 'ghost-mission': { count: 1, claimed: false }, 'weekly-summons': { count: 1, claimed: false } }, weekly: {} }),
+      JSON.stringify({ version: 1, dayKey: dayKey(), weekKey: weekKey(), daily: { 'ghost-mission': { count: 1, claimed: false }, 'weekly-open-packs': { count: 1, claimed: false } }, weekly: {} }),
     );
     reloadMissions();
-    expect(getMissionsState().daily).toEqual({}); // ghost id dropped, weekly-summons is the wrong period for the daily bucket
+    expect(getMissionsState().daily).toEqual({}); // ghost id dropped, weekly-open-packs is the wrong period for the daily bucket
   });
 });
 

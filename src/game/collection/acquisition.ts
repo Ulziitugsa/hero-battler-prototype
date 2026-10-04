@@ -2,8 +2,8 @@ import { CHAPTER_1 } from '../campaign/chapter1';
 import { PLAYTEST_ROSTER } from '../cards/roster';
 import { buildStarterCollection } from './starterCollection';
 import { isCampaignExclusive } from './exclusives';
-import { bannersFor } from '../summon/pool';
-import { getBanner } from '../summon/banners';
+import { BOX_PRODUCTS, getBoxProduct } from '../box/boxProduct';
+import { prototypeBoxCardIds } from '../box/prototypeBox';
 
 // Where every collectible card comes from - the single source of truth the UI reads. Sources are stable
 // ids (a stage id, a region id), never display strings; labels are derived in describeAcquisition().
@@ -11,8 +11,8 @@ import { getBanner } from '../summon/banners';
 export type AcquisitionSource =
   | { kind: 'starter' }
   | { kind: 'campaign'; nodeId: string; copies: number }
-  /** One summon banner that can pull the card (see summon/banners.ts). */
-  | { kind: 'summon'; bannerId: string }
+  /** A finite Box whose packs hold copies of the card (box/boxProduct.ts). The retired Moonwell Summon is no source. */
+  | { kind: 'box'; boxId: string }
   /** Intentionally not obtainable in the current prototype; planned for a later region. */
   | { kind: 'future'; regionId: string }
   | { kind: 'unavailable' };
@@ -40,8 +40,7 @@ export const FUTURE_REGION_CARDS: Readonly<Record<string, string>> = {
   'spl-soul-burn': 'region-3',
   'spl-burning-ground': 'region-3',
   'spl-siege-fire': 'region-3',
-  // Card-pool expansion: not in any current banner or Campaign reward. Each group is parked for the banner
-  // that will carry its archetype (dev "unlock all" still grants them for playtesting).
+  // Card-pool expansion: parked for the archetype set that will feature them (they are also in the Moonfall Box's packs).
   'kng-apprentice-mage': 'banner-arcane',
   'kng-archmage-vael': 'banner-arcane',
   'und-grave-sage': 'banner-arcane',
@@ -73,12 +72,19 @@ function campaignSources(): Map<string, AcquisitionSource[]> {
   return map;
 }
 
+/** Whether a full Box of this id holds the card (its printed contents, not what is left in the player's copy). */
+let boxCards: Set<string> | null = null;
+function boxHolds(boxId: string, cardId: string): boolean {
+  boxCards ??= new Set(prototypeBoxCardIds());
+  return boxId === BOX_PRODUCTS[0]?.id && boxCards.has(cardId);
+}
+
 /** All the ways a card can be obtained, starter first. Never empty: a card with no path reports [{ kind: 'unavailable' }]. */
 export function getCardAcquisitionSources(cardId: string): AcquisitionSource[] {
   const out: AcquisitionSource[] = [];
   if ((buildStarterCollection()[cardId] ?? 0) > 0) out.push({ kind: 'starter' });
   out.push(...(campaignSources().get(cardId) ?? []));
-  for (const b of bannersFor(cardId)) out.push({ kind: 'summon', bannerId: b.id });
+  for (const box of BOX_PRODUCTS) if (boxHolds(box.id, cardId)) out.push({ kind: 'box', boxId: box.id });
   const region = FUTURE_REGION_CARDS[cardId];
   if (region) out.push({ kind: 'future', regionId: region });
   return out.length > 0 ? out : [{ kind: 'unavailable' }];
@@ -98,8 +104,8 @@ export function describeAcquisition(source: AcquisitionSource): string {
       const name = CHAPTER_1.nodes.find((n) => n.id === source.nodeId)?.name ?? 'The Ashen Road';
       return `Campaign · ${name}`;
     }
-    case 'summon':
-      return `Summon · ${getBanner(source.bannerId)?.name ?? 'Banner'}`;
+    case 'box':
+      return `Packs · ${getBoxProduct(source.boxId)?.name ?? 'Box'}`;
     case 'future':
       return 'Future region';
     default:
@@ -108,7 +114,7 @@ export function describeAcquisition(source: AcquisitionSource): string {
 }
 
 /**
- * Every real way to get a card, as one line: "Campaign · Broken Palisade / Summon · Gravebound", "Summon · Infernal Hunt / Future region",
+ * Every real way to get a card, as one line: "Campaign · Broken Palisade / Packs · Moonfall Box", "Packs · Moonfall Box / Future region",
  * "Campaign exclusive · Grave Tyrant". "Future region" only appears alongside real sources (or alone if parked).
  */
 export function acquisitionSummary(cardId: string): string {
@@ -119,10 +125,10 @@ export function acquisitionSummary(cardId: string): string {
   if (starter) parts.push(describeAcquisition(starter));
   if (campaign) {
     const line = describeAcquisition(campaign);
-    parts.push(isCampaignExclusive(cardId) && !sources.some((s) => s.kind === 'summon') ? line.replace('Campaign ·', 'Campaign exclusive ·') : line);
+    parts.push(isCampaignExclusive(cardId) && !sources.some((s) => s.kind === 'box') ? line.replace('Campaign ·', 'Campaign exclusive ·') : line);
   }
-  const banners = sources.flatMap((s) => (s.kind === 'summon' ? [getBanner(s.bannerId)?.name ?? 'Banner'] : []));
-  if (banners.length > 0) parts.push(`Summon · ${banners.join(', ')}`);
+  const boxes = sources.flatMap((s) => (s.kind === 'box' ? [getBoxProduct(s.boxId)?.name ?? 'Box'] : []));
+  if (boxes.length > 0) parts.push(`Packs · ${boxes.join(', ')}`);
   if (sources.some((s) => s.kind === 'future')) parts.push('Future region');
   return parts.length > 0 ? parts.join(' / ') : describeAcquisition({ kind: 'unavailable' });
 }

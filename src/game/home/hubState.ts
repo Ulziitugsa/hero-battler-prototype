@@ -6,7 +6,7 @@ import type { OwnedMap } from '../collection/types';
 import { getStarterDeckUnlockProgress, starterDeckId, type StarterUnlockProgress } from '../collection/starterUnlock';
 import type { StarterFaction } from '../cards/starterDecks';
 import type { SummonHistoryEntry } from '../economy/types';
-import { SUMMON_CONFIG } from '../summon/config';
+import { MOONFALL_BOX } from '../box/boxProduct';
 import type { IdleRewardState } from '../campaign/idleRewards';
 
 // Everything the Home hub shows that needs a DECISION (what is the next step, which single note is worth
@@ -60,7 +60,7 @@ export type HubNote =
 
 /** A locked starter counts as "close" from this fraction of its cards collected. */
 export const STARTER_CLOSE_FRACTION = 0.4;
-/** A first copy from Summon is "recent" for a day. */
+/** A first copy recorded in the retired Summon's history is "recent" for a day (packs record no history; see legacySummon.ts). */
 export const RECENT_CARD_MS = 24 * 60 * 60 * 1000;
 /** Below this, the idle note stays quiet rather than flickering on moments after a claim. */
 export const IDLE_NOTE_MIN_GOLD = 20;
@@ -97,15 +97,15 @@ export function pickHubNote(input: { idle?: IdleRewardState; masteryPoints: numb
 // ---- Attention markers ------------------------------------------------------------------------
 
 export interface AttentionState {
-  /** Enough Gems for at least one summon. */
-  canSummon: boolean;
+  /** Enough Gems, or a Pack Ticket, for at least one pack. */
+  canOpenPack: boolean;
   /** An unspent Mastery Point. */
   masteryPoint: boolean;
 }
 
-export function attentionState(input: { gems: number; unlimitedGems?: boolean; masteryPoints: number }): AttentionState {
+export function attentionState(input: { gems: number; tickets?: number; unlimitedGems?: boolean; masteryPoints: number }): AttentionState {
   return {
-    canSummon: !!input.unlimitedGems || input.gems >= SUMMON_CONFIG.singleCost,
+    canOpenPack: !!input.unlimitedGems || (input.tickets ?? 0) > 0 || input.gems >= MOONFALL_BOX.gemsPerPack,
     masteryPoint: input.masteryPoints > 0,
   };
 }

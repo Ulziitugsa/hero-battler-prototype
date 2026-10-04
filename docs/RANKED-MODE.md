@@ -9,8 +9,8 @@ use the production card-combat resolver (ATK, HP Contribution, Clash Damage); Co
 - Bronze starts at 0. Silver, Gold, Platinum, Diamond, and Master begin at 100-point intervals. Master
   is the current ceiling; its progress display stays full because there is no next rank.
 - Reaching each 100-point milestone sets eligibility using peak rating. Each milestone reward can be
-  claimed once and grants configured Gems and Gold; the 300-point milestone also grants one Summon
-  Ticket. This is local prototype data and uses the existing economy grant functions.
+  claimed once and grants configured Gems and Gold; the 300-point milestone also grants one Pack
+  Ticket (one pack, 5 cards). This is local prototype data and uses the existing economy grant functions.
 - The local record stores rating, peak, wins/losses, the ten most recent results, and claimed milestones
   in `localStorage` under `moonwater:ranked:v1`.
 

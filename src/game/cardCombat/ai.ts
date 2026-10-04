@@ -1,8 +1,8 @@
-import type { DeployPlay, GameState, HandCard, LaneId, Side } from '../types/index.js';
+import type { DeployPlay, GameState, HandCard, HeroInstance, LaneId, Side } from '../types/index.js';
 import { LANES } from '../types/index.js';
 import { nextRandom } from '../engine/rng.js';
 import { getCombatCard } from './cards.js';
-import { CARD_HAND_TARGET, cardAtk, cardSpellHasTarget, continuousAtkBonus, effectiveAtk, resolveCardRound } from './engine.js';
+import { CARD_HAND_TARGET, cardAtk, cardSpellHasTarget, effectiveAtk, isSilenced, resolveCardRound } from './engine.js';
 import { ATK_PER_POWER, atkFromPower } from './stats.js';
 
 // The card-combat opponent: the simulator's 'balanced' pilot (src/game/cardSim/ai.ts), the one every approved
@@ -61,6 +61,15 @@ function evaluate(state: GameState, side: Side): number {
   return STYLE.myHp * me.hp - STYLE.enemyHp * foe.hp + STYLE.board * board + STYLE.card * AVG_ATK * (me.hand.length - foe.hand.length);
 }
 
+/** The board with `cardId` standing in (side, lane), to read what its ATK would be there (Spells in the lane, auras, Silence). */
+function withUnit(state: GameState, side: Side, lane: LaneId, cardId: string): GameState {
+  const card = getCombatCard(cardId);
+  const atk = cardAtk(cardId);
+  const unit: HeroInstance = { instanceId: `ai-probe-${side}-${lane}`, cardId, faction: card.faction, name: card.name, shortName: card.shortName, power: atk, tempPower: 0, shielded: false, silenced: false, usedThisRound: false, enteredRound: state.round, entryAtk: atk };
+  const p = playerOf(state, side);
+  return { ...state, [side]: { ...p, heroZones: { ...p.heroZones, [lane]: unit } } };
+}
+
 function lookAhead(state: GameState, side: Side, plays: DeployPlay[], rng: number): number {
   const none = { plays: [] };
   const mine = { plays };
@@ -88,12 +97,14 @@ export function chooseCardAiAction(state: GameState, side: Side, rngState: numbe
     const block = endangered ? Math.max(STYLE.block, 1.2) : STYLE.block;
     const foeCanAnswer = foe.hand.length > 0;
     const laneScore = (cardId: string, lane: LaneId): number => {
-      let mine = cardAtk(cardId) + continuousAtkBonus(state, side, lane);
+      // Read on the board with this Unit placed, so its Spell overlay and every Passive aura (its own included) count.
+      const probe = withUnit(state, side, lane, cardId);
+      let mine = effectiveAtk(probe, side, lane);
       const foeUnit = foe.heroZones[lane];
       if (!foeUnit) return STYLE.face * mine * (foeCanAnswer ? 0.4 : 1) + 0.2 * mine;
-      let theirs = effectiveAtk(state, foeSide, lane);
-      if (mine < theirs) mine += guardBonusAtk(cardId);
-      if (!foeUnit.silenced && theirs < mine) theirs += guardBonusAtk(foeUnit.cardId);
+      let theirs = effectiveAtk(probe, foeSide, lane);
+      if (mine < theirs && !isSilenced(probe, side, lane)) mine += guardBonusAtk(cardId);
+      if (!isSilenced(probe, foeSide, lane) && theirs < mine) theirs += guardBonusAtk(foeUnit.cardId);
       // Clash Damage: a blocker only absorbs its own ATK (plus its Clash Damage reduction), so it is scored on what
       // it stops, not on the size of the threat it stands in front of. A winner also pushes its surplus through.
       if (mine > theirs) return (STYLE.kill + block) * theirs + STYLE.face * Math.max(0, mine - theirs - clashGuardAtk(foeUnit.cardId)) + 0.2 * mine;
@@ -128,6 +139,7 @@ export function chooseCardAiAction(state: GameState, side: Side, rngState: numbe
 
   // --- Spells ---
   const plays = [...unitPlays];
+  const plannedUnitLanes = unitPlays.map((play) => play.lane);
   const takenSpell = new Set<LaneId>();
   const remaining: HandCard[] = me.hand.filter((h) => getCombatCard(h.cardId).type === 'spell');
   if (remaining.length > 0) {
@@ -142,7 +154,7 @@ export function chooseCardAiAction(state: GameState, side: Side, rngState: numbe
         for (const lane of LANES) {
           if (takenSpell.has(lane)) continue;
           if (card.spellKind === 'CONTINUOUS' && me.spellZones[lane]) continue;
-          if (!cardSpellHasTarget(state, side, card, lane)) continue;
+          if (!cardSpellHasTarget(state, side, card, lane, plannedUnitLanes)) continue;
           const play = { handId: hand.handId, cardId: hand.cardId, lane };
           const score = lookAhead(state, side, [...plays, play], rng);
           if (!best || score > best.score) best = { play, score };

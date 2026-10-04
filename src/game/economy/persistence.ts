@@ -1,6 +1,5 @@
 import { ALL_CARDS } from '../cards';
-import { isBannerId } from '../summon/banners';
-import { SUMMON_CONFIG } from '../summon/config';
+import { LEGACY_SUMMON, isLegacyBannerId } from './legacySummon';
 import { MAX_GEMS, MAX_GOLD, MAX_TICKETS, STARTING_GEMS, STARTING_GOLD, STARTING_TICKETS } from './config';
 import { ECONOMY_VERSION, RARITIES, type PlayerEconomy, type SummonHistoryEntry } from './types';
 
@@ -24,8 +23,8 @@ function sanitizeHistory(raw: unknown): SummonHistoryEntry[] {
     const r = e as Record<string, unknown>;
     if (typeof r.cardId !== 'string' || !KNOWN_IDS.has(r.cardId)) continue;
     if (!RARITIES.includes(r.rarity as never)) continue;
-    out.push({ cardId: r.cardId, rarity: r.rarity as SummonHistoryEntry['rarity'], at: Math.max(0, whole(r.at, 0)), wasNew: r.wasNew === true, bannerId: isBannerId(r.bannerId) ? r.bannerId : '' });
-    if (out.length >= SUMMON_CONFIG.historyLimit) break;
+    out.push({ cardId: r.cardId, rarity: r.rarity as SummonHistoryEntry['rarity'], at: Math.max(0, whole(r.at, 0)), wasNew: r.wasNew === true, bannerId: isLegacyBannerId(r.bannerId) ? r.bannerId : '' });
+    if (out.length >= LEGACY_SUMMON.historyLimit) break;
   }
   return out;
 }
@@ -35,8 +34,8 @@ function sanitizePity(raw: unknown): Record<string, number> {
   // v1 stored one number for the old single pool; it has no banner to belong to, so it is dropped.
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
   for (const [id, n] of Object.entries(raw as Record<string, unknown>)) {
-    if (!isBannerId(id)) continue;
-    const pity = Math.max(0, Math.min(SUMMON_CONFIG.pityThreshold - 1, whole(n, 0)));
+    if (!isLegacyBannerId(id)) continue;
+    const pity = Math.max(0, Math.min(LEGACY_SUMMON.pityThreshold - 1, whole(n, 0)));
     if (pity > 0) out[id] = pity;
   }
   return out;
@@ -57,7 +56,8 @@ export function sanitizeEconomy(raw: unknown): PlayerEconomy {
     gems: Math.max(0, Math.min(MAX_GEMS, whole(r.gems, 0))),
     // A pre-v3 save has no `gold` field at all - that is 0, not an error, and is never backfilled.
     gold: Math.max(0, Math.min(MAX_GOLD, whole(r.gold, 0))),
-    // Same treatment for `tickets`, absent before v4.
+    // Same treatment for `tickets`, absent before v4. Saved Summon Tickets carry over 1:1 as Pack Tickets (1 pack =
+    // 5 cards each): intentional legacy generosity while Moonwater is pre-release (docs/ECONOMY-BASELINE.md).
     tickets: Math.max(0, Math.min(MAX_TICKETS, whole(r.tickets, 0))),
     // Absent before v5: no one-time grant has been paid yet.
     grants: sanitizeGrants(r.grants),

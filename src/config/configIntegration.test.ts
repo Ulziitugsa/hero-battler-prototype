@@ -4,8 +4,6 @@ import { DEFAULT_CONFIG } from './defaults';
 import { campaignFirstClearGems, campaignWinGold, chapterCompleteGems } from '../game/economy/rewards';
 import { goldCostForLevelUp, heroLevelCapForAccount } from '../game/heroLevel/config';
 import { goldPerHour } from '../game/campaign/idleRewards';
-import { summonCost } from '../game/summon/summon';
-import { getPool } from '../game/summon/pool';
 import { claimMission, setMissionProgress } from '../game/missions/store';
 import { claimJourneyDay } from '../game/journey/store';
 import { reloadCollection } from '../game/collection/collection';
@@ -64,15 +62,6 @@ describe('idleRewards.ts goldPerHour reads live config', () => {
     setConfigProvider(createLocalProvider({ idle: { goldPerHourBase: 1000, goldPerHourPerNode: 0 } }));
     expect(goldPerHour(0)).toBe(1000);
     expect(goldPerHour(50)).toBe(1000); // per-node contribution zeroed out too
-  });
-});
-
-describe('summon/summon.ts summonCost reads live config for Tickets', () => {
-  it('ticket cost responds to a provider swap; Gem cost stays banner-authored', () => {
-    const pool = getPool('royal-vanguard');
-    setConfigProvider(createLocalProvider({ summon: { ticketCostSingle: 7 } }));
-    expect(summonCost(pool, 'single', 'tickets')).toBe(7);
-    expect(summonCost(pool, 'single', 'gems')).toBe(pool.cost.single); // unaffected - per-banner content, not config
   });
 });
 

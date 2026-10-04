@@ -9,14 +9,11 @@ import { createMatch } from '../engine/match.js';
 import { applyEvent } from '../engine/replay.js';
 import { deckSummary } from '../decks/deckSummary.js';
 import { COMBAT_MODEL_ROLE, PRODUCTION_COMBAT_MODEL, resolveCombatModel } from '../combat/combatModel.js';
-import { CONTINUABLE_CARD_RESOLVER_VERSIONS, isCurrentCardResolver, matchResolver, PRODUCTION_RULES, sameRules } from '../combat/resolver.js';
-import { withCardOverrides } from '../cardSim/cardSource.js';
+import { CONTINUABLE_CARD_RESOLVER_VERSIONS, isCurrentCardResolver, matchResolver, PRODUCTION_RULES, rulesChangeNotice, sameRules } from '../combat/resolver.js';
 import { getVariant } from '../cardSim/balance/differenceDamage.js';
-import { choosePlays } from '../cardSim/ai.js';
-import { playMatch } from '../cardSim/engine.js';
-import { cardJitter, getStatModel } from '../cardSim/statModels.js';
+import { cardJitter } from '../cardSim/statModels.js';
 import { chooseCardAiAction } from './ai.js';
-import { CARD_COMBAT_OVERRIDE_IDS, getCombatCard } from './cards.js';
+import { CARD_COMBAT_OVERRIDE_IDS, TIMING_CLEANUP_IDS, getCombatCard } from './cards.js';
 import { CARD_MAX_ROUNDS, CARD_RESOLVER_VERSION, beginCardRound, cardAtk, createCardMatch, matchHpContribution, resolveCardRound, type CardMatchSetup } from './engine.js';
 import { ATK_OFFSET, GROWTH_CAP_ATK, atkFromPower, deckStartingHp, hpContribution, printedStats } from './stats.js';
 
@@ -476,33 +473,23 @@ describe('card combat: determinism and the event log', () => {
     expect(r.nextState.cardCombat!.endReason).toBe('round-cap');
   });
 
-  // Decks with Graveyard returns (Undead) are left out on purpose: the simulator approximated "once per copy" as a
-  // per-card-name budget (copies x 1), while this resolver marks the physical copy, so their matches may differ.
-  it('plays exactly like the simulator (difference-damage variant dd-final) on decks without Graveyard returns', () => {
-    const decks: [string[], string[]][] = [
-      [STARTER_DECKS.kingdom, STARTER_DECKS.infernal],
-      [STARTER_DECKS.infernal, STARTER_DECKS.kingdom],
-    ];
-    const variant = getVariant('dd-final');
-    for (const [a, b] of decks) {
-      for (const seed of [1, 2, 3, 4]) {
-        const sim = withCardOverrides(variant.cards(), () => playMatch({ model: getStatModel('baseline'), rules: variant.rules, sides: [{ deck: a, policy: 'balanced' }, { deck: b, policy: 'balanced' }], seed }, choosePlays));
-        const ours = autoMatch(seed, a, b);
-        const winner = ours.state.status === 'PLAYER_WIN' ? 0 : ours.state.status === 'ENEMY_WIN' ? 1 : null;
-        expect({ winner, rounds: ours.state.round - 1, hp: [ours.state.player.hp, ours.state.enemy.hp], start: [ours.state.player.maxHp, ours.state.enemy.maxHp] }, `seed ${seed}`).toEqual({ winner: sim.winner, rounds: sim.rounds, hp: sim.endHp, start: sim.startHp });
-      }
-    }
-  });
+  // The simulator (src/game/cardSim, variant dd-final) measured the v3 rules, and v3 played exactly like it on decks
+  // without Graveyard returns. v4's timing cleanup re-authors cards both starters play (Royal Guard, Light Priest,
+  // Paladin, Hellhound, every one-time Spell's Cast), so match-for-match parity no longer holds by design; v4 is measured
+  // with the production resolver itself (scripts/simulate-deck-matrix.mjs). The card data still matches the simulator's
+  // wherever the cleanup did not touch a card (next test).
 });
 
 describe('card combat: approved card data', () => {
-  it('matches the simulator’s card set (dd-final: batch 3’s approved cards), card by card', () => {
+  it('matches the simulator’s card set (dd-final: batch 3’s approved cards) on every card the timing cleanup left alone', () => {
     const approved = new Map(getVariant('dd-final').cards().map((c) => [c.id, c]));
-    const strip = (abilities: readonly object[]) => abilities.map((a) => ({ ...a, text: undefined }));
-    expect([...CARD_COMBAT_OVERRIDE_IDS].sort()).toEqual([...approved.keys()].sort());
+    // A one-time Spell's CAST is the simulator's ON_PLAY under its v4 name: compare them as the same timing.
+    const strip = (abilities: readonly { trigger: string }[]) => abilities.map((a) => ({ ...a, trigger: a.trigger === 'CAST' ? 'ON_PLAY' : a.trigger, text: undefined }));
+    for (const id of approved.keys()) expect(CARD_COMBAT_OVERRIDE_IDS, id).toContain(id);
     for (const [id, card] of approved) {
       const ours = getCombatCard(id);
       expect(ours.power, id).toBe(card.power);
+      if (TIMING_CLEANUP_IDS.includes(id)) continue;
       expect(strip(ours.abilities), id).toEqual(strip(card.abilities));
     }
   });
@@ -565,21 +552,19 @@ describe('card combat: the production resolver everywhere', () => {
     expect(isCurrentCardResolver({ ...built, cardCombat: { ...built.cardCombat!, version: CARD_RESOLVER_VERSION + 1 } })).toBe(false);
   });
 
-  it('resolver v3 (Mastery removed) is current; a stored v2 match is still continued, round for round', () => {
-    expect(CARD_RESOLVER_VERSION).toBe(3);
-    expect(CONTINUABLE_CARD_RESOLVER_VERSIONS).toEqual([2, 3]);
-    expect(sameRules({ combatModel: 'card', resolverVersion: 2 })).toBe(false); // new Friendly matches need v3 on both clients
-    // A v2 match as PR #12's first build stored it: version 2 plus a per-side Mastery table (Friendly: Mastery I).
-    const v3 = createCardMatch({ seed: 11, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead }).nextState;
-    const v2: GameState = { ...v3, cardCombat: { ...v3.cardCombat!, version: 2, masteryStage: { player: { 'kng-paladin': 1 }, enemy: {} } } };
-    expect(isCurrentCardResolver(v2)).toBe(true);
-    expect(isCurrentCardResolver({ ...v3, cardCombat: { ...v3.cardCombat!, version: 1 } })).toBe(false);
-    const p = chooseCardAiAction(v3, 'player', v3.rngState);
-    const e = chooseCardAiAction(v3, 'enemy', p.nextRngState);
-    const a = resolveCardRound(v3, p.action, e.action, e.nextRngState);
-    const b = resolveCardRound(v2, p.action, e.action, e.nextRngState);
-    expect(b.events).toEqual(a.events);
-    expect([b.nextState.player.hp, b.nextState.enemy.hp]).toEqual([a.nextState.player.hp, a.nextState.enemy.hp]);
+  it('resolver v4 (timing cleanup) is current; a stored v2/v3 match is not reinterpreted under v4 rules', () => {
+    expect(CARD_RESOLVER_VERSION).toBe(4);
+    expect(CONTINUABLE_CARD_RESOLVER_VERSIONS).toEqual([4]);
+    expect(sameRules({ combatModel: 'card', resolverVersion: 3 })).toBe(false); // new Friendly matches need v4 on both clients
+    const v4 = createCardMatch({ seed: 11, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead }).nextState;
+    expect(isCurrentCardResolver(v4)).toBe(true);
+    expect(rulesChangeNotice(v4)).toBeNull();
+    for (const version of [2, 3]) {
+      const old: GameState = { ...v4, cardCombat: { ...v4.cardCombat!, version } };
+      expect(isCurrentCardResolver(old), `v${version}`).toBe(false);
+      expect(rulesChangeNotice(old), `v${version}`).toMatch(/earlier card rules.*can’t be continued/);
+    }
+    expect(rulesChangeNotice({ ...v4, cardCombat: { ...v4.cardCombat!, version: 5 } })).toMatch(/newer version/);
   });
 
   it('an old legacy match still reads as legacy v1 (never inferred from a date)', () => {
@@ -601,8 +586,8 @@ describe('card combat: player-facing copy', () => {
       const text = [...cardEffects(card.id).flatMap((e) => [e.label, e.compact, e.board, e.full]), ...cardCombatEffectLines(card.id).map((l) => l.text)].join(' | ');
       expect(text, card.id).not.toMatch(/\bPower\b|\bHero\b|\b[1-5] (HP|damage)\b/);
     }
-    expect(cardCombatEffectLines('kng-light-priest')[0].text).toBe('Restore 135 HP to your player.');
+    expect(cardCombatEffectLines('kng-light-priest')[1].text).toBe('Round End: restore 45 HP to your player.');
     expect(cardCombatEffectLines('spl-arcane-bolt').map((l) => l.text)).toEqual(['Deal 135 damage to the enemy player.', 'If you already cast a Spell this round, deal 90 more.']);
-    expect(cardCombatEffectLines('kng-paladin')[0].text).toBe('This Unit gains a Shield.');
+    expect(cardCombatEffectLines('kng-paladin')[0].text).toBe('This Unit has a Shield: the first time it would be destroyed, it survives instead.');
   });
 });

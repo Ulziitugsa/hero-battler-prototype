@@ -20,32 +20,41 @@ describe('battle log', () => {
     const { events } = buildBattleScene('3');
     expect(battleLogEntries(events).map(line)).toEqual([
       '— Round 1 —',
-      'Battle Banner — Passive: Unit here +15 ATK',
-      'Clash Damage — Left: 35 to Enemy (Common Knight 128 beat Bone Soldier 93)',
+      'Battle Banner — Attached: Common Knight +15 ATK',
+      'Clash Damage — Center: 50 to Enemy (Common Knight 143 beat Bone Soldier 93)',
       'Dark Priest — Direct Attack: 84 to You',
       'Bone Soldier — Destroyed: Returned to deck',
       '— Round 2 —',
-      'Royal Guard — On Play: Common Knight and Light Priest +15 ATK',
-      'Light Priest — On Play: Restored 84 HP, gained a Shield',
-      // Dark Priest has two Before Combat effects with different labels (Guard 2, Clash): the log can't tell which fired.
-      'Dark Priest — Before Combat: Gained +30 ATK this round',
-      'Clash Damage — Left: 13 to Enemy (Common Knight 143 beat Vharos 130)',
-      'Clash Damage — Center: 29 to Enemy (Royal Guard 128 beat Cursed Warrior 99)',
-      'Clash Damage — Right: 21 to You (Dark Priest 114 beat Light Priest 93)',
+      // Royal Guard's aura (Passive) logs nothing: it shows in the Knight's clash ATK (128 + 15 Banner + 15 aura).
+      'Clash Damage — Left: 14 to Enemy (Royal Guard 113 beat Cursed Warrior 99)',
+      'Clash Damage — Center: 28 to Enemy (Common Knight 158 beat Vharos 130)',
+      'Clash Damage — Right: 6 to You (Dark Priest 84 beat Light Priest 78)',
       'Light Priest — Shield: Survived the clash, Shield used up',
-      // Cursed Warrior's own Destroyed effect then had nothing to do (it was already back in hand): no row.
-      'Vharos — Destroyed: Revived with 95 ATK, Cursed Warrior returned to hand',
+      'Cursed Warrior — Destroyed: Returned to hand',
+      'Vharos — Destroyed: Revived with 95 ATK',
+      'Light Priest — Round End: Restored 45 HP',
       '— Round 3 —',
     ]);
+  });
+
+  it('says when an Attached Spell leaves play with its Unit', () => {
+    const { events, state } = buildBattleScene('expire');
+    const log = battleLogEntries(events).map(line);
+    expect(log).toContain('Battle Banner — Attached: Light Priest +15 ATK');
+    expect(log).toContain('Battle Banner — Expired: Its Unit left play (Light Priest)');
+    // Right after the clash that destroyed its Unit, and the lane's Spell slot is free.
+    expect(log.indexOf('Battle Banner — Expired: Its Unit left play (Light Priest)')).toBe(log.indexOf('Clash Damage — Center: 37 to You (Vharos 130 beat Light Priest 93)') + 1);
+    expect(state.player.spellZones.center).toBeNull();
+    expect(state.player.graveyard).toEqual(['kng-light-priest', 'spl-battle-banner']);
   });
 
   it('colors each row by the side that acted: a clash by its winner, a tie by neither', () => {
     const entries = battleLogEntries(buildBattleScene('3').events);
     const find = (text: string) => entries.find((e) => line(e).startsWith(text))!;
-    expect(find('Clash Damage — Left: 35').side).toBe('player');
-    expect(find('Clash Damage — Right: 21').side).toBe('enemy');
+    expect(find('Clash Damage — Center: 50').side).toBe('player');
+    expect(find('Clash Damage — Right: 6').side).toBe('enemy');
     expect(find('Dark Priest — Direct Attack').side).toBe('enemy');
-    expect(find('Royal Guard — On Play')).toMatchObject({ side: 'player', kind: 'effect' });
+    expect(find('Light Priest — Round End')).toMatchObject({ side: 'player', kind: 'effect' });
     expect(logOf([{ hands: { player: ['kng-apprentice-mage'], enemy: ['und-bone-soldier'] }, plays: { player: [['kng-apprentice-mage', 'center']], enemy: [['und-bone-soldier', 'center']] } }])).toContain(
       'Tie — Center: Apprentice Mage and Bone Soldier destroyed at 93 ATK each, no damage',
     );
@@ -93,13 +102,12 @@ describe('battle log', () => {
     ]);
     // −60, then "with their Continuous Spell here, it becomes 50 ATK instead": one net change, not two.
     expect(fireball).toContain('Fireball — Spell: Common Knight −78 ATK');
-    const lord = logOf([
-      { hands: { player: ['kng-archer', 'kng-common-knight'], enemy: ['inf-hellhound', 'inf-hellhound'] }, plays: { player: [['kng-archer', 'left'], ['kng-common-knight', 'right']], enemy: [['inf-hellhound', 'center'], ['inf-hellhound', 'right']] } },
-      { hands: { player: [], enemy: ['inf-infernal-lord'] }, plays: { player: [], enemy: [['inf-infernal-lord', 'left']] } },
+    // War Cry with 2+ Kingdom Units: +15, then +15 more, on each ally: one net +30 per Unit, the two Knights as one phrase.
+    const cry = logOf([
+      { hands: { player: ['kng-archer', 'kng-common-knight', 'kng-common-knight'], enemy: [] }, plays: { player: [['kng-archer', 'left'], ['kng-common-knight', 'center'], ['kng-common-knight', 'right']], enemy: [] } },
+      { hands: { player: ['spl-war-cry'], enemy: [] }, plays: { player: [['spl-war-cry', 'left']], enemy: [] } },
     ]);
-    expect(lord).toContain('Infernal Lord — On Play: Kingdom Archer and two Hellhounds −30 ATK this round');
-    // The Hellhound with no enemy in its lane did nothing: it leaves no "No effect" row.
-    expect(lord.filter((l) => l.startsWith('Hellhound — On Play'))).toEqual(['Hellhound — On Play: Silenced Common Knight']);
+    expect(cry).toContain('War Cry — Spell: Kingdom Archer and two Common Knights +30 ATK this round');
   });
 
   it('marks where each entry ends, so the live log can show it once playback reaches it', () => {
@@ -107,7 +115,7 @@ describe('battle log', () => {
     const hand = (cardId: string) => state.player.hand.find((h) => h.cardId === cardId)!.handId;
     const { events } = resolveCardRound(
       state,
-      { plays: [{ handId: hand('kng-royal-guard'), cardId: 'kng-royal-guard', lane: 'center' }] },
+      { plays: [{ handId: hand('kng-royal-guard'), cardId: 'kng-royal-guard', lane: 'left' }] },
       { plays: [] },
     );
     const entries = battleLogEntries(events, state);
