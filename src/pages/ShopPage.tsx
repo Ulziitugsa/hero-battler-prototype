@@ -6,15 +6,15 @@ import { TicketIcon } from '../components/TicketIcon';
 import { CardArtwork } from '../components/CardArtwork';
 import { getConfig } from '../config/config';
 import { useEconomy } from '../game/economy/useEconomy';
-import { spendGems, grantGold } from '../game/economy/economy';
+import { canAfford } from '../game/economy/economy';
 import { MAX_GOLD } from '../game/economy/config';
-import { loadEnergy, restoreEnergy } from '../game/campaign/energy';
+import { loadEnergy } from '../game/campaign/energy';
+import { ENERGY_REFILL_AMOUNT, ENERGY_REFILL_GEMS, refillEnergyWithGems } from '../game/shop/energyRefill';
 import { getDailyShopGiftState, subscribeDailyShopGift, claimDailyShopGift, dailyShopGiftResetsAt, DAILY_SHOP_GIFT_GOLD } from '../game/shop/dailyGift';
 import { OFFERS, type OfferId, type OfferDef } from '../game/offers/definitions';
 import { simulatePurchase, trackOfferClicked, trackOfferCtaClicked, trackOfferSeen } from '../game/offers/store';
-import { useAscension } from '../game/ascension/useAscension';
-import { getAscensionRank } from '../game/ascension/store';
-import { PLAYTEST_ROSTER } from '../game/cards/roster';
+import { isGrowthPackVisible, isStarterPackVisible } from '../game/offers/eligibility';
+import { useAccount } from '../game/progression/useAccount';
 import { useDialogFocus } from '../components/useDialogFocus';
 import { getCard } from '../game/cards';
 import { track } from '../analytics/track';
@@ -30,11 +30,8 @@ import '../styles/shop.css';
 /** Which Shop surface is showing. Box and Structure Deck pages are addressed by their stable product ids. */
 export type ShopView = { kind: 'main' } | { kind: 'box'; id: string } | { kind: 'structure-deck'; id: string };
 
-type PendingPurchase = { kind: 'offer'; id: OfferId } | { kind: 'gold' } | { kind: 'energy' };
-const GOLD_EXCHANGE_GEMS = 50;
-const GOLD_EXCHANGE_AMOUNT = 500;
-const ENERGY_REFILL_GEMS = 35;
-const ENERGY_REFILL_AMOUNT = 20;
+// Gold is earn-only: there is no Gems -> Gold exchange (removed 2026-10-04). Energy refill: game/shop/energyRefill.ts.
+type PendingPurchase = { kind: 'offer'; id: OfferId } | { kind: 'energy' };
 
 function rewardContent(offer: OfferDef) {
   return <span className="shop-reward-line">
@@ -56,15 +53,15 @@ function ShopConfirmation({ pending, energy, prices, onCancel, onConfirm }: {
   const offer = pending.kind === 'offer' ? OFFERS.find((item) => item.id === pending.id) : undefined;
   return <div className="shop-confirm-backdrop" onClick={onCancel}><div ref={confirmationRef} className="shop-confirm" role="dialog" aria-modal="true" aria-labelledby="shop-confirm-title" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
     <button type="button" className="shop-confirm-close" onClick={onCancel} aria-label="Cancel"><Icon name="close" size={18} /></button>
-    <span className="shop-section-eyebrow">REVIEW EXCHANGE</span><h2 id="shop-confirm-title">{offer?.title ?? (pending.kind === 'gold' ? 'Gold exchange' : 'Energy refill')}</h2>
-    {offer ? <><p>{offer.subtitle}</p><div className="shop-confirm-reward">{rewardContent(offer)}</div><p className="shop-confirm-test">{prices[offer.id] ?? 'Test offer'} · simulated only · no charge</p></> : pending.kind === 'gold' ? <p>Spend {GOLD_EXCHANGE_GEMS} Gems and receive {GOLD_EXCHANGE_AMOUNT} Gold.</p> : <p>Spend {ENERGY_REFILL_GEMS} Gems to restore up to {ENERGY_REFILL_AMOUNT} Energy. Current: {energy.current}/{energy.max}.</p>}
+    <span className="shop-section-eyebrow">REVIEW EXCHANGE</span><h2 id="shop-confirm-title">{offer?.title ?? 'Energy refill'}</h2>
+    {offer ? <><p>{offer.subtitle}</p><div className="shop-confirm-reward">{rewardContent(offer)}</div><p className="shop-confirm-test">{prices[offer.id] ?? 'Test offer'} · simulated only · no charge</p></> : <p>Spend {ENERGY_REFILL_GEMS} Gems to restore up to {ENERGY_REFILL_AMOUNT} Energy. Current: {energy.current}/{energy.max}.</p>}
     <div className="shop-confirm-actions"><button type="button" onClick={onCancel}>Cancel</button><button type="button" className="confirm" onClick={onConfirm}>Confirm {pending.kind === 'offer' ? '(Test)' : 'Exchange'}</button></div>
   </div></div>;
 }
 
 export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: ShopView } = {}) {
   const economy = useEconomy();
-  const ascensions = useAscension();
+  const accountLevel = useAccount().level;
   const gift = useSyncExternalStore(subscribeDailyShopGift, getDailyShopGiftState, getDailyShopGiftState);
   const [energy, setEnergy] = useState(loadEnergy);
   const [giftResetCountdown, setGiftResetCountdown] = useState('');
@@ -78,14 +75,13 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
   const prices = getConfig().offers.priceLabels;
   const offersEnabled = getConfig().flags.offersEnabled;
 
-  const progressed = PLAYTEST_ROSTER.some((id) => getAscensionRank(id, ascensions) > 0);
   const openedPacks = hasOpenedPacks(economy);
   const eligibleOffers = useMemo(() => offersEnabled ? OFFERS.filter((offer) => {
-    if (offer.id === 'starter-pack') return progressed || openedPacks;
-    if (offer.id === 'growth-pack') return progressed;
+    if (offer.id === 'starter-pack') return isStarterPackVisible({ openedPacks, accountLevel });
+    if (offer.id === 'growth-pack') return isGrowthPackVisible({ openedPacks, accountLevel });
     if (offer.id.startsWith('gem-pack-')) return openedPacks;
     return false;
-  }) : [], [progressed, openedPacks, offersEnabled]);
+  }) : [], [openedPacks, accountLevel, offersEnabled]);
   const featured = eligibleOffers.filter((offer) => offer.id === 'starter-pack' || offer.id === 'growth-pack');
   const gemPacks = eligibleOffers.filter((offer) => offer.id.startsWith('gem-pack-'));
 
@@ -136,23 +132,11 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
         const gained = [result.gold > 0 && `${result.gold.toLocaleString()} Gold`, result.gems > 0 && `${result.gems.toLocaleString()} Gems`, result.tickets > 0 && `${result.tickets} Tickets`, result.cardGranted && getCard(result.cardGranted).shortName].filter(Boolean);
         setNotice(`${gained.join(' · ')} added. Test purchase only; no charge.`);
       }
-    } else if (pending.kind === 'gold') {
-      if (spendGems(GOLD_EXCHANGE_GEMS)) {
-        const result = grantGold(GOLD_EXCHANGE_AMOUNT, 'shop');
-        setNotice(`${result.gained.toLocaleString()} Gold added for ${GOLD_EXCHANGE_GEMS} Gems.`);
-        track('shop_purchase_simulated', { productId: 'gold-for-gems', productType: 'gold', simulated: false, gems: GOLD_EXCHANGE_GEMS, gold: result.gained });
-      } else setNotice('You do not have enough Gems for this exchange.');
     } else {
-      if (energy.current >= energy.max) setNotice('Energy is already full.');
-      else if (spendGems(ENERGY_REFILL_GEMS)) {
-        const before = energy.current;
-        const next = restoreEnergy(ENERGY_REFILL_AMOUNT);
-        setEnergy(next);
-        const restored = next.current - before;
-        track('energy_refilled', { amount: restored, gems: ENERGY_REFILL_GEMS, source: 'shop' });
-        track('shop_purchase_simulated', { productId: 'energy-refill', productType: 'energy', simulated: false, gems: ENERGY_REFILL_GEMS, energy: restored });
-        setNotice(`${restored} Energy restored for ${ENERGY_REFILL_GEMS} Gems.`);
-      } else setNotice('You do not have enough Gems for this refill.');
+      const result = refillEnergyWithGems();
+      setEnergy(result.energy);
+      if (result.ok) setNotice(`${result.restored} Energy restored for ${ENERGY_REFILL_GEMS} Gems.`);
+      else setNotice(result.reason === 'full' ? 'Energy is already full.' : 'You do not have enough Gems for this refill.');
     }
     setPending(null);
   }
@@ -246,8 +230,7 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
     <section className="shop-section shop-secondary shop-trade-section" aria-labelledby="shop-trade-title">
       <div className="shop-section-heading"><div><span className="shop-section-eyebrow">RESOURCE EXCHANGE</span><h2 id="shop-trade-title">For the road</h2></div></div>
       <div className="shop-trades">
-        <article className="shop-trade-card"><span className="shop-trade-icon gold"><GoldIcon size={23} /></span><div className="shop-trade-copy"><h3>Gold exchange</h3><p><GemIcon size={14} />{GOLD_EXCHANGE_GEMS} Gems <span aria-hidden="true">→</span> <GoldIcon size={14} />{GOLD_EXCHANGE_AMOUNT} Gold</p></div><button type="button" onClick={() => { track('shop_product_viewed', { productId: 'gold-for-gems', productType: 'gold' }); setPending({ kind: 'gold' }); }} disabled={economy.gems < GOLD_EXCHANGE_GEMS || economy.gold >= MAX_GOLD}>{economy.gold >= MAX_GOLD ? 'Gold full' : 'Exchange'}</button></article>
-        <article className="shop-trade-card"><span className="shop-trade-icon energy">✦</span><div className="shop-trade-copy"><h3>Energy refill</h3><p>Restore up to {ENERGY_REFILL_AMOUNT} Energy for <GemIcon size={14} />{ENERGY_REFILL_GEMS} Gems</p><small>{energy.current}/{energy.max} Energy · {energy.current >= energy.max ? 'already full' : `${energy.max - energy.current} capacity available`}</small></div><button type="button" onClick={() => { track('shop_product_viewed', { productId: 'energy-refill', productType: 'energy' }); setPending({ kind: 'energy' }); }} disabled={economy.gems < ENERGY_REFILL_GEMS || energy.current >= energy.max}>{energy.current >= energy.max ? 'Full' : 'Refill'}</button></article>
+        <article className="shop-trade-card"><span className="shop-trade-icon energy">✦</span><div className="shop-trade-copy"><h3>Energy refill</h3><p>Restore up to {ENERGY_REFILL_AMOUNT} Energy for <GemIcon size={14} />{ENERGY_REFILL_GEMS} Gems</p><small>{energy.current}/{energy.max} Energy · {energy.current >= energy.max ? 'already full' : `${energy.max - energy.current} capacity available`}</small></div><button type="button" onClick={() => { track('shop_product_viewed', { productId: 'energy-refill', productType: 'energy' }); setPending({ kind: 'energy' }); }} disabled={!canAfford(ENERGY_REFILL_GEMS, economy.gems) || energy.current >= energy.max}>{energy.current >= energy.max ? 'Full' : 'Refill'}</button></article>
       </div>
     </section>
 

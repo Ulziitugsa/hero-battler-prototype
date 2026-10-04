@@ -8,6 +8,10 @@ import type { AnalyticsEventName } from '../../analytics/events';
 // mission stays backed by something that already fires, rather than adding a new instrumentation surface
 // just for this. (It was "advance a card's Mastery" until combat Card Mastery was retired.) See
 // docs/COMMERCIAL-PROTOTYPE-PLAN.md Phase 5 for the reasoning.
+//
+// No recurring mission asks the player to open (and so buy) packs (ozi, 2026-10-04): the old daily "Open a pack"
+// became "Win a Ranked battle" and the weekly "Open 5 packs" became "Complete 5 daily missions", each with the same
+// reward. See docs/ECONOMY-BASELINE.md.
 
 export type MissionPeriod = 'daily' | 'weekly';
 
@@ -20,7 +24,7 @@ export interface MissionDef {
   target: number;
   rewardGold: number;
   rewardGems: number;
-  /** Pack Tickets (1 Ticket = 1 pack = 5 cards). Only the weekly "Open 5 packs" mission gives one, so recurring
+  /** Pack Tickets (1 Ticket = 1 pack = 5 cards). Only the weekly "Complete 5 daily missions" mission gives one, so recurring
    * free Ticket income is 1 pack a week (ozi, 2026-10-04; baseline in docs/ECONOMY-BASELINE.md). The Journey's
    * Day 2 covers "a free pack early on"; see game/journey/definitions.ts. */
   rewardTickets: number;
@@ -29,14 +33,14 @@ export interface MissionDef {
 export const DAILY_MISSIONS: MissionDef[] = [
   { id: 'daily-campaign-wins', period: 'daily', title: 'Win 2 Campaign battles', metric: 'campaign_won', target: 2, rewardGold: 40, rewardGems: 0, rewardTickets: 0 },
   { id: 'daily-battles', period: 'daily', title: 'Fight 3 battles', metric: 'battle_completed', target: 3, rewardGold: 30, rewardGems: 0, rewardTickets: 0 },
-  { id: 'daily-open-pack', period: 'daily', title: 'Open a pack', metric: 'pack_opened', target: 1, rewardGold: 0, rewardGems: 20, rewardTickets: 0 },
+  { id: 'daily-ranked-win', period: 'daily', title: 'Win a Ranked battle', metric: 'ranked_match_won', target: 1, rewardGold: 0, rewardGems: 20, rewardTickets: 0 },
   { id: 'daily-idle-claim', period: 'daily', title: 'Claim your idle reward', metric: 'idle_reward_claimed', target: 1, rewardGold: 20, rewardGems: 0, rewardTickets: 0 },
   { id: 'daily-ranked', period: 'daily', title: 'Play a Ranked battle', metric: 'ranked_match_started', target: 1, rewardGold: 0, rewardGems: 15, rewardTickets: 0 },
 ];
 
 export const WEEKLY_MISSIONS: MissionDef[] = [
   { id: 'weekly-campaign-wins', period: 'weekly', title: 'Win 10 Campaign battles', metric: 'campaign_won', target: 10, rewardGold: 200, rewardGems: 0, rewardTickets: 0 },
-  { id: 'weekly-open-packs', period: 'weekly', title: 'Open 5 packs', metric: 'pack_opened', target: 5, rewardGold: 0, rewardGems: 100, rewardTickets: 1 },
+  { id: 'weekly-daily-missions', period: 'weekly', title: 'Complete 5 daily missions', metric: 'daily_mission_completed', target: 5, rewardGold: 0, rewardGems: 100, rewardTickets: 1 },
   { id: 'weekly-battles', period: 'weekly', title: 'Fight 15 battles', metric: 'battle_completed', target: 15, rewardGold: 150, rewardGems: 0, rewardTickets: 0 },
 ];
 
