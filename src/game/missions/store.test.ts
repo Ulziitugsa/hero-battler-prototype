@@ -116,11 +116,11 @@ describe('claimMission', () => {
     expect(getEconomy().gold).toBe(goldBefore + r.gold); // not double-granted
   });
   it('emits mission_claimed with the granted amounts', () => {
-    setMissionProgress('daily-open-pack', 1);
-    const r = claimMission('daily-open-pack');
+    setMissionProgress('daily-ranked-win', 1);
+    const r = claimMission('daily-ranked-win');
     const events = getQueuedEvents().filter((e) => e.name === 'mission_claimed');
     expect(events).toHaveLength(1);
-    expect(events[0].properties).toMatchObject({ missionId: 'daily-open-pack', gems: r.gems });
+    expect(events[0].properties).toMatchObject({ missionId: 'daily-ranked-win', gems: r.gems });
   });
   it('an unknown mission id is refused cleanly', () => {
     expect(claimMission('not-a-real-mission')).toMatchObject({ ok: false, reason: 'Unknown mission.' });
@@ -136,10 +136,10 @@ describe('anyMissionClaimable / listMissions', () => {
     expect(anyMissionClaimable()).toBe(false);
   });
   it('listMissions filters by period and pairs every def with live progress', () => {
-    setMissionProgress('weekly-open-packs', 2);
+    setMissionProgress('weekly-daily-missions', 2);
     const weekly = listMissions('weekly');
     expect(weekly).toHaveLength(3);
-    expect(weekly.find((r) => r.def.id === 'weekly-open-packs')?.progress.count).toBe(2);
+    expect(weekly.find((r) => r.def.id === 'weekly-daily-missions')?.progress.count).toBe(2);
     const daily = listMissions('daily');
     expect(daily).toHaveLength(5);
   });
@@ -150,18 +150,18 @@ describe('period reset', () => {
     const now = 100 * DAY_MS + 60 * 60 * 1000; // well inside week 100/7's span, not at a boundary
     localStorage.setItem(
       MISSIONS_STORAGE_KEY,
-      JSON.stringify({ version: 1, dayKey: dayKey(now) - 1, weekKey: weekKey(now), daily: { 'daily-battles': { count: 1, claimed: true } }, weekly: { 'weekly-open-packs': { count: 3, claimed: false } } }),
+      JSON.stringify({ version: 1, dayKey: dayKey(now) - 1, weekKey: weekKey(now), daily: { 'daily-battles': { count: 1, claimed: true } }, weekly: { 'weekly-daily-missions': { count: 3, claimed: false } } }),
     );
     reloadMissions();
     const state = getMissionsState(now);
     expect(state.daily).toEqual({}); // rolled over
-    expect(state.weekly).toEqual({ 'weekly-open-packs': { count: 3, claimed: false } }); // untouched
+    expect(state.weekly).toEqual({ 'weekly-daily-missions': { count: 3, claimed: false } }); // untouched
   });
   it('a stored week in the past resets the weekly bucket regardless of the daily one', () => {
     const now = 100 * WEEK_MS + 60 * 60 * 1000;
     localStorage.setItem(
       MISSIONS_STORAGE_KEY,
-      JSON.stringify({ version: 1, dayKey: dayKey(now), weekKey: weekKey(now) - 1, daily: { 'daily-battles': { count: 1, claimed: false } }, weekly: { 'weekly-open-packs': { count: 3, claimed: true } } }),
+      JSON.stringify({ version: 1, dayKey: dayKey(now), weekKey: weekKey(now) - 1, daily: { 'daily-battles': { count: 1, claimed: false } }, weekly: { 'weekly-daily-missions': { count: 3, claimed: true } } }),
     );
     reloadMissions();
     const state = getMissionsState(now);
@@ -187,10 +187,10 @@ describe('malformed storage', () => {
   it('drops entries for unknown ids or the wrong period', () => {
     localStorage.setItem(
       MISSIONS_STORAGE_KEY,
-      JSON.stringify({ version: 1, dayKey: dayKey(), weekKey: weekKey(), daily: { 'ghost-mission': { count: 1, claimed: false }, 'weekly-open-packs': { count: 1, claimed: false } }, weekly: {} }),
+      JSON.stringify({ version: 1, dayKey: dayKey(), weekKey: weekKey(), daily: { 'ghost-mission': { count: 1, claimed: false }, 'weekly-daily-missions': { count: 1, claimed: false } }, weekly: {} }),
     );
     reloadMissions();
-    expect(getMissionsState().daily).toEqual({}); // ghost id dropped, weekly-open-packs is the wrong period for the daily bucket
+    expect(getMissionsState().daily).toEqual({}); // ghost id dropped, weekly-daily-missions is the wrong period for the daily bucket
   });
 });
 
@@ -200,5 +200,49 @@ describe('resetMissions', () => {
     claimMission('daily-battles');
     resetMissions();
     expect(getMissionsState().daily).toEqual({});
+  });
+});
+
+describe('no recurring mission asks for packs (ozi, 2026-10-04)', () => {
+  it('the daily "Open a pack" and weekly "Open 5 packs" are gone, and nothing counts pack_opened', () => {
+    expect(ALL_MISSIONS.map((m) => m.title)).not.toContain('Open a pack');
+    expect(ALL_MISSIONS.map((m) => m.title)).not.toContain('Open 5 packs');
+    expect(ALL_MISSIONS.some((m) => m.metric === 'pack_opened' || m.metric === 'pack_ticket_used')).toBe(false);
+  });
+  it('their replacements keep the same rewards: daily "Win a Ranked battle" 20 Gems, weekly "Complete 5 daily missions" 100 Gems + 1 Ticket', () => {
+    expect(DAILY_MISSIONS.find((m) => m.id === 'daily-ranked-win')).toMatchObject({ title: 'Win a Ranked battle', metric: 'ranked_match_won', target: 1, rewardGems: 20, rewardGold: 0, rewardTickets: 0 });
+    expect(WEEKLY_MISSIONS.find((m) => m.id === 'weekly-daily-missions')).toMatchObject({ title: 'Complete 5 daily missions', metric: 'daily_mission_completed', target: 5, rewardGems: 100, rewardGold: 0, rewardTickets: 1 });
+    expect(ALL_MISSIONS.filter((m) => m.rewardTickets > 0).map((m) => [m.id, m.rewardTickets])).toEqual([['weekly-daily-missions', 1]]);
+  });
+  it('a Ranked win completes the daily replacement', () => {
+    track('ranked_match_lost', {});
+    expect(isMissionComplete('daily-ranked-win')).toBe(false);
+    track('ranked_match_won', {});
+    expect(isMissionComplete('daily-ranked-win')).toBe(true);
+    expect(claimMission('daily-ranked-win')).toMatchObject({ ok: true, gems: 20, tickets: 0 });
+  });
+  it('each completed daily mission advances the weekly one, which pays its Ticket at five', () => {
+    track('ranked_match_won', {}); // 1: daily-ranked-win
+    track('idle_reward_claimed', {}); // 2: daily-idle-claim
+    track('ranked_match_started', {}); // 3: daily-ranked
+    for (let i = 0; i < 2; i++) track('battle_completed', {});
+    expect(getMissionProgress('weekly-daily-missions').count).toBe(3); // progress on a daily mission doesn't count, only completing it
+    track('battle_completed', {}); // 4: daily-battles
+    track('battle_completed', {}); // daily-battles is already at its target: no double count
+    expect(claimMission('weekly-daily-missions')).toMatchObject({ ok: false, reason: 'Not complete yet.' });
+    expect(getMissionProgress('weekly-daily-missions').count).toBe(4);
+    for (let i = 0; i < 2; i++) track('campaign_won', {}); // 5: daily-campaign-wins
+    expect(getMissionProgress('weekly-daily-missions').count).toBe(5);
+    expect(getMissionProgress('daily-campaign-wins').count).toBe(2); // the nested update didn't clobber the daily one
+    expect(claimMission('weekly-daily-missions')).toMatchObject({ ok: true, gems: 100, tickets: 1 });
+    expect(getEconomy().tickets).toBe(1);
+    expect(getQueuedEvents().filter((e) => e.name === 'weekly_mission_completed' && e.properties.missionId === 'weekly-daily-missions')).toHaveLength(1);
+  });
+  it('progress carries across days within the week (daily resets do not reset it)', () => {
+    const now = Date.now();
+    localStorage.setItem(MISSIONS_STORAGE_KEY, JSON.stringify({ version: 1, dayKey: dayKey(now) - 1, weekKey: weekKey(now), daily: { 'daily-idle-claim': { count: 1, claimed: true } }, weekly: { 'weekly-daily-missions': { count: 4, claimed: false } } }));
+    reloadMissions();
+    track('idle_reward_claimed', {}); // today's daily is fresh, so it completes again
+    expect(getMissionProgress('weekly-daily-missions').count).toBe(5);
   });
 });

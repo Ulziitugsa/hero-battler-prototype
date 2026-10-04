@@ -61,7 +61,7 @@ describe('Pack Tickets open packs of the same finite Box', () => {
     expect(MOONFALL_BOX.gemsPerPack).toBe(150);
     expect(PROTOTYPE_BOX).toMatchObject({ packCount: 100, cardsPerPack: 5, cardCounts: { common: 258, rare: 168, epic: 54, legendary: 20 } });
   });
-  it('each pack fires pack_opened (what the "Open a pack" missions count), whichever way it was paid', () => {
+  it('each pack fires pack_opened (what event pack objectives count), whichever way it was paid', () => {
     setGems(MOONFALL_BOX.gemsPerPack * 10);
     setTickets(1);
     buyBoxPacks(10);
@@ -82,24 +82,21 @@ describe('Pack Ticket rewards: 1 Ticket = 1 pack = 5 cards (ozi, 2026-10-04)', (
     expect(result.opening.packs[0]).toHaveLength(5);
     expect(getEconomy().tickets).toBe(0);
   });
-  it('Journey Day 2 and the weekly "Open 5 packs" mission each grant exactly one Pack Ticket', () => {
+  it('Journey Day 2 and the weekly "Complete 5 daily missions" mission each grant exactly one Pack Ticket', () => {
     expect(JOURNEY_DAYS.find((d) => d.day === 2)).toMatchObject({ title: 'A Pack Ticket', rewardTickets: 1 });
-    expect(WEEKLY_MISSIONS.find((m) => m.id === 'weekly-open-packs')).toMatchObject({ title: 'Open 5 packs', metric: 'pack_opened', target: 5, rewardTickets: 1, rewardGems: 100 });
+    expect(WEEKLY_MISSIONS.find((m) => m.id === 'weekly-daily-missions')).toMatchObject({ title: 'Complete 5 daily missions', metric: 'daily_mission_completed', target: 5, rewardTickets: 1, rewardGems: 100 });
   });
-  it('the weekly pack mission counts Ticket openings and never pays for itself', () => {
+  it('opening packs advances no recurring mission, so the weekly Ticket never asks the player to spend', () => {
     resetMissions();
     initMissions();
     setGems(0);
     setTickets(5);
-    for (let i = 0; i < 5; i += 1) expect(buyBoxPacks(1, MOONFALL_BOX, 'tickets').ok).toBe(true); // a Ticket opening is a pack opened
-    const claim = claimMission('weekly-open-packs');
-    expect(claim).toMatchObject({ ok: true, tickets: 1, gems: 100 });
-    expect(claimMission('daily-open-pack')).toMatchObject({ ok: true, gems: 20 });
-    // Five packs in, one pack (and 120 Gems, under one 150-Gem pack) back out: no loop.
-    expect(getEconomy()).toMatchObject({ tickets: 1, gems: 120 });
-    expect(claimMission('weekly-open-packs').ok).toBe(false); // once a week
+    for (let i = 0; i < 5; i += 1) expect(buyBoxPacks(1, MOONFALL_BOX, 'tickets').ok).toBe(true);
+    expect(ALL_MISSIONS.some((m) => m.metric === 'pack_opened')).toBe(false);
+    expect(claimMission('weekly-daily-missions')).toMatchObject({ ok: false, reason: 'Not complete yet.' });
+    expect(getEconomy()).toMatchObject({ tickets: 0, gems: 0 });
   });
-  it('the other weekly missions give no Ticket; recurring free income is one pack a week', () => {
+  it('the other weekly missions give no Ticket; recurring free income is still one pack a week, from one source', () => {
     expect(WEEKLY_MISSIONS.find((m) => m.id === 'weekly-campaign-wins')).toMatchObject({ rewardTickets: 0, rewardGold: 200 });
     expect(WEEKLY_MISSIONS.find((m) => m.id === 'weekly-battles')).toMatchObject({ rewardTickets: 0, rewardGold: 150 });
     expect(ALL_MISSIONS.reduce((n, m) => n + m.rewardTickets, 0)).toBe(1);
@@ -138,7 +135,7 @@ describe('Pack Ticket rewards: 1 Ticket = 1 pack = 5 cards (ozi, 2026-10-04)', (
     expect(grants).toEqual({
       'journey:day-2': 1, // one-time free
       'ranked:rating-300': 1, // one-time free
-      'mission:weekly-open-packs': 1, // recurring free
+      'mission:weekly-daily-missions': 1, // recurring free
       'event:long-vigil-2026:login-day-6': 1, // event
       'offer:starter-pack': 5, // paid offer, placeholder
       'offer:growth-pack': 3, // paid offer, placeholder

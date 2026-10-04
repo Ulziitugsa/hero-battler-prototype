@@ -144,7 +144,10 @@ function allDailyComplete(daily: Record<string, MissionProgress>): boolean {
 }
 
 /** Advances every mission whose metric matches this event, capped at target, skipping already-claimed
- * missions (a claimed mission's counter is frozen for the rest of its period - claiming is terminal). */
+ * missions (a claimed mission's counter is frozen for the rest of its period - claiming is terminal).
+ * The new state is committed BEFORE the progress events are tracked, because those events can advance other
+ * missions in turn (the weekly "Complete 5 daily missions" counts daily_mission_completed): the nested call must
+ * see this update, and must not be overwritten by it. */
 function recordMetric(metric: AnalyticsEvent['name']): void {
   const matches = missionsForMetric(metric);
   if (matches.length === 0) return;
@@ -154,6 +157,7 @@ function recordMetric(metric: AnalyticsEvent['name']): void {
   let weeklyChanged = false;
   const nextDaily = { ...state.daily };
   const nextWeekly = { ...state.weekly };
+  const followUps: [AnalyticsEvent['name'], Record<string, string | number>][] = [];
   for (const def of matches) {
     const bucket = def.period === 'daily' ? nextDaily : nextWeekly;
     const current = bucket[def.id] ?? { count: 0, claimed: false };
@@ -162,17 +166,18 @@ function recordMetric(metric: AnalyticsEvent['name']): void {
     bucket[def.id] = { count: nextCount, claimed: false };
     if (def.period === 'daily') dailyChanged = true;
     else weeklyChanged = true;
-    track('mission_progressed', { missionId: def.id, count: nextCount, target: def.target });
-    track(def.period === 'daily' ? 'daily_mission_progress' : 'weekly_mission_progress', { missionId: def.id, count: nextCount, target: def.target });
+    followUps.push(['mission_progressed', { missionId: def.id, count: nextCount, target: def.target }]);
+    followUps.push([def.period === 'daily' ? 'daily_mission_progress' : 'weekly_mission_progress', { missionId: def.id, count: nextCount, target: def.target }]);
     if (nextCount >= def.target) {
-      track('mission_completed', { missionId: def.id });
-      track(def.period === 'daily' ? 'daily_mission_completed' : 'weekly_mission_completed', { missionId: def.id });
+      followUps.push(['mission_completed', { missionId: def.id }]);
+      followUps.push([def.period === 'daily' ? 'daily_mission_completed' : 'weekly_mission_completed', { missionId: def.id }]);
     }
   }
   // Fires once per day, exactly on the transition into "every daily mission complete" - never re-fires
   // for the rest of that day (there's nothing left to advance), so no separate persisted flag is needed.
-  if (dailyChanged && !wasAllDailyComplete && allDailyComplete(nextDaily)) track('daily_set_completed', {});
+  if (dailyChanged && !wasAllDailyComplete && allDailyComplete(nextDaily)) followUps.push(['daily_set_completed', {}]);
   if (dailyChanged || weeklyChanged) commit({ ...state, daily: nextDaily, weekly: nextWeekly });
+  for (const [name, properties] of followUps) track(name, properties);
 }
 
 let subscribed = false;

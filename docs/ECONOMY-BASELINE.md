@@ -6,7 +6,7 @@ This is the starting point for the future monetization and economy pass. It reco
 
 - **1 Pack Ticket = 1 pack = 5 cards** of the current Box (`buyBoxPacks(count, box, 'tickets')`).
 - There are no fractional Tickets, and a Ticket never reveals fewer cards.
-- A Ticket opening is a real pack opening. It counts toward "Open a pack", "Open 5 packs" and event pack objectives, and it plays the same ceremony as Gems.
+- A Ticket opening is a real pack opening. It counts toward event pack objectives, and it plays the same ceremony as Gems.
 - Tickets are never a silent fallback for Gems.
 
 ### Every production Ticket source (ozi, 2026-10-04)
@@ -17,7 +17,7 @@ This is the starting point for the future monetization and economy pass. It reco
 |---|---|---|---|---|---|
 | Journey Day 2 | one-time free | 1 | 1 | 5 | once per account |
 | Ranked reward at rating 300 | one-time free | 1 | 1 | 5 | once per account (peak rating) |
-| Weekly mission "Open 5 packs" | recurring free | 1 | 1 | 5 | weekly |
+| Weekly mission "Complete 5 daily missions" | recurring free | 1 | 1 | 5 | weekly |
 | Long Vigil login Day 6 | event | 1 | 1 | 5 | once per event run |
 | Starter Pack offer | paid offer (placeholder) | 5 | 5 | 25 | per simulated purchase |
 | Growth Pack offer | paid offer (placeholder) | 3 | 3 | 15 | per simulated purchase |
@@ -25,7 +25,7 @@ This is the starting point for the future monetization and economy pass. It reco
 
 Nothing else grants Tickets: no daily mission, no other weekly mission, no other event reward, no starting balance, and no first-purchase bonus. The dev tools can grant Tickets, but only in development.
 
-**Recurring free income** is 1 Pack Ticket a week, which is 5 cards.
+**Recurring free income** is 1 Pack Ticket a week, which is 5 cards. It comes from playing, not from opening packs.
 
 What changed in the migration:
 - Journey Day 2 went from 3 Tickets to 1.
@@ -36,6 +36,23 @@ What changed in the migration:
 ### Saved Summon Tickets: intentional legacy generosity
 
 A Summon Ticket in an old save becomes one Pack Ticket, worth 5 cards instead of 1. Balances are not converted or divided, and no Gems are refunded. This is deliberate while Moonwater is pre-release.
+
+## Economy cleanup (ozi, 2026-10-04)
+
+A small cleanup ahead of the Stage 1 work. It changes no price, Ticket value, Box, Energy number or income total.
+
+- **Pack-gated recurring missions are retired.** No daily or weekly mission asks the player to open (and so buy) packs. Each replacement keeps the reward it replaced:
+
+  | Retired | Replacement | Reward |
+  |---|---|---|
+  | Daily "Open a pack" | Daily "Win a Ranked battle" | 20 Gems |
+  | Weekly "Open 5 packs" | Weekly "Complete 5 daily missions" | 100 Gems + 1 Pack Ticket |
+
+  The weekly mission counts each daily mission the player completes (claimed or not), across the week's days.
+- **Gold is no longer purchasable with Gems.** The Shop's 50 Gems → 500 Gold exchange is removed, with no replacement Gold purchase. Gold is becoming an earn-only soft currency (Campaign, Quick Battle, missions, idle, Journey, events, Ranked, the daily Shop gift) and the future Card Trader currency. The placeholder Starter and Growth Pack bundles still include Gold; the monetization pass owns their contents.
+- **The Gem Energy refill stays** (35 Gems for up to 20 Energy). Choosing to refill Energy is a fair player choice.
+- **Energy pacing may be revisited later**, in its own study: possibly a higher capacity, a slower recharge and a refill that restores a meaningful chunk, without the refill becoming a dominant Gems → Gold route (Energy plays Campaign stages, which pay Gold). Capacity, recharge and the refill are unchanged for now (design note in `src/game/shop/energyRefill.ts`).
+- **The Growth Pack no longer depends on historical Mastery.** It used to show only to saves with a historical Ascension/Mastery rank above 0, which no player can raise any more. It now shows once the player has opened a pack and reached Account Level 5 (a placeholder); the Starter Pack shows once the player has opened a pack. The historical Ascension record itself is preserved, untouched (`src/game/offers/eligibility.ts`).
 
 ## Paid offers and prices are prototype placeholders
 
