@@ -6,7 +6,7 @@ import { TicketIcon } from '../components/TicketIcon';
 import { CardArtwork } from '../components/CardArtwork';
 import { getConfig } from '../config/config';
 import { useEconomy } from '../game/economy/useEconomy';
-import { spendGems, grantGold } from '../game/economy/economy';
+import { canAfford, spendGems, grantGold } from '../game/economy/economy';
 import { MAX_GOLD } from '../game/economy/config';
 import { loadEnergy, restoreEnergy } from '../game/campaign/energy';
 import { getDailyShopGiftState, subscribeDailyShopGift, claimDailyShopGift, dailyShopGiftResetsAt, DAILY_SHOP_GIFT_GOLD } from '../game/shop/dailyGift';
@@ -246,8 +246,8 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
     <section className="shop-section shop-secondary shop-trade-section" aria-labelledby="shop-trade-title">
       <div className="shop-section-heading"><div><span className="shop-section-eyebrow">RESOURCE EXCHANGE</span><h2 id="shop-trade-title">For the road</h2></div></div>
       <div className="shop-trades">
-        <article className="shop-trade-card"><span className="shop-trade-icon gold"><GoldIcon size={23} /></span><div className="shop-trade-copy"><h3>Gold exchange</h3><p><GemIcon size={14} />{GOLD_EXCHANGE_GEMS} Gems <span aria-hidden="true">→</span> <GoldIcon size={14} />{GOLD_EXCHANGE_AMOUNT} Gold</p></div><button type="button" onClick={() => { track('shop_product_viewed', { productId: 'gold-for-gems', productType: 'gold' }); setPending({ kind: 'gold' }); }} disabled={economy.gems < GOLD_EXCHANGE_GEMS || economy.gold >= MAX_GOLD}>{economy.gold >= MAX_GOLD ? 'Gold full' : 'Exchange'}</button></article>
-        <article className="shop-trade-card"><span className="shop-trade-icon energy">✦</span><div className="shop-trade-copy"><h3>Energy refill</h3><p>Restore up to {ENERGY_REFILL_AMOUNT} Energy for <GemIcon size={14} />{ENERGY_REFILL_GEMS} Gems</p><small>{energy.current}/{energy.max} Energy · {energy.current >= energy.max ? 'already full' : `${energy.max - energy.current} capacity available`}</small></div><button type="button" onClick={() => { track('shop_product_viewed', { productId: 'energy-refill', productType: 'energy' }); setPending({ kind: 'energy' }); }} disabled={economy.gems < ENERGY_REFILL_GEMS || energy.current >= energy.max}>{energy.current >= energy.max ? 'Full' : 'Refill'}</button></article>
+        <article className="shop-trade-card"><span className="shop-trade-icon gold"><GoldIcon size={23} /></span><div className="shop-trade-copy"><h3>Gold exchange</h3><p><GemIcon size={14} />{GOLD_EXCHANGE_GEMS} Gems <span aria-hidden="true">→</span> <GoldIcon size={14} />{GOLD_EXCHANGE_AMOUNT} Gold</p></div><button type="button" onClick={() => { track('shop_product_viewed', { productId: 'gold-for-gems', productType: 'gold' }); setPending({ kind: 'gold' }); }} disabled={!canAfford(GOLD_EXCHANGE_GEMS, economy.gems) || economy.gold >= MAX_GOLD}>{economy.gold >= MAX_GOLD ? 'Gold full' : 'Exchange'}</button></article>
+        <article className="shop-trade-card"><span className="shop-trade-icon energy">✦</span><div className="shop-trade-copy"><h3>Energy refill</h3><p>Restore up to {ENERGY_REFILL_AMOUNT} Energy for <GemIcon size={14} />{ENERGY_REFILL_GEMS} Gems</p><small>{energy.current}/{energy.max} Energy · {energy.current >= energy.max ? 'already full' : `${energy.max - energy.current} capacity available`}</small></div><button type="button" onClick={() => { track('shop_product_viewed', { productId: 'energy-refill', productType: 'energy' }); setPending({ kind: 'energy' }); }} disabled={!canAfford(ENERGY_REFILL_GEMS, economy.gems) || energy.current >= energy.max}>{energy.current >= energy.max ? 'Full' : 'Refill'}</button></article>
       </div>
     </section>
 

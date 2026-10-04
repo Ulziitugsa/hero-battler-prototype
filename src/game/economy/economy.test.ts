@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { GEM_REWARDS, GOLD_REWARDS, MAX_GEMS, MAX_GOLD, MAX_TICKETS, STARTING_GEMS, STARTING_GOLD, STARTING_TICKETS } from './config';
-import { canAfford, canAffordGold, canAffordTickets, getEconomy, getGems, getGold, getTickets, grantGems, grantGold, grantGoldOnce, grantTickets, hasGrant, isUnlimitedGems, reloadEconomy, setGems, setGold, setTickets, setUnlimitedGems, spendGems, spendGold, spendTickets, subscribeEconomy } from './economy';
+import { canAfford, canAffordGold, canAffordTickets, getEconomy, getGems, getGold, getTickets, grantGems, grantGold, grantGoldOnce, grantTickets, hasGrant, isUnlimitedGems, reloadEconomy, setGems, setGold, setTickets, setUnlimitedGems, spendGems, spendGold, spendTickets, subscribeEconomy, UNLIMITED_GEMS_IN_PRODUCTION } from './economy';
 import { ECONOMY_STORAGE_KEY, sanitizeEconomy } from './persistence';
 import { campaignFirstClearGems, campaignWinGold, chapterCompleteGems, levelGems, quickBattleGold } from './rewards';
 
@@ -275,7 +275,7 @@ describe('the retired Moonwell Summon record (legacySummon.ts)', () => {
   });
 });
 
-describe('dev-only Unlimited Gems', () => {
+describe('Unlimited Gems', () => {
   it('is off by default and never changes real balances while off', () => {
     expect(isUnlimitedGems()).toBe(false);
     setGems(50);
@@ -292,6 +292,18 @@ describe('dev-only Unlimited Gems', () => {
     setUnlimitedGems(false);
     expect(isUnlimitedGems()).toBe(false);
     expect(canAfford(900)).toBe(false);
+  });
+  it('is on in production builds while UNLIMITED_GEMS_IN_PRODUCTION is set, without touching the stored balance', () => {
+    setGems(50);
+    vi.stubEnv('DEV', false);
+    try {
+      expect(isUnlimitedGems()).toBe(UNLIMITED_GEMS_IN_PRODUCTION);
+      expect(canAfford(900)).toBe(UNLIMITED_GEMS_IN_PRODUCTION);
+      expect(spendGems(900)).toBe(UNLIMITED_GEMS_IN_PRODUCTION);
+      expect(getGems()).toBe(50);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

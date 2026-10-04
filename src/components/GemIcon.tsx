@@ -23,9 +23,9 @@ export function GemAmount({ amount }: { amount: number }) {
 /** Current balance, live: gem + number. Quiet by design - shown on Home and the Summon screen only. */
 export function GemBalance({ className = '' }: { className?: string }) {
   const { gems } = useEconomy();
-  const unlimited = useUnlimitedGems(); // dev-only flag; always false in production
+  const unlimited = useUnlimitedGems();
   return (
-    <span className={`gem-balance ${className}`} aria-label={unlimited ? 'Unlimited Gems (dev)' : `${gems} Gems`}>
+    <span className={`gem-balance ${className}`} aria-label={unlimited ? 'Unlimited Gems' : `${gems} Gems`}>
       <GemIcon size={15} />
       <span>{unlimited ? '∞' : gems.toLocaleString()}</span>
     </span>

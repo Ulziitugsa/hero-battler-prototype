@@ -21,6 +21,7 @@ import type { MissionsState } from '../game/missions/store';
 import { useMissions } from '../game/missions/useMissions';
 import { useJourney } from '../game/journey/useJourney';
 import { useEconomy } from '../game/economy/useEconomy';
+import { canAfford } from '../game/economy/economy';
 import { MOONFALL_BOX } from '../game/box/boxProduct';
 import { prototypeBoxPacksRemaining } from '../game/box/prototypeBox';
 import { JOURNEY_DAYS } from '../game/journey/definitions';
@@ -88,7 +89,7 @@ export function HomePage(props: HomeProps) {
     return null;
   })();
   const packsLeft = prototypeBoxPacksRemaining();
-  const packReady = packsLeft > 0 && (economy.tickets > 0 || economy.gems >= MOONFALL_BOX.gemsPerPack);
+  const packReady = packsLeft > 0 && (economy.tickets > 0 || canAfford(MOONFALL_BOX.gemsPerPack, economy.gems));
   const featureCard = [...deck.cardIds].map(getCard).filter(card => card.type === 'hero').sort((a, b) => {
     const rarity: Record<string, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
     return rarity[b.rarity] - rarity[a.rarity] || (b.power ?? 0) - (a.power ?? 0);

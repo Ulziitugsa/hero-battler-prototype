@@ -52,9 +52,9 @@ export function subscribeEconomy(listener: () => void): () => void {
 }
 
 // ---- Dev-only Unlimited Gems -----------------------------------------------------------------
-// A testing aid so animations can be inspected without earning Gems. It exists ONLY when
-// import.meta.env.DEV is true (the Vite dev server / vitest): a production build compiles the checks to
-// `false`, the flag can't be read from storage or switched on, and every affordability check uses the real balance.
+// A testing aid so animations can be inspected without earning Gems. The stored switch exists ONLY when
+// import.meta.env.DEV is true (the Vite dev server / vitest): a production build can't read it from storage or switch
+// it on, and follows UNLIMITED_GEMS_IN_PRODUCTION below instead.
 
 const UNLIMITED_KEY = 'skyloom:dev:unlimitedGems';
 let unlimitedGems = false;
@@ -66,8 +66,16 @@ if (import.meta.env.DEV) {
   }
 }
 
+/**
+ * TEMPORARY (ozi, 2026-10-04): production builds play with unlimited Gems while the economy is being tested. Spends pass
+ * without deducting and the balance shows as infinite; the stored balance is untouched, so setting this back to false
+ * restores every player's real Gems. Turn it off before any real playtest or launch.
+ */
+export const UNLIMITED_GEMS_IN_PRODUCTION = true;
+
 export function isUnlimitedGems(): boolean {
-  return import.meta.env.DEV && unlimitedGems;
+  if (!import.meta.env.DEV) return UNLIMITED_GEMS_IN_PRODUCTION;
+  return unlimitedGems;
 }
 
 export function setUnlimitedGems(on: boolean): void {
@@ -107,7 +115,7 @@ export function grantGems(amount: number, source: GemSource): GemGrantResult {
   return { gained, balance, source };
 }
 
-/** Removes Gems. Returns false - changing nothing - for a non-whole/negative amount or one the player can't afford. (Unlimited Gems, dev only, succeeds without deducting.) */
+/** Removes Gems. Returns false - changing nothing - for a non-whole/negative amount or one the player can't afford. (Unlimited Gems succeeds without deducting.) */
 export function spendGems(amount: number): boolean {
   const economy = getEconomy();
   if (!canAfford(amount, economy.gems)) return false;
