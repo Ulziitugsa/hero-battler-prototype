@@ -312,9 +312,10 @@ describe('resolveRoundInternal on card combat', () => {
     expect(fakeMatches[0].canonical_state.player.hp).toBeLessThanOrEqual(20);
   });
 
-  it('a card match from another resolver version is refused (409) and left exactly as stored', async () => {
+  // v3 is the version before the timing cleanup (no On Play, Attached Spells): its matches are not reinterpreted.
+  it.each([3, CARD_RESOLVER_VERSION + 1])('a card match from resolver version %i is refused (409) and left exactly as stored', async (version) => {
     const row = cardRow();
-    const other = { ...row.canonical_state, cardCombat: { ...row.canonical_state.cardCombat!, version: CARD_RESOLVER_VERSION + 1 } };
+    const other = { ...row.canonical_state, cardCombat: { ...row.canonical_state.cardCombat!, version } };
     fakeMatches = [{ ...row, canonical_state: other }];
     fakePings = [{ match_id: 'm1', event_seq: 0 }];
     const snapshot = structuredClone(other);

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { GEM_REWARDS, GOLD_REWARDS, MAX_GEMS, MAX_GOLD, MAX_TICKETS, STARTING_GEMS, STARTING_GOLD, STARTING_TICKETS } from './config';
-import { canAfford, canAffordGold, canAffordTickets, commitSummon, getEconomy, getGems, getGold, getPity, getTickets, grantGems, grantGold, grantGoldOnce, grantTickets, hasGrant, isUnlimitedGems, reloadEconomy, resetEconomy, resetSummonState, setGems, setGold, setPity, setTickets, setUnlimitedGems, spendGems, spendGold, spendTickets, subscribeEconomy } from './economy';
+import { canAfford, canAffordGold, canAffordTickets, getEconomy, getGems, getGold, getTickets, grantGems, grantGold, grantGoldOnce, grantTickets, hasGrant, isUnlimitedGems, reloadEconomy, setGems, setGold, setTickets, setUnlimitedGems, spendGems, spendGold, spendTickets, subscribeEconomy } from './economy';
 import { ECONOMY_STORAGE_KEY, sanitizeEconomy } from './persistence';
 import { campaignFirstClearGems, campaignWinGold, chapterCompleteGems, levelGems, quickBattleGold } from './rewards';
 
@@ -109,7 +110,7 @@ describe('Gold reward config', () => {
   });
 });
 
-describe('Summon Tickets (Commercial Prototype Phase 7)', () => {
+describe('Pack Tickets (were Summon Tickets)', () => {
   it('grants, notifies subscribers and persists', () => {
     let calls = 0;
     const off = subscribeEconomy(() => calls++);
@@ -211,11 +212,8 @@ describe('Gems', () => {
   });
   it('survives a reload from storage', () => {
     setGems(777);
-    setPity('gravebound', 12);
     reloadEconomy();
     expect(getGems()).toBe(777);
-    expect(getPity('gravebound')).toBe(12);
-    expect(getPity('royal-vanguard')).toBe(0);
   });
 });
 
@@ -259,19 +257,21 @@ describe('schema migration', () => {
   });
 });
 
-describe('per-banner pity', () => {
-  it('each banner keeps its own counter', () => {
-    setPity('royal-vanguard', 17);
-    setPity('gravebound', 4);
-    setPity('infernal-hunt', 31);
-    expect([getPity('royal-vanguard'), getPity('gravebound'), getPity('infernal-hunt')]).toEqual([17, 4, 31]);
-    commitSummon(0, 'gravebound', 5, []);
-    expect([getPity('royal-vanguard'), getPity('gravebound'), getPity('infernal-hunt')]).toEqual([17, 5, 31]);
+describe('the retired Moonwell Summon record (legacySummon.ts)', () => {
+  const record = { pity: { gravebound: 12, 'royal-vanguard': 3 }, history: [{ cardId: 'kng-paladin', rarity: 'legendary', at: 5, wasNew: true, bannerId: 'royal-vanguard' }] };
+  it('is read from a save and kept unchanged through ordinary writes (nothing writes it any more)', () => {
+    localStorage.setItem(ECONOMY_STORAGE_KEY, JSON.stringify({ version: 5, gems: 300, gold: 0, tickets: 2, grants: [], summon: record }));
+    reloadEconomy();
+    expect(getEconomy().summon).toEqual(record);
+    grantGems(10, 'dev');
+    spendTickets(1);
+    reloadEconomy();
+    expect(getEconomy().summon).toEqual(record);
+    expect(getTickets()).toBe(1);
   });
-  it('resetSummonState clears every banner', () => {
-    setPity('gravebound', 9);
-    resetSummonState();
-    expect(getPity('gravebound')).toBe(0);
+  it('economy.ts exposes no way to write it (no commitSummon / setPity / resetSummonState)', () => {
+    const code = readFileSync(new URL('./economy.ts', import.meta.url), 'utf8');
+    expect(code).not.toMatch(/export function (commitSummon|setPity|getPity|resetSummonState)\b/);
   });
 });
 
@@ -281,89 +281,17 @@ describe('dev-only Unlimited Gems', () => {
     setGems(50);
     expect(canAfford(100)).toBe(false);
     expect(spendGems(100)).toBe(false);
-    expect(commitSummon(100, 'gravebound', 1, [])).toBe(false);
   });
-  it('when on (dev/test only) summons pass affordability without deducting, and turning it off restores the real check', () => {
+  it('when on (dev/test only) spends pass affordability without deducting, and turning it off restores the real check', () => {
     setGems(50);
     setUnlimitedGems(true);
     expect(isUnlimitedGems()).toBe(true);
     expect(canAfford(900)).toBe(true);
-    expect(commitSummon(900, 'gravebound', 3, [])).toBe(true);
+    expect(spendGems(900)).toBe(true);
     expect(getGems()).toBe(50);
-    expect(getPity('gravebound')).toBe(3);
     setUnlimitedGems(false);
     expect(isUnlimitedGems()).toBe(false);
     expect(canAfford(900)).toBe(false);
-  });
-});
-
-describe('commitSummon', () => {
-  const entry = (n: number) => ({ cardId: 'kng-archer', rarity: 'common' as const, at: n, wasNew: false, bannerId: 'royal-vanguard' });
-  it('spends, sets pity and records history newest-first in one write', () => {
-    setGems(1000);
-    expect(commitSummon(900, 'royal-vanguard', 7, [entry(1), entry(2)])).toBe(true);
-    expect(getGems()).toBe(100);
-    expect(getPity('royal-vanguard')).toBe(7);
-    expect(getEconomy().summon.history.map((h) => h.at)).toEqual([2, 1]);
-  });
-  it('changes nothing when unaffordable', () => {
-    setGems(50);
-    expect(commitSummon(100, 'royal-vanguard', 5, [entry(1)])).toBe(false);
-    expect(getEconomy()).toMatchObject({ gems: 50, summon: { pity: {}, history: [] } });
-  });
-  it('caps history at 50', () => {
-    setGems(100000);
-    for (let i = 0; i < 70; i++) commitSummon(0, 'royal-vanguard', 0, [entry(i)]);
-    expect(getEconomy().summon.history).toHaveLength(50);
-    expect(getEconomy().summon.history[0].at).toBe(69);
-  });
-  it('resetSummonState clears pity + history but keeps Gems; resetEconomy restores the start', () => {
-    setGems(500);
-    commitSummon(0, 'royal-vanguard', 9, [entry(1)]);
-    resetSummonState();
-    expect(getEconomy()).toMatchObject({ gems: 500, summon: { pity: {}, history: [] } });
-    resetEconomy();
-    expect(getGems()).toBe(STARTING_GEMS);
-  });
-
-  describe('paid with Tickets - the exact same pity/history write path as Gems (Commercial Prototype Phase 7)', () => {
-    it('spends Tickets instead of Gems, defaults to Gems when omitted', () => {
-      setGems(1000);
-      setTickets(5);
-      expect(commitSummon(3, 'royal-vanguard', 1, [entry(1)], 'tickets')).toBe(true);
-      expect(getTickets()).toBe(2);
-      expect(getGems()).toBe(1000); // untouched
-      expect(getPity('royal-vanguard')).toBe(1);
-    });
-    it('refuses an unaffordable Ticket cost, changing nothing - Gems are never a fallback', () => {
-      setGems(1000);
-      setTickets(1);
-      expect(commitSummon(3, 'royal-vanguard', 1, [entry(1)], 'tickets')).toBe(false);
-      expect(getTickets()).toBe(1);
-      expect(getGems()).toBe(1000);
-      expect(getPity('royal-vanguard')).toBe(0);
-    });
-    it('a Gem pull and a Ticket pull on the SAME banner advance the SAME pity counter - never two pools', () => {
-      setGems(1000);
-      setTickets(5);
-      commitSummon(100, 'royal-vanguard', 12, [entry(1)]); // Gems (default currency)
-      expect(getPity('royal-vanguard')).toBe(12);
-      commitSummon(1, 'royal-vanguard', 13, [entry(2)], 'tickets');
-      expect(getPity('royal-vanguard')).toBe(13); // continues from the Gem pull's count, not a fresh counter
-    });
-    it('a Gem pull and a Ticket pull write to the SAME shared history, newest first, regardless of which paid for it', () => {
-      setGems(1000);
-      setTickets(5);
-      commitSummon(100, 'royal-vanguard', 1, [entry(1)]);
-      commitSummon(1, 'royal-vanguard', 2, [entry(2)], 'tickets');
-      expect(getEconomy().summon.history.map((h) => h.at)).toEqual([2, 1]);
-    });
-    it('resetSummonState clears pity/history for Ticket-funded pulls exactly like Gem-funded ones, keeping Tickets', () => {
-      setTickets(10);
-      commitSummon(1, 'royal-vanguard', 4, [entry(1)], 'tickets');
-      resetSummonState();
-      expect(getEconomy()).toMatchObject({ tickets: 9, summon: { pity: {}, history: [] } });
-    });
   });
 });
 

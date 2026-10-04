@@ -87,6 +87,11 @@ export function prototypeBoxNextCardOdds(state = getPrototypeBoxState()): Record
   return odds;
 }
 
+/** Every card a full Box holds at least one copy of (its printed contents, whatever is left in the player's copy). */
+export function prototypeBoxCardIds(): string[] {
+  return Object.keys(initialRemaining());
+}
+
 /** Every card in the Box with its full-Box and remaining copy counts, rarest first. */
 export function prototypeBoxContents(state = getPrototypeBoxState()): PrototypeBoxContentLine[] {
   const totals = initialRemaining();

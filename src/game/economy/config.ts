@@ -44,9 +44,9 @@ export const GOLD_REWARDS = {
 
 export type GoldSource = 'campaign' | 'quickBattle' | 'idle' | 'mission' | 'journey' | 'offer' | 'shop' | 'ranked' | 'event' | 'legacyLevelRefund' | 'dev';
 
-// ---- Summon Tickets (Commercial Prototype Phase 7) -----------------------------------------------
-// Tickets perform a Summon exactly like Gems (see summon/summon.ts) but are earn-only, sourced from
-// missions and the 7-day journey - never purchasable, never a second pity pool. PROTOTYPE values.
+// ---- Pack Tickets ---------------------------------------------------------------------------------
+// One Ticket opens one pack of a finite Box, in place of its Gem price (box/boxProduct.ts). Earn-only, sourced from
+// missions, the 7-day journey and offers - never purchasable. PROTOTYPE values.
 
 export const STARTING_TICKETS = 0;
 

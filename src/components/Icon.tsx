@@ -19,6 +19,7 @@ export type IconName =
   | 'hero'
   | 'spell'
   | 'continuousSpell'
+  | 'attachedSpell'
   | 'power'
   | 'hp'
   | 'attack'
@@ -56,6 +57,8 @@ const PATHS: Record<IconName, string> = {
   hero: 'M12 3 5 6.5V12c0 4.5 3 7.7 7 9 4-1.3 7-4.5 7-9V6.5L12 3Z',
   spell: 'M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z',
   continuousSpell: 'M8 12a4 4 0 1 1 8 0 4 4 0 0 1-8 0ZM12 2a10 10 0 1 0 8.66 5M20 2v5h-5',
+  // Two linked rings: a Spell bound to one Unit.
+  attachedSpell: 'M10 14a4 4 0 0 1 0-5.66l2.83-2.83a4 4 0 1 1 5.66 5.66L17 12.6M14 10a4 4 0 0 1 0 5.66l-2.83 2.83a4 4 0 1 1-5.66-5.66L7 11.4',
   power: 'M13 2 4 14h6l-1 8 9-12h-6l1-8Z',
   hp: 'M12 20.5s-7.5-4.6-9.7-9C.7 8 2 4.5 5.3 4c2-.3 3.7.7 4.7 2.2C11 4.7 12.7 3.7 14.7 4c3.3.5 4.6 4 3 7.5-2.2 4.4-9.7 9-9.7 9Z',
   attack: 'M6.5 17.5 17 7M14 4l6 2-2 6-2-2-3 3-3-3 3-3-2-2ZM4 20l3.5-3.5',

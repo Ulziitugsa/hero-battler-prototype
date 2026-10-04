@@ -9,6 +9,8 @@ export type Faction = 'infernal' | 'undead' | 'kingdom' | 'wildborn';
 export type CardType = 'hero' | 'spell';
 /** ONE_TIME: resolves once, then goes to the Graveyard, freeing its slot. CONTINUOUS: stays in its Spell slot, occupying it, until removed. */
 export type SpellKind = 'ONE_TIME' | 'CONTINUOUS';
+/** What a Continuous Spell belongs to in card combat: the Unit it is attached to, or its lane. See CardDefinition.spellBinding. */
+export type SpellBinding = 'UNIT' | 'LANE';
 export type LaneId = 'left' | 'center' | 'right';
 export type Side = 'player' | 'enemy';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
@@ -22,7 +24,10 @@ export function adjacentLanes(lane: LaneId): LaneId[] {
 }
 
 export type Trigger =
+  /** Legacy resolver only: when a card is played. Card combat has no On Play timing (resolver v4); it is kept for the legacy engine and its stored matches. */
   | 'ON_PLAY'
+  /** Card combat only: a one-time Spell's effect, resolved once when it is cast (resolver v4). Cards print no timing label for it. */
+  | 'CAST'
   | 'ROUND_START'
   | 'BEFORE_COMBAT'
   | 'AFTER_COMBAT'
@@ -52,6 +57,7 @@ export type Trigger =
 // Human-readable labels for the debug log / trigger banner.
 export const TRIGGER_LABEL: Record<Trigger, string> = {
   ON_PLAY: 'On Play',
+  CAST: 'Cast',
   ROUND_START: 'Round Start',
   BEFORE_COMBAT: 'Before Combat',
   AFTER_COMBAT: 'After Combat',
@@ -191,7 +197,15 @@ export type ActionDef =
    */
   | { type: 'REDUCE_OVERFLOW_DAMAGE'; amount: number; target: TargetScope }
   /** `cardType` defaults to 'hero' - a Graveyard return only ever picks Heroes unless a card explicitly asks for a Spell. */
-  | { type: 'RETURN_TO_HAND'; maxPower: number; pick: GraveyardPick; faction?: Faction; cardType?: 'hero' | 'spell' }
+  | {
+      type: 'RETURN_TO_HAND';
+      maxPower: number;
+      pick: GraveyardPick;
+      faction?: Faction;
+      cardType?: 'hero' | 'spell';
+      /** Card combat: on a Destroyed effect, never pick the copy that was just destroyed ("another Undead"). */
+      excludeSelf?: boolean;
+    }
   | { type: 'RETURN_TO_DECK' }
   /** Always revives into the ability-owner's own lane (a Spell's placement lane, or a Hero's own lane). */
   | { type: 'REVIVE_TO_LANE'; maxPower: number; pick: GraveyardPick; faction?: Faction }
@@ -262,6 +276,13 @@ export interface CardDefinition {
   faction: Faction;
   type: CardType;
   spellKind?: SpellKind; // Spells only
+  /**
+   * Card combat only, every Continuous Spell: what the Spell belongs to (resolver v4, docs/CARD-COMBAT-DESIGN.md section 18).
+   *  - 'UNIT': an Attached Spell. It is cast onto your Unit in its lane (it needs one) and goes to the Graveyard the moment
+   *    that Unit leaves play.
+   *  - 'LANE': it belongs to the lane and stays until it is destroyed, whoever stands there.
+   */
+  spellBinding?: SpellBinding;
   role: string; // e.g. "Fighter", "Tank", "Mage" - flavor/UI only, not read by the engine
   rarity: Rarity;
   /** Kept for a future cost system, but not enforced anywhere in this prototype (Energy removed). */
@@ -315,6 +336,8 @@ export interface HeroInstance {
   pacified?: boolean;
   /** Card combat only: this physical copy has already come back from the Graveyard once this match and can't again. */
   returned?: boolean;
+  /** Card combat only: this Unit's printed Shield (a Passive Shield on the card) has saved it once already. */
+  printedShieldUsed?: boolean;
 }
 
 export interface SpellZoneInstance {
@@ -327,6 +350,8 @@ export interface SpellZoneInstance {
   usedThisRound: boolean;
   /** Card combat only: this copy already came back from the Graveyard once this match. */
   returned?: boolean;
+  /** Card combat only: an Attached Spell's Unit (its instanceId). The Spell goes to the Graveyard when that Unit leaves play. */
+  boundTo?: string;
 }
 
 export interface HandCard {
@@ -526,6 +551,13 @@ export type GameEvent =
   /** `token` is set for a summoned token: it vanishes instead of entering the Graveyard. */
   | { type: 'HERO_DESTROYED'; side: Side; instanceId: string; cardId: string; name: string; lane: LaneId; token?: boolean }
   | { type: 'SPELL_ZONE_DESTROYED'; side: Side; instanceId: string; cardId: string; name: string; lane: LaneId }
+  /**
+   * Card combat: a Continuous Spell took its slot this round. `attachedTo` names the Unit an Attached Spell is attached to.
+   * (The legacy resolver logs the same moment as ON_PLAY with zone 'spell'.)
+   */
+  | { type: 'SPELL_ENTERED'; side: Side; instanceId: string; cardId: string; name: string; lane: LaneId; attachedTo?: { instanceId: string; name: string } }
+  /** Card combat: an Attached Spell went to the Graveyard because the Unit it was attached to left play. Pushed right after that Unit's HERO_DESTROYED. */
+  | { type: 'SPELL_EXPIRED'; side: Side; instanceId: string; cardId: string; name: string; lane: LaneId; unitName: string }
   /** `usedSpellZoneLane`, when present, is the Spell zone whose once-per-round reaction just fired (e.g. Grave Totem). */
   | { type: 'RETURNED_TO_HAND'; side: Side; cardId: string; name: string; graveyardIndex: number; handId: string; usedSpellZoneLane?: LaneId }
   | { type: 'RETURNED_TO_DECK'; side: Side; cardId: string; name: string }

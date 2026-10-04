@@ -41,6 +41,8 @@ function makeStep(visualType: VisualType, timingCategory: TimingCategory, events
  * rather than a uniform drag on every step.
  */
 const PAUSE_AFTER_VISUAL_TYPES = new Set<VisualType>(['combat-clash', 'hero-destroyed', 'shield-save', 'overflow-damage', 'clash-damage', 'direct-damage', 'spell-zone-destroyed', 'revived']);
+// 'spell-expired' (an Attached Spell leaving with its Unit) is deliberately not a pause beat: it follows the Unit's own
+// destruction straight away, so a lane with an Attached Spell resolves no slower than one without.
 
 function categoryFor(visualType: VisualType): TimingCategory {
   switch (visualType) {
@@ -66,6 +68,7 @@ function categoryFor(visualType: VisualType): TimingCategory {
     case 'immunity-blocked':
     case 'shield-granted':
     case 'spell-resolve-fade':
+    case 'spell-expired':
     case 'returned-to-hand':
     case 'exiled':
       return 'short';
@@ -159,6 +162,8 @@ export function buildAnimationSteps(events: GameEvent[]): AnimationStep[] {
       }
       const exit = buildClashExitStep(cd, cdIdx);
       if (exit) out.push(exit);
+      const expiry = buildExpiryStep(exit, cd, cdIdx);
+      if (expiry) out.push(expiry);
       return out;
     }
 
@@ -212,6 +217,26 @@ export function buildAnimationSteps(events: GameEvent[]): AnimationStep[] {
     return step;
   }
 
+  /**
+   * Card resolver v4: an Attached Spell leaves with its Unit (SPELL_EXPIRED straight after that Unit's HERO_DESTROYED).
+   * When the Unit's exit was pulled forward to its lane, the Spell's fade follows it there, as its own short beat.
+   */
+  function buildExpiryStep(exit: AnimationStep | null, cd: Extract<GameEvent, { type: 'CLASH_DAMAGE' }>, cdIdx: number): AnimationStep | null {
+    const expired: number[] = [];
+    for (const idx of exit?.commitIndices ?? []) {
+      const next = events[idx + 1];
+      if (next?.type === 'SPELL_EXPIRED' && !consumed.has(idx + 1)) {
+        consumed.add(idx + 1);
+        expired.push(idx + 1);
+      }
+    }
+    if (expired.length === 0) return null;
+    const step = makeStep('spell-expired', categoryFor('spell-expired'), expired.map((i) => events[i]), cdIdx, cd.lane);
+    step.maxEventIndex = cdIdx;
+    step.commitIndices = expired;
+    return step;
+  }
+
   for (let i = 0; i < events.length; i++) {
     if (consumed.has(i)) continue;
     const e = events[i];
@@ -257,6 +282,10 @@ function visualTypeForSingle(e: GameEvent): VisualType {
       return 'spell-resolve-fade';
     case 'SPELL_ZONE_DESTROYED':
       return 'spell-zone-destroyed';
+    case 'SPELL_ENTERED':
+      return 'continuous-spell-enter';
+    case 'SPELL_EXPIRED':
+      return 'spell-expired';
     case 'HERO_DESTROYED':
       return 'hero-destroyed';
     case 'SHIELD_GRANTED':

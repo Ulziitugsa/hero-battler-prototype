@@ -2,7 +2,7 @@ import { MASTERY_GOLD_FEE } from '../game/ascension/config.js';
 import type { GameConfig } from './schema.js';
 
 // The hardcoded default config (Commercial Prototype Phase 8) - every value here equals exactly what was
-// already live in the codebase before this phase (economy/config.ts, summon/config.ts, heroLevel/config.ts,
+// already live in the codebase before this phase (economy/config.ts, the retired summon/config.ts, heroLevel/config.ts,
 // campaign/energy.ts, campaign/idleRewards.ts). This is what a LocalConfigProvider returns with no
 // override applied, so the game runs identically offline with zero remote config wired - see config/config.ts.
 
@@ -21,18 +21,6 @@ export const DEFAULT_CONFIG: GameConfig = {
     quickBattleWinGold: 20,
     quickBattleDrawGold: 8,
     masteryGoldFee: [...MASTERY_GOLD_FEE],
-  },
-  summon: {
-    singleGemCost: 100,
-    tenGemCost: 900,
-    ticketCostSingle: 1,
-    ticketCostTen: 10,
-    pityThreshold: 40,
-    rarityRates: { common: 69, rare: 22, epic: 8, legendary: 1 },
-    heroWeight: 2,
-    spellWeight: 1,
-    featuredMainMultiplier: 3,
-    featuredSecondaryMultiplier: 2,
   },
   heroLevel: {
     maxHeroLevel: 60,
@@ -69,7 +57,6 @@ export const DEFAULT_CONFIG: GameConfig = {
     },
   },
   flags: {
-    alwaysShowTicketToggle: false,
     offersEnabled: true,
   },
 };

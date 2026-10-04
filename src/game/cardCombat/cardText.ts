@@ -21,7 +21,6 @@ const HP_LINES: Record<string, string[]> = {
   'inf-pit-fiend': [`Deal ${hp(2)} damage to the enemy player.`, 'If an enemy Unit was destroyed this round, gain +30 ATK this round.'],
   'inf-runebreaker': ['Destroy the enemy Continuous Spell in this lane.', 'While another Mage Slayer is in play, enemy Spells can’t affect this Unit.', `The second time the enemy casts a Spell in a round, deal ${hp(2)} damage to the enemy player.`],
   'inf-alpha-hound': ['Gain +15 ATK this round for each allied Unit, including this one.', `If you control 3 Units, deal ${hp(2)} damage to the enemy player.`],
-  'kng-light-priest': [`Restore ${hp(3)} HP to your player.`, 'This Unit gains a Shield.', 'Gain +15 ATK this round.'],
   'spl-siege-fire': [`If the enemy has no Unit in this lane, deal ${hp(1)} damage to the enemy player.`],
   'spl-arcane-bolt': [`Deal ${hp(3)} damage to the enemy player.`, `If you already cast a Spell this round, deal ${hp(2)} more.`],
 };
@@ -30,26 +29,24 @@ const HP_LINES: Record<string, string[]> = {
 export function cardCombatEffectLines(cardOrId: CardDefinition | string): CardEffectLine[] {
   const id = typeof cardOrId === 'string' ? cardOrId : cardOrId.id;
   const card = getCard(id);
-  if (hasCombatOverride(id)) {
-    // Lines the balance pass kept unchanged are the live ability objects: they read the live curated copy.
-    const liveLines = cardEffectLines(card);
-    return getCombatCard(id)
-      .abilities.filter((ability) => ability.text !== '')
-      .map((ability) => {
-        const liveIndex = card.abilities.indexOf(ability as (typeof card.abilities)[number]);
-        return { trigger: ability.trigger, label: TIMING_LABEL[ability.trigger], text: liveIndex >= 0 ? liveLines[liveIndex].text : ability.text, oncePerRound: !!ability.oncePerRound };
-      });
-  }
-  const lines = cardEffectLines(card);
   const hpLines = HP_LINES[id];
-  return hpLines ? lines.map((line, i) => ({ ...line, text: hpLines[i] ?? line.text })) : lines;
+  const liveLines = hpLines ? cardEffectLines(card).map((line, i) => ({ ...line, text: hpLines[i] ?? line.text })) : cardEffectLines(card);
+  if (!hasCombatOverride(id)) return liveLines;
+  // Lines a change kept as they were are the live ability objects (or, for a one-time Spell's effect re-timed to Cast,
+  // share its actions): they read the live curated copy. Everything else reads its card-combat ability text.
+  return getCombatCard(id)
+    .abilities.filter((ability) => ability.text !== '')
+    .map((ability) => {
+      const liveIndex = card.abilities.findIndex((live) => live === ability || live.actions === ability.actions);
+      return { trigger: ability.trigger, label: TIMING_LABEL[ability.trigger], text: liveIndex >= 0 ? liveLines[liveIndex].text : ability.text, oncePerRound: !!ability.oncePerRound };
+    });
 }
 
 /**
  * A leading timing phrase that only repeats the label printed before the line ("Before Combat: …" after "Clash").
  * Card surfaces drop it; the card data keeps it. Guard lines keep their "Guard N" keyword.
  */
-const REDUNDANT_PREFIX = /^(Before Combat|On Death|On Play|When Destroyed|Round End):\s*/;
+const REDUNDANT_PREFIX = /^(Before Combat|On Death|When Destroyed|Round End|Round Start):\s*/;
 const GUARD_PREFIX = /^(Guard \d): Before Combat, /;
 
 export function trimTiming(text: string): string {
@@ -67,7 +64,7 @@ export function trimTiming(text: string): string {
 export type BattleCopy = string | { face: string; board?: string; label?: string };
 
 /**
- * Battle copy: each effect as a short battle line under its label ("On Play: Adjacent allies +15 ATK."), written to be
+ * Battle copy: each effect as a short battle line under its label ("Passive: Adjacent allies +15 ATK."), written to be
  * read at a glance in hand and on the board. The focus panel and Card Inspect keep the full sentences. Conventions,
  * so the short form still says everything that matters in a fight:
  *  - an ATK change with no duration lasts for the rest of the battle; "this round" marks the temporary ones;
@@ -77,7 +74,7 @@ export type BattleCopy = string | { face: string; board?: string; label?: string
  *  - "with …" holds while the condition does (a Passive's dot on the board shows whether it does right now);
  *  - the label carries the trigger, so the line never repeats it; no abbreviations beyond ATK and HP.
  * A board line is only given where a phrase stops mattering once the card is in play ("from next round" on a Bypass,
- * whose dot shows when it starts; an On Play condition that has already been checked).
+ * whose dot shows when it starts).
  * Index-aligned with cardCombatEffectLines; a test keeps every card with an effect listed here. Legacy battles read
  * their own lines where the legacy rules differ (cardPresentation.ts LEGACY_LINES).
  */
@@ -85,9 +82,9 @@ export const BATTLE_LINES: Record<string, BattleCopy[]> = {
   'inf-flame-imp': ['+45 damage.'],
   'inf-cultist': ['+15 ATK this round.'],
   'inf-pit-fiend': [`Deal ${hp(2)} damage.`, '+30 ATK this round if an enemy fell.'],
-  'inf-hellhound': ['Silence the enemy here this round.', 'Enemy here −30 ATK this round.'],
+  'inf-hellhound': ['Enemy here −30 ATK this round.'],
   'inf-blood-demon': ['+15 ATK, up to +45.', '+30 ATK this round if an ally fell.'],
-  'inf-infernal-lord': ['All other Units −30 ATK this round.', 'Destroy enemy Continuous Spell here.'],
+  'inf-infernal-lord': ['Every enemy Unit −15 ATK.', 'Destroy enemy Continuous Spell here.'],
   'inf-runebreaker': ['Destroy enemy Continuous Spell here.', 'Spell Immune with Mage Slayer ally.', { face: `Deal ${hp(2)} damage.`, label: 'Enemy’s 2nd Spell' }],
   'inf-ash-jackal': ['+30 ATK this round per adjacent Beast.'],
   'inf-packhound': [{ face: 'Summon a Hound Pup, once per round.', label: 'Beast Ally Falls' }],
@@ -95,24 +92,24 @@ export const BATTLE_LINES: Record<string, BattleCopy[]> = {
   'inf-mirage-imp': [{ face: 'Bypass with your Continuous Spell here, from next round.', board: 'Bypass with your Continuous Spell here.' }],
   'und-bone-soldier': ['Return to your deck.', '+15 ATK this round per Graveyard card, up to +60.'],
   'und-dark-priest': [{ face: '+30 ATK this round if losing.', label: 'Guard 2' }, '+30 ATK this round with 3+ Graveyard cards.'],
-  'und-mira': [{ face: 'With 4 or fewer in hand, gain weakest Graveyard Undead.', board: 'Gain weakest Graveyard Undead.' }, 'Immune to Unit effects with 3+ Graveyard Undead.'],
+  'und-mira': ['Gain your weakest other Graveyard Undead.', 'Immune to Unit effects with 3+ Graveyard Undead.'],
   'und-cursed-warrior': ['Return to your hand.'],
   'und-grave-knight': [{ face: '+30 ATK this round if losing.', label: 'Guard 2' }, `Restore ${hp(2)} HP, once per round.`],
   'und-vharos': ['Revive here with 95 ATK.', 'Gain a random Graveyard Undead.'],
   'und-grave-sage': ['Gain a random Graveyard Spell.', { face: 'Adjacent allies gain a Shield.', label: 'Your 2nd Spell' }],
   'und-shade-thief': [{ face: 'Bypass while you have a Continuous Spell, from next round.', board: 'Bypass while you have a Continuous Spell.' }],
   'und-wraith-prince': [{ face: 'Bypass at −15 ATK while you have a Continuous Spell, from next round.', board: 'Bypass at −15 ATK while you have a Continuous Spell.' }, '+15 ATK.'],
-  'und-crypt-warden': [{ face: '+30 ATK this round if losing.', label: 'Guard 2' }, 'Gain a Shield with 2+ Graveyard cards.'],
-  'kng-royal-guard': ['Adjacent allies +15 ATK.', 'Spell Immune with Kingdom ally.'],
-  'kng-light-priest': [`Restore ${hp(3)} HP.`, 'Gain a Shield.', '+15 ATK this round.'],
+  'und-crypt-warden': [{ face: '+30 ATK this round if losing.', label: 'Guard 2' }, { face: 'With 2+ Graveyard cards, survives being destroyed once.', label: 'Shield' }],
+  'kng-royal-guard': ['Adjacent allies +15 ATK.', 'Adjacent allies gain +15 ATK.', 'Spell Immune with Kingdom ally.'],
+  'kng-light-priest': [{ face: 'Survives being destroyed once.', label: 'Shield' }, `Restore ${hp(1)} HP.`, '+15 ATK this round.'],
   'kng-archer': ['+30 ATK this round with your Continuous Spell here.'],
   'kng-battle-captain': ['Adjacent allies +15 ATK this round.', 'Immune to Unit effects with Knight ally.'],
-  'kng-paladin': ['Gain a Shield.', { face: '+45 ATK this round if losing.', label: 'Guard 3' }, `If it fell here, restore ${hp(1)} HP.`],
+  'kng-paladin': [{ face: 'Survives being destroyed once.', label: 'Shield' }, { face: '+45 ATK this round if losing.', label: 'Guard 3' }, `If it fell here, restore ${hp(1)} HP.`],
   'kng-apprentice-mage': ['+30 ATK this round.', 'Gain a random Graveyard Spell.'],
   'kng-archmage-vael': ['Your first one-time Spell each round repeats.', { face: `Deal ${hp(2)} damage.`, label: 'Your 2nd Spell' }, 'If hand is empty, gain a Graveyard Spell.'],
   'kng-spellbreaker': ['+30 ATK this round.'],
   'kng-null-templar': ['Ignores the first enemy Spell on it each round.'],
-  'wld-forest-wolf': ['+30 ATK if no enemy is here.'],
+  'wld-forest-wolf': ['+30 ATK while no enemy is here.'],
   'wld-ancient-treant': ['+15 ATK.'],
   'wld-titanroot': ['+30 ATK.'],
   'spl-power-surge': ['Your Unit here +45 ATK this round.'],
@@ -132,10 +129,10 @@ export const BATTLE_LINES: Record<string, BattleCopy[]> = {
   'spl-hush': ['Silence the enemy here this round.'],
   'spl-giants-bane': ['If they have more Units, destroy the enemy here.'],
   'spl-blood-pact': ['Destroy your Unit here, then theirs if it has 125 ATK or less.'],
-  'spl-battle-banner': ['Your Unit here +15 ATK.'],
+  'spl-battle-banner': ['Attached Unit +15 ATK.'],
   'spl-burning-ground': ['Enemy here −15 ATK.'],
   'spl-growth-totem': ['Your Unit here +15 ATK.'],
-  'spl-fortify': ['Your Unit here +15 ATK.'],
+  'spl-fortify': ['Attached Unit +15 ATK.'],
   'spl-cursed-ground': ['Your Unit here +15 ATK.'],
   'spl-siege-fire': [`If no enemy is here, deal ${hp(1)} damage.`],
   'spl-grave-totem': ['First ally lost here each round returns to hand.'],

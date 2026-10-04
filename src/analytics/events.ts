@@ -41,13 +41,10 @@ export type AnalyticsEventName =
   // docs/COMMERCIAL-PROTOTYPE-PLAN.md Phase 9 for why both exist rather than a rename)
   | 'campaign_power_wall_encountered'
   | 'campaign_retry_after_power_wall'
-  // Summon
-  | 'summon_opened'
-  | 'summon_performed'
-  | 'summon_ticket_used'
-  | 'summon_currency_selected'
-  | 'summon_result_viewed'
-  | 'summon_duplicate_progression_shown'
+  // Packs (finite Boxes; the Moonwell Summon is retired)
+  | 'pack_opened'
+  | 'pack_ticket_used'
+  | 'pack_results_viewed'
   | 'legendary_pulled'
   | 'prototype_box_opened'
   // Card Inspect (context: collection / deck / battle / opponent / pack / shop / other)

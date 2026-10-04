@@ -20,7 +20,7 @@ Card combat is the production rule set: Quick Battle, Campaign, Ranked AI, the L
 | --- | --- |
 | Deck | 15 cards. 2 copies per card, 1 for a Legendary (unchanged). **At least 8 Units (approved).** |
 | Starting HP | Sum of the deck's Unit HP Contributions. Spells and battle tokens contribute 0. |
-| Round | Hand refills to 3, simultaneous deploy into 3 Unit lanes and 3 Spell slots, then the live phase order: Reveal → Spells left to right → Unit On Play → Before Combat → Combat → death chains → After Combat → Round End → temporary effects expire. Initiative alternates by round. An empty deck just stops drawing; there is no deck-out loss (approved, section 15.7). |
+| Round | Hand refills to 3, simultaneous deploy into 3 Unit lanes and 3 Spell slots, then the live phase order: Reveal → Spells left to right → Before Combat → Combat → death chains → After Combat → Round End → temporary effects expire. Initiative alternates by round. An empty deck just stops drawing; there is no deck-out loss (approved, section 15.7). |
 | Clash | Opposed Units compare effective ATK. Higher wins and stays unchanged; lower is destroyed; **the loser's player takes winner ATK − loser ATK as Clash Damage (section 15).** |
 | Tie | Equal ATK destroys both Units. No Player damage. |
 | Direct attack | An unopposed Unit deals its full effective ATK to the opposing player. No cap, no scaling. |
@@ -74,7 +74,7 @@ Why this shape:
 
 ## 5. Clash resolution
 
-- Compare effective ATK after Spells, On Play and Before Combat effects. Higher wins; the loser is destroyed; the winner keeps its ATK and stays in the lane. **Since section 15 the loser's player also takes the ATK difference as Clash Damage.**
+- Compare effective ATK after Spells, Passive auras and Before Combat effects (there is no On Play since section 18). Higher wins; the loser is destroyed; the winner keeps its ATK and stays in the lane. **Since section 15 the loser's player also takes the ATK difference as Clash Damage.**
 - **Tie: both destroyed.** "Neither destroyed" was tested and rejected: it tripled board locks (tie rate 9.5%), raised stalls and pushed p90 to 16 rounds.
 - **No overflow (approved, superseded by section 15).** The live engine makes the losing side's player take the ATK difference. Without it, a blocker fully absorbs any attacker, which is what makes the lane game about blocking. With it, games run 2 rounds shorter, 35–40% of kills come from overflow, a clash loss hurts twice and chump-blocking decks collapse (Undead starter 0.44 → 0.31).
 - A Unit reduced to or below the Power 0 line (35 ATK on the baseline) is destroyed, preserving the legacy "Power ≤ 0 dies" rule.
@@ -422,8 +422,8 @@ Presentation only; no rule above changes.
 
 - **Destruction per lane.** A lane's clash loser (both Units on a tie) plays a quick destroy beat (about 300 ms at 1x) right after the lane's Clash Damage, and the lane is empty before the next lane clashes. The engine still clashes all three lanes and then destroys the losers in one batch, and When Destroyed / Ally Destroyed / Enemy Destroyed effects still fire after the third lane. The playback reads the lane's own `HERO_DESTROYED` (or `SHIELD_CONSUMED`) from the event log, so a replay of the same log plays the same sequence (`components/animation/playback.ts`).
 - **A battle card is a collectible card.** Hand cards, board Units and Card Inspect show the same card in four zones inside the rarity frame: a name bar, a framed art box (about 45 to 54% of the card's height on a 390px-wide phone; the longest cards and narrower phones go lower), a stats row with faction and rarity and ATK set into the frame (a Spell names its kind there), and a text box. A Spell zone shows the Spell's name and text. Hand cards are the most readable, board cards are compact, and Card Inspect adds HP Contribution beside ATK, with the full wording, Mastery and keyword help listed under the card. HP Contribution is not shown on hand or board cards.
-- **Every effect on the card, in battle copy.** Each combat effect is a short battle line after a small-caps label: its timing (On Play, Clash, Passive, Round End, …) or a keyword that says more (Guard 2, Your 2nd Spell, Enemy's 2nd Spell). Effects that share a label read as one paragraph under it, and a one-time Spell's effects need no label, since they happen when it is played. The copy is `BATTLE_LINES` in `cardCombat/cardText.ts`, e.g. Royal Guard: "On Play: Adjacent allies +15 ATK." and "Passive: Spell Immune with Kingdom ally."; Archmage Vael: "Round End: If hand is empty, gain a Graveyard Spell." A few lines have a tighter board wording where part of the line stops mattering once the card is in play (an On Play condition already checked, a Bypass's "from next round"). Conventions: an ATK change with no duration lasts for the rest of the battle; "this round" marks temporary ones; "here" is this lane; "allies" are your other Units; "with …" holds while the condition does; "damage" always hits the enemy player (Units have no HP); no abbreviations beyond ATK and HP. Rules text is 10px in hand and 9.5px on the board at line height 1.15. Text never scrolls, is never cut off and never goes below 9px: a card with more text first tightens its spacing, then gives the text box room from the art box, then uses smaller type; the very longest texts are set slightly condensed.
-- **Three layers of card information (Info layers pass, 2026-10-01).** The card face (above) is layer 1: everything that matters in a fight, at a glance. Layer 2 is the **focus panel**: in card combat, tapping a hand card, one of your Units, an enemy Unit or a filled Spell zone opens a panel over the hand area, under the board and the HP bar (`components/battleInfo/BattleDock.tsx`, content from `focusDetails.ts`). It shows the art, ATK (current and printed), HP Contribution, every effect's full rule, whether each conditional Passive is on now, and the card's live state: each ATK change by source and how long it lasts ("+15 ATK from Battle Banner, while it stays"), Shield and Silence, a revived or summoned Unit's entry ATK, and the Units in a Spell's lane. Tapping a hand card also selects it for placement, as before; the panel closes on placement, on Fight, with its close button, Back or Escape, or by tapping the same card again, and its Inspect button opens Card Inspect, layer 3, with keywords, Mastery and collection detail. Layer 3 also covers the **battle log** (`battleLog.ts`): while a round resolves, a short log under the board adds one line per effect and clash as the playback reaches it ("Royal Guard — On Play: Common Knight and Light Priest +15 ATK", "Clash Damage — Left: 13 to Enemy (Common Knight 143 beat Vharos 130)"), built from the resolver's own events, so it never says more than happened. Between rounds the Log pill by the HP bar opens the whole match's log; it stays open from round to round until closed.
+- **Every effect on the card, in battle copy.** Each combat effect is a short battle line after a small-caps label: its timing (Passive, Round End, Clash, Destroyed, …; On Play was retired in section 18) or a keyword that says more (Guard 2, Your 2nd Spell, Enemy's 2nd Spell). Effects that share a label read as one paragraph under it, and a one-time Spell's effects need no label, since they happen once, when it is cast. The copy is `BATTLE_LINES` in `cardCombat/cardText.ts`, e.g. Royal Guard: "Passive: Adjacent allies +15 ATK.", "Destroyed: Adjacent allies gain +15 ATK." and "Passive: Spell Immune with Kingdom ally."; Archmage Vael: "Round End: If hand is empty, gain a Graveyard Spell." A few lines have a tighter board wording where part of the line stops mattering once the card is in play (a Bypass's "from next round"). Conventions: an ATK change with no duration lasts for the rest of the battle; "this round" marks temporary ones; "here" is this lane; "allies" are your other Units; "with …" holds while the condition does; "damage" always hits the enemy player (Units have no HP); no abbreviations beyond ATK and HP. Rules text is 10px in hand and 9.5px on the board at line height 1.15. Text never scrolls, is never cut off and never goes below 9px: a card with more text first tightens its spacing, then gives the text box room from the art box, then uses smaller type; the very longest texts are set slightly condensed.
+- **Three layers of card information (Info layers pass, 2026-10-01).** The card face (above) is layer 1: everything that matters in a fight, at a glance. Layer 2 is the **focus panel**: in card combat, tapping a hand card, one of your Units, an enemy Unit or a filled Spell zone opens a panel over the hand area, under the board and the HP bar (`components/battleInfo/BattleDock.tsx`, content from `focusDetails.ts`). It shows the art, ATK (current and printed), HP Contribution, every effect's full rule, whether each conditional Passive is on now, and the card's live state: each ATK change by source and how long it lasts ("+15 ATK from Battle Banner, while it stays"), Shield and Silence, a revived or summoned Unit's entry ATK, and the Units in a Spell's lane. Tapping a hand card also selects it for placement, as before; the panel closes on placement, on Fight, with its close button, Back or Escape, or by tapping the same card again, and its Inspect button opens Card Inspect, layer 3, with keywords, Mastery and collection detail. Layer 3 also covers the **battle log** (`battleLog.ts`): while a round resolves, a short log under the board adds one line per effect and clash as the playback reaches it ("Royal Guard — Destroyed: Common Knight and Light Priest +15 ATK", "Battle Banner — Expired: Its Unit left play (Light Priest)", "Clash Damage — Left: 13 to Enemy (Common Knight 143 beat Vharos 130)"), built from the resolver's own events, so it never says more than happened. Between rounds the Log pill by the HP bar opens the whole match's log; it stays open from round to round until closed.
 - **One card system everywhere (global card UX migration, 2026-10-01).** The card face, the focused card detail and Card Inspect are now the only card UI: battle (every mode), Collection, Deck Builder, Shop, Box contents and pack results, Structure Decks, events, banners and Campaign rewards all render `GameCard` and open the same focus detail and Inspect, with wording from `cards/cardPresentation.ts`. Since section 16 every battle plays card combat, so a card shows the same ATK, HP Contribution and wording in battle as in the Collection; the legacy-number branches are gone. Details: `docs/design/CARD-FACE.md`.
 
 ## 16. Card combat everywhere (2026-10-01)
@@ -507,7 +507,7 @@ Historical Ascension/Mastery data is preserved for future cosmetic Prestige conv
 
 ### 17.6 Moonwell Summon
 
-Moonwell Summon is **deprecated for card acquisition**. It still works so existing saves and its UI keep functioning, but nothing new may depend on it; Boxes and Structure Decks are the card sources. Its Mastery chips and "Ascension available" result lines are removed.
+Moonwell Summon is **deprecated for card acquisition**. Its Mastery chips and "Ascension available" result lines are removed. **Update (section 19, cleanup pass):** the Summon screen, banners, pool and pity code are now removed; its reveal ceremony opens Box packs, and its saved pity and history stay in the save, read-only.
 
 ### 17.7 CARD PRESTIGE — FUTURE, NOT YET IMPLEMENTED
 
@@ -524,9 +524,67 @@ Moonwell Summon is **deprecated for card acquisition**. It still works so existi
 - One printed Skill may affect Ranked, and it never scales with Commander level. Level, talents and Relics are PvE-side only.
 - Skills are designed alongside the real 120-card archetypes, not before.
 
+## 18. Timing cleanup and Spell lifetime (resolver v4, 2026-10-03)
+
+At ozi's ask (cleanup pass), card combat has **no On Play timing** and every Continuous Spell names what it belongs to. Full card-by-card table: project file `moonwater/cleanup-pass/migration.csv`; report `moonwater/cleanup-pass/REPORT.md`.
+
+### 18.1 Timing vocabulary
+
+| Timing | Meaning |
+| --- | --- |
+| Passive | True while the Unit is in play and its condition holds. ATK auras are read live (`passiveAtkSources` in `cardCombat/engine.ts`), never stored on the Unit, so they end the moment the source leaves, is Silenced or its condition fails. |
+| Round Start | Once at the start of each round, for each Unit in play. The hook exists; no printed card uses it after this pass. |
+| Round End | Once at the end of each round while in play. |
+| Clash (Before Combat) | Before the clashes, in initiative order (alternating by round, unchanged). |
+| Destroyed | Once, when the Unit is destroyed (a Shield that saves it is not a destruction). |
+| Reactions | Your Spell, Your 2nd Spell, Enemy Falls, Ally Falls, Enemy's 2nd Spell (unchanged). |
+| Cast | A one-time Spell's effect, once, when it resolves. It is a Spell's only timing and is not printed as a label. |
+
+- **Shield** is printed as a keyword on Paladin, Light Priest and Crypt Warden (a Passive Shield): the first time the Unit would be destroyed it survives instead, once per Unit in play. Silence does not remove it. A revived or returned copy is a new Unit in play with a fresh Shield. A Unit at or under the death line (35 ATK) uses it there.
+- Ten Units had On Play effects. Each was re-authored by its role, never blindly to every round: Royal Guard (aura + Destroyed), Light Priest (Round End 45 HP instead of 135 once), Paladin and Crypt Warden (printed Shield), Forest Wolf (Passive), Mira and Grave Sage (Destroyed), Runebreaker (Clash), Infernal Lord (Destroyed −15 to every enemy, Clash Spell break). **Hellhound's one-round Silence is retired**: every lasting form tested switched the facing Unit off for good (Undead Starter vs Infernal 38% → 0%). Its Clash −30 stays.
+- The 17 one-time Spells only rename ON_PLAY to CAST (`castSpell` in `cardCombat/cards.ts`); they play exactly as before.
+
+### 18.2 Spell lifetime (`spellBinding`)
+
+Every Continuous Spell declares `spellBinding: 'UNIT' | 'LANE'` in `cardCombat/cards.ts`. No current Spell is global: every one is written about its lane.
+
+| Spell | Binding | Why |
+| --- | --- | --- |
+| Battle Banner | UNIT (Attached Spell) | "+15 ATK to the Unit here": its whole purpose is that Unit. |
+| Fortify | UNIT (Attached Spell) | Grows one Unit each Round End; a new Unit was never its target. |
+| Burning Ground | LANE | Hits whatever enemy stands in the lane. |
+| Growth Totem | LANE | Feeds whichever ally holds the lane (off-roster). |
+| Cursed Ground | LANE | Pays off any enemy death into the lane's ally. |
+| Siege Fire | LANE | Works best when the lane is empty. |
+| Grave Totem | LANE | Saves the first ally lost in the lane each round. |
+
+- An **Attached Spell** needs your Unit in its lane (one already there, or one placed in the same deploy). On reveal it attaches to that Unit (`SpellZoneInstance.boundTo`). When that Unit leaves play, the resolver pushes `SPELL_EXPIRED` right after the Unit's `HERO_DESTROYED`, moves the Spell to the Graveyard and frees the slot. A Shield that saves the Unit keeps the Spell.
+- On the board the Spell chit fades and breaks in step with its Unit (`chitEffects.ts`), the battle log says "Battle Banner — Expired: Its Unit left play (Light Priest)", and the Graveyard sheet lists it. Expiry adds no extra playback step.
+- Card wording: the type line reads "Attached Spell", the text "The Unit it is attached to has +15 ATK.", and Help explains Attached and Continuous Spells.
+
+### 18.3 Resolver and events
+
+- `CARD_RESOLVER_VERSION` is **4**. The Unit On Play phase and the `ON_PLAY` event are removed from card combat; new events: `SPELL_ENTERED` (with `attachedTo` for an Attached Spell) and `SPELL_EXPIRED`. The legacy resolver keeps its own On Play for legacy records only.
+- `CONTINUABLE_CARD_RESOLVER_VERSIONS` is `[4]`. A stored v2/v3 card match is **not** continued under v4 rules, because cards already in play would change mid-match. The client shows `rulesChangeNotice` and keeps the Fight button disabled, and the Friendly server answers 409 without writing anything. New Friendly rooms need both clients on v4.
+
+### 18.4 Balance
+
+Re-simulated before/after with the production resolver and AI (`scripts/simulate-deck-matrix.mjs`, `scripts/simulate-modes.mjs`). Results are in `moonwater/cleanup-pass/sim/`. Matches did not get longer (median 9, p90 12 rounds), max ATK is unchanged (244), there were no death-chain safeguards and Graveyard returns stayed flat. The Kingdom Starter's drop comes entirely from Battle Banner becoming Attached (a lane-bound Banner restores it). **Decided (ozi, 2026-10-04):** Battle Banner stays Attached at +15 ATK. The lifetime rule matters more than the old Kingdom win rate, and there is no compensating buff; Kingdom balance is revisited with the wider card pool.
+
+## 19. One card-acquisition path: packs (2026-10-03)
+
+At ozi's ask (cleanup pass), Moonwater has one model: **"I open packs to get cards."**
+
+- **Packs from finite Boxes** are the only card-acquisition path (plus Structure Decks and the Campaign/Journey grants). The Moonfall Box price (150 Gems a pack), size, rarity counts and duplicate handling are unchanged.
+- **Pack Tickets** (the former Summon Tickets, same storage) open one pack of the same Box each (`buyBoxPacks(count, box, 'tickets')`). Tickets are never a hidden fallback for Gems.
+- **Ticket rewards (ozi, 2026-10-04):** 1 Pack Ticket = 1 pack = 5 cards, with no fractional Tickets. A Summon Ticket was one card, so the two biggest legacy quantities were trimmed: Journey Day 2 grants 1 Pack Ticket (was 3) and the weekly "Open 5 packs" mission grants 1 (was 2). The other grant sites are listed in `moonwater/cleanup-pass/final-calls/REPORT.md` for ozi's decision.
+- **The reveal ceremony** that belonged to the Moonwell Summon now opens packs (`components/reveal/RevealStage.tsx`, `game/reveal/`). One pack turns all five cards over in rising rarity, spotlights each Epic and ends on the rarest card's hero reveal; ten packs play one opening, one quick beat per pack, a spotlight for each Epic and Legendary and the best card last. A tap finishes the current beat and Skip jumps to **Pack Results**. The reveal is pure presentation of an already-granted opening.
+- **Removed:** the Summon screen and route, banners, banner pool, rarity rates, pity, preview, dev controls and the `summon` config section. **Kept:** the Moonwell visual components and the reveal timeline, sound and meteors (renamed to neutral reveal modules), and the saved Summon pity and history, which stay **read-only** (`economy/legacySummon.ts`). A save that used the Summon still counts as having opened packs for Shop unlocks.
+- Terminology: Open Pack, Open 10 Packs, Pack Ticket, Box, Pack Results. Analytics `pack_opened`, `pack_ticket_used` and `pack_results_viewed` replace `summon_*`. The missions are "Open a pack" and "Open 5 packs".
+
 ## Appendix: collection, Box and save rules
 
 - Collection is a copy count per card. `cardMastery/model.ts` is now a historical read model over legacy Ascension (stored rank 0..4 was Mastery I..V); it has no combat effect (section 17). See [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md).
-- The Moonfall Box is a finite 100-pack pool (500 cards: 258 Common, 168 Rare, 54 Epic, 20 Legendary; per card 14-15 / 8 / 6 / 5) that shows its remaining contents. The copy split is approved (section 14); prices are unchanged and not part of this design.
+- The Moonfall Box is a finite 100-pack pool (500 cards: 258 Common, 168 Rare, 54 Epic, 20 Legendary; per card 14-15 / 8 / 6 / 5) that shows its remaining contents; packs are opened with Gems or Pack Tickets (section 19). The copy split is approved (section 14); prices are unchanged and not part of this design.
 - Keep card IDs, collection counts, deck definitions, `skyloom:*` storage keys and historical event names intact.
 - Before replacing Legacy Level or Ascension behaviour, ship an idempotent, versioned migration with tests for old saves, missing fields, max-rank cards, duplicate inventory and playable decks.

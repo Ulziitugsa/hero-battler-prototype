@@ -37,6 +37,9 @@ harmless to call speculatively, and the only thing that can catch a resolver tha
   the resolver from the stored state: a card match must carry the current version (else 409, nothing written) and
   continues the stored RNG state; a legacy match record created before this change finishes on the legacy
   resolver; Combat V2 is refused. A client whose rules differ from the match shows an alert and does not submit.
+- **Resolver v4 (timing cleanup, 2026-10-03, CARD-COMBAT-DESIGN.md section 18):** the server continues only v4 card
+  matches. A stored v2/v3 room is not reinterpreted under the new card timings: its rounds get 409 with nothing written,
+  and the client shows the rules-changed notice (`rulesChangeNotice`) with Fight disabled. Start a new room.
 - The guest's view flips every side-keyed card-combat field. A resolver version 2 record may still carry a per-card Mastery table; it is redacted and flipped if present, and nothing reads it.
 
 ## Hidden information

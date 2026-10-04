@@ -3,6 +3,7 @@ import { LANES } from '../game/types';
 import { LaneSlot } from './LaneSlot';
 import { SpellLaneSlot } from './SpellLaneSlot';
 import { FightSeal } from './FightSeal';
+import type { FightButtonState } from './fightButtonState';
 import { CombatVfxLayer } from './animation/CombatVfxLayer';
 import type { ChitVisual, ClashCallout, StepVisuals, VfxCue } from './animation/chitEffects';
 
@@ -33,8 +34,8 @@ export function Battlefield({
   onSpellChitClick,
   onEnemyHeroChitClick,
   onEnemySpellChitClick,
-  canFight,
-  fighting,
+  fightState,
+  stagedCount,
   onFight,
   focusedId = null,
 }: {
@@ -59,8 +60,8 @@ export function Battlefield({
   onSpellChitClick: (spell: SpellZoneInstance) => void;
   onEnemyHeroChitClick: (hero: HeroInstance) => void;
   onEnemySpellChitClick: (spell: SpellZoneInstance) => void;
-  canFight: boolean;
-  fighting: boolean;
+  fightState: FightButtonState;
+  stagedCount: number;
   onFight: () => void;
   /** Card combat: the instance the focus panel shows, ringed on the board. */
   focusedId?: string | null;
@@ -139,7 +140,7 @@ export function Battlefield({
 
       <CombatVfxLayer cues={vfxCues} />
 
-      <FightSeal canFight={canFight} fighting={fighting} onFight={onFight} />
+      <FightSeal state={fightState} stagedCount={stagedCount} onFight={onFight} />
 
       {/* Above the lanes and the Fight seal, so the centre lane's read-out is never covered. */}
       {clashCallout && (

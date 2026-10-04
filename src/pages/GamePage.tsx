@@ -11,7 +11,7 @@ import { combatStats } from '../game/combatV2/model';
 import { chooseAiAction } from '../game/ai/simpleAI';
 import { beginCardRound, cardAtk, cardSpellHasTarget, createCardMatch, matchHpContribution, passiveEffectStates, resolveCardRound, validateCardDeployment, withEffectiveAtk } from '../game/cardCombat/engine';
 import { chooseCardAiAction } from '../game/cardCombat/ai';
-import { getCombatCard } from '../game/cardCombat/cards';
+import { getCombatCard, isAttachedSpell } from '../game/cardCombat/cards';
 import { CombatDisplayContext, type BattleCardDisplay } from '../components/combatDisplay';
 import { BattleLogPanel } from '../components/battleInfo/BattleDock';
 import { CardFocusPanel } from '../components/card/CardFocusPanel';
@@ -46,7 +46,8 @@ import { resolveDuration } from '../components/animation/timing';
 import type { AnimationSpeed } from '../components/animation/types';
 import type { FriendlyRematchActions } from '../components/MatchSummary';
 import type { RemoteOpponentController } from '../net/friendlyTypes';
-import { isCurrentCardResolver, matchResolver } from '../game/combat/resolver';
+import { isCurrentCardResolver, matchResolver, rulesChangeNotice } from '../game/combat/resolver';
+import { fightButtonState } from '../components/fightButtonState';
 import '../styles/battleCardHosts.css';
 
 export type { AnimationSpeed };
@@ -142,6 +143,13 @@ function buildPreviewZones(
         usedThisRound: false,
       };
       previewSpell[play.lane] = pendingSpell;
+    }
+  }
+  // Card combat: a staged Attached Spell shows as attached to the Unit in its lane (staged or already in play).
+  if (combatModel === 'card') {
+    for (const play of pendingPlays) {
+      const spell = previewSpell[play.lane];
+      if (spell?.instanceId === `pending-${play.handId}` && isAttachedSpell(play.cardId) && previewHero[play.lane]) previewSpell[play.lane] = { ...spell, boundTo: previewHero[play.lane]!.instanceId };
     }
   }
   return { heroZones: previewHero, spellZones: previewSpell };
@@ -402,12 +410,20 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   }
 
   function handleRemovePending(handId: string) {
-    setPendingPlays((prev) => prev.filter((p) => p.handId !== handId));
+    setPendingPlays((prev) => {
+      const removed = prev.find((p) => p.handId === handId);
+      const rest = prev.filter((p) => p.handId !== handId);
+      // Taking back a staged Unit also takes back an Attached Spell staged onto it (it would have nothing to attach to).
+      if (cardMode && removed && getCard(removed.cardId).type === 'hero' && !gameState.player.heroZones[removed.lane]) return rest.filter((p) => !(p.lane === removed.lane && isAttachedSpell(p.cardId)));
+      return rest;
+    });
   }
 
-  // Card combat checks the card-combat definition against ATK (Stasis Field, Execute's threshold, ...).
+  // Card combat checks the card-combat definition against ATK (Stasis Field, Execute's threshold, ...); an Attached
+  // Spell also counts a Unit staged in its lane this round.
   function spellTargetOk(cardId: string, lane: LaneId): boolean {
-    return cardMode ? cardSpellHasTarget(gameState, 'player', getCombatCard(cardId), lane) : spellHasAValidTarget(gameState, 'player', getCard(cardId), lane);
+    const stagedUnitLanes = pendingPlays.filter((p) => getCard(p.cardId).type === 'hero').map((p) => p.lane);
+    return cardMode ? cardSpellHasTarget(gameState, 'player', getCombatCard(cardId), lane, stagedUnitLanes) : spellHasAValidTarget(gameState, 'player', getCard(cardId), lane);
   }
 
   const selectedCard = selectedHand ? getCard(selectedHand.cardId) : null;
@@ -546,6 +562,16 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   else if (selectedCard) hint = selectedCard.type === 'hero' ? 'Tap a Unit slot' : 'Tap a Spell slot';
   else hint = 'Tap a card';
 
+  const fightState = fightButtonState({
+    planning: phase === 'DEPLOY',
+    resolving: isRevealing,
+    waitingForOpponent: phase === 'WAITING_FOR_OPPONENT',
+    blocked: !!rulesMismatch,
+    stagedCount: pendingPlays.length,
+    selecting: !!selectedHand,
+    handLeft: gameState.player.hand.length - pendingPlays.length,
+  });
+
   // Every CSS animation keyframe reads its pace from this one variable (see global.css's "Combat
   // animations" section) - the single point where the currently-playing step's resolved duration
   // (speed setting + reduced motion, both handled in timing.ts) reaches the DOM.
@@ -589,8 +615,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             onSpellChitClick={handlePlayerSpellChitClick}
             onEnemyHeroChitClick={(h) => handleEnemyChitClick(h)}
             onEnemySpellChitClick={(s) => handleEnemyChitClick(undefined, s)}
-            canFight={phase === 'DEPLOY'}
-            fighting={isRevealing}
+            fightState={fightState}
+            stagedCount={pendingPlays.length}
             onFight={handleFight}
             focusedId={focusInfo && focus && focus.kind !== 'hand' ? focus.instanceId : null}
           />
@@ -617,7 +643,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
           <div className="hand-apron">
             {rulesMismatch && (
               <div role="alert" style={{ color: '#e66', textAlign: 'center', fontSize: 13 }}>
-                This match was started on a different version of Moonwater. Update the game to keep playing.
+                {rulesChangeNotice(initialState!)}
               </div>
             )}
             {submitError && phase === 'DEPLOY' && (

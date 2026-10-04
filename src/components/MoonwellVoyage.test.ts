@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, it, expect } from 'vitest';
 import { MoonwellVoyage } from './MoonwellVoyage';
-import { buildMeteors, meteorPoint } from '../game/summon/meteors';
+import { buildMeteors, meteorPoint } from '../game/reveal/meteors';
 import type { Rarity } from '../game/types';
 
 describe('summon reward lights', () => {

@@ -6,7 +6,7 @@
 .battle-scene.card-faces .zone-eHero { top: 19.91%; height: 19.91%; }
 .battle-scene.card-faces .zone-pHero { top: 46.45%; height: 19.91%; }
 .battle-scene.card-faces .zone-pSpell { left: 0; width: 100%; top: 66.59%; height: 7.82%; }
-.battle-scene.card-faces .fight-seal-mount { top: 43.13%; width: 14.87%; height: auto; aspect-ratio: 1; margin: -7.435% 0 0 -7.435%; } /* 58px at 390, scales with the scene */
+.battle-scene.card-faces .fight-seal-mount { top: 43.13%; width: 41.03%; height: auto; aspect-ratio: 4; margin: -5.13% 0 0 -20.51%; } /* 160x40 at 390, inside the 56px clash gap; scales with the scene */
 .battle-scene.card-faces .clash-callout { top: 43.13%; }
 
 .zone-card.card-face { border-radius: 6px; box-shadow: none; }
@@ -41,9 +41,7 @@
 
 /* The developer-panel button sat on the rightmost hand card's rules; it moves beside the enemy bar. */
 .battle-scene.card-faces .mobile-debug-toggle { top: 46px; bottom: auto; left: 10px; right: auto; width: 26px; height: 26px; }
-.battle-scene.card-faces .fight-seal-core { inset: 4px; }
 /* Taller cards: keep the clash lunge the same physical distance as before (about 30px), not 26% of a taller card. */
 .battle-scene.card-faces { --vfx-lunge-distance: 18%; }
-.battle-scene.card-faces .fight-seal-battle.resolving .fight-seal-label { font-size: 8px; letter-spacing: -0.02em; }
 /* The status hint ("Tap a card", "Ready to fight") would sit on the leftmost hand card's art and ATK; it moves under the enemy bar. */
 .battle-scene.card-faces > .battle-hint { left: 11.3%; top: 5.6%; }

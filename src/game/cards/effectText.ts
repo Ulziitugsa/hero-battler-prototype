@@ -19,7 +19,8 @@ import { atkDelta, atkFromPower } from './cardFace.js';
  * in the focus panel, in Card Inspect and in the battle log. Only the moments the current cards actually use.
  */
 export const TIMING_LABEL: Record<Trigger, string> = {
-  ON_PLAY: 'On Play',
+  ON_PLAY: 'On Play', // legacy resolver only; no card-combat card uses it
+  CAST: 'Cast',
   ROUND_START: 'Round Start',
   BEFORE_COMBAT: 'Clash',
   AFTER_COMBAT: 'After Clash',
@@ -37,6 +38,7 @@ export const TIMING_LABEL: Record<Trigger, string> = {
 /** What each timing label means (Card Inspect, tooltips). */
 export const TIMING_HELP: Record<Trigger, string> = {
   ON_PLAY: 'When this card is played.',
+  CAST: 'Once, when this Spell resolves.',
   ROUND_START: 'At the start of each round.',
   BEFORE_COMBAT: 'Each round, just before the lanes clash.',
   AFTER_COMBAT: 'Each round, right after the lanes clash.',
@@ -48,21 +50,22 @@ export const TIMING_HELP: Record<Trigger, string> = {
   ON_ALLY_SPELL_PLAYED: 'Whenever you cast a Spell.',
   ON_ENEMY_SPELL_PLAYED: 'Whenever the enemy casts a Spell.',
   CONTINUOUS: 'Always on while this Spell stays in its slot.',
-  PASSIVE: 'Always on while its condition, if any, holds.',
+  PASSIVE: 'Always on while this Unit is in play and its condition, if any, holds.',
 };
 
-export type EffectKeyword = 'Shield' | 'Guard' | 'Spell Immune' | 'Silence' | 'Bypass' | 'Token' | 'Exile' | 'Graveyard' | 'Continuous Spell';
+export type EffectKeyword = 'Shield' | 'Guard' | 'Spell Immune' | 'Silence' | 'Bypass' | 'Token' | 'Exile' | 'Graveyard' | 'Continuous Spell' | 'Attached Spell';
 
 export const KEYWORD_HELP: Record<EffectKeyword, string> = {
   Shield: 'The first time this Unit would be destroyed, it survives instead.',
   Guard: 'Guard N: just before a clash this Unit would lose, it gains 15 ATK per point of Guard for that round.',
   'Spell Immune': 'Enemy Spells can’t affect this Unit.',
-  Silence: 'A silenced Unit’s effects do nothing for the rest of the round.',
+  Silence: 'A silenced Unit’s effects do nothing for the rest of the round. Its Shield still works.',
   Bypass: 'Skips the lane clash and attacks the enemy player directly.',
   Token: 'Created during battle. Disappears when destroyed and never enters the Graveyard.',
   Exile: 'Removed from the Graveyard for the rest of the battle.',
   Graveyard: 'Where your destroyed Units and used Spells go.',
-  'Continuous Spell': 'Stays in its Spell slot, working every round, until it is destroyed.',
+  'Continuous Spell': 'Stays in its lane’s Spell slot, working every round, until it is destroyed.',
+  'Attached Spell': 'Cast onto your Unit in this lane. It works while that Unit is in play, then goes to the Graveyard with it and frees the slot.',
 };
 
 const MINUS = '−';

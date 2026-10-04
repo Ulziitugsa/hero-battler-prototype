@@ -4,14 +4,16 @@ import { HomePage } from './pages/HomePage';
 const PixelPreviewPage = lazy(() => import('./pages/PixelPreviewPage').then(m => ({ default: m.PixelPreviewPage })));
 const BattleCardLabPage = lazy(() => import('./pages/BattleCardLabPage').then(m => ({ default: m.BattleCardLabPage })));
 const BattleSceneLabPage = lazy(() => import('./pages/BattleSceneLabPage').then(m => ({ default: m.BattleSceneLabPage })));
+// Dev/QA only: a production build drops this page entirely.
+const RevealFixturePage = import.meta.env.DEV ? lazy(() => import('./pages/RevealFixturePage').then(m => ({ default: m.RevealFixturePage }))) : null;
 const FriendlyBattlePage = lazy(() => import('./pages/FriendlyBattlePage').then(m => ({ default: m.FriendlyBattlePage })));
 import { BattleSetupPage, type DeckChoice } from './pages/BattleSetupPage';
 import { DecksPage } from './pages/DecksPage';
 import { HeroesPage } from './pages/HeroesPage';
 import { StatsPage } from './pages/StatsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { MOONFALL_BOX } from './game/box/boxProduct';
 import { ShopPage, type ShopView } from './pages/ShopPage';
-import { SummonPage } from './pages/SummonPage';
 import { LanternsPage } from './pages/LanternsPage';
 import { EventPage } from './pages/EventPage';
 import { completeLanternTrial } from './game/story/lanterns';
@@ -46,6 +48,8 @@ function GameApp() {
   const [showPixelPreview, setShowPixelPreview] = useState(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('pixelPreview'));
   const [showBattleCardLab, setShowBattleCardLab] = useState(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('battleCardLab'));
   const [battleScene, setBattleScene] = useState(() => (import.meta.env.DEV ? new URLSearchParams(window.location.search).get('battleScene') : null));
+  // Dev/QA only: the pack-opening ceremony over a fixed opening (nothing granted), for screenshots.
+  const [revealFixture, setRevealFixture] = useState(() => { const v = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('revealFixture') : null; return v === 'one' || v === 'ten' ? (v as 'one' | 'ten') : null; });
   const [showFriendly, setShowFriendly] = useState(() => new URLSearchParams(window.location.search).has('friendly'));
   const [showStats, setShowStats] = useState(false);
   const [showCombatLab, setShowCombatLab] = useState(false);
@@ -53,7 +57,6 @@ function GameApp() {
   const [showCampaign, setShowCampaign] = useState(false);
   // Home's Continue Campaign lands straight on the chapter map; other entries start at region select.
   const [campaignOnMap, setCampaignOnMap] = useState(false);
-  const [showSummon, setShowSummon] = useState(false);
   const [showLanterns, setShowLanterns] = useState(false);
   const [showEvent, setShowEvent] = useState(false);
   // Shop sub-view to open on the next visit (an event's featured Box or Structure Deck). Keyed so it remounts.
@@ -106,7 +109,6 @@ function GameApp() {
     if (showCombatLab) { setShowCombatLab(false); setTab('profile'); return; }
     if (showBattleSetup) { setShowBattleSetup(false); return; }
     if (showCampaign) { setShowCampaign(false); setCampaignOnMap(false); return; }
-    if (showSummon) { setShowSummon(false); return; }
     if (showLanterns) { setShowLanterns(false); return; }
     if (showEvent) { setShowEvent(false); return; }
     // A tab's own sub-view (Shop → Box / Structure Deck) steps back inside the tab first.
@@ -117,6 +119,7 @@ function GameApp() {
   useEffect(() => registerBackButton(() => backHandler.current()), []);
 
   if (showBattleCardLab) return <BattleCardLabPage onBack={() => { setShowBattleCardLab(false); window.history.replaceState(null, '', window.location.pathname); }} />;
+  if (revealFixture && RevealFixturePage) return <RevealFixturePage kind={revealFixture} onBack={() => { setRevealFixture(null); window.history.replaceState(null, '', window.location.pathname); }} />;
   if (battleScene) return <BattleSceneLabPage scene={battleScene} onBack={() => { setBattleScene(null); window.history.replaceState(null, '', window.location.pathname); }} />;
   if (showPixelPreview) return <PixelPreviewPage onBack={() => { setShowPixelPreview(false); window.history.replaceState(null, '', window.location.pathname); }} />;
 
@@ -203,9 +206,7 @@ function GameApp() {
     );
   }
 
-  // Summon, like Campaign, is a full-screen destination reached from Home - the player picks what to open in Heroes/Decks afterwards.
-  if (showSummon) return <SummonPage onBack={() => setShowSummon(false)} />;
-  // The live event page, like Summon, is a full-screen destination reached from Home's event banner.
+  // The live event page is a full-screen destination reached from Home's event banner.
   if (showEvent) return <EventPage onBack={() => setShowEvent(false)} onOpenShop={(product) => { setShowEvent(false); setShopEntry(prev => ({ view: product.kind === 'box' ? { kind: 'box', id: product.id } : { kind: 'structure-deck', id: product.id }, key: prev.key + 1 })); setTab('shop'); }} />;
   if (showLanterns) return <><LanternsPage result={storyResult} initialTrialId={lastStoryTrial} onBack={() => setShowLanterns(false)} onFight={(id, deck, label) => {
     const active = getActiveDeck();
@@ -245,7 +246,7 @@ function GameApp() {
         onOpenHeroes={() => setTab('heroes')}
         onOpenProfile={() => setTab('profile')}
         onOpenShop={() => setTab('shop')}
-        onOpenSummon={() => setShowSummon(true)}
+        onOpenPacks={() => { setShopEntry(prev => ({ view: { kind: 'box', id: MOONFALL_BOX.id }, key: prev.key + 1 })); setTab('shop'); }}
         onOpenLanterns={() => setShowLanterns(true)}
         onOpenEvent={() => setShowEvent(true)}
         onOpenPixelPreview={() => setShowPixelPreview(true)}
