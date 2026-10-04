@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -14,6 +14,13 @@ import { PackResults } from '../../pages/shop/BoxDetail';
 import { boxPackTickets, buyBoxPacks, hasOpenedPacks, MOONFALL_BOX } from './boxProduct';
 import { getPrototypeBoxState, prototypeBoxPacksRemaining, PROTOTYPE_BOX, PROTOTYPE_BOX_STORAGE_KEY, reloadPrototypeBox, resetPrototypeBox, type PrototypeBoxPull } from './prototypeBox';
 import { getCard } from '../cards';
+import { JOURNEY_DAYS } from '../journey/definitions';
+import { ALL_MISSIONS, WEEKLY_MISSIONS } from '../missions/definitions';
+import { claimMission, initMissions, resetMissions } from '../missions/store';
+import { FIRST_PURCHASE_BONUS, OFFERS } from '../offers/definitions';
+import { RANK_REWARDS } from '../ranked/store';
+import { EVENTS } from '../events/definitions';
+import { DEFAULT_CONFIG } from '../../config/defaults';
 import type { Rarity } from '../types';
 
 // One card-acquisition model: packs opened from finite Boxes (paid with Gems or Pack Tickets), shown by the reveal
@@ -63,6 +70,70 @@ describe('Pack Tickets open packs of the same finite Box', () => {
     expect(names.filter((n) => n === 'pack_opened')).toHaveLength(11);
     expect(names).toContain('pack_ticket_used');
     expect(names.some((n) => n.startsWith('summon_'))).toBe(false);
+  });
+});
+
+describe('Pack Ticket rewards: 1 Ticket = 1 pack = 5 cards (ozi, 2026-10-04)', () => {
+  it('one Pack Ticket opens exactly one five-card pack', () => {
+    setTickets(1);
+    const result = buyBoxPacks(1, MOONFALL_BOX, 'tickets');
+    if (!result.ok) throw new Error('could not open');
+    expect(result.opening.packs).toHaveLength(1);
+    expect(result.opening.packs[0]).toHaveLength(5);
+    expect(getEconomy().tickets).toBe(0);
+  });
+  it('Journey Day 2 and the weekly "Open 5 packs" mission each grant exactly one Pack Ticket', () => {
+    expect(JOURNEY_DAYS.find((d) => d.day === 2)).toMatchObject({ title: 'A Pack Ticket', rewardTickets: 1 });
+    expect(WEEKLY_MISSIONS.find((m) => m.id === 'weekly-open-packs')).toMatchObject({ title: 'Open 5 packs', metric: 'pack_opened', target: 5, rewardTickets: 1, rewardGems: 100 });
+  });
+  it('the weekly pack mission counts Ticket openings and never pays for itself', () => {
+    resetMissions();
+    initMissions();
+    setGems(0);
+    setTickets(5);
+    for (let i = 0; i < 5; i += 1) expect(buyBoxPacks(1, MOONFALL_BOX, 'tickets').ok).toBe(true); // a Ticket opening is a pack opened
+    const claim = claimMission('weekly-open-packs');
+    expect(claim).toMatchObject({ ok: true, tickets: 1, gems: 100 });
+    expect(claimMission('daily-open-pack')).toMatchObject({ ok: true, gems: 20 });
+    // Five packs in, one pack (and 120 Gems, under one 150-Gem pack) back out: no loop.
+    expect(getEconomy()).toMatchObject({ tickets: 1, gems: 120 });
+    expect(claimMission('weekly-open-packs').ok).toBe(false); // once a week
+  });
+  it('every production Pack Ticket grant matches the audited table', () => {
+    const grants: Record<string, number> = {};
+    for (const d of JOURNEY_DAYS) if (d.rewardTickets) grants[`journey:day-${d.day}`] = d.rewardTickets;
+    for (const m of ALL_MISSIONS) if (m.rewardTickets) grants[`mission:${m.id}`] = m.rewardTickets;
+    for (const o of OFFERS) if (o.reward.tickets) grants[`offer:${o.id}`] = o.reward.tickets;
+    if (FIRST_PURCHASE_BONUS.tickets) grants['offer:first-purchase-bonus'] = FIRST_PURCHASE_BONUS.tickets;
+    for (const r of RANK_REWARDS) if (r.tickets) grants[`ranked:${r.id}`] = r.tickets;
+    for (const e of EVENTS) {
+      for (const l of e.loginRewards) if (l.reward.tickets) grants[`event:${e.id}:login-day-${l.day}`] = l.reward.tickets;
+      for (const m of e.missions) if (m.reward.tickets) grants[`event:${e.id}:${m.id}`] = m.reward.tickets;
+      for (const m of e.milestones) if (m.reward.tickets) grants[`event:${e.id}:${m.id}`] = m.reward.tickets;
+    }
+    expect(grants).toEqual({
+      'journey:day-2': 1, // was 3
+      'mission:weekly-campaign-wins': 1,
+      'mission:weekly-open-packs': 1, // was 2
+      'mission:weekly-battles': 1,
+      'offer:starter-pack': 5, // flagged for ozi, unchanged
+      'offer:growth-pack': 3, // flagged for ozi, unchanged
+      'ranked:rating-300': 1,
+      'event:long-vigil-2026:login-day-3': 1,
+      'event:long-vigil-2026:login-day-6': 1,
+      'event:long-vigil-2026:vigil-ranked-wins': 1,
+      'event:long-vigil-2026:vigil-shop-gift': 1,
+      'event:long-vigil-2026:vigil-collect-4': 1,
+    });
+    expect(DEFAULT_CONFIG.economy.startingTickets).toBe(0);
+    // ...and nothing else in the game hands out Tickets.
+    const src = new URL('../../', import.meta.url);
+    const callers = (readdirSync(src, { recursive: true }) as string[])
+      .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f) && !f.endsWith('economy.ts'))
+      .filter((f) => /grantTickets\(/.test(readFileSync(new URL(f, src), 'utf8')))
+      .map((f) => f.replace(/\\/g, '/'))
+      .sort();
+    expect(callers).toEqual(['game/collection/devTools.ts', 'game/events/store.ts', 'game/journey/store.ts', 'game/missions/store.ts', 'game/offers/store.ts', 'game/ranked/store.ts']);
   });
 });
 

@@ -191,6 +191,31 @@ describe('Attached Spells (Unit-bound)', () => {
     const lines = battleLogEntries(r.events, s).map((e) => `${e.who} — ${e.label ? `${e.label}: ` : ''}${e.text}`);
     expect(lines.filter((t) => t.startsWith(`Battle Banner — Expired: Its Unit left play (${knight.name})`))).toHaveLength(1);
   });
+  it('Battle Banner stays Attached (ozi\'s final call): Unit-bound, +15 to its Unit, never Lane-bound', () => {
+    expect(spellBinding('spl-battle-banner')).toBe('UNIT');
+    expect(getCombatCard('spl-battle-banner').abilities[0].text).toBe('The Unit it is attached to has +15 ATK.');
+    const s = blankMatch();
+    put(s, 'player', 'left', KNIGHT, 60);
+    const banner = hand(s, 'player', 'spl-battle-banner');
+    const r = resolveCardRound(s, { plays: [{ handId: banner.handId, cardId: 'spl-battle-banner', lane: 'left' }] }, NONE);
+    expect(effectiveAtk(r.nextState, 'player', 'left')).toBe(75);
+  });
+  it('after Battle Banner expires with its Unit, its Spell slot takes a new Spell next round', () => {
+    const s = blankMatch();
+    put(s, 'player', 'left', KNIGHT, 60);
+    put(s, 'enemy', 'left', KNIGHT, 300);
+    const banner = hand(s, 'player', 'spl-battle-banner');
+    const first = resolveCardRound(s, { plays: [{ handId: banner.handId, cardId: 'spl-battle-banner', lane: 'left' }] }, NONE).nextState;
+    expect(first.player.spellZones.left).toBeNull();
+    const next = beginCardRound(first).nextState;
+    next.player.hand = [];
+    const knight = hand(next, 'player', KNIGHT);
+    const again = hand(next, 'player', 'spl-battle-banner');
+    const action: PlayerAction = { plays: [{ handId: knight.handId, cardId: KNIGHT, lane: 'left' }, { handId: again.handId, cardId: 'spl-battle-banner', lane: 'left' }] };
+    expect(validateCardDeployment(next, 'player', action).legal).toBe(true);
+    const r = resolveCardRound(next, action, NONE);
+    expect(r.events.some((e) => e.type === 'SPELL_ENTERED' && e.name === 'Battle Banner')).toBe(true);
+  });
   it('a Lane-bound Continuous Spell stays when the Unit in its lane is destroyed', () => {
     const s = blankMatch();
     put(s, 'player', 'left', KNIGHT, 60);

@@ -35,7 +35,7 @@ export const DAILY_MISSIONS: MissionDef[] = [
 
 export const WEEKLY_MISSIONS: MissionDef[] = [
   { id: 'weekly-campaign-wins', period: 'weekly', title: 'Win 10 Campaign battles', metric: 'campaign_won', target: 10, rewardGold: 200, rewardGems: 0, rewardTickets: 1 },
-  { id: 'weekly-open-packs', period: 'weekly', title: 'Open 5 packs', metric: 'pack_opened', target: 5, rewardGold: 0, rewardGems: 100, rewardTickets: 2 },
+  { id: 'weekly-open-packs', period: 'weekly', title: 'Open 5 packs', metric: 'pack_opened', target: 5, rewardGold: 0, rewardGems: 100, rewardTickets: 1 },
   { id: 'weekly-battles', period: 'weekly', title: 'Fight 15 battles', metric: 'battle_completed', target: 15, rewardGold: 150, rewardGems: 0, rewardTickets: 1 },
 ];
 

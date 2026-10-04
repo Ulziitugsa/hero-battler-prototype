@@ -569,7 +569,7 @@ Every Continuous Spell declares `spellBinding: 'UNIT' | 'LANE'` in `cardCombat/c
 
 ### 18.4 Balance
 
-Re-simulated before/after with the production resolver and AI (`scripts/simulate-deck-matrix.mjs`, `scripts/simulate-modes.mjs`). Results are in `moonwater/cleanup-pass/sim/`. Matches did not get longer (median 9, p90 12 rounds), max ATK is unchanged (244), there were no death-chain safeguards and Graveyard returns stayed flat. The Kingdom Starter's drop comes entirely from Battle Banner becoming Attached (a lane-bound Banner restores it). This is left for ozi's review.
+Re-simulated before/after with the production resolver and AI (`scripts/simulate-deck-matrix.mjs`, `scripts/simulate-modes.mjs`). Results are in `moonwater/cleanup-pass/sim/`. Matches did not get longer (median 9, p90 12 rounds), max ATK is unchanged (244), there were no death-chain safeguards and Graveyard returns stayed flat. The Kingdom Starter's drop comes entirely from Battle Banner becoming Attached (a lane-bound Banner restores it). **Decided (ozi, 2026-10-04):** Battle Banner stays Attached at +15 ATK. The lifetime rule matters more than the old Kingdom win rate, and there is no compensating buff; Kingdom balance is revisited with the wider card pool.
 
 ## 19. One card-acquisition path: packs (2026-10-03)
 
@@ -577,7 +577,8 @@ At ozi's ask (cleanup pass), Moonwater has one model: **"I open packs to get car
 
 - **Packs from finite Boxes** are the only card-acquisition path (plus Structure Decks and the Campaign/Journey grants). The Moonfall Box price (150 Gems a pack), size, rarity counts and duplicate handling are unchanged.
 - **Pack Tickets** (the former Summon Tickets, same storage) open one pack of the same Box each (`buyBoxPacks(count, box, 'tickets')`). Tickets are never a hidden fallback for Gems.
-- **The reveal ceremony** that belonged to the Moonwell Summon now opens packs (`components/reveal/RevealStage.tsx`, `game/reveal/`). The light telegraphs the best rarity in the opening, each Epic and Legendary card takes the stage, Skip jumps to **Pack Results**, and ten packs of Commons and Rares stay short. The reveal is pure presentation of an already-granted opening.
+- **Ticket rewards (ozi, 2026-10-04):** 1 Pack Ticket = 1 pack = 5 cards, with no fractional Tickets. A Summon Ticket was one card, so the two biggest legacy quantities were trimmed: Journey Day 2 grants 1 Pack Ticket (was 3) and the weekly "Open 5 packs" mission grants 1 (was 2). The other grant sites are listed in `moonwater/cleanup-pass/final-calls/REPORT.md` for ozi's decision.
+- **The reveal ceremony** that belonged to the Moonwell Summon now opens packs (`components/reveal/RevealStage.tsx`, `game/reveal/`). One pack turns all five cards over in rising rarity, spotlights each Epic and ends on the rarest card's hero reveal; ten packs play one opening, one quick beat per pack, a spotlight for each Epic and Legendary and the best card last. A tap finishes the current beat and Skip jumps to **Pack Results**. The reveal is pure presentation of an already-granted opening.
 - **Removed:** the Summon screen and route, banners, banner pool, rarity rates, pity, preview, dev controls and the `summon` config section. **Kept:** the Moonwell visual components and the reveal timeline, sound and meteors (renamed to neutral reveal modules), and the saved Summon pity and history, which stay **read-only** (`economy/legacySummon.ts`). A save that used the Summon still counts as having opened packs for Shop unlocks.
 - Terminology: Open Pack, Open 10 Packs, Pack Ticket, Box, Pack Results. Analytics `pack_opened`, `pack_ticket_used` and `pack_results_viewed` replace `summon_*`. The missions are "Open a pack" and "Open 5 packs".
 
