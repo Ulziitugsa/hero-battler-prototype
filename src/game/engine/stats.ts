@@ -89,17 +89,31 @@ export function computeMatchStats(
           bump(drawnBySide[event.side], event.cardId);
         }
         break;
-      case 'ON_PLAY':
-        if (event.zone === 'hero') {
+      // Units: every Unit played this round is listed in the REVEAL placements (legacy and card combat alike), the same
+      // source battleSummary.ts counts. Continuous Spells placed there are counted from SPELL_ENTERED / ON_PLAY below,
+      // and one-time Spells never appear in REVEAL, so each card is counted exactly once.
+      case 'REVEAL':
+        for (const placement of event.placements) {
+          if (placement.zone !== 'hero') continue;
           heroesPlayed += 1;
-          bornRound.set(event.instanceId, currentRound);
-          maxPowerReached = Math.max(maxPowerReached, getCard(event.cardId).power ?? 0);
-          occupiedLanes[event.side].add(event.lane);
-          if (occupiedLanes[event.side].size === 3) fullBoardStates += 1;
-        } else {
-          continuousSpellsPlayed += 1;
+          bornRound.set(placement.instanceId, currentRound);
+          maxPowerReached = Math.max(maxPowerReached, placement.power ?? getCard(placement.cardId).power ?? 0);
+          occupiedLanes[placement.side].add(placement.lane);
+          if (occupiedLanes[placement.side].size === 3) fullBoardStates += 1;
+          bump(playedBySide[placement.side], placement.cardId);
         }
+        break;
+      // Continuous Spells: card resolver v4 logs SPELL_ENTERED; the legacy resolver logged ON_PLAY in a Spell zone.
+      // Neither resolver emits both. (Legacy ON_PLAY for a Hero zone is already counted from REVEAL.)
+      case 'SPELL_ENTERED':
+        continuousSpellsPlayed += 1;
         bump(playedBySide[event.side], event.cardId);
+        break;
+      case 'ON_PLAY':
+        if (event.zone === 'spell') {
+          continuousSpellsPlayed += 1;
+          bump(playedBySide[event.side], event.cardId);
+        }
         break;
       case 'SPELL_RESOLVED':
         if (!event.fizzled) {
@@ -120,7 +134,7 @@ export function computeMatchStats(
       case 'REVIVED':
         heroesRevived += 1;
         bornRound.set(event.instanceId, currentRound);
-        maxPowerReached = Math.max(maxPowerReached, getCard(event.cardId).power ?? 0);
+        maxPowerReached = Math.max(maxPowerReached, event.power);
         occupiedLanes[event.side].add(event.lane);
         if (occupiedLanes[event.side].size === 3) fullBoardStates += 1;
         break;
