@@ -14,6 +14,7 @@ Moonwater, using the pixel-art direction recorded in the Moonwater design docume
 | [CARD-COMBAT-SIMULATION.md](CARD-COMBAT-SIMULATION.md) | Seeded card-combat simulator: methods, reproduction commands and results |
 | [COMBAT-V2-DESIGN.md](COMBAT-V2-DESIGN.md) | Historical per-Unit-HP Combat V2 experiment and lab; superseded by CARD-COMBAT-DESIGN.md |
 | [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md) | Player-facing terminology, Card Mastery, duplicates, Account Level, Renown and the legacy-progression migration plan |
+| [ECONOMY-BASELINE.md](ECONOMY-BASELINE.md) | Pack Ticket sources, placeholder offer values and the monetization principles for the future economy pass |
 | [RANKED-MODE.md](RANKED-MODE.md) | Local Ranked rating, AI opponent selection, rewards, and prototype limits |
 | [EXTERNAL-PLAYTEST-CHECKLIST.md](EXTERNAL-PLAYTEST-CHECKLIST.md) | Manual playtest checks and known prototype limits |
 | [design/CHARACTER-ART-BIBLE.md](design/CHARACTER-ART-BIBLE.md) | Historical painterly art exploration; superseded by the current Moonwater pixel-art direction |

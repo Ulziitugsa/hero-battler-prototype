@@ -20,8 +20,9 @@ export interface MissionDef {
   target: number;
   rewardGold: number;
   rewardGems: number;
-  /** Pack Tickets - deliberately weekly-only, so Tickets stay a weekly-commitment reward rather than a daily
-   * trickle (the 7-day journey already covers "free packs early on"; see game/journey/definitions.ts Day 2). */
+  /** Pack Tickets (1 Ticket = 1 pack = 5 cards). Only the weekly "Open 5 packs" mission gives one, so recurring
+   * free Ticket income is 1 pack a week (ozi, 2026-10-04; baseline in docs/ECONOMY-BASELINE.md). The Journey's
+   * Day 2 covers "a free pack early on"; see game/journey/definitions.ts. */
   rewardTickets: number;
 }
 
@@ -34,9 +35,9 @@ export const DAILY_MISSIONS: MissionDef[] = [
 ];
 
 export const WEEKLY_MISSIONS: MissionDef[] = [
-  { id: 'weekly-campaign-wins', period: 'weekly', title: 'Win 10 Campaign battles', metric: 'campaign_won', target: 10, rewardGold: 200, rewardGems: 0, rewardTickets: 1 },
+  { id: 'weekly-campaign-wins', period: 'weekly', title: 'Win 10 Campaign battles', metric: 'campaign_won', target: 10, rewardGold: 200, rewardGems: 0, rewardTickets: 0 },
   { id: 'weekly-open-packs', period: 'weekly', title: 'Open 5 packs', metric: 'pack_opened', target: 5, rewardGold: 0, rewardGems: 100, rewardTickets: 1 },
-  { id: 'weekly-battles', period: 'weekly', title: 'Fight 15 battles', metric: 'battle_completed', target: 15, rewardGold: 150, rewardGems: 0, rewardTickets: 1 },
+  { id: 'weekly-battles', period: 'weekly', title: 'Fight 15 battles', metric: 'battle_completed', target: 15, rewardGold: 150, rewardGems: 0, rewardTickets: 0 },
 ];
 
 export const ALL_MISSIONS: MissionDef[] = [...DAILY_MISSIONS, ...WEEKLY_MISSIONS];

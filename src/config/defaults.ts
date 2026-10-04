@@ -47,6 +47,8 @@ export const DEFAULT_CONFIG: GameConfig = {
     rewardOverrides: {},
   },
   offers: {
+    // PROTOTYPE PLACEHOLDERS: display-only real-money labels; nothing is charged. A separate monetization pass
+    // sets the real price ladder (docs/ECONOMY-BASELINE.md).
     priceLabels: {
       'starter-pack': '$1.99',
       'growth-pack': '$4.99',

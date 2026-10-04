@@ -99,7 +99,31 @@ describe('Pack Ticket rewards: 1 Ticket = 1 pack = 5 cards (ozi, 2026-10-04)', (
     expect(getEconomy()).toMatchObject({ tickets: 1, gems: 120 });
     expect(claimMission('weekly-open-packs').ok).toBe(false); // once a week
   });
-  it('every production Pack Ticket grant matches the audited table', () => {
+  it('the other weekly missions give no Ticket; recurring free income is one pack a week', () => {
+    expect(WEEKLY_MISSIONS.find((m) => m.id === 'weekly-campaign-wins')).toMatchObject({ rewardTickets: 0, rewardGold: 200 });
+    expect(WEEKLY_MISSIONS.find((m) => m.id === 'weekly-battles')).toMatchObject({ rewardTickets: 0, rewardGold: 150 });
+    expect(ALL_MISSIONS.reduce((n, m) => n + m.rewardTickets, 0)).toBe(1);
+  });
+  it('the Long Vigil holds exactly one Ticket, on login Day 6; Ranked 300 keeps its one', () => {
+    const vigil = EVENTS.find((e) => e.id === 'long-vigil-2026')!;
+    const all = [...vigil.loginRewards.map((l) => ({ id: `day-${l.day}`, reward: l.reward })), ...vigil.missions, ...vigil.milestones];
+    expect(all.filter((r) => r.reward.tickets).map((r) => [r.id, r.reward.tickets])).toEqual([['day-6', 1]]);
+    expect(RANK_REWARDS.filter((r) => r.tickets).map((r) => [r.id, r.tickets])).toEqual([['rating-300', 1]]);
+  });
+  it('paid offers keep their placeholder Tickets: Starter Pack 5, Growth Pack 3', () => {
+    expect(OFFERS.find((o) => o.id === 'starter-pack')?.reward.tickets).toBe(5);
+    expect(OFFERS.find((o) => o.id === 'growth-pack')?.reward.tickets).toBe(3);
+    expect(read('../offers/definitions.ts')).toMatch(/PROTOTYPE PLACEHOLDERS/);
+  });
+  it('saved Summon Tickets carry over 1:1 as Pack Tickets (no conversion, no refund)', () => {
+    localStorage.setItem(ECONOMY_STORAGE_KEY, JSON.stringify({ version: 5, gems: 40, gold: 0, tickets: 7, grants: [], summon: { pity: {}, history: [] } }));
+    reloadEconomy();
+    expect(getEconomy()).toMatchObject({ tickets: 7, gems: 40 });
+    const result = buyBoxPacks(1, MOONFALL_BOX, 'tickets');
+    expect(result.ok && result.opening.packs.flat()).toHaveLength(5);
+    expect(getEconomy()).toMatchObject({ tickets: 6, gems: 40 });
+  });
+  it('every production Pack Ticket grant matches the audited table (docs/ECONOMY-BASELINE.md)', () => {
     const grants: Record<string, number> = {};
     for (const d of JOURNEY_DAYS) if (d.rewardTickets) grants[`journey:day-${d.day}`] = d.rewardTickets;
     for (const m of ALL_MISSIONS) if (m.rewardTickets) grants[`mission:${m.id}`] = m.rewardTickets;
@@ -112,18 +136,12 @@ describe('Pack Ticket rewards: 1 Ticket = 1 pack = 5 cards (ozi, 2026-10-04)', (
       for (const m of e.milestones) if (m.reward.tickets) grants[`event:${e.id}:${m.id}`] = m.reward.tickets;
     }
     expect(grants).toEqual({
-      'journey:day-2': 1, // was 3
-      'mission:weekly-campaign-wins': 1,
-      'mission:weekly-open-packs': 1, // was 2
-      'mission:weekly-battles': 1,
-      'offer:starter-pack': 5, // flagged for ozi, unchanged
-      'offer:growth-pack': 3, // flagged for ozi, unchanged
-      'ranked:rating-300': 1,
-      'event:long-vigil-2026:login-day-3': 1,
-      'event:long-vigil-2026:login-day-6': 1,
-      'event:long-vigil-2026:vigil-ranked-wins': 1,
-      'event:long-vigil-2026:vigil-shop-gift': 1,
-      'event:long-vigil-2026:vigil-collect-4': 1,
+      'journey:day-2': 1, // one-time free
+      'ranked:rating-300': 1, // one-time free
+      'mission:weekly-open-packs': 1, // recurring free
+      'event:long-vigil-2026:login-day-6': 1, // event
+      'offer:starter-pack': 5, // paid offer, placeholder
+      'offer:growth-pack': 3, // paid offer, placeholder
     });
     expect(DEFAULT_CONFIG.economy.startingTickets).toBe(0);
     // ...and nothing else in the game hands out Tickets.

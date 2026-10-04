@@ -6,6 +6,11 @@
 // `offers.priceLabels` (Phase 8) - not hardcoded here, so they're one of the "future offer prices"
 // candidate config values the brief named.
 //
+// PROTOTYPE PLACEHOLDERS: every reward quantity here (including the Pack Tickets in the Starter and Growth
+// Packs: 5 and 3 Tickets, i.e. 25 and 15 cards) and every real-money price label is a placeholder, kept as
+// it was through the Summon -> Pack migration on purpose. A separate monetization/economy pass will set them;
+// see docs/ECONOMY-BASELINE.md.
+//
 // Deliberately small: 2 bundles + 3 Gem packs + 1 locked preview, not "ten packs" (brief: "Do not create
 // ten packs"). The First-Purchase Bonus (brief) is not a separate catalog entry - it's a flag/state
 // (game/offers/store.ts's hasEverPurchased) applied to whichever offer completes first, per the brief's

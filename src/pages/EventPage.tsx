@@ -32,7 +32,7 @@ function describeGrant(reward: EventReward): string {
   const parts: string[] = [];
   if (reward.gold) parts.push(`${reward.gold} Gold`);
   if (reward.gems) parts.push(`${reward.gems} Gems`);
-  if (reward.tickets) parts.push(`${reward.tickets} Ticket${reward.tickets === 1 ? '' : 's'}`);
+  if (reward.tickets) parts.push(`${reward.tickets} Pack Ticket${reward.tickets === 1 ? '' : 's'}`);
   for (const id of reward.cardIds ?? []) parts.push(getCard(id).name);
   if (reward.backgroundId) parts.push(`${getBackground(reward.backgroundId).name} background`);
   return parts.length ? `+ ${parts.join(' · ')}` : 'Reward claimed';
