@@ -6,7 +6,7 @@ This is the starting point for the future monetization and economy pass. It reco
 
 - **1 Pack Ticket = 1 pack = 5 cards** of the current Box (`buyBoxPacks(count, box, 'tickets')`).
 - There are no fractional Tickets, and a Ticket never reveals fewer cards.
-- A Ticket opening is a real pack opening. It counts toward "Open a pack", "Open 5 packs" and event pack objectives, and it plays the same ceremony as Gems.
+- A Ticket opening is a real pack opening. It counts toward event pack objectives, and it plays the same ceremony as Gems. (No recurring mission counts pack openings any more; see "Recurring missions" below.)
 - Tickets are never a silent fallback for Gems.
 
 ### Every production Ticket source (ozi, 2026-10-04)
@@ -17,7 +17,7 @@ This is the starting point for the future monetization and economy pass. It reco
 |---|---|---|---|---|---|
 | Journey Day 2 | one-time free | 1 | 1 | 5 | once per account |
 | Ranked reward at rating 300 | one-time free | 1 | 1 | 5 | once per account (peak rating) |
-| Weekly mission "Open 5 packs" | recurring free | 1 | 1 | 5 | weekly |
+| Weekly mission "Complete 5 daily missions" | recurring free | 1 | 1 | 5 | weekly |
 | Long Vigil login Day 6 | event | 1 | 1 | 5 | once per event run |
 | Starter Pack offer | paid offer (placeholder) | 5 | 5 | 25 | per simulated purchase |
 | Growth Pack offer | paid offer (placeholder) | 3 | 3 | 15 | per simulated purchase |
@@ -29,13 +29,40 @@ Nothing else grants Tickets: no daily mission, no other weekly mission, no other
 
 What changed in the migration:
 - Journey Day 2 went from 3 Tickets to 1.
-- "Open 5 packs" went from 2 to 1.
+- "Open 5 packs" went from 2 to 1 (and was later retired; its Ticket moved to "Complete 5 daily missions").
 - "Win 10 Campaign battles" and "Fight 15 battles" went from 1 to 0.
 - Long Vigil went from 5 Tickets to 1. The Ticket was removed from login Day 3 and from the "Win 2 Ranked matches", "Claim the free Shop gift 3 times" and "Own 4 featured Undead" rewards. Those four are now progress-only: login Day 3 is a check-in checkpoint, and the other three are objectives with nothing to claim (no empty reward, no Claim button, no replacement currency). The two missions still count toward "Complete N missions" and the event's final reward.
 
 ### Saved Summon Tickets: intentional legacy generosity
 
 A Summon Ticket in an old save becomes one Pack Ticket, worth 5 cards instead of 1. Balances are not converted or divided, and no Gems are refunded. This is deliberate while Moonwater is pre-release.
+
+## Economy cleanup (PR #15)
+
+A small cleanup ahead of the economy pass. No price, income rate or offer value changed.
+
+### Recurring missions: pack-gated missions retired
+
+No recurring mission asks the player to open, and so pay for, packs. The two pack missions were replaced by play objectives with the same rewards:
+
+| Retired | Replacement | Reward (unchanged) |
+|---|---|---|
+| Daily "Open a pack" (`pack_opened` ×1) | Daily "Win a Ranked battle" (`ranked_match_won` ×1) | 20 Gems |
+| Weekly "Open 5 packs" (`pack_opened` ×5) | Weekly "Complete 5 daily missions" (`daily_mission_completed` ×5) | 100 Gems + 1 Pack Ticket |
+
+The weekly Pack Ticket still has exactly one recurring source. Each daily mission counts once a day toward "Complete 5 daily missions", so a player who finishes their dailies on 1 to 5 days of a week earns it. Event pack objectives (Long Vigil) are unchanged.
+
+### Gold is earn-only
+
+The Shop's **50 Gems → 500 Gold** exchange is removed, and there is no replacement Gold purchase. Gold comes from play (Campaign, idle reward, missions, the daily Shop gift, events) and from paid bundles that already include it. It is the intended currency of the future Card Trader.
+
+### Gem Energy refill stays
+
+The Shop's Energy refill (35 Gems → up to 20 Energy, capped at 60) is unchanged. Choosing to buy more play is fine. Energy pacing will be studied separately and may move toward a higher capacity, a slower recharge and a refill that restores a meaningful chunk. That change must not make Energy a dominant Gems → Gold route (Gems → Energy → Campaign wins → Gold). See `game/shop/energyRefill.ts`.
+
+### Offer visibility uses current progression
+
+The Growth Pack used to appear only once a card had an Ascension (historical Mastery) rank, which players can no longer earn. It now appears after **5 Campaign stages are cleared** (`game/offers/eligibility.ts`). The Starter Pack appears after a first pack or the same Campaign progress, and Gem bundles after a first pack, as before.
 
 ## Paid offers and prices are prototype placeholders
 

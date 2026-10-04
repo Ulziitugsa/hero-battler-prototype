@@ -154,6 +154,9 @@ function recordMetric(metric: AnalyticsEvent['name']): void {
   let weeklyChanged = false;
   const nextDaily = { ...state.daily };
   const nextWeekly = { ...state.weekly };
+  // Tracked only after the commit: a mission can count another mission's events ("Complete 5 daily missions"
+  // counts daily_mission_completed), and that nested recordMetric must read this update, not overwrite it.
+  const events: [AnalyticsEvent['name'], Record<string, string | number>][] = [];
   for (const def of matches) {
     const bucket = def.period === 'daily' ? nextDaily : nextWeekly;
     const current = bucket[def.id] ?? { count: 0, claimed: false };
@@ -162,17 +165,18 @@ function recordMetric(metric: AnalyticsEvent['name']): void {
     bucket[def.id] = { count: nextCount, claimed: false };
     if (def.period === 'daily') dailyChanged = true;
     else weeklyChanged = true;
-    track('mission_progressed', { missionId: def.id, count: nextCount, target: def.target });
-    track(def.period === 'daily' ? 'daily_mission_progress' : 'weekly_mission_progress', { missionId: def.id, count: nextCount, target: def.target });
+    events.push(['mission_progressed', { missionId: def.id, count: nextCount, target: def.target }]);
+    events.push([def.period === 'daily' ? 'daily_mission_progress' : 'weekly_mission_progress', { missionId: def.id, count: nextCount, target: def.target }]);
     if (nextCount >= def.target) {
-      track('mission_completed', { missionId: def.id });
-      track(def.period === 'daily' ? 'daily_mission_completed' : 'weekly_mission_completed', { missionId: def.id });
+      events.push(['mission_completed', { missionId: def.id }]);
+      events.push([def.period === 'daily' ? 'daily_mission_completed' : 'weekly_mission_completed', { missionId: def.id }]);
     }
   }
   // Fires once per day, exactly on the transition into "every daily mission complete" - never re-fires
   // for the rest of that day (there's nothing left to advance), so no separate persisted flag is needed.
-  if (dailyChanged && !wasAllDailyComplete && allDailyComplete(nextDaily)) track('daily_set_completed', {});
+  if (dailyChanged && !wasAllDailyComplete && allDailyComplete(nextDaily)) events.push(['daily_set_completed', {}]);
   if (dailyChanged || weeklyChanged) commit({ ...state, daily: nextDaily, weekly: nextWeekly });
+  for (const [name, properties] of events) track(name, properties);
 }
 
 let subscribed = false;
