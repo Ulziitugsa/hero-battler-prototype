@@ -35,7 +35,9 @@ export interface EventMissionDef {
   title: string;
   objective: EventObjective;
   target: number;
-  reward: EventReward;
+  /** Omitted for a progress-only objective: it completes and counts toward "Complete N missions" and the final
+   * reward, but there is nothing to claim. Never an empty or zero-value reward. */
+  reward?: EventReward;
 }
 
 /** A milestone is judged from state the game already holds - never a separate event currency. */
@@ -48,12 +50,22 @@ export interface EventMilestoneDef {
   id: string;
   title: string;
   requirement: EventRequirement;
-  reward: EventReward;
+  /** Omitted for a progress-only milestone (an objective with nothing to claim). */
+  reward?: EventReward;
 }
+
+/** The event's final reward always grants something. */
+export type EventFinalRewardDef = EventMilestoneDef & { reward: EventReward };
 
 export interface EventLoginRewardDef {
   day: number;
-  reward: EventReward;
+  /** Omitted for a checkpoint day: checking in advances the login track, nothing is granted. */
+  reward?: EventReward;
+}
+
+/** Whether an entry hands out anything at all (an entry without one is a progress-only objective or checkpoint). */
+export function hasDirectReward(reward: EventReward | undefined): reward is EventReward {
+  return !!reward && !!(reward.gold || reward.gems || reward.tickets || reward.cardIds?.length || reward.backgroundId);
 }
 
 /** The product an event promotes. `id` is a Box or Structure Deck id owned by the Shop workstream. */
@@ -86,7 +98,7 @@ export interface EventDefinition {
   missions: EventMissionDef[];
   milestones: EventMilestoneDef[];
   featuredProduct?: EventFeaturedProduct;
-  finalReward: EventMilestoneDef;
+  finalReward: EventFinalRewardDef;
 }
 
 export type EventPhase = 'upcoming' | 'active' | 'ended';

@@ -2,13 +2,13 @@ import { BOX_PRODUCTS } from '../box/boxProduct';
 import { PLAYTEST_ROSTER } from '../cards/roster';
 import { STRUCTURE_DECKS } from '../structureDecks/definitions';
 import { EVENTS } from '../events/definitions';
-import type { EventDefinition, EventReward } from '../events/types';
+import { hasDirectReward, type EventDefinition, type EventReward } from '../events/types';
 
 // Shop and event products that also hand out cards. Kept apart from acquisition.ts (Campaign, starter and
 // Summon data) so those labels and their tests stay stable; Card Inspect shows both.
 
 function eventRewards(event: EventDefinition): EventReward[] {
-  return [...event.loginRewards.map(r => r.reward), ...event.missions.map(m => m.reward), ...event.milestones.map(m => m.reward), event.finalReward.reward];
+  return [...event.loginRewards.map(r => r.reward), ...event.missions.map(m => m.reward), ...event.milestones.map(m => m.reward), event.finalReward.reward].filter(hasDirectReward);
 }
 
 /** Player-facing lines for the Boxes, Structure Decks and live events that can give this card. */

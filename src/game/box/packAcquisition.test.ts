@@ -107,7 +107,7 @@ describe('Pack Ticket rewards: 1 Ticket = 1 pack = 5 cards (ozi, 2026-10-04)', (
   it('the Long Vigil holds exactly one Ticket, on login Day 6; Ranked 300 keeps its one', () => {
     const vigil = EVENTS.find((e) => e.id === 'long-vigil-2026')!;
     const all = [...vigil.loginRewards.map((l) => ({ id: `day-${l.day}`, reward: l.reward })), ...vigil.missions, ...vigil.milestones];
-    expect(all.filter((r) => r.reward.tickets).map((r) => [r.id, r.reward.tickets])).toEqual([['day-6', 1]]);
+    expect(all.filter((r) => r.reward?.tickets).map((r) => [r.id, r.reward?.tickets])).toEqual([['day-6', 1]]);
     expect(RANK_REWARDS.filter((r) => r.tickets).map((r) => [r.id, r.tickets])).toEqual([['rating-300', 1]]);
   });
   it('paid offers keep their placeholder Tickets: Starter Pack 5, Growth Pack 3', () => {
@@ -131,9 +131,9 @@ describe('Pack Ticket rewards: 1 Ticket = 1 pack = 5 cards (ozi, 2026-10-04)', (
     if (FIRST_PURCHASE_BONUS.tickets) grants['offer:first-purchase-bonus'] = FIRST_PURCHASE_BONUS.tickets;
     for (const r of RANK_REWARDS) if (r.tickets) grants[`ranked:${r.id}`] = r.tickets;
     for (const e of EVENTS) {
-      for (const l of e.loginRewards) if (l.reward.tickets) grants[`event:${e.id}:login-day-${l.day}`] = l.reward.tickets;
-      for (const m of e.missions) if (m.reward.tickets) grants[`event:${e.id}:${m.id}`] = m.reward.tickets;
-      for (const m of e.milestones) if (m.reward.tickets) grants[`event:${e.id}:${m.id}`] = m.reward.tickets;
+      for (const l of e.loginRewards) if (l.reward?.tickets) grants[`event:${e.id}:login-day-${l.day}`] = l.reward?.tickets;
+      for (const m of e.missions) if (m.reward?.tickets) grants[`event:${e.id}:${m.id}`] = m.reward?.tickets;
+      for (const m of e.milestones) if (m.reward?.tickets) grants[`event:${e.id}:${m.id}`] = m.reward?.tickets;
     }
     expect(grants).toEqual({
       'journey:day-2': 1, // one-time free

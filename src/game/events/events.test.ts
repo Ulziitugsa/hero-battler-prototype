@@ -1,7 +1,10 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { track } from '../../analytics/track';
+import { EventPage } from '../../pages/EventPage';
+import { clearQueuedEvents, getQueuedEvents, track } from '../../analytics/track';
 import { getEconomy, reloadEconomy } from '../economy/economy';
-import { clearCollection, getOwnedCount, grantCard, reloadCollection } from '../collection/collection';
+import { clearCollection, getCollection, getOwnedCount, grantCard, reloadCollection } from '../collection/collection';
 import { backgroundIsUnlocked, getBackground } from '../backgrounds/definitions';
 import { PROTOTYPE_BOX } from '../box/prototypeBox';
 import { THE_LONG_VIGIL, daysRemaining, eventPhase, getLiveEvent, EVENTS } from './definitions';
@@ -13,6 +16,8 @@ import {
   claimLoginReward,
   claimableCount,
   completionRatio,
+  isMilestoneDone,
+  isMissionDone,
   getEventProgress,
   initEvents,
   reloadEvents,
@@ -20,7 +25,7 @@ import {
   resetEvents,
 } from './store';
 import { summarizeBattle } from './battleSummary';
-import type { EventDefinition } from './types';
+import { hasDirectReward, type EventDefinition } from './types';
 import { getCard } from '../cards';
 import { PLAYTEST_ROSTER } from '../cards/roster';
 
@@ -66,7 +71,7 @@ describe('event definitions', () => {
   it('every event references real cards, backgrounds and a sane window', () => {
     for (const event of EVENTS) {
       expect(Date.parse(event.endsAt)).toBeGreaterThan(Date.parse(event.startsAt));
-      const rewards = [...event.loginRewards.map((d) => d.reward), ...event.missions.map((m) => m.reward), ...event.milestones.map((m) => m.reward), event.finalReward.reward];
+      const rewards = [...event.loginRewards.map((d) => d.reward), ...event.missions.map((m) => m.reward), ...event.milestones.map((m) => m.reward), event.finalReward.reward].filter(hasDirectReward);
       for (const reward of rewards) {
         for (const id of reward.cardIds ?? []) expect(() => getCard(id)).not.toThrow();
         if (reward.backgroundId) expect(getBackground(reward.backgroundId).id).toBe(reward.backgroundId);
@@ -175,14 +180,15 @@ describe('milestones and final reward', () => {
     expect(claimEventMilestone(EVENT.id, 'vigil-missions-5').ok).toBe(true);
   });
 
-  it('collection milestone reads owned cards', () => {
+  it('collection milestone reads owned cards (a progress-only objective: done, nothing to claim)', () => {
     clearCollection();
-    const req = EVENT.milestones.find((m) => m.id === 'vigil-collect-4')!.requirement;
-    expect(requirementProgress(EVENT, req, getEventProgress(EVENT.id)).current).toBe(0);
+    const milestone = EVENT.milestones.find((m) => m.id === 'vigil-collect-4')!;
+    expect(requirementProgress(EVENT, milestone.requirement, getEventProgress(EVENT.id)).current).toBe(0);
     for (const id of ['und-wraith-prince', 'und-grave-sage', 'und-grave-knight']) grantCard(id);
-    expect(claimEventMilestone(EVENT.id, 'vigil-collect-4').ok).toBe(false);
+    expect(isMilestoneDone(EVENT, milestone, getEventProgress(EVENT.id))).toBe(false);
     grantCard('und-dark-priest');
-    expect(claimEventMilestone(EVENT.id, 'vigil-collect-4').ok).toBe(true);
+    expect(isMilestoneDone(EVENT, milestone, getEventProgress(EVENT.id))).toBe(true);
+    expect(claimEventMilestone(EVENT.id, 'vigil-collect-4').ok).toBe(false);
   });
 
   it('the final reward grants its card and unlocks the event background permanently', () => {
@@ -208,6 +214,94 @@ describe('milestones and final reward', () => {
     const total = EVENT.loginRewards.length + EVENT.missions.length + EVENT.milestones.length + 1;
     expect(completionRatio(EVENT, getEventProgress(EVENT.id))).toBeCloseTo(2 / total);
     expect(claimableCount(EVENT, getEventProgress(EVENT.id), Date.parse(EVENT.endsAt))).toBe(0);
+  });
+});
+
+describe('progress-only objectives and the login checkpoint (Ticket cleanup, 2026-10-04)', () => {
+  const PROGRESS_ONLY = ['vigil-ranked-wins', 'vigil-shop-gift'];
+  const wallet = () => { const e = getEconomy(); return { gold: e.gold, gems: e.gems, tickets: e.tickets }; };
+  const checkInDays = (n: number) => { const results = []; for (let d = 0; d < n; d += 1) { vi.setSystemTime(INSIDE + d * DAY_MS); results.push(claimLoginReward(EVENT.id)); } return results; };
+  const render = () => renderToStaticMarkup(createElement(EventPage, { onBack: () => {}, onOpenShop: () => {} }));
+
+  it('the Long Vigil grants exactly one Pack Ticket, from login Day 6; Day 3 is a checkpoint that grants nothing', () => {
+    const grants = [...EVENT.loginRewards.map((d) => d.reward), ...EVENT.missions.map((m) => m.reward), ...EVENT.milestones.map((m) => m.reward), EVENT.finalReward.reward];
+    expect(grants.reduce((n, r) => n + (r?.tickets ?? 0), 0)).toBe(1);
+    expect(EVENT.loginRewards.find((d) => d.reward?.tickets)?.day).toBe(6);
+    expect(EVENT.loginRewards[2]).toEqual({ day: 3 });
+    checkInDays(2);
+    const before = { wallet: wallet(), cards: { ...getCollection() } };
+    clearQueuedEvents();
+    vi.setSystemTime(INSIDE + 2 * DAY_MS);
+    const day3 = claimLoginReward(EVENT.id);
+    expect(day3).toEqual({ ok: true, reason: null, granted: {}, checkpoint: true });
+    expect({ wallet: wallet(), cards: { ...getCollection() } }).toEqual(before);
+    const tracked = getQueuedEvents().find((e) => e.name === 'event_login_claimed')?.properties ?? {};
+    expect(tracked).toMatchObject({ eventId: EVENT.id, day: 3, checkpoint: true });
+    for (const key of ['cards', 'backgroundId']) expect(tracked).not.toHaveProperty(key); // no reward payload is reported
+    expect(getEventProgress(EVENT.id).loginClaims).toBe(3);
+    const ticketsBefore = getEconomy().tickets;
+    const [day4, day5, day6] = [3, 4, 5].map((d) => { vi.setSystemTime(INSIDE + d * DAY_MS); return claimLoginReward(EVENT.id); });
+    expect([day4.checkpoint, day5.checkpoint, day6.checkpoint]).toEqual([undefined, undefined, undefined]);
+    expect(day6.granted).toEqual({ tickets: 1 });
+    expect(getEconomy().tickets).toBe(ticketsBefore + 1);
+  });
+
+  it('progress-only objectives complete, persist and count toward Complete N missions without granting anything', () => {
+    const before = wallet();
+    clearQueuedEvents();
+    track('ranked_match_won', {}); track('ranked_match_won', {});
+    for (let i = 0; i < 3; i += 1) track('shop_free_claimed', {});
+    for (const id of PROGRESS_ONLY) {
+      const mission = EVENT.missions.find((m) => m.id === id)!;
+      expect(mission.reward).toBeUndefined();
+      expect(isMissionDone(mission, getEventProgress(EVENT.id))).toBe(true);
+      expect(claimEventMission(EVENT.id, id)).toMatchObject({ ok: false, granted: {} });
+    }
+    expect(wallet()).toEqual(before);
+    expect(getQueuedEvents().some((e) => e.name === 'event_reward_claimed')).toBe(false);
+    expect(requirementProgress(EVENT, { kind: 'missionsCompleted', count: 3 }, getEventProgress(EVENT.id)).current).toBe(2);
+    expect(claimableCount(EVENT, getEventProgress(EVENT.id))).toBe(1); // only today's login reward: nothing to claim here
+    reloadEvents();
+    for (const id of PROGRESS_ONLY) expect(isMissionDone(EVENT.missions.find((m) => m.id === id)!, getEventProgress(EVENT.id))).toBe(true);
+    win(); win(); win();
+    expect(claimEventMilestone(EVENT.id, 'vigil-missions-3').ok).toBe(true); // two objectives + one reward mission
+    expect(completionRatio(EVENT, getEventProgress(EVENT.id))).toBeGreaterThan(0);
+  });
+
+  it('the final reward unlocks once every mission is complete, progress-only objectives included', () => {
+    for (const mission of EVENT.missions) {
+      const o = mission.objective;
+      const props: Record<string, string | number> = { ...(o.where ?? {}) } as Record<string, string | number>;
+      if (o.kind === 'sum') props[o.property] = mission.target;
+      for (let i = 0; i < (o.kind === 'count' ? mission.target : 1); i += 1) track(o.event, props);
+    }
+    // Nothing claimed at all: the final reward reads completion, not claims.
+    const result = claimEventMilestone(EVENT.id, EVENT.finalReward.id);
+    expect(result.ok).toBe(true);
+    expect(result.granted.cardIds).toEqual(['und-wraith-prince']);
+  });
+
+  it('the page shows checkpoints and objectives as progress: no empty reward chips, no Claim on nothing', () => {
+    vi.setSystemTime(INSIDE + 2 * DAY_MS);
+    checkInDays(2); // Day 3 is today's entry
+    vi.setSystemTime(INSIDE + 2 * DAY_MS);
+    track('ranked_match_won', {}); track('ranked_match_won', {});
+    let html = render();
+    expect(html).not.toMatch(/<span class="event-reward-chips"><\/span>/);
+    const day3 = html.match(/<li class="ready checkpoint">.*?<\/li>/)?.[0] ?? '';
+    expect(day3.replace(/<[^>]+>/g, ' ')).toMatch(/Day\s+3/);
+    expect(day3).toContain('Check in');
+    expect(day3).not.toContain('Claim');
+    expect(html).toMatch(/<li class="reward-day"><small>Day 6<\/small><span class="event-reward-chips"><span[^>]*><svg class="ticket-icon"[^]*?<\/svg>1<\/span>/);
+    const ranked = html.match(/<li class="event-row objective done">.*?<\/li>/)?.[0] ?? '';
+    expect(ranked).toContain('Win 2 Ranked matches');
+    expect(ranked).toContain('Objective');
+    expect(ranked).toContain('Complete');
+    expect(ranked).not.toMatch(/Claim|event-reward-chips/);
+    expect(html).toContain('<h2 id="event-login-title">Daily login</h2>');
+    claimLoginReward(EVENT.id);
+    html = render();
+    expect(html).toMatch(/<li class="claimed checkpoint">/);
   });
 });
 

@@ -31,7 +31,7 @@ What changed in the migration:
 - Journey Day 2 went from 3 Tickets to 1.
 - "Open 5 packs" went from 2 to 1.
 - "Win 10 Campaign battles" and "Fight 15 battles" went from 1 to 0.
-- Long Vigil went from 5 Tickets to 1. The Ticket was removed from login Day 3 and from the "Win 2 Ranked matches", "Claim the free Shop gift 3 times" and "Own 4 featured Undead" rewards. Those four now grant nothing, and no replacement currency was added. The two missions still count toward the event's "Complete N missions" milestones.
+- Long Vigil went from 5 Tickets to 1. The Ticket was removed from login Day 3 and from the "Win 2 Ranked matches", "Claim the free Shop gift 3 times" and "Own 4 featured Undead" rewards. Those four are now progress-only: login Day 3 is a check-in checkpoint, and the other three are objectives with nothing to claim (no empty reward, no Claim button, no replacement currency). The two missions still count toward "Complete N missions" and the event's final reward.
 
 ### Saved Summon Tickets: intentional legacy generosity
 

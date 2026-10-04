@@ -78,3 +78,15 @@
 .home-event-status { flex: 0 0 auto; color: var(--moon-muted); font-size: 11px; font-weight: 700; }
 .home-event-status.is-ready { color: var(--moon-prestige); }
 .home-event-banner .attention-dot { top: 4px; right: 4px; }
+
+/* Progress-only entries: a login checkpoint and objectives with nothing to claim. They read as progress, never as an
+ * empty reward. Reward days and reward rows keep the richer treatment above. */
+.event-login-track li.checkpoint { min-height: 78px; border-style: dashed; background: rgba(20, 44, 56, .45); }
+.event-login-track li.checkpoint.ready { border-style: solid; }
+.event-checkpoint { color: var(--moon-dim); font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; line-height: 1.15; hyphens: manual; }
+.event-login-track li.reward-day:not(.claimed):has(.event-reward-ticket) { border-color: rgba(224, 184, 240, .7); background: linear-gradient(180deg, rgba(90, 52, 104, .55), rgba(20, 44, 56, .85)); box-shadow: 0 0 10px rgba(224, 184, 240, .25); }
+.event-login-track .event-reward-ticket { font-size: 13px; }
+.event-objective-tag { justify-self: start; padding: 1px 7px; border: 1px solid var(--moon-line); border-radius: 999px; color: var(--moon-dim); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.event-row.objective.done { border-color: rgba(143, 211, 164, .45); }
+.event-row.objective.done .event-objective-tag { color: #8fd3a4; border-color: rgba(143, 211, 164, .45); }
+.event-objective-done { display: inline-flex; align-items: center; gap: 4px; color: #8fd3a4; }

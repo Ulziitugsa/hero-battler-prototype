@@ -5,7 +5,7 @@ import type { OwnedMap } from '../collection/types';
 import { dayKey } from '../missions/store';
 import { eventPhase, getEventDef, getLiveEvent } from './definitions';
 import { unlockEventCosmetic } from './cosmetics';
-import type { EventDefinition, EventMilestoneDef, EventMissionDef, EventObjective, EventRequirement, EventReward } from './types';
+import { hasDirectReward, type EventDefinition, type EventLoginRewardDef, type EventMilestoneDef, type EventMissionDef, type EventObjective, type EventRequirement, type EventReward } from './types';
 
 // Event progress store - the same snapshot + listeners + sanitize shape as missions/store.ts. It has its
 // own storage key, so saves from before events existed load untouched and simply start with no
@@ -170,6 +170,11 @@ export function isMissionComplete(mission: EventMissionDef, progress: EventProgr
   return (progress.missions[mission.id]?.count ?? 0) >= mission.target;
 }
 
+/** A mission is done once claimed, or, for a progress-only objective (nothing to claim), once complete. */
+export function isMissionDone(mission: EventMissionDef, progress: EventProgress): boolean {
+  return hasDirectReward(mission.reward) ? !!progress.missions[mission.id]?.claimed : isMissionComplete(mission, progress) || !!progress.missions[mission.id]?.claimed;
+}
+
 export function missionsCompleted(def: EventDefinition, progress: EventProgress): number {
   return def.missions.filter((m) => isMissionComplete(m, progress)).length;
 }
@@ -192,24 +197,43 @@ export function loginRewardClaimable(def: EventDefinition, progress: EventProgre
   return eventPhase(def, now) === 'active' && progress.loginClaims < def.loginRewards.length && progress.lastLoginDay !== dayKey(now);
 }
 
-function milestoneClaimable(def: EventDefinition, milestone: EventMilestoneDef, progress: EventProgress, owned: OwnedMap): boolean {
-  if (progress.claimed.includes(milestone.id)) return false;
+function milestoneMet(def: EventDefinition, milestone: EventMilestoneDef, progress: EventProgress, owned: OwnedMap): boolean {
   const { current, needed } = requirementProgress(def, milestone.requirement, progress, owned);
   return current >= needed;
 }
 
-/** How many rewards on the event page can be claimed right now - drives the Home entry's attention dot. */
-export function claimableCount(def: EventDefinition, progress: EventProgress, now: number = Date.now(), owned: OwnedMap = getCollection()): number {
-  if (eventPhase(def, now) !== 'active') return 0;
-  const missions = def.missions.filter((m) => isMissionComplete(m, progress) && !progress.missions[m.id]?.claimed).length;
-  const milestones = [...def.milestones, def.finalReward].filter((m) => milestoneClaimable(def, m, progress, owned)).length;
-  return missions + milestones + (loginRewardClaimable(def, progress, now) ? 1 : 0);
+function milestoneClaimable(def: EventDefinition, milestone: EventMilestoneDef, progress: EventProgress, owned: OwnedMap): boolean {
+  return hasDirectReward(milestone.reward) && !progress.claimed.includes(milestone.id) && milestoneMet(def, milestone, progress, owned);
 }
 
-/** Share of all the event's rewards already claimed, 0-1 - the event's completion state. */
-export function completionRatio(def: EventDefinition, progress: EventProgress): number {
+/** A milestone is done once claimed, or, for a progress-only objective, once its requirement is met. */
+export function isMilestoneDone(def: EventDefinition, milestone: EventMilestoneDef, progress: EventProgress, owned: OwnedMap = getCollection()): boolean {
+  return progress.claimed.includes(milestone.id) || (!hasDirectReward(milestone.reward) && milestoneMet(def, milestone, progress, owned));
+}
+
+/** Today's login entry, when one is due: a reward day or a checkpoint (no reward, nothing to claim). */
+export function nextLoginEntry(def: EventDefinition, progress: EventProgress): EventLoginRewardDef | null {
+  return def.loginRewards[progress.loginClaims] ?? null;
+}
+
+/** How many rewards on the event page can be claimed right now - drives the Home entry's attention dot. Progress-only
+ * objectives and login checkpoints never count: they have nothing to claim. */
+export function claimableCount(def: EventDefinition, progress: EventProgress, now: number = Date.now(), owned: OwnedMap = getCollection()): number {
+  if (eventPhase(def, now) !== 'active') return 0;
+  const missions = def.missions.filter((m) => hasDirectReward(m.reward) && isMissionComplete(m, progress) && !progress.missions[m.id]?.claimed).length;
+  const milestones = [...def.milestones, def.finalReward].filter((m) => milestoneClaimable(def, m, progress, owned)).length;
+  const login = loginRewardClaimable(def, progress, now) && hasDirectReward(nextLoginEntry(def, progress)?.reward) ? 1 : 0;
+  return missions + milestones + login;
+}
+
+/** Share of the event done, 0-1: login days checked in, missions and milestones claimed (or, for progress-only
+ * objectives, completed), and the final reward. */
+export function completionRatio(def: EventDefinition, progress: EventProgress, owned: OwnedMap = getCollection()): number {
   const total = def.loginRewards.length + def.missions.length + def.milestones.length + 1;
-  const done = progress.loginClaims + def.missions.filter((m) => progress.missions[m.id]?.claimed).length + progress.claimed.length;
+  const done = progress.loginClaims
+    + def.missions.filter((m) => isMissionDone(m, progress)).length
+    + def.milestones.filter((m) => isMilestoneDone(def, m, progress, owned)).length
+    + (progress.claimed.includes(def.finalReward.id) ? 1 : 0);
   return Math.min(1, done / total);
 }
 
@@ -219,6 +243,8 @@ export interface EventClaimResult {
   ok: boolean;
   reason: string | null;
   granted: EventReward;
+  /** A login checkpoint was checked in: progress only, nothing was granted. */
+  checkpoint?: boolean;
 }
 
 function fail(reason: string): EventClaimResult {
@@ -257,6 +283,11 @@ export function claimLoginReward(eventId: string, now: number = Date.now()): Eve
   if (!loginRewardClaimable(def, progress, now)) return fail(progress.loginClaims >= def.loginRewards.length ? 'Every login reward is claimed.' : 'Come back tomorrow for the next reward.');
   const day = def.loginRewards[progress.loginClaims];
   commit(withProgress(getEventsState(), def.id, { ...progress, loginClaims: progress.loginClaims + 1, lastLoginDay: dayKey(now) }));
+  if (!hasDirectReward(day.reward)) {
+    // A checkpoint: the login track moves on and nothing is granted (no grant call, no reward feedback).
+    track('event_login_claimed', { eventId: def.id, day: day.day, checkpoint: true });
+    return { ok: true, reason: null, granted: {}, checkpoint: true };
+  }
   const granted = grantEventReward(day.reward);
   track('event_login_claimed', { eventId: def.id, day: day.day, ...rewardProps(granted) });
   return { ok: true, reason: null, granted };
@@ -267,6 +298,7 @@ export function claimEventMission(eventId: string, missionId: string, now: numbe
   if (typeof def === 'string') return fail(def);
   const mission = def.missions.find((m) => m.id === missionId);
   if (!mission) return fail('Unknown mission.');
+  if (!hasDirectReward(mission.reward)) return fail('Nothing to claim: this objective counts toward event progress.');
   const progress = getEventProgress(def.id);
   const current = progress.missions[mission.id] ?? { count: 0, claimed: false };
   if (current.claimed) return fail('Already claimed.');
@@ -283,6 +315,7 @@ export function claimEventMilestone(eventId: string, milestoneId: string, now: n
   if (typeof def === 'string') return fail(def);
   const milestone = [...def.milestones, def.finalReward].find((m) => m.id === milestoneId);
   if (!milestone) return fail('Unknown reward.');
+  if (!hasDirectReward(milestone.reward)) return fail('Nothing to claim: this objective counts toward event progress.');
   const progress = getEventProgress(def.id);
   if (progress.claimed.includes(milestone.id)) return fail('Already claimed.');
   if (!milestoneClaimable(def, milestone, progress, getCollection())) return fail('Not complete yet.');
