@@ -17,7 +17,7 @@ function loadImage(src: string, priority = false) {
  * Sheets are decoded once; offscreen, hidden-tab and reduced-motion loops stop. */
 export function CardArtwork({ cardId, companion, animated = true, priority = false, className = '' }: { cardId?: string; companion?: string; animated?: boolean; priority?: boolean; className?: string }) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const asset = companion ? PIXEL_COMPANIONS[companion] : PIXEL_CARD_ART[cardId ?? ''];
   const card = cardId ? getCard(cardId) : null;
   useEffect(() => {
@@ -43,12 +43,11 @@ export function CardArtwork({ cardId, companion, animated = true, priority = fal
     };
     const observer = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; sync(); });
     observer.observe(element); document.addEventListener('visibilitychange', sync); reduced.addEventListener('change', sync);
-    loadImage(asset.src, priority).then(value => { if (!cancelled) { image = value; paint(); sync(); } }).catch(() => { if (!cancelled) setFailed(true); });
+    loadImage(asset.src, priority).then(value => { if (!cancelled) { image = value; paint(); sync(); } }).catch(() => { if (!cancelled) setFailedSrc(asset.src); });
     return () => { cancelled = true; window.clearInterval(timer); observer.disconnect(); document.removeEventListener('visibilitychange', sync); reduced.removeEventListener('change', sync); };
   }, [asset, animated, priority]);
-  // A card with no pixel art yet (the new launch-set cards, pixelArt.test.ts NO_ART_YET) or a sheet that failed to load
-  // shows its faction sigil: a deliberate placeholder, never a broken image. TODO(art pass): add their art to PIXEL_CARD_ART.
-  if (!asset || failed) return <span className={`moon-art moon-rune ${card?.faction ?? 'kingdom'} ${className}`} aria-hidden="true"><Sigil faction={card?.type === 'spell' ? 'spell' : card?.faction ?? 'kingdom'} size="lg" /></span>;
+  // Keep the faction sigil for unknown/unshipped art or a failed load, never a broken-image icon.
+  if (!asset || failedSrc === asset.src) return <span className={`moon-art moon-rune ${card?.faction ?? 'kingdom'} ${className}`} aria-hidden="true"><Sigil faction={card?.type === 'spell' ? 'spell' : card?.faction ?? 'kingdom'} size="lg" /></span>;
   return <canvas ref={canvas} width={PORTRAIT_RESOLUTION} height={PORTRAIT_RESOLUTION} className={`moon-art ${className}`} aria-hidden="true" />;
 }
 

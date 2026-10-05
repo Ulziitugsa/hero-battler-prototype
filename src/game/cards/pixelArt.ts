@@ -1,4 +1,5 @@
 import { KINGDOM_ROSTER, UNDEAD_ROSTER, INFERNAL_ROSTER } from './roster';
+import { LAUNCH_PORTRAITS, SHARED_CARD_ART } from './launchArt';
 
 export interface PixelAsset { src: string; columns: number; rows: number; cell: number; frames: number }
 const atlas = (faction: string, cell: number): PixelAsset => ({ src: `/art/pixel/${faction}-atlas-v2.png`, columns: 3, rows: 2, cell, frames: 1 });
@@ -25,5 +26,13 @@ const expansions: Record<string, string[]> = {
 };
 for (const [faction, ids] of Object.entries(expansions)) {
   ids.forEach((id, cell) => { PIXEL_CARD_ART[id] = { src: `/art/pixel/${faction}-expansion-v2.png`, columns: faction === 'infernal' ? 3 : 2, rows: 2, cell, frames: 1 }; });
+}
+
+for (const id of LAUNCH_PORTRAITS) {
+  PIXEL_CARD_ART[id] = { src: `/art/pixel/launch/${id}.png`, columns: 1, rows: 1, cell: 0, frames: 1 };
+}
+for (const [id, sourceId] of Object.entries(SHARED_CARD_ART)) {
+  // Shared placeholders are still; they do not borrow another character's idle animation.
+  PIXEL_CARD_ART[id] = { ...PIXEL_CARD_ART[sourceId], frames: 1 };
 }
 
