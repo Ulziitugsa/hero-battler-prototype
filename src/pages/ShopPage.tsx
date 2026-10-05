@@ -4,6 +4,7 @@ import { GoldIcon } from '../components/GoldIcon';
 import { GemIcon } from '../components/GemIcon';
 import { TicketIcon } from '../components/TicketIcon';
 import { CardArtwork } from '../components/CardArtwork';
+import { BoxArtwork } from '../components/BoxArtwork';
 import { getConfig } from '../config/config';
 import { useEconomy } from '../game/economy/useEconomy';
 import { canAfford } from '../game/economy/economy';
@@ -181,7 +182,7 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
             const left = boxCardsRemaining(id, boxState);
             const legendaryInside = (getBoxPool(id, boxState).remaining[box.flagshipId] ?? 0) > 0;
             return <button type="button" key={id} className={`shop-box-tile ${left === 0 ? 'empty' : ''}`} onClick={() => setView({ kind: 'box', id })} aria-label={`${box.name}: ${left} of ${size} cards left. ${box.theme}. Open the Box`}>
-              <span className="shop-box-tile-art" aria-hidden="true"><CardArtwork cardId={box.flagshipId} /></span>
+              <span className="shop-box-tile-art" aria-hidden="true"><BoxArtwork boxId={box.id} /></span>
               <strong>{box.name.replace(/ Box$/, '')}</strong>
               <span className="shop-box-tile-left">{left === 0 ? 'Empty · restock' : `${left} / ${size} left`}</span>
               <span className="shop-box-meter"><span style={{ width: `${(left / size) * 100}%` }} /></span>

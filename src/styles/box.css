@@ -7,6 +7,7 @@
 
 .box-hero { position:relative; overflow:hidden; border:1px solid rgba(232,207,143,.42); border-radius:20px; background:radial-gradient(120% 90% at 50% 0%,#2f4f63 0%,#15303f 48%,#0b1d29 100%); box-shadow:inset 0 1px rgba(255,255,255,.1),0 14px 30px #020a1080; }
 .box-hero-art { position:relative; height:172px; overflow:hidden; background:linear-gradient(180deg,transparent 60%,#0b1d29 100%); }
+.box-key-art { display:block; width:100%; height:100%; object-fit:cover; image-rendering:pixelated; }
 .box-moon { position:absolute; left:50%; top:-90px; width:180px; height:180px; transform:translateX(-50%); border-radius:50%; background:radial-gradient(circle at 44% 40%,#fdf3d2 0%,#e8d59f 38%,#b99b5c 62%,transparent 64%); box-shadow:0 0 70px #f0d59a55; opacity:.9; }
 .box-hero-art::after { content:''; z-index:3; position:absolute; inset:auto 0 0; height:30px; background:linear-gradient(180deg,transparent,#0f2533); }
 .box-hero-figure,.shop-box-figure { position:absolute; bottom:6px; display:flex; align-items:flex-end; justify-content:center; }

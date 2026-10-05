@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { GemIcon } from '../../components/GemIcon';
-import { CardArtwork } from '../../components/CardArtwork';
+import { BoxArtwork } from '../../components/BoxArtwork';
 import { GameCard } from '../../components/card/GameCard';
 import { CardViewer } from '../../components/card/CardViewer';
 import { cardCopyView } from '../../game/cards/cardCopy';
@@ -195,8 +195,7 @@ export function BoxDetail({ box, onBack }: { box: ArchetypeBoxDef; onBack: () =>
 
     <section className="box-hero" aria-labelledby="box-title">
       <div className="box-hero-art" aria-hidden="true">
-        <div className="box-moon" />
-        {box.bannerCardIds.map((id, index) => <span key={id} className={`box-hero-figure f${index}`}><CardArtwork cardId={id} /></span>)}
+        <BoxArtwork boxId={box.id} priority />
       </div>
       <div className="box-hero-copy">
         <span className="box-eyebrow">{box.faction.toUpperCase()} BOX · 1 CARD PER PULL</span>

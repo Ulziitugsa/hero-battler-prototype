@@ -47,6 +47,7 @@ describe('Gems -> Gold exchange is gone', () => {
   it('no code path that spends Gems also grants Gold', () => {
     const src = new URL('../../', import.meta.url);
     const spenders = (readdirSync(src, { recursive: true }) as string[])
+      .map((f) => f.replace(/\\/g, '/'))
       .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f) && !f.endsWith('economy/economy.ts'))
       .filter((f) => /spendGems\(/.test(readFileSync(new URL(f, src), 'utf8')));
     expect(spenders.length).toBeGreaterThan(0);
