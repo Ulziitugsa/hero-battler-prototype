@@ -142,6 +142,8 @@ function resolveTargetLocations(ctx: Ctx, exec: AbilityContext, scope: TargetSco
       return adjacentLanes(exec.selfLane).map((lane) => ({ side: exec.ownerSide, lane }));
     case 'ADJACENT_ENEMIES':
       return adjacentLanes(exec.selfLane).map((lane) => ({ side: opposite(exec.ownerSide), lane }));
+    case 'ADJACENT_ALLIES_LOSING':
+      return []; // card combat only (shared Guard); the legacy resolver has no launch-set cards that use it
   }
 }
 
@@ -387,6 +389,8 @@ function computeCountBasis(ctx: Ctx, exec: AbilityContext, basis: CountBasis, fa
       return livingHeroes(ctx, side).filter(({ hero }) => hero.faction === faction).length;
     case 'GRAVEYARD_COUNT':
       return playerOf(ctx, side).graveyard.length;
+    case 'GRAVEYARD_UNIT_COUNT':
+      return playerOf(ctx, side).graveyard.filter((id) => getCard(id).type === 'hero').length;
     case 'GRAVEYARD_FACTION_COUNT':
       return playerOf(ctx, side).graveyard.filter((id) => getCard(id).faction === faction).length;
     case 'OTHER_ALLY_TAG_COUNT':

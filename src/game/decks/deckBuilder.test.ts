@@ -50,7 +50,7 @@ describe('Starting HP / deck summary', () => {
   it('summarises a starter deck', () => {
     const s = deckSummary(STARTER_DECKS.kingdom);
     expect(s).toMatchObject({ count: 15, units: 11, spells: 4 });
-    expect(s.startingHp).toBe(921); // the approved model's typical ~900 HP deck
+    expect(s.startingHp).toBe(936); // the approved model's typical ~900 HP deck (launch Kingdom Starter)
     expect(s.averageAtk).toBeGreaterThan(0);
     expect(s.factions).toEqual([{ faction: 'kingdom', units: 11 }]);
   });

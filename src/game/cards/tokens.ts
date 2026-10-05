@@ -8,6 +8,21 @@ import type { CardDefinition } from '../types/index.js';
 // recursion to guard against beyond the engine's "empty lane only" rule.
 
 export const TOKEN_CARDS: CardDefinition[] = [
+  // Launch set: summoned by Skeletal Legionnaire and Barrow Knight. A plain 65 ATK body (Power 2).
+  {
+    id: 'tok-skeleton',
+    name: 'Skeleton',
+    shortName: 'Skeleton',
+    faction: 'undead',
+    type: 'hero',
+    role: 'Token',
+    rarity: 'common',
+    cost: 0,
+    power: 2,
+    tags: ['Token', 'Skeleton', 'Undead'],
+    boardText: 'Token',
+    abilities: [],
+  },
   {
     id: 'tok-ward',
     name: 'Ward',

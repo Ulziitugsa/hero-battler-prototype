@@ -1,5 +1,6 @@
 import type { CardDefinition, Rarity } from '../types/index.js';
 import { getCard } from '../cards/index.js';
+import { LAUNCH_ATK } from '../cards/launchRoster.js';
 
 // The approved card-combat stat model (docs/CARD-COMBAT-DESIGN.md sections 3, 4 and 13), as data.
 //
@@ -117,7 +118,8 @@ export function printedStats(cardOrId: CardDefinition | string): CardCombatStats
   const card = typeof cardOrId === 'string' ? getCard(cardOrId) : cardOrId;
   if (card.type !== 'hero') return null;
   if (isTokenCard(card)) return { atk: TOKEN_ATK[card.id] ?? atkFromPower(Math.max(1, card.power ?? 1)), hpc: 0 };
-  const atk = atkFromPower(cardCombatPower(card)) + (ATK_OFFSET[card.id] ?? 0);
+  // Launch set: the printed ATK is authored in the roster (it equals the Power line + offset for every unchanged card).
+  const atk = LAUNCH_ATK[card.id] ?? atkFromPower(cardCombatPower(card)) + (ATK_OFFSET[card.id] ?? 0);
   return { atk, hpc: hpcForAtk(atk, card.rarity) };
 }
 

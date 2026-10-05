@@ -3,13 +3,16 @@ import type { ActionDef } from '../types';
 import { getCard } from './index';
 import { PLAYTEST_ROSTER } from './roster';
 import { TOKEN_CARDS } from './tokens';
+import { LAUNCH_NEW_CARD_IDS } from './launchCards';
 import { atkDelta, atkFromPower, cardFaceStats, deckStartingHp, HP_CONTRIBUTION_HELP } from './cardFace';
 import { cardEffectLines, hasEffectCopy, TIMING_LABEL } from './effectText';
 import { cardEffects, cardKeywords, cardSearchText } from './cardPresentation';
 
 const MINUS = '−';
 const signedAtk = (powerDelta: number) => `${powerDelta < 0 ? MINUS : '+'}${Math.abs(atkDelta(powerDelta))} ATK`;
-const withEffects = [...PLAYTEST_ROSTER.map(getCard), ...TOKEN_CARDS].filter((card) => card.abilities.length > 0);
+// Legacy curated copy (effectText.ts COPY) covers the cards that predate the launch set; the cards new in it are authored
+// for card combat only and read their card-combat rules everywhere (cardText.ts, GameCard.test.ts).
+const withEffects = [...PLAYTEST_ROSTER.map(getCard), ...TOKEN_CARDS].filter((card) => card.abilities.length > 0 && !LAUNCH_NEW_CARD_IDS.has(card.id));
 
 /** The ATK strings a line must mention, derived from the engine actions it describes. */
 function expectedAtk(action: ActionDef): string | null {
@@ -115,7 +118,8 @@ describe('player-facing effect copy', () => {
   });
 
   it('derives explainable keywords from actions and finds effect text in search', () => {
-    expect(cardKeywords(getCard('kng-paladin'))).toEqual(['Shield', 'Guard']);
+    expect(cardKeywords(getCard('kng-paladin'))).toEqual(['Shield']);
+    expect(cardKeywords(getCard('kng-shieldbearer'))).toEqual(['Guard']);
     expect(cardKeywords(getCard('spl-battle-banner'))).toEqual(['Attached Spell']);
     expect(cardKeywords(getCard('spl-burning-ground'))).toEqual(['Continuous Spell']);
     expect(cardSearchText(getCard('kng-paladin'))).toContain('shield');

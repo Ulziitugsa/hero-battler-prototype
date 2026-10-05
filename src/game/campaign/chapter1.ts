@@ -262,7 +262,7 @@ export const CHAPTER_1: CampaignChapterDef = {
           { id: 'rounds', text: 'Win within 11 rounds', check: 'roundsWithin', value: 11 },
           { id: 'hp', text: 'Keep 85% of your Starting HP', check: 'healthPctAtLeast', value: 85 },
         ],
-        firstClearReward: { label: 'Vharos', sub: 'Legendary + chapter seal', icon: 'card', cardId: 'und-vharos' },
+        firstClearReward: { label: 'Vharos, the Undying', sub: 'Legendary + chapter seal', icon: 'card', cardId: 'und-vharos' },
         repeatReward: { label: '5 embers', sub: 'Every clear after the first', icon: 'ember' },
       }),
     },

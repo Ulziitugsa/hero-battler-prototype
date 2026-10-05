@@ -29,11 +29,12 @@ export function validateCardDefinition(card: CardDefinition): string[] {
     errors.push(`${label}: unknown card type ${String(card.type)}`);
   }
 
-  for (const ability of card.abilities ?? []) {
+  (card.abilities ?? []).forEach((ability, index) => {
     if (!ability.trigger) errors.push(`${label}: ability missing trigger`);
-    if (!ability.text) errors.push(`${label}: ability missing player-facing text`);
+    // An empty text continues the line above it (Ignis's stacked thresholds); the first ability always has its own.
+    if (!ability.text && (index === 0 || ability.text !== '')) errors.push(`${label}: ability missing player-facing text`);
     if (!ability.actions || ability.actions.length === 0) errors.push(`${label}: ability has no actions`);
-  }
+  });
 
   return errors;
 }

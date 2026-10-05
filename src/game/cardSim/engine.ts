@@ -407,6 +407,8 @@ function locations(s: SimState, exec: Exec, scope: TargetScope): { side: SideInd
       return adjacent(lane).map((l) => ({ side: exec.owner, lane: l }));
     case 'ADJACENT_ENEMIES':
       return adjacent(lane).map((l) => ({ side: other(exec.owner), lane: l }));
+    case 'ADJACENT_ALLIES_LOSING':
+      return []; // production card resolver only (launch set); the historical simulator never measured it
   }
 }
 
@@ -571,6 +573,8 @@ function countBasis(s: SimState, exec: Exec, basis: CountBasis, faction: Faction
       return livingUnits(s, side).filter(({ unit }) => getCard(unit.cardId).faction === faction).length;
     case 'GRAVEYARD_COUNT':
       return s.players[side].grave.length;
+    case 'GRAVEYARD_UNIT_COUNT':
+      return s.players[side].grave.filter((id) => getCard(id).type === 'hero').length;
     case 'GRAVEYARD_FACTION_COUNT':
       return s.players[side].grave.filter((id) => getCard(id).faction === faction).length;
     case 'OTHER_ALLY_TAG_COUNT':

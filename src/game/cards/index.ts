@@ -5,6 +5,7 @@ import { KINGDOM_CARDS } from './kingdom.js';
 import { WILDBORN_CARDS } from './wildborn.js';
 import { INSTANT_SPELL_CARDS, PERSISTENT_SPELL_CARDS } from './spells.js';
 import { getTokenCard } from './tokens.js';
+import { LAUNCH_CARDS } from './launchCards.js';
 
 export const ALL_CARDS: CardDefinition[] = [
   ...INFERNAL_CARDS,
@@ -13,6 +14,7 @@ export const ALL_CARDS: CardDefinition[] = [
   ...WILDBORN_CARDS,
   ...INSTANT_SPELL_CARDS,
   ...PERSISTENT_SPELL_CARDS,
+  ...LAUNCH_CARDS,
 ];
 
 const CARD_BY_ID = new Map(ALL_CARDS.map((c) => [c.id, c]));

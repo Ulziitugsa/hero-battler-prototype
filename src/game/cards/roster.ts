@@ -1,5 +1,6 @@
 import type { Faction } from '../types/index.js';
 import { getCard } from './index.js';
+import { LAUNCH_CARD_IDS } from './launchRoster.js';
 
 // Card Set v0.1 - the curated playtest roster (see README "Card Set v0.1"). This is the set the
 // deckbuilder, Collection screen and starter/AI decks all draw from. Older prototype cards that
@@ -70,13 +71,24 @@ export const INFERNAL_ROSTER: string[] = [
   'spl-blood-pact',
 ];
 
+// The launch set (launchRoster.ts, 116 cards): every launch card not listed above is appended to its faction's list, in
+// launch-roster order, so the first six ids of each list (the pixel-art atlas) never move.
+const LISTED = new Set([...KINGDOM_ROSTER, ...UNDEAD_ROSTER, ...INFERNAL_ROSTER]);
+for (const id of LAUNCH_CARD_IDS) {
+  if (LISTED.has(id)) continue;
+  const faction = getCard(id).faction;
+  if (faction === 'kingdom') KINGDOM_ROSTER.push(id);
+  else if (faction === 'undead') UNDEAD_ROSTER.push(id);
+  else if (faction === 'infernal') INFERNAL_ROSTER.push(id);
+}
+
 export const ROSTER_BY_FACTION: Record<'kingdom' | 'undead' | 'infernal', string[]> = {
   kingdom: KINGDOM_ROSTER,
   undead: UNDEAD_ROSTER,
   infernal: INFERNAL_ROSTER,
 };
 
-/** The full Card Set v0.1 roster, flattened. This - not `ALL_CARDS` - is "the 30ish playtest cards". */
+/** The launch roster (116 cards), flattened by faction. This - not `ALL_CARDS` - is the collectible card set. */
 export const PLAYTEST_ROSTER: string[] = [...KINGDOM_ROSTER, ...UNDEAD_ROSTER, ...INFERNAL_ROSTER];
 
 export function rosterFactionOf(cardId: string): Faction {

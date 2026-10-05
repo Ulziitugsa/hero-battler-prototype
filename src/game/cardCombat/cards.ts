@@ -76,16 +76,12 @@ export function guard(steps: number): CombatAbility {
   });
 }
 
-const RETURN_SPELL: CombatAction = { type: 'RETURN_TO_HAND', maxPower: Infinity, pick: 'RANDOM', cardType: 'spell' };
-
-/** Bone Soldier's Graveyard bonus: +15 ATK per Graveyard card this round, up to +60 (four stacked thresholds, as the simulator measured it). */
-function boneSoldierSteps(maxSteps: number): CombatAbility[] {
-  return Array.from({ length: maxSteps }, (_, i) =>
-    ability('BEFORE_COMBAT', [{ type: 'CHANGE_POWER', amount: 1, duration: 'UNTIL_ROUND_END', target: 'SELF' }], i === 0 ? `Before Combat: gain +15 ATK this round for each card in your Graveyard (up to +${maxSteps * 15}).` : '', {
-      conditions: [{ type: 'GRAVEYARD_COUNT_AT_LEAST', count: i + 1 }],
-    }),
-  );
+/** A CHANGE_POWER of `steps` x 15 ATK. */
+function pw(steps: number, duration: 'UNTIL_ROUND_END' | 'PERMANENT' = 'UNTIL_ROUND_END', target: TargetScope = 'SELF'): CombatAction {
+  return { type: 'CHANGE_POWER', amount: steps, duration, target };
 }
+
+const RETURN_SPELL: CombatAction = { type: 'RETURN_TO_HAND', maxPower: Infinity, pick: 'RANDOM', cardType: 'spell' };
 
 /** Shield, printed: "the first time this Unit would be destroyed, it survives instead" (once per Unit in play, read live). */
 function printedShield(text: string, conditions?: ConditionDef[]): CombatAbility {
@@ -94,19 +90,6 @@ function printedShield(text: string, conditions?: ConditionDef[]): CombatAbility
 
 /** Every card whose card-combat definition differs from the live file. Later changes of the same card are already merged here. */
 const OVERRIDES: CombatCard[] = [
-  // Approved re-band: Power 7 Legendaries play at Power 6.
-  rewrite('und-vharos', { power: 6 }),
-
-  // Thread A (Defensive): Guard replaces the uncapped growth lines.
-  rewrite('und-dark-priest', {
-    boardText: 'Guard 2; +30 w/3+ Grave',
-    abilities: [guard(2), ability('BEFORE_COMBAT', [{ type: 'CHANGE_POWER', amount: 2, duration: 'UNTIL_ROUND_END', target: 'SELF' }], 'Before Combat: if your Graveyard holds 3 or more cards, gain +30 ATK this round.', { conditions: [{ type: 'GRAVEYARD_COUNT_AT_LEAST', count: 3 }] })],
-  }),
-  rewrite('und-grave-knight', {
-    boardText: 'Guard 2; 1st/rnd: Heal 90',
-    abilities: [guard(2), ability('ON_ENEMY_DEATH', [{ type: 'PLAYER_HEAL', amount: 2 }], 'The first time an enemy Unit dies each round, restore 90 HP to your player.', { oncePerRound: true })],
-  }),
-
   // Thread B (Arcane Control): Stasis Field pacifies, Aegis Ward adds a Shield, Spell recursion for the mages.
   rewrite('spl-stasis-field', {
     boardText: 'No damage; −15 ATK',
@@ -159,10 +142,6 @@ const OVERRIDES: CombatCard[] = [
   }),
 
   // Thread D (outliers) with Thread E's tuning: capped growth, per-copy return, Paladin line 3, plain Ward.
-  rewrite('und-bone-soldier', {
-    boardText: 'Death: Return once; +15/Grave (max +60)',
-    abilities: [ability('ON_DEATH', [{ type: 'RETURN_TO_DECK' }], 'On Death: return this card to your deck (once per copy).'), ...boneSoldierSteps(4)],
-  }),
   rewrite('inf-blood-demon', {
     boardText: 'Ally dies: +15 (max +45); +30 rnd',
     abilities: [
@@ -170,47 +149,16 @@ const OVERRIDES: CombatCard[] = [
       ability('BEFORE_COMBAT', [{ type: 'CHANGE_POWER', amount: 2, duration: 'UNTIL_ROUND_END', target: 'SELF' }], 'Before Combat: if an allied Unit died this round, gain +30 ATK this round.', { conditions: [{ type: 'ALLY_DIED_THIS_ROUND' }] }),
     ],
   }),
-  // Timing cleanup: the Shield it gained when played is printed (a Passive Shield).
-  rewrite('kng-paladin', {
-    boardText: 'Shield; Guard 3; lane win: Heal 45',
-    abilities: [
-      printedShield('This Unit has a Shield: the first time it would be destroyed, it survives instead.'),
-      ability('BEFORE_COMBAT', [{ type: 'CHANGE_POWER', amount: 3, duration: 'UNTIL_ROUND_END', target: 'SELF' }], 'Guard 3: Before Combat, if this Unit would lose its lane, gain +45 ATK this round.', { conditions: [{ type: 'SELF_LOSING_LANE' }] }),
-      ability('ON_ENEMY_DEATH', [{ type: 'PLAYER_HEAL', amount: 1 }], 'When the enemy Unit in this lane is destroyed, restore 45 HP to your player (once per round).', {
-        oncePerRound: true,
-        conditions: [{ type: 'DEATH_IN_SELF_LANE' }],
-      }),
-    ],
-  }),
   rewrite('tok-ward', { boardText: 'Token', abilities: [] }),
 
-  // Thread E: Commons get a lane holder; Kingdom's lasting swings come down a step.
-  // Timing cleanup: Crypt Warden's Shield is printed, and works while the Graveyard holds 2+ cards (checked when it would be destroyed).
-  rewrite('und-crypt-warden', {
-    boardText: 'Guard 2; Shield w/ 2+ Grave',
-    abilities: [guard(2), printedShield('While your Graveyard has 2 or more cards, this Unit has a Shield: the first time it would be destroyed, it survives instead.', [{ type: 'GRAVEYARD_COUNT_AT_LEAST', count: 2 }])],
-  }),
   // Timing cleanup: an Attached Spell. It needs your Unit in its lane and leaves with that Unit.
   rewrite('spl-battle-banner', {
     boardText: 'Attached: +15 ATK',
     spellBinding: 'UNIT',
     abilities: [ability('CONTINUOUS', [{ type: 'CHANGE_POWER', amount: 1, duration: 'PERMANENT', target: 'ALLY_SAME_LANE' }], 'The Unit it is attached to has +15 ATK.')],
   }),
-  rewrite('spl-war-cry', {
-    abilities: [
-      ability('CAST', [{ type: 'CHANGE_POWER', amount: 1, duration: 'UNTIL_ROUND_END', target: 'ALL_ALLIES' }], 'All allied Units gain +15 ATK this round.'),
-      { ...live('spl-war-cry').abilities[1], trigger: 'CAST' },
-    ],
-  }),
 
   // ---- Timing cleanup (resolver v4): every On Play Unit effect, re-authored -------------------------------------
-  // Royal Guard: the lasting +15 it gave adjacent allies when played becomes an aura (+15 while it is in play), and the lasting
-  // part moves to when it falls: adjacent allies keep +15 for the rest of the battle. The aura alone left the Kingdom
-  // Starter 8 points down (sim/after: Kingdom vs Undead 48% -> 21%).
-  rewrite('kng-royal-guard', {
-    boardText: 'Adjacent +15; Death: adj. +15; Spell Immune w/ally',
-    abilities: [ability('PASSIVE', [{ type: 'CHANGE_POWER', amount: 1, duration: 'PERMANENT', target: 'ADJACENT_ALLIES' }], 'Adjacent allied Units have +15 ATK.'), ability('ON_DEATH', [{ type: 'CHANGE_POWER', amount: 1, duration: 'PERMANENT', target: 'ADJACENT_ALLIES' }], 'When Destroyed: adjacent allied Units gain +15 ATK for the rest of the battle.'), live('kng-royal-guard').abilities[1]],
-  }),
   // Light Priest: one 135 HP heal when played becomes 45 HP at every Round End it is in play; its Shield is printed.
   rewrite('kng-light-priest', {
     boardText: 'Shield; Round End: Heal 45; Spell: +15',
@@ -244,18 +192,6 @@ const OVERRIDES: CombatCard[] = [
   rewrite('inf-runebreaker', {
     abilities: [ability('BEFORE_COMBAT', [{ type: 'DESTROY_SPELL_ZONE', target: 'ENEMY_SAME_LANE' }], 'Before Combat: destroy the enemy Continuous Spell in this lane.'), live('inf-runebreaker').abilities[1], live('inf-runebreaker').abilities[2]],
   }),
-  // Infernal Lord (approved re-band to Power 6): a one-round −30 on every other Unit (its own side's too) when played becomes
-  // a dying curse, −15 ATK on every enemy Unit for the rest of the battle when it is destroyed, and its lane's enemy Continuous
-  // Spell is destroyed before every clash. (An aura, −15 on every enemy or on the enemy here, measured too strong.)
-  rewrite('inf-infernal-lord', {
-    power: 6,
-    boardText: 'Death: enemies −15; Destroy enemy Spell here',
-    abilities: [
-      ability('ON_DEATH', [{ type: 'CHANGE_POWER', amount: -1, duration: 'PERMANENT', target: 'ALL_ENEMIES' }], 'When Destroyed: every enemy Unit gets −15 ATK for the rest of the battle.'),
-      ability('BEFORE_COMBAT', [{ type: 'DESTROY_SPELL_ZONE', target: 'ENEMY_SAME_LANE' }], 'Before Combat: destroy the enemy Continuous Spell in this lane.'),
-    ],
-  }),
-
   // ---- Spell lifetime (resolver v4): what every Continuous Spell belongs to -------------------------------------------
   // Fortify is an Attached Spell: it fortifies one Unit and leaves with it. Its lane condition went (it always has its Unit);
   // +15 per Round End is unchanged (+30 measured too strong in Trickster).
@@ -266,9 +202,138 @@ const OVERRIDES: CombatCard[] = [
   }),
   rewrite('spl-growth-totem', { spellBinding: 'LANE' }),
   rewrite('spl-burning-ground', { spellBinding: 'LANE' }),
-  rewrite('spl-cursed-ground', { spellBinding: 'LANE' }),
-  rewrite('spl-siege-fire', { spellBinding: 'LANE' }),
-  rewrite('spl-grave-totem', { spellBinding: 'LANE' }),
+
+  // ---- Launch set (116 cards; project files moonwater/card-set-120, FINAL-PASS.md over SECOND-PASS.md over REPORT.md) --
+  // The existing cards the launch roster changed. Each replaces the card's earlier card-combat definition outright (the
+  // superseded balance-pass and timing-cleanup versions of these cards are in git history). Printed ATK moves through the
+  // roster (launchRoster.ts): Paladin 110, Hellhound 108, Flame Imp 84, Battle Captain 102, Apprentice Mage 102.
+  rewrite('kng-archer', {
+    boardText: 'Clash +15; +15 w/ Spell here',
+    abilities: [
+      ability('BEFORE_COMBAT', [pw(1)], 'Before Combat: gain +15 ATK this round.'),
+      ability('BEFORE_COMBAT', [pw(1)], 'Before Combat: if your Continuous Spell is in this lane, gain +15 ATK more this round.', { conditions: [{ type: 'SELF_LANE_HAS_SPELL' }] }),
+    ],
+  }),
+  rewrite('kng-royal-guard', {
+    boardText: 'Adjacent allies +15',
+    abilities: [ability('PASSIVE', [pw(1, 'PERMANENT', 'ADJACENT_ALLIES')], 'Adjacent allied Units have +15 ATK.')],
+  }),
+  // Dawnshield Paladin (redesign): Guard 3 on itself becomes +15 for each adjacent ally that would lose its lane.
+  rewrite('kng-paladin', {
+    boardText: 'Shield; shore up; Heal 45',
+    abilities: [
+      printedShield('This Unit has a Shield: the first time it would be destroyed, it survives instead.'),
+      ability('BEFORE_COMBAT', [pw(1, 'UNTIL_ROUND_END', 'ADJACENT_ALLIES_LOSING')], 'Before Combat: each adjacent allied Unit that would lose its lane gains +15 ATK this round.'),
+      ability('ON_ENEMY_DEATH', [{ type: 'PLAYER_HEAL', amount: 1 }], 'When the enemy Unit in this lane is destroyed, restore 45 HP to your player (once per round).', {
+        oncePerRound: true,
+        conditions: [{ type: 'DEATH_IN_SELF_LANE' }],
+      }),
+    ],
+  }),
+  rewrite('spl-dispel', {
+    boardText: 'Destroy enemy Spell; draw',
+    abilities: [
+      ability('CAST', [{ type: 'DESTROY_SPELL_ZONE', target: 'ENEMY_SAME_LANE' }], 'Destroy the enemy Continuous Spell in this lane.'),
+      ability('CAST', [{ type: 'DRAW_CARDS', count: 1 }], 'If it did, draw a card.', { conditions: [{ type: 'CONTINUOUS_SPELL_DESTROYED_THIS_ROUND', side: 'ENEMY' }] }),
+    ],
+  }),
+  // Bone Soldier (approved fix): counts Units only, up to +45, and keeps its one-time return.
+  rewrite('und-bone-soldier', {
+    boardText: 'Return once; +15/Grave Unit',
+    abilities: [
+      ability('ON_DEATH', [{ type: 'RETURN_TO_DECK' }], 'When Destroyed: return this card to your deck (once per copy).'),
+      ability('BEFORE_COMBAT', [{ type: 'CHANGE_POWER_BY_COUNT', basis: 'GRAVEYARD_UNIT_COUNT', perCount: 1, max: 3, duration: 'UNTIL_ROUND_END', target: 'SELF' }], 'Before Combat: gain +15 ATK this round for each Unit in your Graveyard (up to +45).'),
+    ],
+  }),
+  rewrite('und-crypt-warden', {
+    boardText: 'Guard 1; Shield w/ 2+ Grave',
+    abilities: [guard(1), printedShield('While your Graveyard has 2 or more cards, this Unit has a Shield: the first time it would be destroyed, it survives instead.', [{ type: 'GRAVEYARD_COUNT_AT_LEAST', count: 2 }])],
+  }),
+  rewrite('und-dark-priest', {
+    boardText: 'Guard 2; +15 w/3+ Grave',
+    abilities: [guard(2), ability('BEFORE_COMBAT', [pw(1)], 'Before Combat: if your Graveyard holds 3 or more cards, gain +15 ATK this round.', { conditions: [{ type: 'GRAVEYARD_COUNT_AT_LEAST', count: 3 }] })],
+  }),
+  rewrite('und-vharos', {
+    power: 6,
+    boardText: 'Revive at 95; return strongest',
+    abilities: [
+      ability('ON_DEATH', [{ type: 'REVIVE_SELF', power: 4 }], 'When Destroyed: revive here with 95 ATK (once).'),
+      ability('ON_DEATH', [{ type: 'RETURN_TO_HAND', maxPower: Infinity, pick: 'HIGHEST_POWER', faction: 'undead', excludeSelf: true }], 'When Destroyed: return your strongest other Undead Unit from your Graveyard to your hand.'),
+    ],
+  }),
+  rewrite('spl-raise-fallen', {
+    boardText: 'Revive weakest Undead here',
+    abilities: [
+      ability('CAST', [{ type: 'REVIVE_TO_LANE', maxPower: Infinity, pick: 'LOWEST_POWER', faction: 'undead' }], 'If your Graveyard has 2 or more Undead cards, revive your weakest Undead Unit in this lane.', {
+        conditions: [{ type: 'GRAVEYARD_FACTION_COUNT_AT_LEAST', faction: 'undead', count: 2 }],
+      }),
+    ],
+  }),
+  rewrite('und-grave-knight', {
+    boardText: 'Guard 2; 1st/rnd: Heal 45',
+    abilities: [guard(2), ability('ON_ENEMY_DEATH', [{ type: 'PLAYER_HEAL', amount: 1 }], 'The first time an enemy Unit dies each round, restore 45 HP to your player.', { oncePerRound: true })],
+  }),
+  // Infernal Lord (redesign, Power 6): burns every Round End and curses every enemy Unit when it falls.
+  rewrite('inf-infernal-lord', {
+    power: 6,
+    boardText: 'Round End: 45; Death: enemies −30',
+    abilities: [
+      ability('ROUND_END', [{ type: 'PLAYER_DAMAGE', amount: 1 }], 'Round End: deal 45 damage to the enemy player.'),
+      ability('ON_DEATH', [pw(-2, 'PERMANENT', 'ALL_ENEMIES')], 'When Destroyed: every enemy Unit gets −30 ATK for the rest of the battle.'),
+    ],
+  }),
+  rewrite('inf-alpha-hound', {
+    boardText: '+15 per other Unit',
+    abilities: [ability('BEFORE_COMBAT', [{ type: 'CHANGE_POWER_BY_COUNT', basis: 'ALLY_HERO_COUNT', perCount: 1, duration: 'UNTIL_ROUND_END', target: 'SELF' }, pw(-1)], 'Before Combat: gain +15 ATK this round for each other Unit you control.')],
+  }),
+  rewrite('spl-war-cry', {
+    boardText: 'Allies +15; +15 w/ 3 Units',
+    abilities: [
+      ability('CAST', [pw(1, 'UNTIL_ROUND_END', 'ALL_ALLIES')], 'All allied Units gain +15 ATK this round.'),
+      ability('CAST', [pw(1, 'UNTIL_ROUND_END', 'ALL_ALLIES')], 'If you control 3 Units, they gain +15 ATK more this round.', { conditions: [{ type: 'ALLY_HERO_COUNT_AT_LEAST', count: 3 }] }),
+    ],
+  }),
+  // Grave Totem (FINAL): +30 to your Unit here when the enemy cast a Spell this round or has one in play; the first ally lost
+  // here returns to hand once per battle (per physical Totem: a recast copy is a new Spell zone).
+  rewrite('spl-grave-totem', {
+    spellBinding: 'LANE',
+    boardText: 'Vs Spells +30; return once',
+    abilities: [
+      ability('BEFORE_COMBAT', [pw(2, 'UNTIL_ROUND_END', 'ALLY_SAME_LANE')], 'Before Combat: if the enemy cast a Spell this round or has a Spell in play, your Unit in this lane gains +30 ATK this round.', {
+        conditions: [{ type: 'ENEMY_SPELL_ACTIVE' }],
+      }),
+      ability('ON_ALLY_DEATH', [{ type: 'RETURN_DEATH_SOURCE_TO_HAND' }], 'The first allied Unit destroyed in this lane returns to your hand (once per battle).', {
+        conditions: [{ type: 'DEATH_IN_SELF_LANE' }, { type: 'SPELL_ZONE_NOT_USED_THIS_BATTLE' }],
+      }),
+    ],
+  }),
+  rewrite('spl-cursed-ground', {
+    spellBinding: 'LANE',
+    boardText: 'Ally here +15; enemy dies: +15',
+    abilities: [ability('CONTINUOUS', [pw(1, 'PERMANENT', 'ALLY_SAME_LANE')], 'Your Unit in this lane has +15 ATK.'), live('spl-cursed-ground').abilities[0]],
+  }),
+  rewrite('spl-siege-fire', {
+    spellBinding: 'LANE',
+    abilities: [ability('ROUND_END', [{ type: 'PLAYER_DAMAGE', amount: 1 }], 'Round End: if the enemy has no Unit in this lane, deal 45 damage to the enemy player.', { conditions: [{ type: 'LANE_EMPTY_ENEMY_SIDE' }] })],
+  }),
+  rewrite('spl-blood-pact', {
+    boardText: 'Destroy yours, then theirs',
+    abilities: [
+      ability('CAST', [{ type: 'DESTROY', target: 'ALLY_SAME_LANE' }], 'Destroy your Unit in this lane, then destroy the enemy Unit in this lane.'),
+      ability('CAST', [{ type: 'DESTROY', target: 'ENEMY_SAME_LANE' }], ''),
+    ],
+  }),
+  rewrite('spl-soul-burn', {
+    boardText: 'Exile 2 enemy Grave; deal 45',
+    abilities: [
+      ability('CAST', [{ type: 'EXILE_FROM_GRAVEYARD', pick: 'HIGHEST_POWER' }, { type: 'EXILE_FROM_GRAVEYARD', pick: 'HIGHEST_POWER' }], 'Exile the 2 strongest Units in the enemy Graveyard.'),
+      ability('CAST', [{ type: 'PLAYER_DAMAGE', amount: 1 }], 'Deal 45 damage to the enemy player.'),
+    ],
+  }),
+  rewrite('spl-death-wave', {
+    boardText: 'All enemies −30 this round',
+    abilities: [ability('CAST', [pw(-2, 'UNTIL_ROUND_END', 'ALL_ENEMIES')], 'Every enemy Unit gets −30 ATK this round.')],
+  }),
 ];
 
 /**
@@ -304,6 +369,33 @@ export const TIMING_CLEANUP_IDS: readonly string[] = [
   'inf-infernal-lord',
   'spl-battle-banner',
   'spl-fortify',
+];
+
+/** The existing cards the launch set changed (rules, ATK or both; the new launch cards are in cards/launchCards.ts). */
+export const LAUNCH_CHANGED_IDS: readonly string[] = [
+  'kng-archer',
+  'kng-royal-guard',
+  'kng-paladin',
+  'spl-dispel',
+  'und-bone-soldier',
+  'und-crypt-warden',
+  'und-dark-priest',
+  'und-vharos',
+  'spl-raise-fallen',
+  'und-grave-knight',
+  'inf-infernal-lord',
+  'inf-alpha-hound',
+  'spl-war-cry',
+  'spl-grave-totem',
+  'spl-cursed-ground',
+  'spl-siege-fire',
+  'spl-blood-pact',
+  'spl-soul-burn',
+  'spl-death-wave',
+  'inf-hellhound',
+  'inf-flame-imp',
+  'kng-battle-captain',
+  'kng-apprentice-mage',
 ];
 
 /** Ids whose card-combat definition differs from the live file (the balance pass, the timing cleanup and Spell lifetime; for tests and the report). */

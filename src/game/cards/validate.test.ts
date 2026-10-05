@@ -4,6 +4,7 @@ import { PLAYTEST_ROSTER } from './roster';
 import { validateAllCards } from './validate';
 import { getCard } from './index';
 import { TOKEN_CARDS } from './tokens';
+import { LAUNCH_CARD_IDS } from './launchRoster';
 
 describe('Card definitions', () => {
   it('every card in the game passes shape validation', () => {
@@ -24,9 +25,9 @@ describe('Card definitions', () => {
     for (const id of PLAYTEST_ROSTER) expect(() => getCard(id)).not.toThrow();
   });
 
-  it('the roster is roughly 50 cards, split across exactly Kingdom/Undead/Infernal', () => {
-    expect(PLAYTEST_ROSTER.length).toBeGreaterThanOrEqual(45);
-    expect(PLAYTEST_ROSTER.length).toBeLessThanOrEqual(56);
+  it('the roster is the 116-card launch set, split across exactly Kingdom/Undead/Infernal', () => {
+    expect([...PLAYTEST_ROSTER].sort()).toEqual([...LAUNCH_CARD_IDS].sort());
+    expect(PLAYTEST_ROSTER.length).toBe(116);
     const factions = new Set(PLAYTEST_ROSTER.map((id) => getCard(id).faction));
     expect(factions).toEqual(new Set(['kingdom', 'undead', 'infernal']));
   });
@@ -34,8 +35,8 @@ describe('Card definitions', () => {
   it('each roster faction has a comparable card count', () => {
     for (const faction of ['kingdom', 'undead', 'infernal'] as const) {
       const count = PLAYTEST_ROSTER.filter((id) => getCard(id).faction === faction).length;
-      expect(count).toBeGreaterThanOrEqual(14);
-      expect(count).toBeLessThanOrEqual(20);
+      expect(count).toBeGreaterThanOrEqual(35);
+      expect(count).toBeLessThanOrEqual(42);
     }
   });
 

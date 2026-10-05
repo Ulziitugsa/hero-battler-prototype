@@ -86,6 +86,8 @@ export type ConditionDef =
   | { type: 'DEATH_IN_SELF_LANE' }
   /** True if this Spell zone hasn't already used its once-per-round reaction this round (e.g. Grave Totem). Spell-zone-specific legacy primitive - see the ability-level `oncePerRound` flag for the general-purpose version usable by Heroes too. */
   | { type: 'SPELL_ZONE_NOT_USED_THIS_ROUND' }
+  /** Card combat only: true if this Spell zone (this physical copy in play) hasn't used its once-per-battle reaction yet (final Grave Totem). */
+  | { type: 'SPELL_ZONE_NOT_USED_THIS_BATTLE' }
   /** True if the ability-owner's own Spell zone (same side, same lane) is currently occupied - "this lane has your Continuous Spell". */
   | { type: 'SELF_LANE_HAS_SPELL' }
   /** True if the ENEMY's Spell zone at this ability-owner's own lane is currently occupied - "this lane has the enemy's Continuous Spell". */
@@ -109,7 +111,8 @@ export type ConditionDef =
   /** True if the ability owner's side has at least `count` living Heroes of the given faction on the board (the owner counts toward this if it matches). */
   | { type: 'ALLY_FACTION_COUNT_AT_LEAST'; faction: Faction; count: number }
   /** True if `side`'s (default SELF) Graveyard holds at least `count` cards. */
-  | { type: 'GRAVEYARD_COUNT_AT_LEAST'; count: number; side?: ConditionSide }
+  /** `units`: count only Units (card combat, launch set: "if your Graveyard has 3+ Units"). */
+  | { type: 'GRAVEYARD_COUNT_AT_LEAST'; count: number; side?: ConditionSide; units?: boolean }
   /** True if `side`'s (default SELF) Graveyard holds at least `count` cards of the given faction. */
   | { type: 'GRAVEYARD_FACTION_COUNT_AT_LEAST'; faction: Faction; count: number; side?: ConditionSide }
   /** True if the ability owner's own hand currently holds at least `count` cards. */
@@ -132,6 +135,8 @@ export type ConditionDef =
   | { type: 'SPELL_ZONES_OCCUPIED_AT_MOST'; count: number; side?: ConditionSide }
   /** True if the enemy controls strictly more living Heroes than the ability owner's side. */
   | { type: 'ENEMY_HERO_COUNT_HIGHER' }
+  /** Card combat only: true if the enemy cast a Spell (one-time or Continuous) this round OR has a Continuous Spell in play in any lane (Grave Totem). */
+  | { type: 'ENEMY_SPELL_ACTIVE' }
   /** True if this Hero entered play in an EARLIER round than the current one (i.e. it was not played/revived/summoned this round). */
   | { type: 'SELF_ENTERED_EARLIER' }
   /** True only when dispatched as a reaction to a Hero's death, and that Hero's card carries `tag`. */
@@ -145,7 +150,9 @@ export type TargetScope =
   | 'ALL_ALLIES'
   | 'ALL_ENEMIES'
   | 'ADJACENT_ALLIES'
-  | 'ADJACENT_ENEMIES';
+  | 'ADJACENT_ENEMIES'
+  /** Card combat only: each adjacent allied Unit that would lose its lane right now (an enemy faces it with higher ATK) - shared Guard (Paladin, Morwen). */
+  | 'ADJACENT_ALLIES_LOSING';
 
 /** RANDOM picks uniformly among every eligible card, ignoring Power entirely - for effects that want "any", not "the biggest/smallest". */
 export type GraveyardPick = 'LOWEST_POWER' | 'HIGHEST_POWER' | 'RANDOM';
@@ -155,6 +162,7 @@ export type CountBasis =
   | 'ALLY_HERO_COUNT' // every living allied Hero, owner included
   | 'ALLY_FACTION_HERO_COUNT' // living allied Heroes of `faction`
   | 'GRAVEYARD_COUNT' // cards in the owner's own Graveyard
+  | 'GRAVEYARD_UNIT_COUNT' // Units (not Spells) in the owner's own Graveyard - card combat (Bone Soldier, Bone Dragon)
   | 'GRAVEYARD_FACTION_COUNT' // cards of `faction` in the owner's own Graveyard
   | 'OTHER_ALLY_TAG_COUNT' // OTHER living allied Heroes carrying `tag`
   | 'ADJACENT_ALLY_TAG_COUNT'; // living allied Heroes carrying `tag` in a lane adjacent to the owner
@@ -166,8 +174,11 @@ export type ActionDef =
   | { type: 'CHANGE_POWER'; amount: number; duration: 'PERMANENT' | 'UNTIL_ROUND_END'; target: TargetScope }
   /** Sets Power to an absolute value rather than adding a delta - e.g. "set this Hero's Power to 1". Reuses the same PERMANENT/UNTIL_ROUND_END duration semantics as CHANGE_POWER. */
   | { type: 'SET_POWER'; value: number; duration: 'PERMANENT' | 'UNTIL_ROUND_END'; target: TargetScope }
-  /** Power delta scaled by a live board/Graveyard count - e.g. "+1 Power for each Undead Hero in your Graveyard". `perCount` may be negative for a cost/drain effect. */
-  | { type: 'CHANGE_POWER_BY_COUNT'; basis: CountBasis; faction?: Faction; tag?: string; perCount: number; duration: 'PERMANENT' | 'UNTIL_ROUND_END'; target: TargetScope }
+  /**
+   * Power delta scaled by a live board/Graveyard count - e.g. "+1 Power for each Undead Hero in your Graveyard". `perCount` may be negative for a cost/drain effect.
+   * `max` (card combat): the most Power steps one resolution can give, whatever the count ("+15 per Unit, up to +45" is perCount 1, max 3).
+   */
+  | { type: 'CHANGE_POWER_BY_COUNT'; basis: CountBasis; faction?: Faction; tag?: string; perCount: number; duration: 'PERMANENT' | 'UNTIL_ROUND_END'; target: TargetScope; max?: number }
   /** V2 damage uses Hero HP; the optional fallback preserves this card's legacy Power-drain behavior. */
   | { type: 'DAMAGE_HERO'; amount: number; target: TargetScope; legacyPowerChange?: number; legacyPowerSet?: number }
   | { type: 'HEAL_HERO'; amount: number; target: TargetScope }
@@ -207,8 +218,11 @@ export type ActionDef =
       excludeSelf?: boolean;
     }
   | { type: 'RETURN_TO_DECK' }
-  /** Always revives into the ability-owner's own lane (a Spell's placement lane, or a Hero's own lane). */
-  | { type: 'REVIVE_TO_LANE'; maxPower: number; pick: GraveyardPick; faction?: Faction }
+  /**
+   * Revives into the ability-owner's own lane (a Spell's placement lane, or a Hero's own lane). With `emptyLane` (card
+   * combat, Morwen) it revives into the owner's first empty Unit lane instead, left to right; with no empty lane it does nothing.
+   */
+  | { type: 'REVIVE_TO_LANE'; maxPower: number; pick: GraveyardPick; faction?: Faction; emptyLane?: boolean }
   | { type: 'REVIVE_SELF'; power: number }
   /** Returns the specific Hero whose death triggered this reaction (e.g. Grave Totem) - not a graveyard-wide search. */
   | { type: 'RETURN_DEATH_SOURCE_TO_HAND' }
@@ -251,7 +265,13 @@ export type ActionDef =
    * PASSIVE-trigger only - never dispatched. While this Hero is live and its conditions hold, the first
    * one-time Spell its side plays each round resolves twice.
    */
-  | { type: 'SPELL_ECHO' };
+  | { type: 'SPELL_ECHO' }
+  /**
+   * Card combat only, PASSIVE-trigger only - never dispatched (Saint Aveline). When one of its side's Attached Spells expires
+   * because its Unit left play, that Spell returns from the Graveyard to its owner's hand: once per round per source Unit,
+   * and only a copy that has not returned before (each physical copy returns from the Graveyard at most once per match).
+   */
+  | { type: 'RETURN_EXPIRED_ATTACHED' };
 
 export interface AbilityDefinition {
   trigger: Trigger;
@@ -346,8 +366,10 @@ export interface SpellZoneInstance {
   faction: Faction;
   name: string;
   shortName: string;
-  /** For once-per-round reactions (e.g. Grave Totem). Reset to false for every Spell zone at Round Start. */
+  /** For once-per-round reactions. Reset to false for every Spell zone at Round Start. */
   usedThisRound: boolean;
+  /** Card combat only: this copy in play has used its once-per-battle reaction (Grave Totem). Never reset; a new copy in play starts fresh. */
+  usedThisBattle?: boolean;
   /** Card combat only: this copy already came back from the Graveyard once this match. */
   returned?: boolean;
   /** Card combat only: an Attached Spell's Unit (its instanceId). The Spell goes to the Graveyard when that Unit leaves play. */

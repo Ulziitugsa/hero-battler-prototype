@@ -32,7 +32,6 @@ describe('focus panel', () => {
     expect(text(html)).toContain('ATK 113');
     expect(text(html)).toContain('HP +77');
     expect(text(html)).toContain('Passive: Adjacent allied Units have +15 ATK.');
-    expect(text(html)).toContain('Passive: While another Kingdom Unit is in play, enemy Spells can’t affect this Unit. Active now.');
     expect(html).toContain('aria-label="Close card details"');
     expect(html).toContain('aria-label="Inspect Royal Guard"');
   });
@@ -40,7 +39,7 @@ describe('focus panel', () => {
   it('an enemy Unit is marked as the enemy’s and says how it came back', () => {
     const html = panel(unit('enemy', 'center'));
     expect(html).toContain('card-focus cf-dock battle-dock enemy board');
-    expect(html).toContain('aria-label="Vharos, Enemy center lane"');
+    expect(html).toContain('aria-label="Vharos, the Undying, Enemy center lane"');
     expect(text(html)).toContain('Enemy');
     expect(text(html)).toContain('Status: Revived at 95 ATK (printed 130).');
   });
@@ -62,7 +61,7 @@ describe('focus panel', () => {
     expect(text(html)).toContain('Attached Spell');
     expect(text(html)).toContain('Passive: The Unit it is attached to has +15 ATK.');
     expect(text(html)).toContain('Attached to: Common Knight. It goes to the Graveyard when that Unit leaves play.');
-    expect(text(html)).toContain('In this lane: your Common Knight, enemy Vharos.');
+    expect(text(html)).toContain('In this lane: your Common Knight, enemy Vharos, the Undying.');
   });
 });
 
