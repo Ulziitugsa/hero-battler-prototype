@@ -6,7 +6,6 @@ import { clearQueuedEvents, getQueuedEvents, track } from '../../analytics/track
 import { getEconomy, reloadEconomy } from '../economy/economy';
 import { clearCollection, getCollection, getOwnedCount, grantCard, reloadCollection } from '../collection/collection';
 import { backgroundIsUnlocked, getBackground } from '../backgrounds/definitions';
-import { PROTOTYPE_BOX } from '../box/prototypeBox';
 import { THE_LONG_VIGIL, daysRemaining, eventPhase, getLiveEvent, EVENTS } from './definitions';
 import { isEventCosmeticUnlocked, resetEventCosmetics } from './cosmetics';
 import {
@@ -109,11 +108,18 @@ describe('event missions', () => {
     expect(progress.missions['vigil-damage'].count).toBe(18_000); // card-combat scale, capped at target
   });
 
-  it('respects property filters', () => {
-    track('prototype_box_opened', { boxId: 'some-other-box', packCount: 10 });
-    expect(getEventProgress(EVENT.id).missions['vigil-open-packs']).toBeUndefined();
-    track('prototype_box_opened', { boxId: PROTOTYPE_BOX.id, packCount: 1 });
+  it('counts cards pulled from any Box toward "Pull 5 cards", one per card', () => {
+    track('box_pulled', { boxId: 'vanguard', pullCount: 1 });
     expect(getEventProgress(EVENT.id).missions['vigil-open-packs'].count).toBe(1);
+    track('box_pulled', { boxId: 'hellfire', pullCount: 10 });
+    expect(getEventProgress(EVENT.id).missions['vigil-open-packs'].count).toBe(5); // capped at the target
+  });
+
+  it('respects property filters', () => {
+    track('battle_completed', { mode: 'quick', result: 'loss' });
+    expect(getEventProgress(EVENT.id).missions['vigil-win-battles']).toBeUndefined();
+    win();
+    expect(getEventProgress(EVENT.id).missions['vigil-win-battles'].count).toBe(1);
   });
 
   it('does not count anything outside the event window', () => {

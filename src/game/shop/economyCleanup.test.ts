@@ -10,8 +10,8 @@ import { ASCENSION_STORAGE_KEY, getAscensionRank, getAscensionState, reloadAscen
 import { reloadAccount, setLevel } from '../progression/account';
 import { getEconomy, reloadEconomy, setGems, setGold } from '../economy/economy';
 import { CAMPAIGN_ENERGY_MAX, loadEnergy, spendEnergy } from '../campaign/energy';
-import { MOONFALL_BOX, buyBoxPacks } from '../box/boxProduct';
-import { reloadPrototypeBox, PROTOTYPE_BOX_STORAGE_KEY } from '../box/prototypeBox';
+import { boxPullPrice, buyBoxPulls } from '../box/boxProduct';
+import { clearArchetypeBoxes } from '../box/boxPool';
 import { reloadCollection, setCollection } from '../collection/collection';
 import { GROWTH_PACK_MIN_ACCOUNT_LEVEL, isGrowthPackVisible, isStarterPackVisible } from '../offers/eligibility';
 import { ENERGY_REFILL_AMOUNT, ENERGY_REFILL_GEMS, refillEnergyWithGems } from './energyRefill';
@@ -30,7 +30,7 @@ beforeEach(() => {
   reloadAscension();
   reloadCollection();
   setCollection({});
-  reloadPrototypeBox();
+  clearArchetypeBoxes();
   clearQueuedEvents();
 });
 
@@ -89,8 +89,8 @@ describe('Gem Energy refill still works', () => {
 
 describe('Growth Pack visibility no longer depends on historical Mastery', () => {
   const openOnePack = () => {
-    setGems(MOONFALL_BOX.gemsPerPack);
-    expect(buyBoxPacks(1).ok).toBe(true);
+    setGems(boxPullPrice(1));
+    expect(buyBoxPulls('vanguard', 1).ok).toBe(true);
   };
   const shopText = () => text(renderToStaticMarkup(createElement(ShopPage)));
 
@@ -102,14 +102,13 @@ describe('Growth Pack visibility no longer depends on historical Mastery', () =>
     expect(isStarterPackVisible({ openedPacks: false, accountLevel: 20 })).toBe(false);
   });
   it('a save with historical Ascension ranks but no current progress does not see it', () => {
-    localStorage.removeItem(PROTOTYPE_BOX_STORAGE_KEY);
-    reloadPrototypeBox();
+    clearArchetypeBoxes();
     localStorage.setItem(ASCENSION_STORAGE_KEY, JSON.stringify({ version: 1, cards: Object.fromEntries(PLAYTEST_ROSTER.map((id) => [id, { rank: 4, duplicatesSpent: 10 }])) }));
     reloadAscension();
     expect(getAscensionRank(PLAYTEST_ROSTER[0], getAscensionState())).toBe(4); // the record is preserved, untouched
     expect(shopText()).not.toMatch(/Growth Pack|Starter Pack/);
   });
-  it('appears once the player has opened a pack and reached the Account Level, with no Ascension history', () => {
+  it('appears once the player has pulled a card and reached the Account Level, with no Ascension history', () => {
     localStorage.removeItem(ASCENSION_STORAGE_KEY);
     reloadAscension();
     openOnePack();

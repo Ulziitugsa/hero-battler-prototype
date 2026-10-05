@@ -204,10 +204,10 @@ describe('resetMissions', () => {
 });
 
 describe('no recurring mission asks for packs (ozi, 2026-10-04)', () => {
-  it('the daily "Open a pack" and weekly "Open 5 packs" are gone, and nothing counts pack_opened', () => {
+  it('the daily "Open a pack" and weekly "Open 5 packs" are gone, and nothing counts Box pulls', () => {
     expect(ALL_MISSIONS.map((m) => m.title)).not.toContain('Open a pack');
     expect(ALL_MISSIONS.map((m) => m.title)).not.toContain('Open 5 packs');
-    expect(ALL_MISSIONS.some((m) => m.metric === 'pack_opened' || m.metric === 'pack_ticket_used')).toBe(false);
+    expect(ALL_MISSIONS.some((m) => m.metric === 'box_pulled' || m.metric === 'pack_ticket_used')).toBe(false);
   });
   it('their replacements keep the same rewards: daily "Win a Ranked battle" 20 Gems, weekly "Complete 5 daily missions" 100 Gems + 1 Ticket', () => {
     expect(DAILY_MISSIONS.find((m) => m.id === 'daily-ranked-win')).toMatchObject({ title: 'Win a Ranked battle', metric: 'ranked_match_won', target: 1, rewardGems: 20, rewardGold: 0, rewardTickets: 0 });

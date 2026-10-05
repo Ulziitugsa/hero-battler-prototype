@@ -6,7 +6,7 @@ import { getCollection, getOwnedCount, grantCard, reloadCollection, removeCard, 
 import { upsertSavedDeck } from '../engine/localDecks';
 import { migrateToRealCollection } from '../campaign/collectionMigration';
 import { recordBattleResult } from '../campaign/progress';
-import { FUTURE_REGION_CARDS, getCardAcquisitionSources } from '../collection/acquisition';
+import { getCardAcquisitionSources } from '../collection/acquisition';
 import { isStarterDeckUnlocked } from '../collection/starterUnlock';
 import { CHAPTER_1 } from '../campaign/chapter1';
 import type { MatchStats } from '../engine/stats';
@@ -362,12 +362,11 @@ describe('Ascension never touches base Power or accumulates it', () => {
 });
 
 describe('Toll of the Ford, Fortify and starter safety', () => {
-  it('Toll of the Ford deliberately awards a spare Royal Guard, and Fortify is an explicit future-region source', () => {
+  it('Toll of the Ford deliberately awards a spare Royal Guard, and Fortify is a Crusade Box card', () => {
     const toll = CHAPTER_1.nodes.find((n) => n.id === 'challenge-toll-of-the-ford');
     expect(toll?.encounter?.firstClearReward).toMatchObject({ cardId: 'kng-royal-guard', label: 'Royal Guard' });
     expect(getCardAscension('kng-royal-guard')).toBeDefined(); // a legacy effect path (historical resolver only)
-    expect(FUTURE_REGION_CARDS['spl-fortify']).toBe('region-2');
-    expect(getCardAcquisitionSources('spl-fortify')).toEqual([{ kind: 'box', boxId: 'moonfall-test-v1' }, { kind: 'future', regionId: 'region-2' }]);
+    expect(getCardAcquisitionSources('spl-fortify').map((s) => s.kind)).toEqual(['box']);
   });
   it('a retired advance can never re-lock a starter or break a saved deck: nothing is ever spent', () => {
     const owned: Record<string, number> = { ...getCollection() };
