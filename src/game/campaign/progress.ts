@@ -2,7 +2,9 @@ import type { GameEvent, GameState } from '../types';
 import type { MatchStats } from '../engine/stats';
 import type { CampaignNodeDef, CampaignObjectiveDef, CampaignRewardDef } from './types';
 import { CHAPTER_1 } from './chapter1';
-import { getCollection, grantCard } from '../collection/collection';
+import { getCollection, grantCard, setCollection } from '../collection/collection';
+import { coreUnlockForNode, unlockCorePackage } from '../core/coreAccess';
+import type { StarterFaction } from '../cards/starterDecks';
 import type { GrantResult } from '../collection/types';
 import { getStarterProgressUpdate, type StarterProgressUpdate } from '../collection/starterUnlock';
 import { grantCampaignXp } from '../progression/rewards';
@@ -146,6 +148,8 @@ export interface BattleResultOutcome {
   cardGrant: GrantResult | null;
   /** How that card moved a still-locked starter deck toward (or into) being unlocked. */
   starterProgress: StarterProgressUpdate | null;
+  /** The Core package this first clear unlocked (core/coreAccess.ts CORE_UNLOCK_NODES), if any. */
+  coreUnlocked?: StarterFaction | null;
   /** Account XP this result granted (win, replay win or loss); null for a claim that has no fight. */
   xp: XpGrantResult | null;
   /** Gems this result granted: the node's first-clear Gems plus the chapter bonus when this clear completed the chapter. 0 for replays and losses. */
@@ -194,6 +198,7 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
   let granted: ReturnType<typeof grantReward> = { cardGrant: null, starterProgress: null };
   let gems = 0;
   let gold = 0;
+  let coreUnlocked: StarterFaction | null = null;
 
   if (won) {
     progress.objectivesMet[nodeId] = [...alreadyMet];
@@ -204,6 +209,14 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
     if (claimNew) progress.firstClearClaimed = [...progress.firstClearClaimed, nodeId];
     saveProgress(progress);
     if (claimNew) granted = grantReward(node.encounter.firstClearReward);
+    if (claimNew) {
+      // The early Campaign stages unlock the other two free Core packages, one each (raise-only, never duplicated).
+      const core = coreUnlockForNode(nodeId);
+      if (core) {
+        unlockCorePackage(core, { getOwned: getCollection, setOwned: setCollection }, `campaign:${nodeId}`);
+        coreUnlocked = core;
+      }
+    }
     gems = grantCampaignGems(node, claimNew, chapterWasComplete, isChapterComplete(progress));
     // Unlike Gems, Gold pays out on EVERY win, cleared or not - it's the always-available reason to
     // keep replaying a finished chapter (see docs/COMMERCIAL-PROTOTYPE-PLAN.md Phase 1).
@@ -221,6 +234,7 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
     reward: won ? { firstClear: isFirstClear, def: isFirstClear ? node.encounter.firstClearReward : node.encounter.repeatReward } : null,
     cardGrant: granted.cardGrant,
     starterProgress: granted.starterProgress,
+    coreUnlocked,
     xp: grantCampaignXp(node.type, { won, isFirstClear }),
     gems,
     gold,

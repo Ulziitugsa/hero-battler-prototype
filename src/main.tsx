@@ -9,9 +9,13 @@ import { track } from './analytics/track'
 import { initMissions } from './game/missions/store'
 import { initEvents } from './game/events/store'
 import { runSaveMigrations } from './game/save/migrations'
+import { runLaunchSetMigration } from './game/save/launchSetMigration'
 
 // Before anything renders: make sure a real collection exists (existing prototype progress is carried
 // over, see collectionMigration.ts) and that the stored active deck is one the player can actually field.
+// The launch set first: it records which free Core packages this save holds (the collection migration builds the
+// starter part of a collection from them) and retires the Moonfall Box (see launchSetMigration.ts).
+runLaunchSetMigration()
 migrateToRealCollection()
 // The card-combat release's save migration (versioned, idempotent): refunds Legacy Level Gold once, keeps everything else.
 runSaveMigrations()

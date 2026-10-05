@@ -1,4 +1,4 @@
-import { grantCard, removeCard, resetCollection, setAllOwned, getCollection } from './collection';
+import { grantCard, removeCard, resetCollection, setAllOwned, getCollection, setCollection } from './collection';
 import { getStarterDeckUnlockProgress, starterDeckId } from './starterUnlock';
 import { getCardAcquisitionSources, getUnavailableCards } from './acquisition';
 import { PLAYTEST_ROSTER } from '../cards/roster';
@@ -9,7 +9,10 @@ import { ascendCard } from '../ascension/ascend';
 import { historicalMastery } from '../cardMastery/model';
 import { getAscensionState, resetAscension, setAscensionRank } from '../ascension/store';
 import { getEconomy, grantGems, grantGold, grantTickets, isUnlimitedGems, resetEconomy, setGems, setGold, setTickets, setUnlimitedGems } from '../economy/economy';
-import { buyBoxPacks } from '../box/boxProduct';
+import { buyBoxPulls } from '../box/boxProduct';
+import { getActiveBoxId, restockBox } from '../box/boxPool';
+import type { ArchetypeBoxId } from '../box/archetypeBoxes';
+import { chooseStarterFaction, getCoreAccess, unlockCorePackage } from '../core/coreAccess';
 import { resetHeroLevels, setHeroLevel } from '../heroLevel/store';
 import { resetSaveMigrations, runSaveMigrations } from '../save/migrations';
 import { claimIdleReward, loadIdleReward, resetIdleRewards } from '../campaign/idleRewards';
@@ -93,10 +96,16 @@ export const devTools = {
   // ---- Full reset (Commercial Prototype Phase 11) ----
   /** Every piece of local state, back to a fresh install. Does NOT reload the page itself (the UI's Profile button does that) - a console call can inspect the result immediately. */
   resetEverything: () => resetEverything(),
-  /** Real pack openings from the Moonfall Box (spend Gems, or Pack Tickets, unless Unlimited Gems is on). */
-  openPack: () => buyBoxPacks(1),
-  openTenPacks: () => buyBoxPacks(10),
-  openPackWithTicket: () => buyBoxPacks(1, undefined, 'tickets'),
+  /** Real pulls from an archetype Box (the active one by default; spend Gems, or Pack Tickets, unless Unlimited Gems is on). */
+  pull: (boxId: ArchetypeBoxId = getActiveBoxId()) => buyBoxPulls(boxId, 1),
+  pullTen: (boxId: ArchetypeBoxId = getActiveBoxId()) => buyBoxPulls(boxId, 10),
+  pullWithTicket: (boxId: ArchetypeBoxId = getActiveBoxId()) => buyBoxPulls(boxId, 1, 'tickets'),
+  /** Restocks an empty Box. */
+  restockBox: (boxId: ArchetypeBoxId) => restockBox(boxId),
+  // ---- Core packages ----
+  coreAccess: () => getCoreAccess(),
+  pickStarterFaction: (faction: StarterFaction) => chooseStarterFaction(faction, { getOwned: getCollection, setOwned: setCollection }),
+  unlockCorePackage: (faction: StarterFaction) => unlockCorePackage(faction, { getOwned: getCollection, setOwned: setCollection }, 'dev'),
   /** Dev only: Gems and Pack Tickets are not spent while on (production builds ignore this). */
   setUnlimitedGems: (on: boolean) => setUnlimitedGems(on),
   unlimitedGems: () => isUnlimitedGems(),

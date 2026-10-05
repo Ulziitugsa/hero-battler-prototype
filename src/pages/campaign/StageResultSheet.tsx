@@ -1,3 +1,4 @@
+import { CORE_FACTION_NAMES } from '../../game/core/corePackages';
 import type { BattleResultOutcome } from '../../game/campaign/progress';
 import { Icon, type IconName } from '../../components/Icon';
 import { RewardCard } from './RewardCard';
@@ -13,7 +14,7 @@ const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', e
  * switched on, matching the design's "seal" screens. A loss gets its own much quieter variant - the
  * design has no defeat screen to port, so this is the minimal honest equivalent. */
 export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { outcome: BattleResultOutcome; onContinue: () => void; recovery?: { label: string; kind: string; onSelect: () => void }; onRetry?: () => void }) {
-  const { node, won, reward, objectivesMet, chapterComplete, cardGrant, starterProgress, xp, gems, gold } = outcome;
+  const { node, won, reward, objectivesMet, chapterComplete, cardGrant, starterProgress, coreUnlocked, xp, gems, gold } = outcome;
   const isCardReward = !!(reward?.firstClear && reward.def.cardId);
 
   useEffect(() => {
@@ -111,6 +112,15 @@ export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { o
         )}
 
         {isCardReward && reward?.def.cardId && <RewardCard cardId={reward.def.cardId} grant={cardGrant} copies={reward.def.count ?? 1} />}
+
+        {coreUnlocked && (
+          <div className="campaign-result-unlock done">
+            <Icon name="check" size={15} />
+            <span>
+              <strong>{CORE_FACTION_NAMES[coreUnlocked]} Core cards unlocked</strong> — the {CORE_FACTION_NAMES[coreUnlocked]} Starter is ready in Decks
+            </span>
+          </div>
+        )}
 
         {starterProgress && (
           <div className={`campaign-result-unlock ${starterProgress.unlockedNow ? 'done' : ''}`}>
