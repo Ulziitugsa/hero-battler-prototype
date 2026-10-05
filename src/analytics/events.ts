@@ -41,12 +41,15 @@ export type AnalyticsEventName =
   // docs/COMMERCIAL-PROTOTYPE-PLAN.md Phase 9 for why both exist rather than a rename)
   | 'campaign_power_wall_encountered'
   | 'campaign_retry_after_power_wall'
-  // Packs (finite Boxes; the Moonwell Summon is retired)
-  | 'pack_opened'
+  // Box pulls (nine finite archetype Boxes; the Moonwell Summon and the Moonfall Box are retired)
   | 'pack_ticket_used'
-  | 'pack_results_viewed'
+  | 'pull_results_viewed'
   | 'legendary_pulled'
-  | 'prototype_box_opened'
+  | 'box_pulled'
+  | 'box_restocked'
+  // Core packages (launch set)
+  | 'starter_faction_chosen'
+  | 'core_package_unlocked'
   // Card Inspect (context: collection / deck / battle / opponent / pack / shop / other)
   | 'card_inspect_opened'
   // Idle rewards
@@ -84,7 +87,6 @@ export type AnalyticsEventName =
   // Card products (finite Boxes, Structure Decks) - simulated in-game Gem purchases, no real money
   | 'box_viewed'
   | 'box_contents_viewed'
-  | 'box_reset'
   | 'structure_deck_viewed'
   | 'structure_deck_purchased'
   | 'background_customization_opened'

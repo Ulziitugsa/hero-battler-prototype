@@ -40,7 +40,7 @@ describe('track', () => {
 
   it('sessionId stays the same across multiple events in the same session', () => {
     const a = track('session_started');
-    const b = track('pack_opened');
+    const b = track('box_pulled');
     expect(a.properties.sessionId).toBe(b.properties.sessionId);
   });
 
@@ -59,13 +59,13 @@ describe('track', () => {
   it('forwards every event to an attached provider without throwing on a bad provider', () => {
     const seen: string[] = [];
     setAnalyticsProvider((e) => seen.push(e.name));
-    track('pack_opened');
-    expect(seen).toEqual(['pack_opened']);
+    track('box_pulled');
+    expect(seen).toEqual(['box_pulled']);
 
     setAnalyticsProvider(() => {
       throw new Error('boom');
     });
-    expect(() => track('pack_opened')).not.toThrow();
+    expect(() => track('box_pulled')).not.toThrow();
   });
 
   it('clearQueuedEvents empties the queue', () => {

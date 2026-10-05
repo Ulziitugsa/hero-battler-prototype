@@ -1,48 +1,17 @@
 import { DECK_SIZE, validateDeck } from '../engine/deckRules.js';
+import { getLaunchDeck, launchDeckList } from './launchDecks.js';
 
-// The three Card Set v0.1 starter decks (README "Starter Decks"). Each is a reasonably functional
-// 15-card deck built from that faction's roster slice, respecting the copy-limit rules. They also
+// The three starter decks: each faction's free Core starter of the launch set (launchDecks.ts). Each is a functional
+// 15-card deck built only from that faction's Core package, respecting the copy-limit rules. They also
 // double as the AI's decks (README "AI Decks") - the player picks an opponent faction, the AI plays
 // that faction's starter deck untouched. No separate AI-only card pool.
 
-function expand(entries: [string, number][]): string[] {
-  const list: string[] = [];
-  for (const [cardId, count] of entries) for (let i = 0; i < count; i++) list.push(cardId);
-  return list;
-}
+const starter = (id: string): string[] => launchDeckList(getLaunchDeck(id));
 
-export const KINGDOM_STARTER: string[] = expand([
-  ['kng-common-knight', 2],
-  ['kng-archer', 2],
-  ['kng-royal-guard', 2],
-  ['kng-light-priest', 2],
-  ['kng-battle-captain', 2],
-  ['kng-paladin', 1], // Legendary - max 1
-  ['spl-power-surge', 2],
-  ['spl-battle-banner', 2],
-]);
-
-export const UNDEAD_STARTER: string[] = expand([
-  ['und-bone-soldier', 2],
-  ['und-cursed-warrior', 2],
-  ['und-dark-priest', 2],
-  ['und-grave-knight', 2],
-  ['und-mira', 2],
-  ['und-vharos', 1], // Legendary - max 1
-  ['spl-second-chance', 2],
-  ['spl-raise-fallen', 2],
-]);
-
-export const INFERNAL_STARTER: string[] = expand([
-  ['inf-flame-imp', 2],
-  ['inf-cultist', 2],
-  ['inf-pit-fiend', 2],
-  ['inf-hellhound', 2],
-  ['inf-blood-demon', 2],
-  ['inf-infernal-lord', 1], // Legendary - max 1
-  ['spl-weakness', 2],
-  ['spl-fireball', 2],
-]);
+/** Launch set: each faction's free Core starter (second balance pass lists, launchDecks.ts). */
+export const KINGDOM_STARTER: string[] = starter('kingdom-starter');
+export const UNDEAD_STARTER: string[] = starter('undead-starter');
+export const INFERNAL_STARTER: string[] = starter('infernal-starter');
 
 export type StarterFaction = 'kingdom' | 'undead' | 'infernal';
 

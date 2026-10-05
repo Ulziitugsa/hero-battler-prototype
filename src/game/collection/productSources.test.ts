@@ -5,13 +5,9 @@ const IN_EVENT = Date.parse('2026-10-05T12:00:00Z');
 const AFTER_EVENT = Date.parse('2026-12-01T12:00:00Z');
 
 describe('productAcquisitionLines', () => {
-  it('lists the Moonfall Box for roster cards', () => {
-    expect(productAcquisitionLines('kng-archer', IN_EVENT)).toContain('Moonfall Box');
-  });
-
-  it('lists the Structure Deck only for cards in it', () => {
-    expect(productAcquisitionLines('und-vharos', IN_EVENT)).toContain('Structure Deck · Graveborn Rising');
-    expect(productAcquisitionLines('kng-archer', IN_EVENT)).not.toContain('Structure Deck · Graveborn Rising');
+  it('lists only live events: Boxes and Structure Decks are acquisition sources (acquisition.ts)', () => {
+    expect(productAcquisitionLines('kng-archer', IN_EVENT)).toEqual([]);
+    expect(productAcquisitionLines('spl-meteor', IN_EVENT)).toEqual([]);
   });
 
   it('lists a live event reward and drops it once the event ends', () => {

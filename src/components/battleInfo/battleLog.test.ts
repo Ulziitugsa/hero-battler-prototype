@@ -27,11 +27,11 @@ describe('battle log', () => {
       '— Round 2 —',
       // Royal Guard's aura (Passive) logs nothing: it shows in the Knight's clash ATK (128 + 15 Banner + 15 aura).
       'Clash Damage — Left: 14 to Enemy (Royal Guard 113 beat Cursed Warrior 99)',
-      'Clash Damage — Center: 28 to Enemy (Common Knight 158 beat Vharos 130)',
+      'Clash Damage — Center: 28 to Enemy (Common Knight 158 beat Vharos, the Undying 130)',
       'Clash Damage — Right: 6 to You (Dark Priest 84 beat Light Priest 78)',
       'Light Priest — Shield: Survived the clash, Shield used up',
       'Cursed Warrior — Destroyed: Returned to hand',
-      'Vharos — Destroyed: Revived with 95 ATK',
+      'Vharos, the Undying — Destroyed: Revived with 95 ATK',
       'Light Priest — Round End: Restored 45 HP',
       '— Round 3 —',
     ]);
@@ -43,7 +43,7 @@ describe('battle log', () => {
     expect(log).toContain('Battle Banner — Attached: Light Priest +15 ATK');
     expect(log).toContain('Battle Banner — Expired: Its Unit left play (Light Priest)');
     // Right after the clash that destroyed its Unit, and the lane's Spell slot is free.
-    expect(log.indexOf('Battle Banner — Expired: Its Unit left play (Light Priest)')).toBe(log.indexOf('Clash Damage — Center: 37 to You (Vharos 130 beat Light Priest 93)') + 1);
+    expect(log.indexOf('Battle Banner — Expired: Its Unit left play (Light Priest)')).toBe(log.indexOf('Clash Damage — Center: 37 to You (Vharos, the Undying 130 beat Light Priest 93)') + 1);
     expect(state.player.spellZones.center).toBeNull();
     expect(state.player.graveyard).toEqual(['kng-light-priest', 'spl-battle-banner']);
   });
@@ -55,8 +55,8 @@ describe('battle log', () => {
     expect(find('Clash Damage — Right: 6').side).toBe('enemy');
     expect(find('Dark Priest — Direct Attack').side).toBe('enemy');
     expect(find('Light Priest — Round End')).toMatchObject({ side: 'player', kind: 'effect' });
-    expect(logOf([{ hands: { player: ['kng-apprentice-mage'], enemy: ['und-bone-soldier'] }, plays: { player: [['kng-apprentice-mage', 'center']], enemy: [['und-bone-soldier', 'center']] } }])).toContain(
-      'Tie — Center: Apprentice Mage and Bone Soldier destroyed at 93 ATK each, no damage',
+    expect(logOf([{ hands: { player: ['kng-common-knight'], enemy: ['kng-common-knight'] }, plays: { player: [['kng-common-knight', 'center']], enemy: [['kng-common-knight', 'center']] } }])).toContain(
+      'Tie — Center: Common Knight and Common Knight destroyed at 128 ATK each, no damage',
     );
   });
 
@@ -64,7 +64,8 @@ describe('battle log', () => {
     expect(logOf([{ hands: { player: ['kng-archer', 'spl-aegis-ward'], enemy: ['und-vharos'] }, plays: { player: [['kng-archer', 'left'], ['spl-aegis-ward', 'left']], enemy: [['und-vharos', 'left']] } }])).toEqual([
       '— Round 1 —',
       'Aegis Ward — Spell: Next damage to You this round is prevented, Kingdom Archer gained a Shield',
-      'Aegis Ward — Left: Prevented 40 Clash Damage to You (Vharos 130 beat Kingdom Archer 90)',
+      'Kingdom Archer — Clash: Gained +15 ATK this round',
+      'Aegis Ward — Left: Prevented 25 Clash Damage to You (Vharos, the Undying 130 beat Kingdom Archer 105)',
       'Kingdom Archer — Shield: Survived the clash, Shield used up',
       '— Round 2 —',
     ]);

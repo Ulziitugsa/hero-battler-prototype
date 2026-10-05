@@ -15,6 +15,8 @@ import { XP_REWARDS } from '../progression/config';
 import { migrateToRealCollection } from './collectionMigration';
 import { clearNonBattleNode, loadProgress, recordBattleResult } from './progress';
 import type { MatchStats } from '../engine/stats';
+import { getCoreAccess, reloadCoreAccess, writeCoreAccess } from '../core/coreAccess';
+import { corePackage } from '../core/corePackages';
 
 function installLocalStoragePolyfill() {
   const store = new Map<string, string>();
@@ -32,6 +34,7 @@ function installLocalStoragePolyfill() {
 
 beforeEach(() => {
   installLocalStoragePolyfill();
+  reloadCoreAccess();
   reloadCollection();
   reloadAccount();
 });
@@ -84,25 +87,41 @@ describe('first-clear card rewards', () => {
   });
 });
 
-describe('the Undead starter unlock loop', () => {
-  const UNDEAD_ROAD = ['battle-broken-palisade', 'battle-dust-crossing', 'battle-grey-orchard', 'battle-chapel-of-dust', 'elite-mira-grave-warden', 'battle-barrow-steps'];
+describe('the Core package unlocks in the first Campaign stages', () => {
+  const kingdomStart = () => writeCoreAccess({ version: 1, starterFaction: 'kingdom', unlocked: ['kingdom'] });
 
-  it('reports rising progress and unlocks automatically on the final required copy', () => {
+  it('a Kingdom start unlocks the Undead package at Broken Palisade and the Infernal package at Ford of Ash', () => {
+    kingdomStart();
     expect(isStarterDeckUnlocked('starter-undead')).toBe(false);
-    let last = 0;
-    for (const id of UNDEAD_ROAD) {
-      const r = win(id);
-      expect(r.starterProgress?.unlockedNow).toBe(false);
-      expect(r.starterProgress!.collected).toBeGreaterThan(last);
-      last = r.starterProgress!.collected;
-    }
-    clearNonBattleNode('reward-wayside-cairn'); // Raise Fallen x2 (main road)
-    expect(isStarterDeckUnlocked('starter-undead')).toBe(false); // Vharos still missing
-    const boss = win('boss-grave-tyrant');
-    expect(boss.cardGrant).toMatchObject({ cardId: 'und-vharos', isNew: true });
-    expect(boss.starterProgress).toMatchObject({ deckId: 'starter-undead', unlockedNow: true, collected: 15, total: 15 });
+    const palisade = win('battle-broken-palisade');
+    expect(palisade.coreUnlocked).toBe('undead');
     expect(isStarterDeckUnlocked('starter-undead')).toBe(true);
     expect(isDeckPlayable(STARTER_DECKS.undead)).toBe(true);
+    for (const [id, n] of Object.entries(corePackage('undead'))) expect(getOwnedCount(id), id).toBeGreaterThanOrEqual(n);
+    expect(getOwnedCount('und-bone-soldier')).toBe(3); // the stage's own 3 copies; the package only raises to 2, never adds
+    win('battle-dust-crossing');
+    expect(isStarterDeckUnlocked('starter-infernal')).toBe(false);
+    expect(win('battle-ford-of-ash').coreUnlocked).toBe('infernal');
+    expect(isStarterDeckUnlocked('starter-infernal')).toBe(true);
+    expect(getCoreAccess().unlocked).toEqual(['kingdom', 'undead', 'infernal']);
+  });
+  it('the order skips the starter: an Infernal start gets Kingdom, then Undead', () => {
+    writeCoreAccess({ version: 1, starterFaction: 'infernal', unlocked: ['infernal'] });
+    expect(win('battle-broken-palisade').coreUnlocked).toBe('kingdom');
+    win('battle-dust-crossing');
+    expect(win('battle-ford-of-ash').coreUnlocked).toBe('undead');
+  });
+  it('a replay or a loss unlocks nothing, and a package is never granted twice', () => {
+    kingdomStart();
+    expect(recordBattleResult('battle-broken-palisade', 'ENEMY_WIN', stats, [], 'kingdom').coreUnlocked).toBeNull();
+    expect(win('battle-broken-palisade').coreUnlocked).toBe('undead');
+    const owned = { ...getCollection() };
+    expect(win('battle-broken-palisade').coreUnlocked).toBeNull();
+    expect(getCollection()).toEqual(owned);
+  });
+  it('no package unlocks before the starter faction is picked', () => {
+    expect(getCoreAccess().starterFaction).toBeNull();
+    expect(win('battle-broken-palisade').coreUnlocked).toBeNull();
   });
   it('a cairn claim hands over its card and reports starter progress; a second claim grants nothing', () => {
     const first = clearNonBattleNode('reward-wayside-cairn');

@@ -110,7 +110,7 @@ describe('Gold reward config', () => {
   });
 });
 
-describe('Pack Tickets (were Summon Tickets)', () => {
+describe('Pull Tickets (were Summon Tickets)', () => {
   it('grants, notifies subscribers and persists', () => {
     let calls = 0;
     const off = subscribeEconomy(() => calls++);

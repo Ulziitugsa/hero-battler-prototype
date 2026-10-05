@@ -51,7 +51,7 @@ export function savedStructureDeckId(deck: StructureDeckDef): string {
 
 export type BuyStructureDeckResult =
   | { ok: true; gems: number; newCards: number; savedDeckId: string }
-  | { ok: false; reason: 'limit-reached' | 'not-enough-gems' };
+  | { ok: false; reason: 'limit-reached' | 'not-enough-gems' | 'not-on-sale' };
 
 /**
  * Spends Gems, adds every card in the deck to the collection and saves the list as a ready-to-play deck.
@@ -62,6 +62,8 @@ export function buyStructureDeck(deck: StructureDeckDef): BuyStructureDeckResult
   const state = getStructureDeckState();
   const bought = structureDeckPurchases(deck.id, state);
   if (bought >= deck.purchaseLimit) return { ok: false, reason: 'limit-reached' };
+  // A retired deck (Graveborn Rising) stays owned where it was bought but can no longer be bought.
+  if (!deck.onSale) return { ok: false, reason: 'not-on-sale' };
   if (!canAfford(deck.priceGems) || !spendGems(deck.priceGems)) return { ok: false, reason: 'not-enough-gems' };
 
   const next: StructureDeckState = { version: 1, purchased: { ...state.purchased, [deck.id]: bought + 1 } };

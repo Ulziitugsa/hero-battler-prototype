@@ -1,3 +1,4 @@
+import { boxPullPrice } from '../box/boxProduct';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -112,10 +113,10 @@ describe('attention markers', () => {
     expect(homeAttentionReady({masteryPoint:false,missionReward:true,journeyReward:true,idleReward:false})).toBe(true);
     expect(homeAttentionReady({masteryPoint:false,missionReward:false,journeyReward:false,idleReward:false})).toBe(false);
   });
-  it('packs glow only with a pack’s Gem price, a Pack Ticket (or dev Unlimited Gems)', () => {
+  it('the Box shortcut glows only with one pull’s Gem price, a Pull Ticket (or dev Unlimited Gems)', () => {
     const base = { masteryPoints: 0 };
-    expect(attentionState({ ...base, gems: 149 }).canOpenPack).toBe(false);
-    expect(attentionState({ ...base, gems: 150 }).canOpenPack).toBe(true);
+    expect(attentionState({ ...base, gems: boxPullPrice(1) - 1 }).canOpenPack).toBe(false);
+    expect(attentionState({ ...base, gems: boxPullPrice(1) }).canOpenPack).toBe(true);
     expect(attentionState({ ...base, gems: 0, tickets: 1 }).canOpenPack).toBe(true);
     expect(attentionState({ ...base, gems: 0, unlimitedGems: true }).canOpenPack).toBe(true);
   });

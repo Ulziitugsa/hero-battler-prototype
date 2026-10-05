@@ -89,7 +89,7 @@ export function setAllOwned(copies = 2): void {
   commit(Object.fromEntries(PLAYTEST_ROSTER.map((id) => [id, copies])));
 }
 
-/** Dev/test only - replace the whole collection (sanitised). */
+/** Replaces the whole collection (sanitised): Core package grants (core/coreAccess.ts) and dev/test tools. */
 export function setCollection(owned: Record<string, number>): void {
   commit(sanitizeOwned(owned));
 }

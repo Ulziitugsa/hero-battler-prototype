@@ -13,7 +13,7 @@ export const UNDEAD_CARDS: CardDefinition[] = [
     rarity: 'common',
     cost: 1,
     power: 4,
-    tags: ['Skeleton'],
+    tags: ['Skeleton', 'Undead'],
     boardText: 'Death:Return; +1/Grave card',
     abilities: [
       {
@@ -129,7 +129,7 @@ export const UNDEAD_CARDS: CardDefinition[] = [
   },
   {
     id: 'und-vharos',
-    name: 'Vharos',
+    name: 'Vharos, the Undying',
     shortName: 'Vharos',
     faction: 'undead',
     type: 'hero',

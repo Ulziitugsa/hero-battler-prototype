@@ -22,7 +22,7 @@ function RewardChips({ reward }: { reward: EventReward }) {
   return <span className="event-reward-chips">
     {reward.gold ? <span><GoldIcon size={13} />{reward.gold}</span> : null}
     {reward.gems ? <span><GemIcon size={13} />{reward.gems}</span> : null}
-    {reward.tickets ? <span className="event-reward-ticket" aria-label={`${reward.tickets} Pack ${reward.tickets === 1 ? 'Ticket' : 'Tickets'}`}><TicketIcon size={13} />{reward.tickets}</span> : null}
+    {reward.tickets ? <span className="event-reward-ticket" aria-label={`${reward.tickets} Pull ${reward.tickets === 1 ? 'Ticket' : 'Tickets'}`}><TicketIcon size={13} />{reward.tickets}</span> : null}
     {reward.cardIds?.map((id, index) => <span key={`${id}-${index}`} className="event-reward-card">{getCard(id).shortName}</span>)}
     {reward.backgroundId ? <span className="event-reward-cosmetic">{getBackground(reward.backgroundId).name} background</span> : null}
   </span>;
@@ -32,7 +32,7 @@ function describeGrant(reward: EventReward): string {
   const parts: string[] = [];
   if (reward.gold) parts.push(`${reward.gold} Gold`);
   if (reward.gems) parts.push(`${reward.gems} Gems`);
-  if (reward.tickets) parts.push(`${reward.tickets} Pack Ticket${reward.tickets === 1 ? '' : 's'}`);
+  if (reward.tickets) parts.push(`${reward.tickets} Pull Ticket${reward.tickets === 1 ? '' : 's'}`);
   for (const id of reward.cardIds ?? []) parts.push(getCard(id).name);
   if (reward.backgroundId) parts.push(`${getBackground(reward.backgroundId).name} background`);
   return parts.length ? `+ ${parts.join(' · ')}` : 'Reward claimed';

@@ -121,7 +121,7 @@ export const KINGDOM_CARDS: CardDefinition[] = [
   },
   {
     id: 'kng-paladin',
-    name: 'Legendary Paladin',
+    name: 'Dawnshield Paladin',
     shortName: 'Paladin',
     faction: 'kingdom',
     type: 'hero',

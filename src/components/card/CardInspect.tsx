@@ -20,7 +20,7 @@ import '../../styles/cardInspect.css';
 
 /**
  * Card Inspect: layer 3, the deepest. One sheet for every card everywhere (Collection, Deck Builder, Shop and Box
- * contents, pack results, events, and in battle from the focus panel): the card at its largest, its name, rarity,
+ * contents, Pull Results, events, and in battle from the focus panel): the card at its largest, its name, rarity,
  * faction and type, ATK and HP Contribution with what they mean, every effect's full rule with its keywords, copies
  * owned, where to get it, its card style, and its lore. Every card shows its printed values: there is no combat Card
  * Mastery. Historical Mastery / Ascension progress stays in the save for the future Prestige conversion but is never shown
@@ -68,7 +68,7 @@ function findDeckFor(cardId: string): string | null {
 /** Where the back button returns to. */
 const BACK_LABEL: Record<InspectContext, string> = { collection: 'Cards', deck: 'Deck', battle: 'Battle', opponent: 'Battle', pack: 'Back', shop: 'Shop', event: 'Event', other: 'Back' };
 
-/** Every way to get the card, once each: the acquisition summary (starter, Campaign, Box packs) plus Structure Decks and live events. */
+/** Every way to get the card, once each: the acquisition summary (Core, Campaign, Boxes, Structure Decks, planned event cards) plus live events. */
 function sourcesLine(cardId: string): string {
   const summary = acquisitionSummary(cardId);
   return [summary, ...productAcquisitionLines(cardId).filter((line) => !summary.includes(line))].join(' / ');

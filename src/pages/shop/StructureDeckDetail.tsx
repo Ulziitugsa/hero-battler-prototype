@@ -48,7 +48,8 @@ export function StructureDeckDetail({ deck, onBack }: { deck: StructureDeckDef; 
   const owned = useCollection();
   const purchases = useSyncExternalStore(subscribeStructureDecks, getStructureDeckState, getStructureDeckState);
   const bought = structureDeckPurchases(deck.id, purchases);
-  const soldOut = bought >= deck.purchaseLimit;
+  const purchased = bought >= deck.purchaseLimit;
+  const soldOut = purchased || !deck.onSale;
   const [inspect, setInspect] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [notice, setNotice] = useState('');
@@ -66,7 +67,7 @@ export function StructureDeckDetail({ deck, onBack }: { deck: StructureDeckDef; 
     setConfirming(false);
     const result = buyStructureDeck(deck);
     if (result.ok) setNotice(`${deck.name} is yours. ${result.newCards > 0 ? `${result.newCards} new cards joined your collection. ` : ''}Find it in Decks, ready to play.`);
-    else setNotice(result.reason === 'limit-reached' ? 'You already own this Structure Deck.' : `You need ${deck.priceGems.toLocaleString()} Gems for this deck.`);
+    else setNotice(result.reason === 'limit-reached' ? 'You already own this Structure Deck.' : result.reason === 'not-on-sale' ? 'This Structure Deck is no longer sold.' : `You need ${deck.priceGems.toLocaleString()} Gems for this deck.`);
   }
 
   const renderLine = ({ card, count }: ReturnType<typeof deckLines>[number]) => <button type="button" key={card.id} className={`sd-line r-${card.rarity}`} onClick={() => setInspect(card.id)}>
@@ -86,13 +87,14 @@ export function StructureDeckDetail({ deck, onBack }: { deck: StructureDeckDef; 
         <h1 id="sd-title">{deck.name}</h1>
         <p className="sd-faction"><Sigil faction={deck.faction} size="sm" />{FACTION_LABEL[deck.faction]} · {deck.style}</p>
         <p className="sd-tagline">{deck.tagline}</p>
+        {deck.debutCardIds.length > 0 && <p className="sd-debut">Debuts {deck.debutCardIds.map((id) => getCard(id).name).join(' and ')}</p>}
       </div>
     </section>
 
     <div className="sd-buy">
-      <div><strong>Ready to play</strong><small>{soldOut ? 'Owned · saved in Decks' : `${units.reduce((n, l) => n + l.count, 0)} Units · ${spells.reduce((n, l) => n + l.count, 0)} Spells · limit ${deck.purchaseLimit}`}</small></div>
+      <div><strong>Ready to play</strong><small>{purchased ? 'Owned · saved in Decks' : !deck.onSale ? 'No longer sold' : `${units.reduce((n, l) => n + l.count, 0)} Units · ${spells.reduce((n, l) => n + l.count, 0)} Spells · limit ${deck.purchaseLimit}`}</small></div>
       <button type="button" onClick={() => setConfirming(true)} disabled={soldOut} aria-describedby={!soldOut && !canAfford(deck.priceGems, economy.gems) ? 'sd-short' : undefined}>
-        {soldOut ? 'Owned' : <><GemIcon size={15} />{deck.priceGems.toLocaleString()}</>}
+        {purchased ? 'Owned' : !deck.onSale ? 'Retired' : <><GemIcon size={15} />{deck.priceGems.toLocaleString()}</>}
       </button>
     </div>
     {!soldOut && !canAfford(deck.priceGems, economy.gems) && <p id="sd-short" className="box-notice">You have {economy.gems.toLocaleString()} Gems. Earn more in Campaign, missions and Ranked.</p>}

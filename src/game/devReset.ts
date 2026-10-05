@@ -22,7 +22,9 @@ import { resetSavedDecks } from './engine/localDecks';
 import { resetPreferences } from './engine/preferences';
 import { resetMatchHistory } from './engine/localMatchHistory';
 import { resetLanternProgress } from './story/lanterns';
-import { clearPrototypeBox } from './box/prototypeBox';
+import { clearArchetypeBoxes } from './box/boxPool';
+import { clearLegacyMoonfallBox } from './box/legacyMoonfall';
+import { clearCoreAccess } from './core/coreAccess';
 import { resetStructureDecks } from './structureDecks/store';
 import { resetEvents } from './events/store';
 import { resetEventCosmetics } from './events/cosmetics';
@@ -42,6 +44,7 @@ import { clearQueuedEvents, track } from '../analytics/track';
  * the exact same function, so there is only one definition of "clean" to keep correct.
  */
 export function resetEverything(): void {
+  clearCoreAccess();
   resetCollection();
   resetCardMarks();
   resetEconomy();
@@ -57,7 +60,8 @@ export function resetEverything(): void {
   resetPreferences();
   resetMatchHistory();
   resetLanternProgress();
-  clearPrototypeBox();
+  clearArchetypeBoxes();
+  clearLegacyMoonfallBox();
   resetStructureDecks();
   resetSaveMigrations();
   resetEvents();

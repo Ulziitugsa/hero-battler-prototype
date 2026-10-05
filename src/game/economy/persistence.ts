@@ -56,8 +56,8 @@ export function sanitizeEconomy(raw: unknown): PlayerEconomy {
     gems: Math.max(0, Math.min(MAX_GEMS, whole(r.gems, 0))),
     // A pre-v3 save has no `gold` field at all - that is 0, not an error, and is never backfilled.
     gold: Math.max(0, Math.min(MAX_GOLD, whole(r.gold, 0))),
-    // Same treatment for `tickets`, absent before v4. Saved Summon Tickets carry over 1:1 as Pack Tickets (1 pack =
-    // 5 cards each): intentional legacy generosity while Moonwater is pre-release (docs/ECONOMY-BASELINE.md).
+    // Same treatment for `tickets`, absent before v4. Saved Summon Tickets carry over 1:1 as Pull Tickets (1 Box pull
+    // each since the launch set): intentional legacy generosity while Moonwater is pre-release (docs/ECONOMY-BASELINE.md).
     tickets: Math.max(0, Math.min(MAX_TICKETS, whole(r.tickets, 0))),
     // Absent before v5: no one-time grant has been paid yet.
     grants: sanitizeGrants(r.grants),

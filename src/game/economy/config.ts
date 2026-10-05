@@ -44,9 +44,22 @@ export const GOLD_REWARDS = {
 
 export type GoldSource = 'campaign' | 'quickBattle' | 'idle' | 'mission' | 'journey' | 'offer' | 'shop' | 'ranked' | 'event' | 'legacyLevelRefund' | 'dev';
 
-// ---- Pack Tickets ---------------------------------------------------------------------------------
-// One Ticket opens one pack of a finite Box, in place of its Gem price (box/boxProduct.ts). Earn-only, sourced from
-// missions, the 7-day journey and offers - never purchasable. PROTOTYPE values.
+// ---- Box pulls ------------------------------------------------------------------------------------
+// One pull takes one card from an archetype Box (box/boxProduct.ts); a 10-pull costs 10x. 100 Gems is the working
+// launch value (ozi, 2026-10-05: the study showed 30 far too cheap) until the economy follow-up tunes it. Change it
+// here only.
+export const BOX_PULL_GEMS = 100;
+
+// ---- Structure Decks -------------------------------------------------------------------------------
+// The Gem price of each launch Structure Deck (structureDecks/definitions.ts), one per account. 900 Gems is the
+// economy direction (ozi, 2026-10-05); the economy follow-up may still tune it. Change it here only.
+export const STRUCTURE_DECK_GEMS = 900;
+
+// ---- Pull Tickets ---------------------------------------------------------------------------------
+// One Ticket pays for one pull from an archetype Box, in place of its Gem price (approved model: 1 Ticket = 1 pull,
+// unless the economy follow-up revalues it; box/boxProduct.ts). Earn-only, sourced from missions, the 7-day journey
+// and offers - never purchasable. PROTOTYPE values.
+export const PULLS_PER_TICKET = 1;
 
 export const STARTING_TICKETS = 0;
 

@@ -6,7 +6,7 @@ Use a fresh test profile for progression-dependent paths. Existing player saves 
 
 - Can players name their next Campaign action, nearest reward, and claimable reward from Home without prompting?
 - Does the Home return note surface one useful change, then quiet after that state is viewed? Do ready badges remain understandable until claimed?
-- Does the player understand the Ticket before spending it, and the shared Ticket/Gem banner guarantee?
+- Does the player understand that 1 Pull Ticket = 1 pull = 1 card from the Box they choose, and that a Box is finite (its Legendary is guaranteed by the last pull)?
 - Does a Hero Level-up clearly show Gold spent and Roster Power gained? Does Ascension feel like a larger, brief milestone and explain the actual ability change and derived Star result?
 - After a loss, do players choose the contextual Idle Gold, Hero upgrade, or deck action when useful, or prefer retry? Does the recommendation deficit feel informative rather than discouraging?
 - After a win, does “Continue the chapter” lead players naturally to the next map node? Are chapter/elite rewards clear before continuing?
@@ -23,7 +23,7 @@ Use a fresh test profile for progression-dependent paths. Existing player saves 
 - Check the Shop gift marker before and after claiming, including at the Gold cap; verify Ranked shows only AI matches and one-time local milestone claims.
 - Check Campaign-unlocked background choices and, in a dev/debug build only, the locked-background testing toggle. Confirm normal unlock labels remain visible.
 - Open the Combat V2 lab only from Developer Tools; confirm it grants no Campaign rewards and does not alter subsequent production battles.
-- Check Home, Heroes, Campaign result sheets, Journey, Missions, Offers, and Summon at 390×844 and with reduced motion enabled.
+- Check Home, Heroes, Campaign result sheets, Journey, Missions, Offers, Shop Boxes and the pull reveal at 390×844 and with reduced motion enabled.
 
 ## Known prototype limits
 

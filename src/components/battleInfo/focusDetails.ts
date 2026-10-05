@@ -13,7 +13,7 @@ import { cardEffects, legacyAtk, printedAtk, type CardRules } from '../../game/c
  * The focused card detail (layer 2 of a card's information, between its face and Card Inspect): a card's full rules
  * and what is true of it right now. One shape for every place a card can be picked out: a card in hand, a Unit or a
  * Spell on either side of the board in any battle mode, or a card outside battle (Collection, Deck Builder, Shop,
- * pack results, events). Pure: GamePage passes the board as shown (pending plays included) and the match log.
+ * Pull Results, events). Pure: GamePage passes the board as shown (pending plays included) and the match log.
  *
  * In a legacy battle a Unit's ATK is the ATK its Power reads as (cardPresentation.ts legacyAtk), its effects are the
  * legacy rules with this copy's Card Mastery abilities, and HP Contribution is left out (legacy battles start at a

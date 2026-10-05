@@ -2,7 +2,8 @@ import type { AbilityDefinition, CardDefinition, Faction, Trigger } from '../typ
 import { getCard } from './index.js';
 import { KEYWORD_HELP, TIMING_HELP, TIMING_LABEL, cardEffectLines, type EffectKeyword } from './effectText.js';
 import { BATTLE_LINES, cardCombatEffectLines, trimTiming, type BattleCopy } from '../cardCombat/cardText.js';
-import { getCombatCard, hasCombatOverride, isAttachedSpell } from '../cardCombat/cards.js';
+import { getCombatCard, isAttachedSpell } from '../cardCombat/cards.js';
+import { LAUNCH_NEW_CARD_IDS } from './launchCards.js';
 import { atkFromPower, printedStats } from '../cardCombat/stats.js';
 import { CARD_ASCENSIONS } from '../ascension/definitions.js';
 import { effectiveAbilities } from '../ascension/effective.js';
@@ -143,8 +144,8 @@ function buildEffect(trigger: Trigger, fullLine: string, copy: BattleCopy | unde
 
 function cardRuleEffects(id: string): CardEffect[] {
   const abilities = getCombatCard(id).abilities;
-  // Bone Soldier's stacked growth thresholds share one line: only abilities with text of their own are listed.
-  const listed = abilities.map((ability, index) => ({ ability, index })).filter(({ ability }) => !hasCombatOverride(id) || ability.text !== '');
+  // Stacked thresholds share one line (Ignis): only abilities with text of their own are listed.
+  const listed = abilities.map((ability, index) => ({ ability, index })).filter(({ ability }) => ability.text !== '');
   const copy = BATTLE_LINES[id];
   return cardCombatEffectLines(id).map((line, i) => buildEffect(line.trigger, line.text, copy?.[i], line.oncePerRound, listed[i]?.index ?? i, false));
 }
@@ -175,7 +176,7 @@ export function cardEffects(cardOrId: CardDefinition | string, options: CardEffe
   const key = `${id}|${rules}|${rank}`;
   let effects = memo.get(key);
   if (!effects) {
-    effects = rules === 'legacy' ? legacyRuleEffects(id, rank) : cardRuleEffects(id);
+    effects = rules === 'legacy' && !LAUNCH_NEW_CARD_IDS.has(id) ? legacyRuleEffects(id, rank) : cardRuleEffects(id);
     memo.set(key, effects);
   }
   return effects;

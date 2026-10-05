@@ -15,7 +15,6 @@ import type { Rarity } from '../../game/types';
 import { bestRarity, type PackPlan, type SeqView } from '../../game/reveal/sequence';
 import type { RevealCard, RevealOutcome } from '../../game/reveal/outcome';
 
-const RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
 const CAPTION: Record<Rarity, string> = { common: '', rare: '', epic: 'An extraordinary ally.', legendary: 'A legend answers.' };
 
 /** The centred card: a carved back that rises out of the light, then turns to the real face. Only one exists at a time. */
@@ -55,7 +54,7 @@ function CardFace({ cardId }: { cardId: string }) {
   );
 }
 
-/** One pack: a card tile, sealed until its beat, then its face, name and rarity. */
+/** A card tile, sealed until its beat, then its face, name and rarity. */
 function CardTile({ card, revealed, faction }: { card: RevealCard; revealed: boolean; faction: StarterFaction }) {
   if (!revealed)
     return (
@@ -84,42 +83,14 @@ function CardTile({ card, revealed, faction }: { card: RevealCard; revealed: boo
   );
 }
 
-/** Ten packs: a pack tile, sealed until its beat, then the best card it held and one pip per card by rarity. */
-function PackTile({ cards, number, revealed, faction }: { cards: RevealCard[]; number: number; revealed: boolean; faction: StarterFaction }) {
-  if (!revealed)
-    return (
-      <div className="pack-tile sealed">
-        <span className="pack-tile-art">
-          <Sigil faction={faction} size="sm" />
-        </span>
-        <span className="pack-tile-label">Pack {number}</span>
-      </div>
-    );
-  const best = [...cards].sort((a, b) => RANK[b.rarity] - RANK[a.rarity])[0];
-  const newCount = cards.filter((c) => c.isNew).length;
-  return (
-    <div className={`pack-tile open r-${best.rarity}`}>
-      <span className="pack-tile-art">
-        <CardFace cardId={best.cardId} />
-      </span>
-      <span className="pack-pips" aria-hidden="true">
-        {cards.map((c, i) => (
-          <i key={i} className={`r-${c.rarity}`} />
-        ))}
-      </span>
-      <span className="pack-tile-label">{newCount > 0 ? `${newCount} new` : `Pack ${number}`}</span>
-    </div>
-  );
-}
-
 const HEADING: Partial<Record<SeqView['phase'], string>> = { charging: 'A light beyond the clouds', telegraph: 'The Moonwell stirs', opening: 'The seal breaks' };
 
 /**
- * The pack-opening ceremony: the Moonwell opens the pack. Pure presentation of an ALREADY-GRANTED opening, driven by a
- * SeqView from useRevealSequence: data-phase / data-tier on the root are the only things the CSS reacts to, so pacing
- * lives in the timeline (game/reveal/sequence.ts), never here. One pack turns its five cards over in rising rarity and
- * gives the rarest the stage last; ten packs open pack by pack, spotlighting each Epic and Legendary. A tap finishes the
- * current beat; Skip goes straight to Pack Results. Neither can change what was opened.
+ * The pull ceremony: the Moonwell brings the cards up from the Box. Pure presentation of an ALREADY-GRANTED opening,
+ * driven by a SeqView from useRevealSequence: data-phase / data-tier on the root are the only things the CSS reacts to,
+ * so pacing lives in the timeline (game/reveal/sequence.ts), never here. A pull shows its one card; a 10-pull turns its
+ * ten cards over in rising rarity, spotlighting each Epic and giving the rarest the stage last. A tap finishes the
+ * current beat; Skip goes straight to Pull Results. Neither can change what was opened.
  */
 export function RevealStage({ outcome, plan, view, faction = 'kingdom', onAdvance, onSkip, onIntroFinished }: { outcome: RevealOutcome; plan: PackPlan; view: SeqView; faction?: StarterFaction; onAdvance: () => void; onSkip: () => void; onIntroFinished: () => void }) {
   const dialog = useDialogFocus(onSkip);
@@ -127,28 +98,25 @@ export function RevealStage({ outcome, plan, view, faction = 'kingdom', onAdvanc
   const showStage = !!stageCard && (view.phase === 'emerge' || view.phase === 'reveal');
   const gridOn = view.phase === 'slot' || view.revealed > 0 || view.stageCard !== null;
   const ten = plan.mode === 'ten';
-  const heading = stageCard ? 'A rare card emerges' : gridOn ? (ten ? `${outcome.packs} packs open` : 'Your cards arrive') : (HEADING[view.phase] ?? 'The Moonwell stirs');
-  // One meteor per card worth one: all five for one pack; the Rares and up (at most ten) for ten packs.
-  const meteors = stageCard ? [stageCard] : ten ? outcome.cards.filter((c) => c.rarity !== 'common').slice(0, 10) : outcome.cards;
+  const count = outcome.cards.length;
+  const heading = stageCard ? 'A rare card emerges' : gridOn ? (ten ? 'Your cards arrive' : 'Your card arrives') : (HEADING[view.phase] ?? 'The Moonwell stirs');
+  // One meteor per card worth one: the card of a single pull; the Rares and up of a 10-pull.
+  const meteors = stageCard ? [stageCard] : ten ? outcome.cards.filter((c) => c.rarity !== 'common') : outcome.cards;
 
   return (
-    <div className={`ritual pack-reveal ${ten ? 'packs-ten' : 'packs-one'}`} data-phase={view.phase} data-tier={view.tier} data-faction={faction} data-headline={view.headline ? '1' : '0'} data-stage={view.stageCard !== null ? '1' : '0'} data-grid={gridOn ? '1' : '0'} style={{ ['--step-ms' as string]: `${view.ms}ms` } as CSSProperties} role="dialog" aria-label="Opening packs">
+    <div className={`ritual pack-reveal ${ten ? 'pulls-ten' : 'pulls-one'}`} data-phase={view.phase} data-tier={view.tier} data-faction={faction} data-headline={view.headline ? '1' : '0'} data-stage={view.stageCard !== null ? '1' : '0'} data-grid={gridOn ? '1' : '0'} style={{ ['--step-ms' as string]: `${view.ms}ms` } as CSSProperties} role="dialog" aria-label="Pulling cards">
       <div className="ritual-canvas" ref={dialog} tabIndex={-1} onClick={onAdvance}>
         <RevealFilm active={view.phase === 'charging'} onFinished={onIntroFinished} />
 
         <div className="ritual-architecture" aria-hidden="true"><span /><span /><span /></div>
-        <div className="ritual-heading"><span>{outcome.boxName} · {outcome.packs} {outcome.packs === 1 ? 'pack' : 'packs'}</span><strong>{heading}</strong></div>
+        <div className="ritual-heading"><span>{outcome.boxName} · {count} {count === 1 ? 'card' : 'cards'}</span><strong>{heading}</strong></div>
         <div className="ritual-vignette" />
         <div className="ritual-env" />
 
         <div className={`pack-grid ${ten ? 'ten' : 'one'}`} aria-live="polite">
-          {plan.tiles.map((tile, i) =>
-            ten ? (
-              <PackTile key={i} cards={tile.map((c) => outcome.cards[c])} number={i + 1} revealed={i < view.revealed} faction={faction} />
-            ) : (
-              <CardTile key={i} card={outcome.cards[tile[0]]} revealed={i < view.revealed} faction={faction} />
-            ),
-          )}
+          {plan.tiles.map((card, i) => (
+            <CardTile key={i} card={outcome.cards[card]} revealed={i < view.revealed} faction={faction} />
+          ))}
         </div>
 
         <div className="ritual-center">
@@ -156,7 +124,7 @@ export function RevealStage({ outcome, plan, view, faction = 'kingdom', onAdvanc
           {showStage && stageCard && <StageCard key={view.stageCard} card={stageCard} phase={view.phase} faction={faction} headline={view.headline} />}
         </div>
 
-        <button type="button" className="ritual-skip" onClick={(e) => { e.stopPropagation(); onSkip(); }} aria-label="Skip to Pack Results">Skip <span aria-hidden="true">↠</span></button>
+        <button type="button" className="ritual-skip" onClick={(e) => { e.stopPropagation(); onSkip(); }} aria-label="Skip to Pull Results">Skip <span aria-hidden="true">↠</span></button>
       </div>
     </div>
   );

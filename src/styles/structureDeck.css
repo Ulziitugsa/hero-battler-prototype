@@ -9,6 +9,7 @@
 .sd-hero-copy h1 { margin:4px 0; color:#f3ead0; font:400 27px/1.05 var(--moon-display,Georgia,serif); }
 .sd-faction { display:flex; align-items:center; gap:6px; margin:0 0 6px; color:#bcd9cb; font-size:12px; font-weight:800; }
 .sd-tagline { margin:0; color:#c5d1c9; font-size:12px; line-height:1.4; }
+.sd-debut { margin:4px 0 0; color:#f0d59a; font-size:11px; font-weight:800; }
 
 .sd-buy { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:12px; padding:10px 10px 10px 14px; border:1px solid #f0d59a55; border-radius:16px; background:#122a34; }
 .sd-buy strong { display:block; color:#f5e8c8; font:400 16px var(--moon-display,Georgia,serif); }

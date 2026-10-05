@@ -1,4 +1,4 @@
-import { MOONFALL_BOX } from '../box/boxProduct';
+import { getArchetypeBox } from '../box/archetypeBoxes';
 import type { EventDefinition, EventPhase } from './types';
 
 // Event content. Add a new event by appending an EventDefinition here - the store, page and Home entry
@@ -18,7 +18,7 @@ export const THE_LONG_VIGIL: EventDefinition = {
   loginRewards: [
     { day: 1, reward: { gold: 60 } },
     { day: 2, reward: { gems: 20 } },
-    { day: 3 }, // a checkpoint: its Pack Ticket was removed (ozi, 2026-10-04); Day 6 holds the event's one Ticket
+    { day: 3 }, // a checkpoint: its Pull Ticket was removed (ozi, 2026-10-04); Day 6 holds the event's one Ticket
     { day: 4, reward: { gold: 100 } },
     { day: 5, reward: { gems: 30 } },
     { day: 6, reward: { tickets: 1 } },
@@ -30,7 +30,9 @@ export const THE_LONG_VIGIL: EventDefinition = {
     { id: 'vigil-damage', title: 'Deal 18,000 damage to opponents', objective: { kind: 'sum', event: 'battle_completed', property: 'damageDealt' }, target: 18_000, reward: { gold: 100 } },
     { id: 'vigil-ranked-wins', title: 'Win 2 Ranked matches', objective: { kind: 'count', event: 'ranked_match_won' }, target: 2 }, // progress-only objective
     { id: 'vigil-campaign-wins', title: 'Win 3 Campaign battles', objective: { kind: 'count', event: 'campaign_won' }, target: 3, reward: { gold: 80 } },
-    { id: 'vigil-open-packs', title: 'Open 5 Moonfall packs', objective: { kind: 'sum', event: 'prototype_box_opened', property: 'packCount', where: { boxId: MOONFALL_BOX.id } }, target: 5, reward: { gems: 30 } },
+    // Was "Open 5 Moonfall packs" (Moonfall retired with the launch set): any Box counts, one card per pull. The id is
+    // kept so a save's claimed state carries over.
+    { id: 'vigil-open-packs', title: 'Pull 5 cards from any Box', objective: { kind: 'sum', event: 'box_pulled', property: 'pullCount' }, target: 5, reward: { gems: 30 } },
     { id: 'vigil-shop-gift', title: 'Claim the free Shop gift 3 times', objective: { kind: 'count', event: 'shop_free_claimed' }, target: 3 }, // progress-only objective
   ],
   milestones: [
@@ -38,14 +40,13 @@ export const THE_LONG_VIGIL: EventDefinition = {
     { id: 'vigil-collect-4', title: 'Own 4 of the featured Undead cards', requirement: { kind: 'cardsOwned', cardIds: UNDEAD_FEATURED, count: 4 } }, // progress-only objective
     { id: 'vigil-missions-5', title: 'Complete 5 missions', requirement: { kind: 'missionsCompleted', count: 5 }, reward: { gems: 50 } },
   ],
-  // Thread C owns Box/Structure Deck content; this points at the existing Moonfall Box until the
-  // integration pass relinks it to C's product id.
+  // The Undead Box whose cards the Vigil features (Wraith Prince, Grave Sage).
   featuredProduct: {
     kind: 'box',
-    id: MOONFALL_BOX.id,
-    name: MOONFALL_BOX.name,
-    blurb: 'A finite box of 100 packs. Every copy you pull leaves the box for good.',
-    featuredCardIds: ['und-wraith-prince', 'und-grave-sage', 'und-grave-knight'],
+    id: 'phantoms',
+    name: getArchetypeBox('phantoms').name,
+    blurb: 'A finite Box of Undead Phantoms. Every card you pull leaves the Box for good, and its Legendary is guaranteed once the Box is empty.',
+    featuredCardIds: ['und-wraith-prince', 'und-grave-sage', 'und-shade-thief'],
   },
   finalReward: {
     id: 'vigil-final',

@@ -54,7 +54,7 @@ owned? copies? treatment? artId? animated? />`
 | `hand` | battle hand (117×176 at 390) | most readable: 10px rules |
 | `board` | Units on the board (118×168 at 390) | 9.5px rules, current ATK with printed beside it, active-state dots |
 | `spell` | Spell zones (full-width strip) | name inline with the rule |
-| `tile` | Collection, Deck Builder, Box contents, pack results, Structure Decks, events, banners, Campaign rewards, focus sheet | hand proportions, HP Contribution beside ATK |
+| `tile` | Collection, Deck Builder, Box contents, Pull Results, Structure Decks, events, banners, Campaign rewards, focus sheet | hand proportions, HP Contribution beside ATK |
 | `inspect` | Card Inspect | 12.5px rules, animated art |
 
 All densities share the frame, the Cinzel name bar, Alegreya rules, Alegreya SC labels, the rarity frame (pewter,

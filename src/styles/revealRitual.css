@@ -1,4 +1,4 @@
-﻿/* The Moonwell ritual that opens packs. Everything here reacts ONLY to the root's data-phase / data-tier / data-stage
+﻿/* The Moonwell ritual that reveals pulled cards. Everything here reacts ONLY to the root's data-phase / data-tier / data-stage
    / data-grid (set from the timeline in game/reveal/sequence.ts) and to --step-ms (the current step's length). Nothing animates on its own
    timeout, so pacing lives in one place. Composited properties only (transform / opacity) and a handful of
    particle nodes - no filters on moving layers, no hundreds of DOM particles.
@@ -257,9 +257,9 @@ button.tile { cursor: pointer; }
 .cf-stage .cf-art:not(:has(img))::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 30%, rgba(255, 240, 200, 0.28), transparent 60%), linear-gradient(180deg, transparent 55%, rgba(8, 3, 6, 0.5)); }
 .ritual.single .ritual-center { top: 42%; }
 
-/* ---- pack opening: the Moonwell opens the pack ----
-   The ceremony above, plus a grid of the opening's tiles: one pack's five cards, or ten packs. The grid sits under the
-   heading; a card on the stage dims it. Its heading takes the Shop's display face. */
+/* ---- Box pulls: the Moonwell brings the cards up ----
+   The ceremony above, plus a grid of the opening's cards: one card for a pull, ten for a 10-pull. The grid sits under
+   the heading; a card on the stage dims it. Its heading takes the Shop's display face. */
 .ritual.pack-reveal .ritual-heading strong { font-family: var(--moon-display, Georgia, serif); font-weight: 400; }
 .ritual.pack-reveal .pack-grid { position: absolute; left: 14px; right: 14px; top: calc(max(35px, env(safe-area-inset-top)) + 72px); z-index: 2; display: grid; gap: 12px 10px; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
 .ritual.pack-reveal[data-grid='1'] .pack-grid { opacity: 1; }
@@ -267,11 +267,12 @@ button.tile { cursor: pointer; }
 .ritual.pack-reveal .ritual-center { z-index: 3; pointer-events: none; }
 .moon-game .ritual.pack-reveal[data-grid='1']:not([data-stage='1']) :is(.voyage, .moonwell-arrival) { display: none; }
 
-/* one pack: five cards, three over two */
+/* a pull: one card, centred */
 .pack-grid.one { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.pack-grid.one .tile { grid-column: span 2; }
-.pack-grid.one .tile:nth-child(4) { grid-column: 2 / span 2; }
-.pack-grid.one .tile:nth-child(5) { grid-column: 4 / span 2; }
+.pack-grid.one .tile { grid-column: 3 / span 2; }
+/* a 10-pull: ten cards, five over five */
+.pack-grid.ten { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px 8px; }
+.pack-grid.ten .tile-name { font-size: 10px; min-height: 24px; }
 /* the cue grows with rarity: a Common just turns over, a Rare flashes once, Epic and Legendary flash brighter */
 .pack-grid .tile-open .tile-art::after { content: ''; position: absolute; inset: -5px; border: 2px solid transparent; opacity: 0; pointer-events: none; }
 .pack-grid .tile-open.r-rare .tile-art::after { border-color: var(--rarity-rare, #7fb0d9); box-shadow: 0 0 14px var(--rarity-rare, #7fb0d9); animation: tile-flash 0.6s ease-out both; }
@@ -279,26 +280,6 @@ button.tile { cursor: pointer; }
 .pack-grid .tile-open.r-legendary .tile-art::after { border-color: var(--rarity-legendary, #d9a54b); box-shadow: 0 0 24px var(--rarity-legendary, #d9a54b); animation: tile-flash 1s ease-out both; }
 @keyframes tile-flash { 0% { opacity: 0.95; transform: scale(0.92); } 100% { opacity: 0; transform: scale(1.14); } }
 
-/* ten packs: ten pack tiles, five over five; an opened pack shows its best card and one pip per card */
-.pack-grid.ten { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px 8px; }
-.pack-tile { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
-.pack-tile-art { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 3 / 4; overflow: hidden; background: var(--px-panel, #16232c); box-shadow: 0 0 0 2px var(--px-bg-deep, #0a141e), 0 0 0 3px var(--px-line, #5c6f6c); }
-.pack-tile.sealed .pack-tile-art { background: linear-gradient(180deg, #1d2f45, #0d1724); box-shadow: 0 0 0 2px var(--px-bg-deep, #0a141e), 0 0 0 3px var(--px-gold-deep, #ba9a54); }
-.pack-tile.sealed .pack-tile-art::before { content: '✦'; position: absolute; top: 5px; font-family: var(--px-font-display, serif); font-size: 11px; color: var(--px-gold, #ebc989); }
-.pack-tile.sealed .cp-sigil { opacity: 0.5; }
-.pack-tile.open { animation: tile-pop 0.28s cubic-bezier(0.3, 1.5, 0.5, 1) both; }
-.pack-tile.open .cf { width: 100%; height: 100%; padding: 0; box-shadow: none; }
-.pack-tile.open .cf-art { height: 100%; aspect-ratio: auto; }
-.pack-tile.open.r-rare .pack-tile-art { box-shadow: 0 0 0 2px var(--px-bg-deep, #0a141e), 0 0 0 3px var(--rarity-rare, #7fb0d9), 0 0 12px rgba(127, 176, 217, 0.45); }
-.pack-tile.open.r-epic .pack-tile-art { box-shadow: 0 0 0 2px var(--px-bg-deep, #0a141e), 0 0 0 3px var(--rarity-epic, #c084fc), 0 0 16px rgba(192, 132, 252, 0.55); }
-.pack-tile.open.r-legendary .pack-tile-art { box-shadow: 0 0 0 2px var(--px-bg-deep, #0a141e), 0 0 0 3px var(--rarity-legendary, #d9a54b), 0 0 22px rgba(217, 165, 75, 0.7); }
-.pack-pips { display: flex; gap: 3px; }
-.pack-pips i { width: 6px; height: 6px; background: #8e9ba6; box-shadow: 0 0 0 1px var(--px-bg-deep, #0a141e); }
-.pack-pips i.r-rare { background: var(--rarity-rare, #7fb0d9); }
-.pack-pips i.r-epic { background: var(--rarity-epic, #c084fc); }
-.pack-pips i.r-legendary { background: var(--rarity-legendary, #d9a54b); }
-.pack-tile-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 9px var(--px-font-label, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--px-ink-dim, #dccaa7); }
-
 /* a spotlight (an Epic or Legendary that is not the headline) is a step smaller than the climax */
 .moon-game .ritual.pack-reveal .rc-spotlight { scale: 0.86; }
-@media (prefers-reduced-motion: reduce) { .pack-tile.open, .pack-grid .tile-open .tile-art::after { animation-duration: 0.01ms !important; } }
+@media (prefers-reduced-motion: reduce) { .pack-grid .tile-open .tile-art::after { animation-duration: 0.01ms !important; } }

@@ -12,7 +12,9 @@ import { DecksPage } from './pages/DecksPage';
 import { HeroesPage } from './pages/HeroesPage';
 import { StatsPage } from './pages/StatsPage';
 import { ProfilePage } from './pages/ProfilePage';
-import { MOONFALL_BOX } from './game/box/boxProduct';
+import { getActiveBoxId } from './game/box/boxPool';
+import { needsStarterPick } from './game/core/coreAccess';
+import { StarterFactionPick } from './components/StarterFactionPick';
 import { ShopPage, type ShopView } from './pages/ShopPage';
 import { LanternsPage } from './pages/LanternsPage';
 import { EventPage } from './pages/EventPage';
@@ -51,6 +53,8 @@ function GameApp() {
   // Dev/QA only: the pack-opening ceremony over a fixed opening (nothing granted), for screenshots.
   const [revealFixture, setRevealFixture] = useState(() => { const v = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('revealFixture') : null; return v === 'one' || v === 'ten' ? (v as 'one' | 'ten') : null; });
   const [showFriendly, setShowFriendly] = useState(() => new URLSearchParams(window.location.search).has('friendly'));
+  // A new account picks its starter faction once, before anything else (core/coreAccess.ts).
+  const [starterPick, setStarterPick] = useState(() => needsStarterPick());
   const [showStats, setShowStats] = useState(false);
   const [showCombatLab, setShowCombatLab] = useState(false);
   const [showBattleSetup, setShowBattleSetup] = useState(false);
@@ -124,6 +128,7 @@ function GameApp() {
   if (showPixelPreview) return <PixelPreviewPage onBack={() => { setShowPixelPreview(false); window.history.replaceState(null, '', window.location.pathname); }} />;
 
   if (showFriendly) return <FriendlyBattlePage onBack={() => { setShowFriendly(false); window.history.replaceState(null, '', window.location.pathname); }} />;
+  if (starterPick) return <StarterFactionPick onPicked={() => { setStarterPick(false); setTab('home'); }} />;
   // Combat V2 is experimental and superseded: its lab is a dev-build tool only, never reachable in production.
   if (import.meta.env.DEV && showCombatLab) return <CombatV2LabPage onBack={() => { setShowCombatLab(false); setTab('profile'); }} />;
 
@@ -246,7 +251,7 @@ function GameApp() {
         onOpenHeroes={() => setTab('heroes')}
         onOpenProfile={() => setTab('profile')}
         onOpenShop={() => setTab('shop')}
-        onOpenPacks={() => { setShopEntry(prev => ({ view: { kind: 'box', id: MOONFALL_BOX.id }, key: prev.key + 1 })); setTab('shop'); }}
+        onOpenPacks={() => { setShopEntry(prev => ({ view: { kind: 'box', id: getActiveBoxId() }, key: prev.key + 1 })); setTab('shop'); }}
         onOpenLanterns={() => setShowLanterns(true)}
         onOpenEvent={() => setShowEvent(true)}
         onOpenPixelPreview={() => setShowPixelPreview(true)}

@@ -6,7 +6,7 @@ import type { OwnedMap } from '../collection/types';
 import { getStarterDeckUnlockProgress, starterDeckId, type StarterUnlockProgress } from '../collection/starterUnlock';
 import type { StarterFaction } from '../cards/starterDecks';
 import type { SummonHistoryEntry } from '../economy/types';
-import { MOONFALL_BOX } from '../box/boxProduct';
+import { boxPullPrice } from '../box/boxProduct';
 import type { IdleRewardState } from '../campaign/idleRewards';
 
 // Everything the Home hub shows that needs a DECISION (what is the next step, which single note is worth
@@ -97,7 +97,7 @@ export function pickHubNote(input: { idle?: IdleRewardState; masteryPoints: numb
 // ---- Attention markers ------------------------------------------------------------------------
 
 export interface AttentionState {
-  /** Enough Gems, or a Pack Ticket, for at least one pack. */
+  /** Enough Gems, or a Pull Ticket, for at least one Box pull. */
   canOpenPack: boolean;
   /** An unspent Mastery Point. */
   masteryPoint: boolean;
@@ -105,7 +105,7 @@ export interface AttentionState {
 
 export function attentionState(input: { gems: number; tickets?: number; unlimitedGems?: boolean; masteryPoints: number }): AttentionState {
   return {
-    canOpenPack: !!input.unlimitedGems || (input.tickets ?? 0) > 0 || input.gems >= MOONFALL_BOX.gemsPerPack,
+    canOpenPack: !!input.unlimitedGems || (input.tickets ?? 0) > 0 || input.gems >= boxPullPrice(1),
     masteryPoint: input.masteryPoints > 0,
   };
 }

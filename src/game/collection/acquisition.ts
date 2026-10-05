@@ -1,63 +1,29 @@
 import { CHAPTER_1 } from '../campaign/chapter1';
 import { PLAYTEST_ROSTER } from '../cards/roster';
-import { buildStarterCollection } from './starterCollection';
-import { isCampaignExclusive } from './exclusives';
-import { BOX_PRODUCTS, getBoxProduct } from '../box/boxProduct';
-import { prototypeBoxCardIds } from '../box/prototypeBox';
+import { getCard } from '../cards';
+import { launchInfo } from '../cards/launchRoster';
+import { eventCardPlan } from '../cards/eventCards';
+import { getArchetypeBox, type ArchetypeBoxId } from '../box/archetypeBoxes';
+import { CORE_FACTION_NAMES, isCoreCard } from '../core/corePackages';
+import { getStructureDeck } from '../structureDecks/definitions';
+import type { StarterFaction } from '../cards/starterDecks';
 
-// Where every collectible card comes from - the single source of truth the UI reads. Sources are stable
-// ids (a stage id, a region id), never display strings; labels are derived in describeAcquisition().
+// Where every collectible card comes from - the single source of truth the UI reads. Sources are stable ids (a
+// faction, a stage id, a Box id, a Structure Deck id), never display strings; labels are derived in
+// describeAcquisition(). The launch set's sources (cards/launchRoster.ts) are Core, the archetype Boxes, the
+// Structure Decks and event / progression rewards; Campaign card rewards come on top.
 
 export type AcquisitionSource =
-  | { kind: 'starter' }
+  /** A free Core package (core/corePackages.ts): the starter faction's, or one unlocked in the Campaign. */
+  | { kind: 'core'; faction: StarterFaction }
   | { kind: 'campaign'; nodeId: string; copies: number }
-  /** A finite Box whose packs hold copies of the card (box/boxProduct.ts). The retired Moonwell Summon is no source. */
-  | { kind: 'box'; boxId: string }
-  /** Intentionally not obtainable in the current prototype; planned for a later region. */
-  | { kind: 'future'; regionId: string }
+  /** An archetype Box that holds copies of the card (box/archetypeBoxes.ts). */
+  | { kind: 'box'; boxId: ArchetypeBoxId }
+  /** The Structure Deck the card debuts in. */
+  | { kind: 'structure-deck'; deckId: string }
+  /** An event / progression card whose source is not live yet (cards/eventCards.ts). */
+  | { kind: 'planned'; note: string }
   | { kind: 'unavailable' };
-
-/**
- * Cards with no source in Chapter 1 that are explicitly parked for a later region. Adding a card here
- * is a deliberate decision - a card missing from BOTH here and the Campaign/starter data shows up in
- * getUnavailableCards() (and fails the coverage test) instead of silently being impossible to obtain.
- */
-export const FUTURE_REGION_CARDS: Readonly<Record<string, string>> = {
-  // Region 2 - Grave Country (Undead / Kingdom utility)
-  'spl-cursed-ground': 'region-2',
-  'spl-war-cry': 'region-2',
-  'spl-dispel': 'region-2',
-  'spl-fortify': 'region-2',
-  // Region 3 - The Cinder Coast (the Infernal path)
-  'inf-flame-imp': 'region-3',
-  'inf-cultist': 'region-3',
-  'inf-pit-fiend': 'region-3',
-  'inf-hellhound': 'region-3',
-  'inf-blood-demon': 'region-3',
-  'inf-infernal-lord': 'region-3',
-  'spl-weakness': 'region-3',
-  'spl-fireball': 'region-3',
-  'spl-soul-burn': 'region-3',
-  'spl-burning-ground': 'region-3',
-  'spl-siege-fire': 'region-3',
-  // Card-pool expansion: parked for the archetype set that will feature them (they are also in the Moonfall Box's packs).
-  'kng-apprentice-mage': 'banner-arcane',
-  'kng-archmage-vael': 'banner-arcane',
-  'und-grave-sage': 'banner-arcane',
-  'spl-aegis-ward': 'banner-arcane',
-  'spl-ward-circle': 'banner-arcane',
-  'spl-stasis-field': 'banner-arcane',
-  'spl-arcane-bolt': 'banner-arcane',
-  'kng-null-templar': 'banner-mage-slayer',
-  'inf-runebreaker': 'banner-mage-slayer',
-  'inf-packhound': 'banner-beast',
-  'inf-alpha-hound': 'banner-beast',
-  'und-shade-thief': 'banner-trickster',
-  'und-wraith-prince': 'banner-trickster',
-  'inf-mirage-imp': 'banner-trickster',
-  'spl-giants-bane': 'banner-general',
-  'spl-blood-pact': 'banner-general',
-};
 
 /** Every Campaign card reward: which stage gives which card, and how many copies. */
 function campaignSources(): Map<string, AcquisitionSource[]> {
@@ -72,25 +38,20 @@ function campaignSources(): Map<string, AcquisitionSource[]> {
   return map;
 }
 
-/** Whether a full Box of this id holds the card (its printed contents, not what is left in the player's copy). */
-let boxCards: Set<string> | null = null;
-function boxHolds(boxId: string, cardId: string): boolean {
-  boxCards ??= new Set(prototypeBoxCardIds());
-  return boxId === BOX_PRODUCTS[0]?.id && boxCards.has(cardId);
-}
-
-/** All the ways a card can be obtained, starter first. Never empty: a card with no path reports [{ kind: 'unavailable' }]. */
+/** All the ways a card can be obtained, Core first. Never empty: a card with no path reports [{ kind: 'unavailable' }]. */
 export function getCardAcquisitionSources(cardId: string): AcquisitionSource[] {
   const out: AcquisitionSource[] = [];
-  if ((buildStarterCollection()[cardId] ?? 0) > 0) out.push({ kind: 'starter' });
+  const info = launchInfo(cardId);
+  if (isCoreCard(cardId)) out.push({ kind: 'core', faction: getCard(cardId).faction as StarterFaction });
   out.push(...(campaignSources().get(cardId) ?? []));
-  for (const box of BOX_PRODUCTS) if (boxHolds(box.id, cardId)) out.push({ kind: 'box', boxId: box.id });
-  const region = FUTURE_REGION_CARDS[cardId];
-  if (region) out.push({ kind: 'future', regionId: region });
+  for (const boxId of info?.boxes ?? []) out.push({ kind: 'box', boxId });
+  if (info?.structureDeck) out.push({ kind: 'structure-deck', deckId: info.structureDeck });
+  const plan = eventCardPlan(cardId);
+  if (plan) out.push({ kind: 'planned', note: plan.note });
   return out.length > 0 ? out : [{ kind: 'unavailable' }];
 }
 
-/** Roster cards that can't be obtained and aren't explicitly parked - should always be empty. */
+/** Roster cards that can't be obtained and aren't explicitly planned - should always be empty. */
 export function getUnavailableCards(): string[] {
   return PLAYTEST_ROSTER.filter((id) => getCardAcquisitionSources(id).every((s) => s.kind === 'unavailable'));
 }
@@ -98,44 +59,43 @@ export function getUnavailableCards(): string[] {
 /** Player-facing line for a source. */
 export function describeAcquisition(source: AcquisitionSource): string {
   switch (source.kind) {
-    case 'starter':
-      return 'Starter collection';
+    case 'core':
+      return `Core · ${CORE_FACTION_NAMES[source.faction]}`;
     case 'campaign': {
       const name = CHAPTER_1.nodes.find((n) => n.id === source.nodeId)?.name ?? 'The Ashen Road';
       return `Campaign · ${name}`;
     }
     case 'box':
-      return `Packs · ${getBoxProduct(source.boxId)?.name ?? 'Box'}`;
-    case 'future':
-      return 'Future region';
+      return getArchetypeBox(source.boxId).name;
+    case 'structure-deck':
+      return `Structure Deck · ${getStructureDeck(source.deckId)?.name ?? 'Structure Deck'}`;
+    case 'planned':
+      return `${source.note} · coming later`;
     default:
       return 'Not obtainable yet';
   }
 }
 
 /**
- * Every real way to get a card, as one line: "Campaign · Broken Palisade / Packs · Moonfall Box", "Packs · Moonfall Box / Future region",
- * "Campaign exclusive · Grave Tyrant". "Future region" only appears alongside real sources (or alone if parked).
+ * Every real way to get a card, as one line: "Core · Undead / Campaign · Broken Palisade", "Wither Box, Bone Legion Box",
+ * "Structure Deck · Hellfire", "Campaign boss reward (a later chapter) · coming later".
  */
 export function acquisitionSummary(cardId: string): string {
   const sources = getCardAcquisitionSources(cardId);
   const parts: string[] = [];
-  const starter = sources.find((s) => s.kind === 'starter');
+  const core = sources.find((s) => s.kind === 'core');
   const campaign = sources.find((s) => s.kind === 'campaign');
-  if (starter) parts.push(describeAcquisition(starter));
-  if (campaign) {
-    const line = describeAcquisition(campaign);
-    parts.push(isCampaignExclusive(cardId) && !sources.some((s) => s.kind === 'box') ? line.replace('Campaign ·', 'Campaign exclusive ·') : line);
-  }
-  const boxes = sources.flatMap((s) => (s.kind === 'box' ? [getBoxProduct(s.boxId)?.name ?? 'Box'] : []));
-  if (boxes.length > 0) parts.push(`Packs · ${boxes.join(', ')}`);
-  if (sources.some((s) => s.kind === 'future')) parts.push('Future region');
+  if (core) parts.push(describeAcquisition(core));
+  if (campaign) parts.push(describeAcquisition(campaign));
+  const boxes = sources.flatMap((s) => (s.kind === 'box' ? [describeAcquisition(s)] : []));
+  if (boxes.length > 0) parts.push(boxes.join(', '));
+  for (const s of sources) if (s.kind === 'structure-deck' || s.kind === 'planned') parts.push(describeAcquisition(s));
   return parts.length > 0 ? parts.join(' / ') : describeAcquisition({ kind: 'unavailable' });
 }
 
-/** The one line to show on a card: the best real source (starter, then the first Campaign stage), else the parked/unavailable note. */
+/** The one line to show on a card: the best real source (Core, then the first Campaign stage, then its Box), else the planned/unavailable note. */
 export function primaryAcquisitionLabel(cardId: string): string {
   const sources = getCardAcquisitionSources(cardId);
-  const best = sources.find((s) => s.kind === 'starter') ?? sources.find((s) => s.kind === 'campaign') ?? sources[0];
+  const best = sources.find((s) => s.kind === 'core') ?? sources.find((s) => s.kind === 'campaign') ?? sources[0];
   return describeAcquisition(best);
 }

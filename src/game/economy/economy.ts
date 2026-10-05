@@ -2,7 +2,7 @@ import { MAX_GEMS, MAX_GOLD, MAX_TICKETS, type GemSource, type GoldSource, type 
 import { clearStoredEconomy, defaultEconomy, readStoredEconomy, sanitizeEconomy, writeStoredEconomy } from './persistence';
 import type { GemGrantResult, GoldGrantResult, PlayerEconomy, TicketGrantResult } from './types';
 
-// The single source of truth for Gems, Gold and Pack Tickets. Same shape as the collection/account
+// The single source of truth for Gems, Gold and Pull Tickets. Same shape as the collection/account
 // stores: an in-memory snapshot mirroring localStorage, replaced on every write, with subscribers - so
 // any mounted screen updates the moment Gems change. Every mutation goes through this file.
 //
@@ -13,7 +13,7 @@ import type { GemGrantResult, GoldGrantResult, PlayerEconomy, TicketGrantResult 
 // The retired Moonwell Summon's per-banner guarantee counters and pull history stay in this document, read-only
 // (legacySummon.ts): nothing writes them any more, and they are saved back unchanged.
 //
-// CRASH-SAFETY NOTE: opening packs spends here first, then writes the Box and the collection (other keys), so a
+// CRASH-SAFETY NOTE: pulling from a Box spends here first, then writes the Box and the collection (other keys), so a
 // crash between the writes could cost the price without delivering the cards. localStorage has no cross-key
 // transaction; for a local prototype that window is a few synchronous microseconds.
 
@@ -169,8 +169,8 @@ export function setGold(amount: number): void {
   commit(sanitizeEconomy({ ...getEconomy(), gold: amount }));
 }
 
-// ---- Pack Tickets -------------------------------------------------------------------------------
-// Same shape as Gold/Gems again. One Pack Ticket opens one pack of a finite Box instead of paying its Gem price
+// ---- Pull Tickets -------------------------------------------------------------------------------
+// Same shape as Gold/Gems again. One Pull Ticket pays for one pull (one card) from a finite Box instead of its Gem price
 // (box/boxProduct.ts). Tickets are earn-only (missions, journey, offers) - there is deliberately no "buy Tickets"
 // path anywhere. (They were Summon Tickets until the Moonwell Summon was retired; a save keeps its balance.)
 

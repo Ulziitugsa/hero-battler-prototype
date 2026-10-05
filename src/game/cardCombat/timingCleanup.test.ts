@@ -112,23 +112,23 @@ describe('Round End fires exactly once per round; Destroyed fires once', () => {
     expect(r.nextState.player.heroZones.left?.instanceId).toBe(knight.instanceId);
     expect(r.nextState.player.heroZones.left?.power).toBe(cardAtk(KNIGHT) + 15);
   });
-  it('Royal Guard’s When Destroyed fires once and gives adjacent allies a lasting +15 ATK', () => {
+  it('Blood Imp’s When Destroyed fires once and gives your other Units a lasting +15 ATK', () => {
     const s = blankMatch();
-    put(s, 'player', 'left', 'kng-royal-guard', 10);
+    put(s, 'player', 'left', 'inf-blood-imp', 10);
     put(s, 'player', 'center', KNIGHT);
     put(s, 'enemy', 'left', KNIGHT, 300);
     const r = resolveCardRound(s, NONE, NONE);
-    expect(triggers(r.events, 'Royal Guard', 'ON_DEATH')).toBe(1);
+    expect(triggers(r.events, 'Blood Imp', 'ON_DEATH')).toBe(1);
     expect(r.nextState.player.heroZones.center?.power).toBe(cardAtk(KNIGHT) + 15);
   });
-  it('Infernal Lord’s When Destroyed gives every enemy Unit −15 ATK, once', () => {
+  it('Infernal Lord’s When Destroyed gives every enemy Unit −30 ATK, once', () => {
     const s = blankMatch();
     put(s, 'enemy', 'left', 'inf-infernal-lord', 10);
     put(s, 'player', 'left', KNIGHT, 300);
     put(s, 'player', 'right', KNIGHT);
     const r = resolveCardRound(s, NONE, NONE);
     expect(triggers(r.events, 'Infernal Lord', 'ON_DEATH')).toBe(1);
-    expect(r.nextState.player.heroZones.right?.power).toBe(cardAtk(KNIGHT) - 15);
+    expect(r.nextState.player.heroZones.right?.power).toBe(cardAtk(KNIGHT) - 30);
   });
 });
 

@@ -18,11 +18,7 @@ describe('focus panel details', () => {
   it('Royal Guard on the board: current ATK, full rules, its passive on', () => {
     const guard = unit('player', 'left');
     expect(guard).toMatchObject({ name: 'Royal Guard', owner: 'player', place: 'board', lane: 'left', kind: 'unit', atk: 113, printedAtk: 113, hpContribution: hpc('kng-royal-guard') });
-    expect(guard.effects).toMatchObject([
-      { label: 'Passive', text: 'Adjacent allied Units have +15 ATK.' },
-      { label: 'Destroyed', text: 'Adjacent allied Units gain +15 ATK for the rest of the battle.' },
-      { label: 'Passive', text: 'While another Kingdom Unit is in play, enemy Spells can’t affect this Unit.', active: true },
-    ]);
+    expect(guard.effects).toMatchObject([{ label: 'Passive', text: 'Adjacent allied Units have +15 ATK.' }]);
     expect(guard.changes).toEqual([]);
     expect(guard.status).toEqual([]);
     expect(guard.entered).toBeUndefined();
@@ -48,7 +44,7 @@ describe('focus panel details', () => {
   });
 
   it('a revived enemy Unit: how and at what ATK it came back', () => {
-    expect(unit('enemy', 'center')).toMatchObject({ name: 'Vharos', owner: 'enemy', atk: 95, printedAtk: 130, entered: { atk: 95, how: 'revived' }, changes: [] });
+    expect(unit('enemy', 'center')).toMatchObject({ name: 'Vharos, the Undying', owner: 'enemy', atk: 95, printedAtk: 130, entered: { atk: 95, how: 'revived' }, changes: [] });
   });
 
   it('a bonus that lasted only last round is gone', () => {
@@ -56,8 +52,12 @@ describe('focus panel details', () => {
   });
 
   it('a passive whose condition fails reads as off', () => {
-    const alone: GameState = { ...state, player: { ...state.player, heroZones: { left: state.player.heroZones.left, center: null, right: null } } };
-    expect(unit('player', 'left', alone).effects[2]).toMatchObject({ label: 'Passive', active: false });
+    // Battle Captain's immunity (its second effect) needs another Knight in play.
+    const captain = { ...state.player.heroZones.left!, cardId: 'kng-battle-captain', name: 'Battle Captain', shortName: 'Battle Captain' };
+    const alone: GameState = { ...state, player: { ...state.player, heroZones: { left: captain, center: null, right: null } } };
+    expect(unit('player', 'left', alone).effects[1]).toMatchObject({ label: 'Passive', active: false });
+    const together: GameState = { ...state, player: { ...state.player, heroZones: { ...state.player.heroZones, left: captain } } };
+    expect(unit('player', 'left', together).effects[1]).toMatchObject({ label: 'Passive', active: true });
   });
 
   it('an Attached Spell: its rules, its Unit and who stands in its lane', () => {
@@ -68,7 +68,7 @@ describe('focus panel details', () => {
       lane: 'center',
       kind: 'attached',
       effects: [{ label: 'Passive', text: 'The Unit it is attached to has +15 ATK.' }],
-      laneUnits: { yours: 'Common Knight', theirs: 'Vharos' },
+      laneUnits: { yours: 'Common Knight', theirs: 'Vharos, the Undying' },
       attachedTo: 'Common Knight',
     });
   });

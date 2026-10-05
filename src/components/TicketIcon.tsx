@@ -1,6 +1,6 @@
 import { useEconomy } from '../game/economy/useEconomy';
 
-/** The Pack Ticket (one opens one pack of a Box): a small torn stub, drawn inline like GemIcon/GoldIcon - same "no asset" convention. */
+/** The Pull Ticket (1 Ticket = 1 pull = 1 card from a Box): a small torn stub, drawn inline like GemIcon/GoldIcon - same "no asset" convention. */
 export function TicketIcon({ size = 14 }: { size?: number }) {
   return (
     <svg className="ticket-icon" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
@@ -14,7 +14,7 @@ export function TicketIcon({ size = 14 }: { size?: number }) {
 export function TicketAmount({ amount }: { amount: number }) {
   return (
     <span className="xp-gain ticket-gain">
-      <TicketIcon size={15} />+{amount} Pack Ticket{amount === 1 ? '' : 's'}
+      <TicketIcon size={15} />+{amount} Pull Ticket{amount === 1 ? '' : 's'}
     </span>
   );
 }
@@ -23,7 +23,7 @@ export function TicketAmount({ amount }: { amount: number }) {
 export function TicketBalance({ className = '' }: { className?: string }) {
   const { tickets } = useEconomy();
   return (
-    <span className={`ticket-balance ${className}`} aria-label={`${tickets} Pack ${tickets === 1 ? 'Ticket' : 'Tickets'}`}>
+    <span className={`ticket-balance ${className}`} aria-label={`${tickets} Pull ${tickets === 1 ? 'Ticket' : 'Tickets'}`}>
       <TicketIcon size={15} />
       <span>{tickets.toLocaleString()}</span>
     </span>

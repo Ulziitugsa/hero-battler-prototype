@@ -35,12 +35,15 @@ import { ATK_PER_POWER, DEATH_LINE_ATK, GROWTH_CAP_ATK, HP_PER_LEGACY_POINT, atk
 // GameState.rngState. Same seed + same plays = same events and the same end state.
 
 /**
+ * v5 (launch set): the 116-card roster, Units-only Graveyard counts, capped counts, "would lose its lane" targeting, revive
+ * into an empty lane, Attached Spell return on expiry, Grave Totem's once-per-battle return and the enemy-Spell condition.
+ * Changed cards resolve differently, so a stored v4 match ends with the rules-changed notice.
  * v4 (timing cleanup): no On Play timing, Passive auras, printed Shields and Attached Spells. Several cards resolve
  * differently from v3, so a stored v2/v3 match is not continued under v4 rules (combat/resolver.ts
  * CONTINUABLE_CARD_RESOLVER_VERSIONS); it ends with the rules-changed notice instead of being silently reinterpreted.
  * v3 (combat Card Mastery removed): a match is built from the two deck lists alone and every card plays at its printed values.
  */
-export const CARD_RESOLVER_VERSION = 4;
+export const CARD_RESOLVER_VERSION = 5;
 export const CARD_MAX_ROUNDS = 40;
 export const CARD_HAND_TARGET = 3;
 
@@ -219,6 +222,11 @@ function locations(ctx: Ctx, exec: Exec, scope: TargetScope): { side: Side; lane
       return adjacentLanes(lane).map((l) => ({ side: exec.owner, lane: l }));
     case 'ADJACENT_ENEMIES':
       return adjacentLanes(lane).map((l) => ({ side: opposite(exec.owner), lane: l }));
+    case 'ADJACENT_ALLIES_LOSING':
+      // Shared Guard: read when the effect resolves (its Before Combat turn), with the same test as Guard's SELF_LOSING_LANE.
+      return adjacentLanes(lane)
+        .filter((l) => !!unitAt(ctx, exec.owner, l) && !!unitAt(ctx, opposite(exec.owner), l) && effectiveAtk(ctx.state, exec.owner, l) < effectiveAtk(ctx.state, opposite(exec.owner), l))
+        .map((l) => ({ side: exec.owner, lane: l }));
   }
 }
 
@@ -367,6 +375,8 @@ function conditionHolds(ctx: Ctx, exec: Exec, c: ConditionDef): boolean {
       return lane !== undefined && exec.deathLane === lane;
     case 'SPELL_ZONE_NOT_USED_THIS_ROUND':
       return lane !== undefined && me.spellZones[lane]?.usedThisRound !== true;
+    case 'SPELL_ZONE_NOT_USED_THIS_BATTLE':
+      return lane !== undefined && !!me.spellZones[lane] && me.spellZones[lane]!.usedThisBattle !== true;
     case 'SELF_LANE_HAS_SPELL':
       return lane !== undefined && !!me.spellZones[lane];
     case 'ENEMY_LANE_HAS_SPELL':
@@ -389,8 +399,10 @@ function conditionHolds(ctx: Ctx, exec: Exec, c: ConditionDef): boolean {
       return livingUnits(ctx, exec.owner).length >= c.count;
     case 'ALLY_FACTION_COUNT_AT_LEAST':
       return livingUnits(ctx, exec.owner).filter(({ unit }) => combat(unit.cardId).faction === c.faction).length >= c.count;
-    case 'GRAVEYARD_COUNT_AT_LEAST':
-      return playerOf(ctx, sideOf(c.side)).graveyard.length >= c.count;
+    case 'GRAVEYARD_COUNT_AT_LEAST': {
+      const grave = playerOf(ctx, sideOf(c.side)).graveyard;
+      return (c.units ? grave.filter((id) => combat(id).type === 'hero').length : grave.length) >= c.count;
+    }
     case 'GRAVEYARD_FACTION_COUNT_AT_LEAST':
       return playerOf(ctx, sideOf(c.side)).graveyard.filter((id) => combat(id).faction === c.faction).length >= c.count;
     case 'HAND_SIZE_AT_LEAST':
@@ -403,6 +415,8 @@ function conditionHolds(ctx: Ctx, exec: Exec, c: ConditionDef): boolean {
       return m.died[foeSide];
     case 'SPELL_PLAYED_THIS_ROUND':
       return m.spellsThisRound[sideOf(c.side)] > 0;
+    case 'ENEMY_SPELL_ACTIVE':
+      return m.spellsThisRound[foeSide] > 0 || LANES.some((l) => !!foe.spellZones[l]);
     case 'CONTINUOUS_SPELL_DESTROYED_THIS_ROUND':
       return m.contDestroyed[sideOf(c.side)];
     case 'SPELLS_PLAYED_THIS_ROUND_AT_LEAST':
@@ -433,6 +447,8 @@ function countBasis(ctx: Ctx, exec: Exec, basis: CountBasis, faction: Faction | 
       return livingUnits(ctx, side).filter(({ unit }) => getCombatCard(unit.cardId).faction === faction).length;
     case 'GRAVEYARD_COUNT':
       return playerOf(ctx, side).graveyard.length;
+    case 'GRAVEYARD_UNIT_COUNT':
+      return playerOf(ctx, side).graveyard.filter((id) => getCombatCard(id).type === 'hero').length;
     case 'GRAVEYARD_FACTION_COUNT':
       return playerOf(ctx, side).graveyard.filter((id) => getCombatCard(id).faction === faction).length;
     case 'OTHER_ALLY_TAG_COUNT':
@@ -630,7 +646,9 @@ function execute(ctx: Ctx, action: CombatAction, exec: Exec): void {
       }
       return;
     case 'CHANGE_POWER_BY_COUNT': {
-      const steps = countBasis(ctx, exec, action.basis, action.faction, action.tag) * action.perCount;
+      let steps = countBasis(ctx, exec, action.basis, action.faction, action.tag) * action.perCount;
+      // A count cap ("+15 per Unit, up to +45"): at most `max` steps from one resolution, either sign.
+      if (action.max !== undefined) steps = Math.sign(steps) * Math.min(Math.abs(steps), action.max);
       if (steps === 0) return;
       for (const loc of hostileFilter(ctx, exec, action, locations(ctx, exec, action.target))) changeAtk(ctx, loc.side, loc.lane, steps * ATK_PER_POWER, action.duration, exec.name);
       return;
@@ -650,6 +668,7 @@ function execute(ctx: Ctx, action: CombatAction, exec: Exec): void {
     case 'GRANT_IMMUNITY':
     case 'GRANT_BYPASS':
     case 'SPELL_ECHO':
+    case 'RETURN_EXPIRED_ATTACHED':
       return; // read live as PASSIVE
     case 'REDUCE_OVERFLOW_DAMAGE':
       return; // read live as PASSIVE at the clash (clashReduction)
@@ -709,17 +728,21 @@ function execute(ctx: Ctx, action: CombatAction, exec: Exec): void {
       if (idx < 0) return;
       const zone = me.spellZones[exec.lane];
       if (zone) zone.usedThisRound = true;
+      // Once per battle (Grave Totem): only the Spell zone's own reaction spends its battle use.
+      if (zone && exec.kind === 'spell') zone.usedThisBattle = true;
       returnToHand(ctx, exec.owner, idx, zone ? exec.lane : undefined);
       return;
     }
     case 'REVIVE_TO_LANE': {
-      if (exec.lane === undefined || me.heroZones[exec.lane]) return;
+      // `emptyLane` (Morwen): the first empty Unit lane of the owner, left to right; none empty means no revive.
+      const lane = action.emptyLane ? LANES.find((l) => !me.heroZones[l]) : exec.lane;
+      if (lane === undefined || me.heroZones[lane]) return;
       const idx = pickFromGrave(ctx, exec.owner, action.maxPower, action.pick, action.faction, 'hero', exec.name);
       if (idx < 0) return;
       const cardId = takeFromGrave(ctx, exec.owner, idx);
-      const unit = makeUnit(ctx, exec.owner, exec.lane, cardId, { returned: true });
-      me.heroZones[exec.lane] = unit;
-      push(ctx, { type: 'REVIVED', side: exec.owner, instanceId: unit.instanceId, cardId, name: unit.name, lane: exec.lane, power: unit.power, graveyardIndex: idx });
+      const unit = makeUnit(ctx, exec.owner, lane, cardId, { returned: true });
+      me.heroZones[lane] = unit;
+      push(ctx, { type: 'REVIVED', side: exec.owner, instanceId: unit.instanceId, cardId, name: unit.name, lane, power: unit.power, graveyardIndex: idx });
       return;
     }
     case 'REVIVE_SELF': {
@@ -877,8 +900,30 @@ function removeUnit(ctx: Ctx, side: Side, lane: LaneId, silencedAtDeath?: boolea
     p.spellZones[lane] = null;
     pushGrave(ctx, side, zone.cardId, !!zone.returned);
     push(ctx, { type: 'SPELL_EXPIRED', side, instanceId: zone.instanceId, cardId: zone.cardId, name: zone.name, lane, unitName: unit.name });
+    returnExpiredAttached(ctx, side, zone);
   }
   return { side, lane, cardId: unit.cardId, name: unit.name, silenced, token: !!unit.token, marked: !!unit.returned };
+}
+
+/**
+ * Saint Aveline: an Attached Spell that just expired (its Unit left play) returns from the Graveyard to its owner's hand,
+ * if a living, unsilenced allied Unit carries the Passive RETURN_EXPIRED_ATTACHED and has not used it this round. Only a
+ * copy that never returned before qualifies (once per physical copy per match), so it can't loop: the returned copy is
+ * marked, and its next expiry leaves it in the Graveyard. Dispel (destroying the Spell) is not an expiry.
+ */
+function returnExpiredAttached(ctx: Ctx, side: Side, zone: SpellZoneInstance): void {
+  if (zone.returned) return;
+  for (const { lane, unit } of livingUnits(ctx, side)) {
+    if (isSilencedIn(ctx, side, lane) || unit.usedThisRound) continue;
+    if (!getCombatCard(unit.cardId).abilities.some((a) => a.trigger === 'PASSIVE' && a.actions.some((x) => x.type === 'RETURN_EXPIRED_ATTACHED'))) continue;
+    const idx = playerOf(ctx, side).graveyard.lastIndexOf(zone.cardId);
+    if (idx < 0 || meta(ctx).graveMarks[side][idx]) return;
+    unit.usedThisRound = true;
+    push(ctx, { type: 'TRIGGER', side, sourceName: unit.name, trigger: 'PASSIVE', label: TRIGGER_LABEL.PASSIVE });
+    push(ctx, { type: 'ONCE_PER_ROUND_USED', side, instanceId: unit.instanceId, zone: 'hero' });
+    returnToHand(ctx, side, idx);
+    return;
+  }
 }
 
 function belowDeathLine(ctx: Ctx): { side: Side; lane: LaneId }[] {

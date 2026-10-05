@@ -6,18 +6,21 @@ import { getDuplicatesSpent } from '../ascension/store';
 import { findNode, loadProgress } from './progress';
 
 /**
- * What a player who already first-cleared these stages is owed: starter cards plus every claimed card
+ * What a player who already first-cleared these stages is owed: their Core packages and every claimed card
  * reward (with its copy count), MINUS copies already spent on Ascension. The collection quantity is the
  * copies AVAILABLE (spending lowers it), so anything rebuilt from everything-ever-acquired must net the
  * spend out - otherwise a rebuilt or topped-up collection would refund duplicates that were already spent.
  */
 function expectedFromProgress(): Record<string, number> {
-  const owned: Record<string, number> = { ...buildStarterCollection() };
+  const owned: Record<string, number> = {};
   for (const nodeId of loadProgress().firstClearClaimed) {
     const node = findNode(nodeId);
     const reward = node?.encounter?.firstClearReward ?? node?.reward;
     if (reward?.cardId) owned[reward.cardId] = (owned[reward.cardId] ?? 0) + (reward.count ?? 1);
   }
+  // The starter part is the Core packages the save holds, which only RAISE a count (core/corePackages.ts): a Core card
+  // that is also a Campaign reward is not owned twice over.
+  for (const [id, n] of Object.entries(buildStarterCollection())) owned[id] = Math.max(owned[id] ?? 0, n);
   for (const id of Object.keys(owned)) owned[id] = Math.max(0, owned[id] - getDuplicatesSpent(id));
   return owned;
 }

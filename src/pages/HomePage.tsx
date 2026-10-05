@@ -21,8 +21,9 @@ import type { MissionsState } from '../game/missions/store';
 import { useMissions } from '../game/missions/useMissions';
 import { useJourney } from '../game/journey/useJourney';
 import { useEconomy } from '../game/economy/useEconomy';
-import { MOONFALL_BOX } from '../game/box/boxProduct';
-import { prototypeBoxPacksRemaining } from '../game/box/prototypeBox';
+import { canAffordAPull } from '../game/box/boxProduct';
+import { boxCardsRemaining, getActiveBoxId } from '../game/box/boxPool';
+import { getArchetypeBox } from '../game/box/archetypeBoxes';
 import { JOURNEY_DAYS } from '../game/journey/definitions';
 import { MAX_LEVEL, xpToNextLevel } from '../game/progression/config';
 import { CardArtwork } from '../components/CardArtwork';
@@ -87,8 +88,10 @@ export function HomePage(props: HomeProps) {
     }
     return null;
   })();
-  const packsLeft = prototypeBoxPacksRemaining();
-  const packReady = packsLeft > 0 && (economy.tickets > 0 || economy.gems >= MOONFALL_BOX.gemsPerPack);
+  // Home's Box shortcut opens the active Box: the last one the player pulled from (Vanguard until then).
+  const activeBox = getArchetypeBox(getActiveBoxId());
+  const packsLeft = boxCardsRemaining(activeBox.id);
+  const packReady = packsLeft > 0 && canAffordAPull(economy);
   const featureCard = [...deck.cardIds].map(getCard).filter(card => card.type === 'hero').sort((a, b) => {
     const rarity: Record<string, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
     return rarity[b.rarity] - rarity[a.rarity] || (b.power ?? 0) - (a.power ?? 0);
@@ -104,7 +107,7 @@ export function HomePage(props: HomeProps) {
       : dailyReady + weeklyReady > 0
         ? { key: `missions-${missions.dayKey}-${missions.weekKey}-${dailyReady}-${weeklyReady}`, label: 'Mission rewards are ready to claim.' }
         : packReady
-          ? { key: `pack-${economy.tickets}-${packsLeft}`, label: economy.tickets > 1 ? `${economy.tickets} Pack Tickets are ready to use.` : economy.tickets === 1 ? 'A Pack Ticket is ready to use.' : 'A pack is ready to open.' }
+          ? { key: `pack-${economy.tickets}-${packsLeft}`, label: economy.tickets > 1 ? `${economy.tickets} Pull Tickets are ready to use.` : economy.tickets === 1 ? 'A Pull Ticket is ready to use.' : 'A Box pull is ready.' }
           : hub.note?.kind === 'recent'
             ? { key: `card-${hub.note.cardId}`, label: `${getCard(hub.note.cardId).name} joined your collection.` }
             : null;
@@ -178,7 +181,7 @@ export function HomePage(props: HomeProps) {
       <button className={dailyReady + weeklyReady > 0 ? 'is-ready' : 'is-passive'} onClick={() => setMissionsOpen(true)}><span className="home-rail-icon">✦</span><strong>Missions</strong><small>{dailyReady + weeklyReady ? `${dailyReady + weeklyReady} ready` : 'Daily · Weekly'}</small>{dailyReady + weeklyReady > 0 && <i>READY</i>}</button>
       <button className={journey.claimableDays.length > 0 ? 'is-ready' : 'is-passive'} onClick={() => setJourneyOpen(true)}><span className="home-rail-icon">☾</span><strong>Journey</strong><small>{journey.claimableDays.length ? `${journey.claimableDays.length} ready` : nextJourneyDay ? `Tomorrow · ${nextJourneyDay.rewardTickets ? `${nextJourneyDay.rewardTickets} Ticket${nextJourneyDay.rewardTickets === 1 ? '' : 's'}` : nextJourneyDay.title}` : `Day ${journey.currentDay} of 7`}</small>{journey.claimableDays.length > 0 && <i>READY</i>}</button>
       <button className={hub.idle.availableGold > 0 ? 'is-ready' : 'is-passive'} disabled={hub.idle.availableGold <= 0} onClick={() => { const result = claimIdleReward(); hub.refreshIdle(); if (result.gold > 0) setIdleClaimedGold(result.gold); }}><span className="home-rail-icon">◈</span><strong>Idle Gold</strong><small>{hub.idle.availableGold > 0 ? `${hub.idle.availableGold.toLocaleString()} to claim` : 'Accruing'}</small>{hub.idle.availableGold > 0 && <i>READY</i>}</button>
-      <button className={packReady ? 'is-ready' : 'is-passive'} onClick={props.onOpenPacks}><span className="home-rail-icon">✧</span><strong>Packs</strong><small>{economy.tickets > 0 ? `${economy.tickets} Pack Ticket${economy.tickets === 1 ? '' : 's'}` : packReady ? 'Open a pack' : `${packsLeft} left in Box`}</small>{packReady && <i>READY</i>}</button>
+      <button className={packReady ? 'is-ready' : 'is-passive'} onClick={props.onOpenPacks}><span className="home-rail-icon">✧</span><strong>Boxes</strong><small>{economy.tickets > 0 ? `${economy.tickets} Pull Ticket${economy.tickets === 1 ? '' : 's'}` : packReady ? `Pull from ${activeBox.name.replace(/ Box$/, '')}` : `${packsLeft} left in ${activeBox.name}`}</small>{packReady && <i>READY</i>}</button>
     </section>
     {sessionGoalsComplete && <p className="home-session-calm" role="status">Daily rewards claimed · Idle Gold will keep accumulating.</p>}
 

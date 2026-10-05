@@ -24,9 +24,9 @@ export interface MissionDef {
   target: number;
   rewardGold: number;
   rewardGems: number;
-  /** Pack Tickets (1 Ticket = 1 pack = 5 cards). Only the weekly "Complete 5 daily missions" mission gives one, so recurring
-   * free Ticket income is 1 pack a week (ozi, 2026-10-04; baseline in docs/ECONOMY-BASELINE.md). The Journey's
-   * Day 2 covers "a free pack early on"; see game/journey/definitions.ts. */
+  /** Pull Tickets (1 Ticket = 1 Box pull = 1 card since the launch set). Only the weekly "Complete 5 daily missions"
+   * mission gives one, so recurring free Ticket income is 1 pull a week (ozi, 2026-10-04; baseline in docs/ECONOMY-BASELINE.md). The Journey's
+   * Day 2 covers "a free pull early on"; see game/journey/definitions.ts. */
   rewardTickets: number;
 }
 

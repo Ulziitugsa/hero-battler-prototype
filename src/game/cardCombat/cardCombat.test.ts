@@ -13,7 +13,7 @@ import { CONTINUABLE_CARD_RESOLVER_VERSIONS, isCurrentCardResolver, matchResolve
 import { getVariant } from '../cardSim/balance/differenceDamage.js';
 import { cardJitter } from '../cardSim/statModels.js';
 import { chooseCardAiAction } from './ai.js';
-import { CARD_COMBAT_OVERRIDE_IDS, TIMING_CLEANUP_IDS, getCombatCard } from './cards.js';
+import { CARD_COMBAT_OVERRIDE_IDS, LAUNCH_CHANGED_IDS, TIMING_CLEANUP_IDS, getCombatCard } from './cards.js';
 import { CARD_MAX_ROUNDS, CARD_RESOLVER_VERSION, beginCardRound, cardAtk, createCardMatch, matchHpContribution, resolveCardRound, type CardMatchSetup } from './engine.js';
 import { ATK_OFFSET, GROWTH_CAP_ATK, atkFromPower, deckStartingHp, hpContribution, printedStats } from './stats.js';
 
@@ -188,9 +188,9 @@ describe('card combat: clashes and direct hits', () => {
   });
 
   it('Before Combat follows initiative: the last word on a Guard contest alternates by round', () => {
-    const WARDEN = 'und-crypt-warden'; // Guard 2: +30 ATK if it would lose its lane
+    const WARDEN = 'kng-shieldbearer'; // Guard 2: +30 ATK if it would lose its lane
     const contest = (round: number) => {
-      const s = blankMatch(STARTER_DECKS.undead, STARTER_DECKS.undead);
+      const s = blankMatch(STARTER_DECKS.kingdom, STARTER_DECKS.kingdom);
       s.round = round;
       put(s, 'player', 'left', WARDEN, 100);
       put(s, 'enemy', 'left', WARDEN, 115);
@@ -301,7 +301,7 @@ describe('card combat: ATK difference Clash Damage', () => {
       const record = resolveCardRound(s, { plays: [{ handId: k.handId, cardId: KNIGHT, lane: 'left' }] }, NONE).events.find((e) => e.type === 'CLASH_DAMAGE');
       return record && record.type === 'CLASH_DAMAGE' ? { atk: [record.playerAtk, record.enemyAtk], clashDamage: record.clashDamage, amount: record.amount } : null;
     };
-    expect(run(1)).toEqual({ atk: [128, 120], clashDamage: 8, amount: 8 }); // the Warden's Guard: 90 + 30
+    expect(run(1)).toEqual({ atk: [128, 105], clashDamage: 23, amount: 23 }); // the Warden's Guard 1: 90 + 15
     expect(run(5)).toEqual(run(1));
   });
 
@@ -328,14 +328,14 @@ describe('card combat: ATK difference Clash Damage', () => {
     }
   });
 
-  it('D10. Guard (+ATK when it would lose) makes its blocker absorb more: 145 vs Crypt Warden 98 + 30 lets 17 through', () => {
+  it('D10. Guard (+ATK when it would lose) makes its blocker absorb more: 145 vs Crypt Warden 98 + 15 lets 32 through', () => {
     const s = blankMatch(STARTER_DECKS.undead, STARTER_DECKS.undead);
     put(s, 'player', 'left', KNIGHT, 145);
     put(s, 'enemy', 'left', 'und-crypt-warden', 98);
     const hp = s.enemy.hp;
     const r = resolveCardRound(s, NONE, NONE);
-    expect(r.events).toContainEqual(expect.objectContaining({ type: 'CLASH_DAMAGE', playerAtk: 145, enemyAtk: 128, clashDamage: 17 }));
-    expect(r.nextState.enemy.hp).toBe(hp - 17);
+    expect(r.events).toContainEqual(expect.objectContaining({ type: 'CLASH_DAMAGE', playerAtk: 145, enemyAtk: 113, clashDamage: 32 }));
+    expect(r.nextState.enemy.hp).toBe(hp - 32);
   });
 
   it('Aegis Ward’s “prevent the next damage” also covers Clash Damage, and says so in the log', () => {
@@ -400,15 +400,19 @@ describe('card combat: Graveyard, growth and tokens', () => {
     expect(r.cardCombat!.graveMarks.player).toEqual([true]);
   });
 
-  it('10. Bone Soldier’s Graveyard bonus stops at +60 ATK', () => {
-    const s = blankMatch();
-    s.player.graveyard = Array(9).fill(KNIGHT);
-    s.cardCombat!.graveMarks.player = Array(9).fill(false);
-    put(s, 'player', 'left', 'und-bone-soldier');
-    put(s, 'enemy', 'left', KNIGHT, 200);
-    const r = resolveCardRound(s, NONE, NONE);
-    const combat = r.events.find((e) => e.type === 'COMBAT');
-    expect(combat && combat.type === 'COMBAT' && combat.player?.power).toBe(cardAtk('und-bone-soldier') + 60);
+  it('10. Bone Soldier counts Units only in its Graveyard, and its bonus stops at +45 ATK', () => {
+    const clash = (graveyard: string[]) => {
+      const s = blankMatch();
+      s.player.graveyard = graveyard;
+      s.cardCombat!.graveMarks.player = graveyard.map(() => false);
+      put(s, 'player', 'left', 'und-bone-soldier');
+      put(s, 'enemy', 'left', KNIGHT, 200);
+      const combat = resolveCardRound(s, NONE, NONE).events.find((e) => e.type === 'COMBAT');
+      return combat && combat.type === 'COMBAT' ? combat.player?.power : null;
+    };
+    expect(clash(Array(9).fill(KNIGHT))).toBe(cardAtk('und-bone-soldier') + 45);
+    expect(clash([KNIGHT, 'spl-power-surge', 'spl-fireball', 'spl-hush'])).toBe(cardAtk('und-bone-soldier') + 15); // Spells never count
+    expect(clash([KNIGHT, KNIGHT])).toBe(cardAtk('und-bone-soldier') + 30);
   });
 
   it('10b. Permanent growth stops at +45 ATK above the ATK a Unit entered with', () => {
@@ -489,18 +493,20 @@ describe('card combat: approved card data', () => {
     for (const [id, card] of approved) {
       const ours = getCombatCard(id);
       expect(ours.power, id).toBe(card.power);
-      if (TIMING_CLEANUP_IDS.includes(id)) continue;
+      if (TIMING_CLEANUP_IDS.includes(id) || LAUNCH_CHANGED_IDS.includes(id)) continue;
       expect(strip(ours.abilities), id).toEqual(strip(card.abilities));
     }
   });
 
   it('prints the simulator’s ATK offsets as authored data, re-banded Legendaries at Power 6', () => {
-    for (const card of ['kng-common-knight', 'und-vharos', 'inf-infernal-lord', 'kng-paladin', 'und-bone-soldier']) {
+    for (const card of ['kng-common-knight', 'und-vharos', 'inf-infernal-lord', 'und-bone-soldier']) {
       const power = getCombatCard(card).power ?? 0;
       expect(printedStats(card)!.atk, card).toBe(atkFromPower(power) + cardJitter(card, 6) + 0);
     }
     for (const [id, offset] of Object.entries(ATK_OFFSET)) expect(offset + 0, id).toBe(cardJitter(id, 6) + 0);
     expect(printedStats('und-vharos')!.atk).toBe(130);
+    // The launch set's ATK tunes are authored in the roster, not the offsets.
+    expect(['kng-paladin', 'inf-hellhound', 'inf-flame-imp', 'kng-battle-captain', 'kng-apprentice-mage'].map((id) => printedStats(id)!.atk)).toEqual([110, 108, 84, 102, 102]);
     // Rarity never buys ATK: a Legendary and a Common on the same Power line differ only by their offsets.
     expect(Math.abs(printedStats('kng-paladin')!.atk - printedStats('inf-pit-fiend')!.atk)).toBeLessThanOrEqual(12);
   });
@@ -552,19 +558,19 @@ describe('card combat: the production resolver everywhere', () => {
     expect(isCurrentCardResolver({ ...built, cardCombat: { ...built.cardCombat!, version: CARD_RESOLVER_VERSION + 1 } })).toBe(false);
   });
 
-  it('resolver v4 (timing cleanup) is current; a stored v2/v3 match is not reinterpreted under v4 rules', () => {
-    expect(CARD_RESOLVER_VERSION).toBe(4);
-    expect(CONTINUABLE_CARD_RESOLVER_VERSIONS).toEqual([4]);
-    expect(sameRules({ combatModel: 'card', resolverVersion: 3 })).toBe(false); // new Friendly matches need v4 on both clients
+  it('resolver v5 (launch set) is current; a stored v2/v3/v4 match is not reinterpreted under v5 rules', () => {
+    expect(CARD_RESOLVER_VERSION).toBe(5);
+    expect(CONTINUABLE_CARD_RESOLVER_VERSIONS).toEqual([5]);
+    expect(sameRules({ combatModel: 'card', resolverVersion: 4 })).toBe(false); // new Friendly matches need v5 on both clients
     const v4 = createCardMatch({ seed: 11, playerDeck: STARTER_DECKS.kingdom, enemyDeck: STARTER_DECKS.undead }).nextState;
     expect(isCurrentCardResolver(v4)).toBe(true);
     expect(rulesChangeNotice(v4)).toBeNull();
-    for (const version of [2, 3]) {
+    for (const version of [2, 3, 4]) {
       const old: GameState = { ...v4, cardCombat: { ...v4.cardCombat!, version } };
       expect(isCurrentCardResolver(old), `v${version}`).toBe(false);
       expect(rulesChangeNotice(old), `v${version}`).toMatch(/earlier card rules.*can’t be continued/);
     }
-    expect(rulesChangeNotice({ ...v4, cardCombat: { ...v4.cardCombat!, version: 5 } })).toMatch(/newer version/);
+    expect(rulesChangeNotice({ ...v4, cardCombat: { ...v4.cardCombat!, version: 6 } })).toMatch(/newer version/);
   });
 
   it('an old legacy match still reads as legacy v1 (never inferred from a date)', () => {
