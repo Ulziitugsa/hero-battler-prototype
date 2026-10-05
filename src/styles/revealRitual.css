@@ -1,4 +1,4 @@
-﻿/* The Moonwell ritual that opens packs. Everything here reacts ONLY to the root's data-phase / data-tier / data-stage
+﻿/* The Moonwell ritual that reveals pulled cards. Everything here reacts ONLY to the root's data-phase / data-tier / data-stage
    / data-grid (set from the timeline in game/reveal/sequence.ts) and to --step-ms (the current step's length). Nothing animates on its own
    timeout, so pacing lives in one place. Composited properties only (transform / opacity) and a handful of
    particle nodes - no filters on moving layers, no hundreds of DOM particles.

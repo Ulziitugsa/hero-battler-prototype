@@ -20,7 +20,7 @@ import '../../styles/cardInspect.css';
 
 /**
  * Card Inspect: layer 3, the deepest. One sheet for every card everywhere (Collection, Deck Builder, Shop and Box
- * contents, pack results, events, and in battle from the focus panel): the card at its largest, its name, rarity,
+ * contents, Pull Results, events, and in battle from the focus panel): the card at its largest, its name, rarity,
  * faction and type, ATK and HP Contribution with what they mean, every effect's full rule with its keywords, copies
  * owned, where to get it, its card style, and its lore. Every card shows its printed values: there is no combat Card
  * Mastery. Historical Mastery / Ascension progress stays in the save for the future Prestige conversion but is never shown

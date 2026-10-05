@@ -1,5 +1,5 @@
 // The 7-day new-player journey (Commercial Prototype Phase 6) - content as plain data, same convention
-// as campaign/chapter1.ts and missions/definitions.ts. Day 2 gives one Pack Ticket (it pays for one pull from any
+// as campaign/chapter1.ts and missions/definitions.ts. Day 2 gives one Pull Ticket (it pays for one pull from any
 // archetype Box; they were Summon Tickets until the Moonwell Summon was retired). A Relic (Day 3) and a Cosmetic
 // (Day 6) remain substituted - neither system exists in this codebase and neither is in scope for this
 // workstream (see the repo audit's own recommendation to defer equipment/relics and cosmetics).
@@ -21,7 +21,7 @@ export interface JourneyDayDef {
 
 export const JOURNEY_DAYS: JourneyDayDef[] = [
   { day: 1, title: 'A new card joins you', blurb: 'Someone answered the call.', rewardGold: 0, rewardGems: 0, rewardTickets: 0, rewardCardId: 'inf-blood-demon', rewardCardCount: 1 },
-  { day: 2, title: 'A Pack Ticket', blurb: 'One free pull from any Box, on the house.', rewardGold: 0, rewardGems: 0, rewardTickets: 1 },
+  { day: 2, title: 'A Pull Ticket', blurb: 'One free pull from any Box, on the house.', rewardGold: 0, rewardGems: 0, rewardTickets: 1 },
   { day: 3, title: 'A second Blood Demon', blurb: 'A deck can run two copies of a card.', rewardGold: 0, rewardGems: 0, rewardTickets: 0, rewardCardId: 'inf-blood-demon', rewardCardCount: 1 },
   { day: 4, title: 'Gold for your purse', blurb: 'A head start for what comes next.', rewardGold: 150, rewardGems: 0, rewardTickets: 0 },
   { day: 5, title: 'More Gold', blurb: 'Keep your collection growing.', rewardGold: 200, rewardGems: 0, rewardTickets: 0 },

@@ -628,6 +628,6 @@ Also new: the Skeleton token (65 ATK). `launchPrimitives.test.ts` checks each pr
 ## Appendix: collection, Box and save rules
 
 - Collection is a copy count per card. `cardMastery/model.ts` is now a historical read model over legacy Ascension (stored rank 0..4 was Mastery I..V); it has no combat effect (section 17). See [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md).
-- Cards are pulled one at a time from nine finite archetype Boxes of 25-33 cards (copies per card: Legendary 1, Epic 2, Rare 3, Common 4), paid with Gems or Pack Tickets (section 20, [BOX-ARCHITECTURE.md](BOX-ARCHITECTURE.md)). The retired Moonfall Box (100 five-card packs over the old 52-card roster) is deleted from saves by the launch-set migration; cards opened from it stay owned.
+- Cards are pulled one at a time from nine finite archetype Boxes of 25-33 cards (copies per card: Legendary 1, Epic 2, Rare 3, Common 4), paid with Gems or Pull Tickets (section 20, [BOX-ARCHITECTURE.md](BOX-ARCHITECTURE.md)). The retired Moonfall Box (100 five-card packs over the old 52-card roster) is deleted from saves by the launch-set migration; cards opened from it stay owned.
 - Keep card IDs, collection counts, deck definitions, `skyloom:*` storage keys and historical event names intact.
 - Before replacing Legacy Level or Ascension behaviour, ship an idempotent, versioned migration with tests for old saves, missing fields, max-rank cards, duplicate inventory and playable decks.

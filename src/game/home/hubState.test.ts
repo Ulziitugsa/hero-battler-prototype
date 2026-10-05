@@ -113,7 +113,7 @@ describe('attention markers', () => {
     expect(homeAttentionReady({masteryPoint:false,missionReward:true,journeyReward:true,idleReward:false})).toBe(true);
     expect(homeAttentionReady({masteryPoint:false,missionReward:false,journeyReward:false,idleReward:false})).toBe(false);
   });
-  it('the Box shortcut glows only with one pull’s Gem price, a Pack Ticket (or dev Unlimited Gems)', () => {
+  it('the Box shortcut glows only with one pull’s Gem price, a Pull Ticket (or dev Unlimited Gems)', () => {
     const base = { masteryPoints: 0 };
     expect(attentionState({ ...base, gems: boxPullPrice(1) - 1 }).canOpenPack).toBe(false);
     expect(attentionState({ ...base, gems: boxPullPrice(1) }).canOpenPack).toBe(true);

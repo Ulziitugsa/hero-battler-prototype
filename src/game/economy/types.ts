@@ -26,7 +26,7 @@ export interface PlayerEconomy {
   gems: number;
   /** Soft currency - Campaign wins, idle rewards, missions. (The old Card Mastery IV / V fee is retired and charges nothing.) */
   gold: number;
-  /** Pack Tickets: earn-only (missions, journey, offers); one opens one pack of a finite Box. Never purchasable. */
+  /** Pull Tickets: earn-only (missions, journey, offers); 1 Ticket = 1 pull = 1 card from a finite Box. Never purchasable. */
   tickets: number;
   /** One-time grants already paid, by id (see grantGoldOnce). Absent before v5 = none paid. */
   grants: string[];

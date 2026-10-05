@@ -229,7 +229,7 @@ describe('progress-only objectives and the login checkpoint (Ticket cleanup, 202
   const checkInDays = (n: number) => { const results = []; for (let d = 0; d < n; d += 1) { vi.setSystemTime(INSIDE + d * DAY_MS); results.push(claimLoginReward(EVENT.id)); } return results; };
   const render = () => renderToStaticMarkup(createElement(EventPage, { onBack: () => {}, onOpenShop: () => {} }));
 
-  it('the Long Vigil grants exactly one Pack Ticket, from login Day 6; Day 3 is a checkpoint that grants nothing', () => {
+  it('the Long Vigil grants exactly one Pull Ticket, from login Day 6; Day 3 is a checkpoint that grants nothing', () => {
     const grants = [...EVENT.loginRewards.map((d) => d.reward), ...EVENT.missions.map((m) => m.reward), ...EVENT.milestones.map((m) => m.reward), EVENT.finalReward.reward];
     expect(grants.reduce((n, r) => n + (r?.tickets ?? 0), 0)).toBe(1);
     expect(EVENT.loginRewards.find((d) => d.reward?.tickets)?.day).toBe(6);
@@ -358,5 +358,13 @@ describe('summarizeBattle', () => {
     expect(summary).toMatchObject({ mode: 'ranked', result: 'win', rounds: 2, unitsPlayed: 2, undeadUnitsPlayed: 1, kingdomUnitsPlayed: 1, spellsPlayed: 2, damageDealt: 42 });
     expect(summarizeBattle('DRAW', [], 'quick').result).toBe('draw');
     expect(summarizeBattle('ENEMY_WIN', [], 'quick').result).toBe('loss');
+  });
+});
+
+describe('Long Vigil wording after the launch set', () => {
+  it('the pull mission says cards from a Box, and no Vigil text describes packs, Moonfall or Summons', () => {
+    expect(THE_LONG_VIGIL.missions.find((m) => m.id === 'vigil-open-packs')).toMatchObject({ title: 'Pull 5 cards from any Box', target: 5 });
+    const shown = [THE_LONG_VIGIL.name, THE_LONG_VIGIL.tagline, THE_LONG_VIGIL.lore, THE_LONG_VIGIL.featuredProduct!.name, THE_LONG_VIGIL.featuredProduct!.blurb, THE_LONG_VIGIL.finalReward.title, ...THE_LONG_VIGIL.missions.map((m) => m.title), ...THE_LONG_VIGIL.milestones.map((m) => m.title)];
+    for (const line of shown) expect(line).not.toMatch(/\bpacks?\b|Moonfall|Summon/i);
   });
 });

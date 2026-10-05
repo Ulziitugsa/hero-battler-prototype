@@ -49,7 +49,8 @@ Each archetype has one finite Box. The Shop shows them as three faction groups o
   before the reveal plays. A 10-pull needs 10 sealed copies; with fewer left, Pull 10 is disabled ("Not enough cards left") and single pulls finish the Box.
 - **Payment** (`boxProduct.ts`):
   - Gems at `BOX_PULL_GEMS` per pull, a configurable placeholder in `economy/config.ts`.
-  - Or Pack Tickets at `PULLS_PER_TICKET` (1 Ticket = 1 pull = 1 card).
+  - Or Pull Tickets at `PULLS_PER_TICKET` (1 Ticket = 1 pull = 1 card). The Ticket was called a Pack Ticket before
+    the launch set; the internal name (`tickets`) is unchanged.
   - Both pay for the same draw. A Ticket pull and a Gem pull are identical.
 - **The reveal** (`reveal/sequence.ts`) shows exactly the cards pulled:
   - one card centred for a pull;
@@ -92,7 +93,7 @@ Three Structure Decks are on sale: **Bone Legion, Hellfire and Crusade**.
   - Hellfire: Flame Herald, Meteor;
   - Crusade: Banner Knight, Reliquary Blade.
 - **Limits:** one per account.
-- **Price:** `STRUCTURE_DECK_GEMS` (a configurable placeholder).
+- **Price:** `STRUCTURE_DECK_GEMS`, 900 Gems.
 - **On purchase:** the deck is added to the collection and saved as a ready-to-play deck.
 
 Graveborn Rising is retired: it is no longer sold, but an account that bought it keeps it and still sees it as owned.
@@ -105,27 +106,37 @@ Arcane Knight, Night Courier, Pack Warden and Oath of Vengeance. `cards/eventCar
 
 ## 8. Migration from the pre-launch save
 
-`save/launchSetMigration.ts` runs at startup, before the collection migration. It is idempotent.
+`save/launchSetMigration.ts` runs at startup, before the collection migration and before anything renders. It is
+idempotent: a second run finds the Core record already written and no Moonfall state left, and changes nothing. Tests:
+`save/launchSetMigration.test.ts`.
 
 - **Existing accounts** (a stored collection or Campaign progress, but no Core record):
   - recorded as a Kingdom start, so they see no starter pick;
   - granted the Kingdom package plus the package of each Core unlock stage already cleared (raise-only).
 - **New accounts** are recorded as "not picked yet" and pick on first launch.
-- **Moonfall Box (retired):**
-  - Its pool is read once, so anything its pack count unlocked stays unlocked, then deleted.
-  - Cards opened from it stay owned. Unopened Moonfall packs are not carried over or refunded.
-  - Every archetype Box starts full.
-- **Untouched:** Gems, Gold, Pack Tickets, saved decks, Structure Deck purchases, Campaign progress, events and
-  missions. Tickets are kept 1:1 and are now worth 1 pull (1 card) each instead of a 5-card pack. There is no silent
-  conversion.
+- **The Moonfall Box is retired.** There is no refund in this PR.
+  - **Opened cards stay owned.** Cards opened from Moonfall packs are in the collection and are never removed or lowered.
+  - **Box state is retired.** The Moonfall pool (`moonwater:testBox:moonfall-v2`, and `-v1`) is read once, only to record how many packs
+    were opened so the Gem bundles that unlock after a first opening stay unlocked, and then deleted. It is never shown
+    as a current product.
+  - **Unopened progress is not carried over.** Unopened Moonfall packs do not become archetype Box pulls, Tickets or
+    Gems. Every archetype Box starts full.
+- **Untouched:** Gems, Gold, Pull Tickets, saved decks, Structure Deck purchases, Campaign progress, events and
+  missions. Tickets are kept 1:1 with no conversion; each is now worth 1 pull (1 card) instead of a 5-card pack.
 - **Card ids:** every pre-launch card id is kept, so owned cards and saved decks still resolve.
 
-## 9. Placeholders (not final, set by the economy follow-up)
+## 9. Prices (working values, tunable by the economy follow-up)
 
 | Value | Now | Where |
 | --- | --- | --- |
-| Gem price per pull | 30 (a 10-pull is 10×) | `BOX_PULL_GEMS` |
-| Pulls per Ticket | 1 | `PULLS_PER_TICKET` |
-| Structure Deck price | 600 Gems | `STRUCTURE_DECK_GEMS` |
+| Gem price per pull | 100 (a 10-pull is 1,000) | `BOX_PULL_GEMS` |
+| Pulls per Ticket | 1 (1 Ticket = 1 pull = 1 card) | `PULLS_PER_TICKET` |
+| Structure Deck price | 900 Gems, one per account | `STRUCTURE_DECK_GEMS` |
 
-The study judged 30 Gems per pull far too cheap; the final price is deliberately not hard-coded anywhere else.
+Each price lives only in `economy/config.ts`; the Shop, Box page, Home and Structure Deck pages all read it from there.
+
+## 10. Placeholder art
+
+The new launch cards have no pixel art yet. They render the faction placeholder (a coloured faction shape on the card
+frame), never a broken or missing image. The list is pinned in `pixelArt.test.ts` (`NO_ART_YET`).
+**TODO (art pass):** replace the placeholders and remove each card from `NO_ART_YET` as its art lands.

@@ -88,7 +88,7 @@ describe('a save from before the launch set', () => {
     expect(getBoxesState().legacyMoonfallPacksOpened).toBe(13);
     for (const id of ARCHETYPE_BOX_IDS) expect(boxCardsRemaining(id)).toBe(boxSize(id));
   });
-  it('keeps Gems, Gold and Pack Tickets exactly (no conversion) and Structure Deck purchases', () => {
+  it('keeps Gems, Gold and Pull Tickets exactly (no conversion) and Structure Deck purchases', () => {
     storedCollection({ 'kng-archer': 2 });
     localStorage.setItem(ECONOMY_STORAGE_KEY, JSON.stringify({ version: 5, gems: 321, gold: 77, tickets: 6, grants: [], summon: { pity: {}, history: [] } }));
     resetStructureDecks(); // drops the in-memory snapshot
@@ -97,6 +97,36 @@ describe('a save from before the launch set', () => {
     launch();
     expect(getEconomy()).toMatchObject({ gems: 321, gold: 77, tickets: 6 });
     expect(structureDeckPurchases('graveborn-rising')).toBe(1);
+  });
+  it('Moonfall cards already opened stay owned at their exact counts; unopened packs become nothing', () => {
+    const opened = { 'kng-archer': 4, 'und-banshee': 3, 'inf-hellhound': 2, 'kng-paladin': 1 };
+    storedCollection(opened);
+    localStorage.setItem(ECONOMY_STORAGE_KEY, JSON.stringify({ version: 5, gems: 50, gold: 10, tickets: 2, grants: [], summon: { pity: {}, history: [] } }));
+    reloadEconomy();
+    localStorage.setItem(LEGACY_MOONFALL_STORAGE_KEYS[0], JSON.stringify({ version: 1, openedPacks: 4, randomState: 9, remaining: { 'kng-paladin': 3 } }));
+    launch();
+    for (const [id, n] of Object.entries(opened)) expect(getCollection()[id], id).toBeGreaterThanOrEqual(n);
+    expect(getCollection()['und-banshee']).toBe(3); // a Box card: neither raised nor lowered
+    expect(getEconomy()).toMatchObject({ gems: 50, gold: 10, tickets: 2 }); // no refund, no conversion
+    for (const id of ARCHETYPE_BOX_IDS) expect(boxCardsRemaining(id)).toBe(boxSize(id));
+  });
+  it('is idempotent: a second launch changes nothing (cards, Gems, Gold, Tickets, Core, Boxes)', () => {
+    storedCollection({ 'kng-archer': 2, 'und-banshee': 1 });
+    progress(['battle-broken-palisade']);
+    localStorage.setItem(ECONOMY_STORAGE_KEY, JSON.stringify({ version: 5, gems: 400, gold: 90, tickets: 3, grants: [], summon: { pity: {}, history: [] } }));
+    reloadEconomy();
+    localStorage.setItem(LEGACY_MOONFALL_STORAGE_KEYS[0], JSON.stringify({ version: 1, openedPacks: 5, randomState: 9, remaining: {} }));
+    launch();
+    const snapshot = new Map(values);
+    const before = { collection: { ...getCollection() }, economy: { ...getEconomy() }, core: getCoreAccess() };
+    reloadCoreAccess(); reloadCollection(); reloadEconomy(); reloadArchetypeBoxes();
+    expect(launch()).toEqual({ coreAccess: null, packagesGranted: [], moonfallPacks: 0 });
+    expect(getCollection()).toEqual(before.collection);
+    expect(getEconomy()).toMatchObject({ gems: 400, gold: 90, tickets: 3 });
+    expect(getEconomy()).toEqual(before.economy);
+    expect(getCoreAccess()).toEqual(before.core);
+    expect(getBoxesState().legacyMoonfallPacksOpened).toBe(5);
+    expect(new Map(values)).toEqual(snapshot);
   });
   it('a corrupt Core record is not mistaken for a pick: it is rebuilt', () => {
     localStorage.setItem(CORE_ACCESS_STORAGE_KEY, '{not json');

@@ -6,9 +6,9 @@ This policy applies to the current local commercial prototype. It records the ex
 
 | Screen | Primary action | Secondary action | Current loudest treatment | Alignment |
 | --- | --- | --- | --- | --- |
-| Home | Continue the Campaign | Open packs | Campaign action; Packs is secondary | Aligned after the Home hierarchy pass. Missions/Journey only receive a restrained mark when a reward is claimable; Offers stays quiet. |
+| Home | Continue the Campaign | Pull from a Box | Campaign action; Boxes is secondary | Aligned after the Home hierarchy pass. Missions/Journey only receive a restrained mark when a reward is claimable; Offers stays quiet. |
 | Campaign / stage preview | Fight or claim the shown reward | Review objectives and formation | Fight / claim | Aligned. First-clear and repeat rewards are shown before entry; recommended Roster Power is contextual guidance, not a block. |
-| Box (packs) | Open Pack with Gems or a Pack Ticket | Inspect the Box's remaining contents | Open Pack inside the voluntarily opened Box | Aligned. The finite Box shows exactly what is left; there is no pity or guarantee copy. Pack Tickets open the same Box (cleanup pass, 2026-10-03; the Moonwell Summon is retired). |
+| Box (pulls) | Pull 1 or Pull 10 with Gems or a Pull Ticket | Inspect the Box's remaining contents | Pull inside the voluntarily opened Box | Aligned. The finite Box shows exactly what is left; there is no pity or guarantee copy. A Pull Ticket pays for one pull from the same Box (launch set, 2026-10-05; 1 pull = 1 card, no packs). |
 | Heroes | Browse and inspect the collection | Filter or sort | Hero artwork and collection progress | Aligned. Owned state, copies, Stars, level, and Ascension are attached to the character detail. |
 | Missions / Journey | Claim a ready reward | Review progress | A ready claim; otherwise progress rows | Aligned. No claim badge is shown when nothing is claimable; Journey remains reachable after completion. |
 | Offers | Choose a test offer | Read contents and first-purchase bonus | Offer choice inside the voluntarily opened sheet | Aligned. Prices are config labels, all actions remain explicitly test-only, and the session opens with three choices. |

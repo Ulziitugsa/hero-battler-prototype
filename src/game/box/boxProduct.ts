@@ -6,7 +6,7 @@ import { getArchetypeBox, type ArchetypeBoxDef, type ArchetypeBoxId } from './ar
 import { boxCardsRemaining, canPull, getBoxesState, pullFromBox, setActiveBoxId, totalBoxPulls, type PullCount, type PullResult } from './boxPool';
 
 // What a pull costs and how it is paid: the product layer over the nine archetype Boxes (boxPool.ts holds the pools).
-// 1 pull = 1 card, a 10-pull = 10 cards, no bulk discount and no bonus card. A Pack Ticket pays for one pull. Both
+// 1 pull = 1 card, a 10-pull = 10 cards, no bulk discount and no bonus card. A Pull Ticket pays for one pull. Both
 // prices are placeholders in economy/config.ts (BOX_PULL_GEMS, PULLS_PER_TICKET) until the economy follow-up.
 
 export type { ArchetypeBoxDef, ArchetypeBoxId, PullCount };
@@ -16,10 +16,10 @@ export function boxPullPrice(count: PullCount): number {
   return BOX_PULL_GEMS * count;
 }
 
-/** What pays for pulls: their Gem price, or Pack Tickets. Either way the cards come from the same finite Box. */
+/** What pays for pulls: their Gem price, or Pull Tickets. Either way the cards come from the same finite Box. */
 export type PullPayment = 'gems' | 'tickets';
 
-/** Pack Tickets a pull of `count` costs. */
+/** Pull Tickets a pull of `count` costs. */
 export function boxPullTickets(count: PullCount): number {
   return Math.ceil(count / PULLS_PER_TICKET);
 }
@@ -27,7 +27,7 @@ export function boxPullTickets(count: PullCount): number {
 export type BuyPullsResult = { ok: true; gems: number; tickets: number; opening: PullResult } | { ok: false; reason: 'sold-out' | 'not-enough-gems' | 'not-enough-tickets' };
 
 /**
- * Pays (Gems or Pack Tickets) and pulls from one archetype Box: the game's one way to open cards. Nothing is spent when
+ * Pays (Gems or Pull Tickets) and pulls from one archetype Box: the game's one way to open cards. Nothing is spent when
  * the Box cannot supply the pull or the player cannot pay. The cards are granted and saved before this returns; the
  * reveal and Pull Results only show them. Pulling also makes this Box the active one (Home's shortcut).
  */

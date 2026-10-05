@@ -165,10 +165,10 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
   return <main className="shop-screen">
     <header className="shop-header">
       <div><span className="shop-kicker">THE MOONWATER MARKET</span><h1>Shop</h1><p>Card Boxes, Structure Decks and supplies.</p></div>
-      <div className="shop-balances">{economy.tickets > 0 && <span aria-label={`${economy.tickets} Pack ${economy.tickets === 1 ? 'Ticket' : 'Tickets'}`}><TicketIcon size={16} />{economy.tickets.toLocaleString()}</span>}<span><GemIcon size={16} />{economy.gems.toLocaleString()}</span><span><GoldIcon size={16} />{economy.gold.toLocaleString()}</span></div>
+      <div className="shop-balances">{economy.tickets > 0 && <span aria-label={`${economy.tickets} Pull ${economy.tickets === 1 ? 'Ticket' : 'Tickets'}`}><TicketIcon size={16} />{economy.tickets.toLocaleString()}</span>}<span><GemIcon size={16} />{economy.gems.toLocaleString()}</span><span><GoldIcon size={16} />{economy.gold.toLocaleString()}</span></div>
     </header>
 
-    <div className="shop-test-note"><Icon name="check" size={14} /> Prototype store · Boxes and Structure Decks use in-game Gems (a Pack Ticket pays for one pull); bundles and Gem bundles are simulated test purchases. No real money is charged.</div>
+    <div className="shop-test-note"><Icon name="check" size={14} /> Prototype store · Boxes and Structure Decks use in-game Gems (a Pull Ticket pays for one pull); bundles and Gem bundles are simulated test purchases. No real money is charged.</div>
 
     <section className="shop-section shop-first-section" aria-labelledby="shop-box-title">
       <div className="shop-section-heading"><div><span className="shop-section-eyebrow">ARCHETYPE BOXES</span><h2 id="shop-box-title">Card Boxes</h2></div><span className="shop-section-note">{economy.tickets > 0 ? <><TicketIcon size={13} />{boxPullTickets(1)} / pull</> : <><GemIcon size={13} />{boxPullPrice(1)} / pull</>}</span></div>

@@ -4,6 +4,10 @@
 
 Home now includes **Friendly battle**, with invite links, ready states, and server-resolved duels through Supabase and Vercel. Follow [the deployment guide](docs/VERCEL-DEPLOYMENT.md), including all four database migrations and the two-player acceptance test. Run `npm run check` for lint, tests, and frontend/API builds.
 
+## Launch set (current)
+
+Cards come from the free Core packages (a new player picks a starter faction; the other two unlock in the first Campaign battles), nine finite archetype Boxes in the Shop (1 pull = 1 card, 100 Gems; a 10-pull = 10 cards, 1,000 Gems; 1 Pull Ticket = 1 pull), three Structure Decks (900 Gems, one per account) and the Campaign. There are no packs and no Summon; the old Moonfall Box is retired. See [docs/BOX-ARCHITECTURE.md](docs/BOX-ARCHITECTURE.md). Sections below are history and may describe retired systems.
+
 ## Moonwater game redesign
 
 Moonwater is now integrated into the actual Home, collection, decks, profile, campaign, practice selection, battle cards, and summon screens. All 31 collectible heroes and 21 roster spells have pixel artwork; Flame Imp, Paladin, and Grave Knight use eight-frame idle loops. Portraits render on a 160-pixel grid to balance visible pixels with readable faces. Offscreen, hidden-tab, and reduced-motion animations pause. The summon presentation combines a Moonwater film with varied shooting stars and a light-wash character reveal, with rarity-specific lighting, while keeping the existing reward/guarantee logic.
@@ -16,7 +20,7 @@ The earlier phase history below is retained, but several historical “not built
 
 Read [the production plan](docs/PRODUCTION-PLAN.md) for the implemented scope, narrative, art direction, engineering briefs, multiplayer/account architecture, and remaining work. Art prompts and generated-asset provenance are in [the art record](docs/design/ANCHOR-ART-PROMPTS.md).
 
-Run `npm run dev`. On Home, choose **Lanterns of the Lost** for the story or **Summon** for the new presentation. In development, expand **Dev · Summon testing** and choose **Featured Legendary** or **10x multi** to preview without spending Gems or granting cards. Sound defaults off. Skip and Escape go directly to results.
+Run `npm run dev`. On Home, choose **Lanterns of the Lost** for the story, or open a Box in the Shop to pull cards (the Summon screen described here is retired; `/?revealFixture=one` or `=ten` previews the pull reveal in development). Sound defaults off. Skip and Escape go directly to results.
 
 Collection, currency, and progression remain local. Private multiplayer is available once Supabase and Vercel are configured; checkout and permanent accounts are not implemented. Existing saves and previous art files are retained.
 

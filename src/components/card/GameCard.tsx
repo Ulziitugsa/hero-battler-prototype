@@ -9,7 +9,7 @@ import '../../styles/gameCard.css';
 
 /**
  * THE card. Every surface in Moonwater draws a card with this one component: the hand, the board and the Spell zones in
- * every battle mode, the Collection, the Deck Builder, Shop and Box contents, pack results, events, the outside-battle
+ * every battle mode, the Collection, the Deck Builder, Shop and Box contents, Pull Results, events, the outside-battle
  * focus sheet and Card Inspect. It is a collectible card in four zones inside the rarity frame: a name bar, a framed
  * art box, a stats and identity row with ATK (and, off the battlefield, HP Contribution) set into the frame, and a text
  * box with every effect as a short battle line after its small-caps timing label ("Passive: Adjacent allies +15 ATK.").
@@ -21,7 +21,7 @@ import '../../styles/gameCard.css';
  *  hand:    most readable; full name.
  *  board:   compact but complete; short name; board wording; shows whether conditional Passives are active.
  *  spell:   a Spell in a Spell zone: a wide, short strip with its name and text.
- *  tile:    a card in a grid (Collection, Deck Builder, Shop, pack results, events): the hand card, plus HP Contribution
+ *  tile:    a card in a grid (Collection, Deck Builder, Shop, Pull Results, events): the hand card, plus HP Contribution
  *           and the collection marks (copies, not owned).
  *  inspect: the large face in Card Inspect and the outside-battle focus sheet.
  *

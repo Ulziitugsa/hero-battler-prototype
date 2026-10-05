@@ -18,7 +18,7 @@ export const THE_LONG_VIGIL: EventDefinition = {
   loginRewards: [
     { day: 1, reward: { gold: 60 } },
     { day: 2, reward: { gems: 20 } },
-    { day: 3 }, // a checkpoint: its Pack Ticket was removed (ozi, 2026-10-04); Day 6 holds the event's one Ticket
+    { day: 3 }, // a checkpoint: its Pull Ticket was removed (ozi, 2026-10-04); Day 6 holds the event's one Ticket
     { day: 4, reward: { gold: 100 } },
     { day: 5, reward: { gems: 30 } },
     { day: 6, reward: { tickets: 1 } },

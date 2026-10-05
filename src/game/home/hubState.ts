@@ -97,7 +97,7 @@ export function pickHubNote(input: { idle?: IdleRewardState; masteryPoints: numb
 // ---- Attention markers ------------------------------------------------------------------------
 
 export interface AttentionState {
-  /** Enough Gems, or a Pack Ticket, for at least one Box pull. */
+  /** Enough Gems, or a Pull Ticket, for at least one Box pull. */
   canOpenPack: boolean;
   /** An unspent Mastery Point. */
   masteryPoint: boolean;

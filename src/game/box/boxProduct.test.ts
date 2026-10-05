@@ -163,7 +163,7 @@ describe('the pull product', () => {
     expect(totalBoxPulls()).toBe(10);
   });
 
-  it('a Pack Ticket pays for exactly one pull, drawn like a bought one', () => {
+  it('a Pull Ticket pays for exactly one pull, drawn like a bought one', () => {
     setTickets(1);
     const preview = previewPulls('vanguard', 1);
     const result = buyBoxPulls('vanguard', 1, 'tickets');

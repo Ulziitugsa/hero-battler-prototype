@@ -28,7 +28,7 @@ import { DEFAULT_CONFIG } from '../../config/defaults';
 import type { Rarity } from '../types';
 
 // One card-acquisition model: pulls from the nine finite archetype Boxes (1 pull = 1 card, a 10-pull = 10 cards, paid
-// with Gems or Pack Tickets), shown by the reveal ceremony that used to belong to the Moonwell Summon, then Pull
+// with Gems or Pull Tickets), shown by the reveal ceremony that used to belong to the Moonwell Summon, then Pull
 // Results. The Summon and the Moonfall Box are gone.
 
 const read = (rel: string): string => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -44,7 +44,7 @@ beforeEach(() => {
   clearQueuedEvents();
 });
 
-describe('Pack Tickets pay for pulls from the same finite Boxes', () => {
+describe('Pull Tickets pay for pulls from the same finite Boxes', () => {
   it('one Ticket pays for one pull: Tickets are spent, Gems are not, and the card comes from the Box', () => {
     setGems(1000);
     setTickets(3);
@@ -75,16 +75,16 @@ describe('Pack Tickets pay for pulls from the same finite Boxes', () => {
   });
 });
 
-describe('Pack Ticket rewards: 1 Ticket = 1 pull = 1 card (launch set)', () => {
-  it('one Pack Ticket pulls exactly one card', () => {
+describe('Pull Ticket rewards: 1 Ticket = 1 pull = 1 card (launch set)', () => {
+  it('one Pull Ticket pulls exactly one card', () => {
     setTickets(1);
     const result = buyBoxPulls('crusade', 1, 'tickets');
     if (!result.ok) throw new Error('could not pull');
     expect(result.opening.pulls).toHaveLength(1);
     expect(getEconomy().tickets).toBe(0);
   });
-  it('Journey Day 2 and the weekly "Complete 5 daily missions" mission each grant exactly one Pack Ticket', () => {
-    expect(JOURNEY_DAYS.find((d) => d.day === 2)).toMatchObject({ title: 'A Pack Ticket', rewardTickets: 1 });
+  it('Journey Day 2 and the weekly "Complete 5 daily missions" mission each grant exactly one Pull Ticket', () => {
+    expect(JOURNEY_DAYS.find((d) => d.day === 2)).toMatchObject({ title: 'A Pull Ticket', rewardTickets: 1 });
     expect(WEEKLY_MISSIONS.find((m) => m.id === 'weekly-daily-missions')).toMatchObject({ title: 'Complete 5 daily missions', metric: 'daily_mission_completed', target: 5, rewardTickets: 1, rewardGems: 100 });
   });
   it('pulling advances no recurring mission, so the weekly Ticket never asks the player to spend', () => {
@@ -113,7 +113,7 @@ describe('Pack Ticket rewards: 1 Ticket = 1 pull = 1 card (launch set)', () => {
     expect(OFFERS.find((o) => o.id === 'growth-pack')?.reward.tickets).toBe(3);
     expect(read('../offers/definitions.ts')).toMatch(/PROTOTYPE PLACEHOLDERS/);
   });
-  it('saved Summon Tickets carry over 1:1 as Pack Tickets (no conversion, no refund)', () => {
+  it('saved Summon Tickets carry over 1:1 as Pull Tickets (no conversion, no refund)', () => {
     localStorage.setItem(ECONOMY_STORAGE_KEY, JSON.stringify({ version: 5, gems: 40, gold: 0, tickets: 7, grants: [], summon: { pity: {}, history: [] } }));
     reloadEconomy();
     expect(getEconomy()).toMatchObject({ tickets: 7, gems: 40 });
@@ -121,7 +121,7 @@ describe('Pack Ticket rewards: 1 Ticket = 1 pull = 1 card (launch set)', () => {
     expect(result.ok && result.opening.pulls).toHaveLength(1);
     expect(getEconomy()).toMatchObject({ tickets: 6, gems: 40 });
   });
-  it('every production Pack Ticket grant matches the audited table (docs/ECONOMY-BASELINE.md)', () => {
+  it('every production Pull Ticket grant matches the audited table (docs/ECONOMY-BASELINE.md)', () => {
     const grants: Record<string, number> = {};
     for (const d of JOURNEY_DAYS) if (d.rewardTickets) grants[`journey:day-${d.day}`] = d.rewardTickets;
     for (const m of ALL_MISSIONS) if (m.rewardTickets) grants[`mission:${m.id}`] = m.rewardTickets;
@@ -239,7 +239,7 @@ describe('the pull ceremony shows an outcome that was decided before it began', 
     expect(text(grid)).not.toMatch(/\bpacks?\b/i);
     expect(stageAt(outcome, staged[0][2])).toContain('rc rc-reveal r-epic rc-spotlight');
   });
-  it('Pack Tickets and Gems pull the same cards and play the very same ceremony', () => {
+  it('Pull Tickets and Gems pull the same cards and play the very same ceremony', () => {
     setGems(boxPullPrice(1));
     const gems = buyBoxPulls('vanguard', 1);
     clearArchetypeBoxes();

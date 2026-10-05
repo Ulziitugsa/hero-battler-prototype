@@ -46,6 +46,8 @@ export function CardArtwork({ cardId, companion, animated = true, priority = fal
     loadImage(asset.src, priority).then(value => { if (!cancelled) { image = value; paint(); sync(); } }).catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; window.clearInterval(timer); observer.disconnect(); document.removeEventListener('visibilitychange', sync); reduced.removeEventListener('change', sync); };
   }, [asset, animated, priority]);
+  // A card with no pixel art yet (the new launch-set cards, pixelArt.test.ts NO_ART_YET) or a sheet that failed to load
+  // shows its faction sigil: a deliberate placeholder, never a broken image. TODO(art pass): add their art to PIXEL_CARD_ART.
   if (!asset || failed) return <span className={`moon-art moon-rune ${card?.faction ?? 'kingdom'} ${className}`} aria-hidden="true"><Sigil faction={card?.type === 'spell' ? 'spell' : card?.faction ?? 'kingdom'} size="lg" /></span>;
   return <canvas ref={canvas} width={PORTRAIT_RESOLUTION} height={PORTRAIT_RESOLUTION} className={`moon-art ${className}`} aria-hidden="true" />;
 }

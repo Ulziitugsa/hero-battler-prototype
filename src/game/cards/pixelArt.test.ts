@@ -1,4 +1,7 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { CardArtwork } from '../../components/CardArtwork';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PLAYTEST_ROSTER } from './roster';
@@ -18,6 +21,13 @@ describe('playable card artwork', () => {
   });
   it('the launch cards without art fall back to the faction placeholder, never a broken image', () => {
     for (const id of NO_ART_YET) expect(cardArtUrl(id), id).toBeNull();
+  });
+  it('renders their faction sigil placeholder: no image, no canvas waiting on a missing sheet', () => {
+    for (const id of NO_ART_YET) {
+      const html = renderToStaticMarkup(createElement(CardArtwork, { cardId: id }));
+      expect(html, id).toMatch(/moon-rune/);
+      expect(html, id).not.toMatch(/<img|<canvas/);
+    }
   });
   it('ships valid PNG sheets and keeps every animation inside its sheet', () => {
     for (const [id, asset] of Object.entries(PIXEL_CARD_ART)) {

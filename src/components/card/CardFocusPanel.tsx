@@ -11,7 +11,7 @@ import '../../styles/cardFocus.css';
  * component everywhere a card can be picked out:
  *  - 'dock': in battle, over the hand apron, for a card in hand, a Unit or a Spell on either side of the board. The
  *    battle stays in view: the board, the Fight seal and both HP bars are never covered.
- *  - 'sheet': outside battle (Collection, Deck Builder, Shop and Box contents, pack results, events), a sheet over the
+ *  - 'sheet': outside battle (Collection, Deck Builder, Shop and Box contents, Pull Results, events), a sheet over the
  *    bottom of the screen with the card itself beside its full rules (CardFocusSheet.tsx).
  * Either way it shows the card's name, rarity, faction and type, ATK (current and printed when they differ), HP
  * Contribution where it applies, every effect's full rule under its timing label, what is true of it right now

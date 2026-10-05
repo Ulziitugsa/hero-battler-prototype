@@ -45,17 +45,17 @@ export const GOLD_REWARDS = {
 export type GoldSource = 'campaign' | 'quickBattle' | 'idle' | 'mission' | 'journey' | 'offer' | 'shop' | 'ranked' | 'event' | 'legacyLevelRefund' | 'dev';
 
 // ---- Box pulls ------------------------------------------------------------------------------------
-// One pull takes one card from an archetype Box (box/boxProduct.ts). PLACEHOLDER: the pull price is the economy
-// follow-up's call (ozi, 2026-10-04); until then a pull costs what one card of the retired 5-card pack cost
-// (150 Gems / 5), so a Gem buys the same number of cards as before the launch set. Change it here only.
-export const BOX_PULL_GEMS = 30;
+// One pull takes one card from an archetype Box (box/boxProduct.ts); a 10-pull costs 10x. 100 Gems is the working
+// launch value (ozi, 2026-10-05: the study showed 30 far too cheap) until the economy follow-up tunes it. Change it
+// here only.
+export const BOX_PULL_GEMS = 100;
 
 // ---- Structure Decks -------------------------------------------------------------------------------
-// The Gem price of each launch Structure Deck (structureDecks/definitions.ts), one per account. PLACEHOLDER: the
-// economy study's ~900 is not locked; until the economy follow-up sets it, the price stays the pre-launch 600.
-export const STRUCTURE_DECK_GEMS = 600;
+// The Gem price of each launch Structure Deck (structureDecks/definitions.ts), one per account. 900 Gems is the
+// economy direction (ozi, 2026-10-05); the economy follow-up may still tune it. Change it here only.
+export const STRUCTURE_DECK_GEMS = 900;
 
-// ---- Pack Tickets ---------------------------------------------------------------------------------
+// ---- Pull Tickets ---------------------------------------------------------------------------------
 // One Ticket pays for one pull from an archetype Box, in place of its Gem price (approved model: 1 Ticket = 1 pull,
 // unless the economy follow-up revalues it; box/boxProduct.ts). Earn-only, sourced from missions, the 7-day journey
 // and offers - never purchasable. PROTOTYPE values.

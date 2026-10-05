@@ -96,7 +96,7 @@ export const devTools = {
   // ---- Full reset (Commercial Prototype Phase 11) ----
   /** Every piece of local state, back to a fresh install. Does NOT reload the page itself (the UI's Profile button does that) - a console call can inspect the result immediately. */
   resetEverything: () => resetEverything(),
-  /** Real pulls from an archetype Box (the active one by default; spend Gems, or Pack Tickets, unless Unlimited Gems is on). */
+  /** Real pulls from an archetype Box (the active one by default; spend Gems, or Pull Tickets, unless Unlimited Gems is on). */
   pull: (boxId: ArchetypeBoxId = getActiveBoxId()) => buyBoxPulls(boxId, 1),
   pullTen: (boxId: ArchetypeBoxId = getActiveBoxId()) => buyBoxPulls(boxId, 10),
   pullWithTicket: (boxId: ArchetypeBoxId = getActiveBoxId()) => buyBoxPulls(boxId, 1, 'tickets'),
@@ -106,7 +106,7 @@ export const devTools = {
   coreAccess: () => getCoreAccess(),
   pickStarterFaction: (faction: StarterFaction) => chooseStarterFaction(faction, { getOwned: getCollection, setOwned: setCollection }),
   unlockCorePackage: (faction: StarterFaction) => unlockCorePackage(faction, { getOwned: getCollection, setOwned: setCollection }, 'dev'),
-  /** Dev only: Gems and Pack Tickets are not spent while on (production builds ignore this). */
+  /** Dev only: Gems and Pull Tickets are not spent while on (production builds ignore this). */
   setUnlimitedGems: (on: boolean) => setUnlimitedGems(on),
   unlimitedGems: () => isUnlimitedGems(),
   resetEconomy: () => resetEconomy(),

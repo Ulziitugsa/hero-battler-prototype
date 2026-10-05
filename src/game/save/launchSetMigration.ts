@@ -22,7 +22,7 @@ import type { StarterFaction } from '../cards/starterDecks';
 //   bundles, stays unlocked) and then deleted. Cards opened from it stay owned; unopened packs are not carried over or
 //   refunded; every archetype Box starts full.
 //
-//   Untouched: Gems, Gold, Pack Tickets (still 1 Ticket = 1 pull, no conversion), saved decks, Structure Deck purchases
+//   Untouched: Gems, Gold, Pull Tickets (still 1 Ticket = 1 pull, no conversion), saved decks, Structure Deck purchases
 //   (Graveborn Rising stays owned though it is no longer sold), Campaign progress, events and missions.
 
 export interface LaunchSetMigrationResult {

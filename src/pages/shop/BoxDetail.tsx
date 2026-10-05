@@ -148,7 +148,7 @@ export function BoxDetail({ box, onBack }: { box: ArchetypeBoxDef; onBack: () =>
     const result = buyBoxPulls(box.id, count, payment);
     if (!result.ok) {
       const what = count === 1 ? 'a card' : '10 cards';
-      setNotice(result.reason === 'sold-out' ? `Only ${cardsLeft} ${cardsLeft === 1 ? 'card remains' : 'cards remain'} in this Box.` : result.reason === 'not-enough-tickets' ? `You need ${boxPullTickets(count)} Pack ${boxPullTickets(count) === 1 ? 'Ticket' : 'Tickets'} to pull ${what}.` : `You need ${boxPullPrice(count).toLocaleString()} Gems to pull ${what}.`);
+      setNotice(result.reason === 'sold-out' ? `Only ${cardsLeft} ${cardsLeft === 1 ? 'card remains' : 'cards remain'} in this Box.` : result.reason === 'not-enough-tickets' ? `You need ${boxPullTickets(count)} Pull ${boxPullTickets(count) === 1 ? 'Ticket' : 'Tickets'} to pull ${what}.` : `You need ${boxPullPrice(count).toLocaleString()} Gems to pull ${what}.`);
       return;
     }
     setNotice('');
@@ -183,15 +183,15 @@ export function BoxDetail({ box, onBack }: { box: ArchetypeBoxDef; onBack: () =>
       {soldOut && <small>{cardsLeft === 0 ? 'Box empty' : 'Not enough cards left'}</small>}
     </button>;
   };
-  // Pack Tickets: one pays for one pull from this same Box, instead of its Gem price.
+  // Pull Tickets: one pays for one pull from this same Box, instead of its Gem price.
   const ticketCount: PullCount = economy.tickets >= boxPullTickets(10) && cardsLeft >= 10 ? 10 : 1;
   const ticketButton = cardsLeft > 0 && economy.tickets > 0 && canAffordTickets(boxPullTickets(1), economy.tickets) ? <button type="button" className="box-open ticket" onClick={() => pull(ticketCount, 'tickets')} disabled={cardsLeft < 1 || !!reveal.outcome}>
     <strong>{ticketCount === 1 ? 'Pull 1 with a Ticket' : 'Pull 10 with Tickets'}</strong>
-    <span><TicketIcon size={14} />{boxPullTickets(ticketCount)} of {economy.tickets} Pack {economy.tickets === 1 ? 'Ticket' : 'Tickets'}</span>
+    <span><TicketIcon size={14} />{boxPullTickets(ticketCount)} of {economy.tickets} Pull {economy.tickets === 1 ? 'Ticket' : 'Tickets'}</span>
   </button> : null;
 
   return <main className="shop-screen box-screen">
-    <nav className="box-nav"><button type="button" onClick={onBack}><Icon name="back" size={18} />Shop</button><span className="box-balances">{economy.tickets > 0 && <span aria-label={`${economy.tickets} Pack ${economy.tickets === 1 ? 'Ticket' : 'Tickets'}`}><TicketIcon size={15} />{economy.tickets.toLocaleString()}</span>}<span id="box-gem-balance"><GemIcon size={15} />{economy.gems.toLocaleString()}</span></span></nav>
+    <nav className="box-nav"><button type="button" onClick={onBack}><Icon name="back" size={18} />Shop</button><span className="box-balances">{economy.tickets > 0 && <span aria-label={`${economy.tickets} Pull ${economy.tickets === 1 ? 'Ticket' : 'Tickets'}`}><TicketIcon size={15} />{economy.tickets.toLocaleString()}</span>}<span id="box-gem-balance"><GemIcon size={15} />{economy.gems.toLocaleString()}</span></span></nav>
 
     <section className="box-hero" aria-labelledby="box-title">
       <div className="box-hero-art" aria-hidden="true">
@@ -248,7 +248,7 @@ export function BoxDetail({ box, onBack }: { box: ArchetypeBoxDef; onBack: () =>
         <li>A full {box.name} holds exactly {size} cards: {totals.common} Common, {totals.rare} Rare, {totals.epic} Epic and {totals.legendary} Legendary. Each Common is in it 4 times, each Rare 3 times, each Epic twice and the Legendary once.</li>
         <li>A pull takes 1 card and a 10-pull takes 10. Each card is drawn at random from the cards still inside, so every remaining card is equally likely. The "next card" odds above are exact.</li>
         <li>There are no guaranteed slots, bonus cards or pity counter. Emptying the Box collects every card in it, the Legendary included.</li>
-        <li>A Pack Ticket pays for one pull from this Box in place of its Gem price. The card is drawn exactly like a bought one.</li>
+        <li>A Pull Ticket pays for one pull from this Box in place of its Gem price. The card is drawn exactly like a bought one.</li>
         <li>Once the Box is empty you can restock it for free. Restocking refills it to full and never removes cards you own.</li>
       </ul>
       <div className="box-reset-row">

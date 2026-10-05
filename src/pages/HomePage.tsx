@@ -107,7 +107,7 @@ export function HomePage(props: HomeProps) {
       : dailyReady + weeklyReady > 0
         ? { key: `missions-${missions.dayKey}-${missions.weekKey}-${dailyReady}-${weeklyReady}`, label: 'Mission rewards are ready to claim.' }
         : packReady
-          ? { key: `pack-${economy.tickets}-${packsLeft}`, label: economy.tickets > 1 ? `${economy.tickets} Pack Tickets are ready to use.` : economy.tickets === 1 ? 'A Pack Ticket is ready to use.' : 'A Box pull is ready.' }
+          ? { key: `pack-${economy.tickets}-${packsLeft}`, label: economy.tickets > 1 ? `${economy.tickets} Pull Tickets are ready to use.` : economy.tickets === 1 ? 'A Pull Ticket is ready to use.' : 'A Box pull is ready.' }
           : hub.note?.kind === 'recent'
             ? { key: `card-${hub.note.cardId}`, label: `${getCard(hub.note.cardId).name} joined your collection.` }
             : null;
@@ -181,7 +181,7 @@ export function HomePage(props: HomeProps) {
       <button className={dailyReady + weeklyReady > 0 ? 'is-ready' : 'is-passive'} onClick={() => setMissionsOpen(true)}><span className="home-rail-icon">✦</span><strong>Missions</strong><small>{dailyReady + weeklyReady ? `${dailyReady + weeklyReady} ready` : 'Daily · Weekly'}</small>{dailyReady + weeklyReady > 0 && <i>READY</i>}</button>
       <button className={journey.claimableDays.length > 0 ? 'is-ready' : 'is-passive'} onClick={() => setJourneyOpen(true)}><span className="home-rail-icon">☾</span><strong>Journey</strong><small>{journey.claimableDays.length ? `${journey.claimableDays.length} ready` : nextJourneyDay ? `Tomorrow · ${nextJourneyDay.rewardTickets ? `${nextJourneyDay.rewardTickets} Ticket${nextJourneyDay.rewardTickets === 1 ? '' : 's'}` : nextJourneyDay.title}` : `Day ${journey.currentDay} of 7`}</small>{journey.claimableDays.length > 0 && <i>READY</i>}</button>
       <button className={hub.idle.availableGold > 0 ? 'is-ready' : 'is-passive'} disabled={hub.idle.availableGold <= 0} onClick={() => { const result = claimIdleReward(); hub.refreshIdle(); if (result.gold > 0) setIdleClaimedGold(result.gold); }}><span className="home-rail-icon">◈</span><strong>Idle Gold</strong><small>{hub.idle.availableGold > 0 ? `${hub.idle.availableGold.toLocaleString()} to claim` : 'Accruing'}</small>{hub.idle.availableGold > 0 && <i>READY</i>}</button>
-      <button className={packReady ? 'is-ready' : 'is-passive'} onClick={props.onOpenPacks}><span className="home-rail-icon">✧</span><strong>Boxes</strong><small>{economy.tickets > 0 ? `${economy.tickets} Pack Ticket${economy.tickets === 1 ? '' : 's'}` : packReady ? `Pull from ${activeBox.name.replace(/ Box$/, '')}` : `${packsLeft} left in ${activeBox.name}`}</small>{packReady && <i>READY</i>}</button>
+      <button className={packReady ? 'is-ready' : 'is-passive'} onClick={props.onOpenPacks}><span className="home-rail-icon">✧</span><strong>Boxes</strong><small>{economy.tickets > 0 ? `${economy.tickets} Pull Ticket${economy.tickets === 1 ? '' : 's'}` : packReady ? `Pull from ${activeBox.name.replace(/ Box$/, '')}` : `${packsLeft} left in ${activeBox.name}`}</small>{packReady && <i>READY</i>}</button>
     </section>
     {sessionGoalsComplete && <p className="home-session-calm" role="status">Daily rewards claimed · Idle Gold will keep accumulating.</p>}
 
