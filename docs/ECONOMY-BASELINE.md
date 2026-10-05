@@ -4,28 +4,30 @@ This is the starting point for the future monetization and economy pass. It reco
 
 ## Pack Tickets
 
-- **1 Pack Ticket = 1 pack = 5 cards** of the current Box (`buyBoxPacks(count, box, 'tickets')`).
+- **1 Pack Ticket = 1 pull = 1 card** from any archetype Box (`buyBoxPulls(boxId, count, 'tickets')`), since the launch set (2026-10-05). Before it, a Ticket opened one 5-card Moonfall pack. The Ticket's final value is the economy follow-up's call; until then `PULLS_PER_TICKET` in `economy/config.ts` is 1.
 - There are no fractional Tickets, and a Ticket never reveals fewer cards.
-- A Ticket opening is a real pack opening. It counts toward event pack objectives, and it plays the same ceremony as Gems.
+- A Ticket pull is a real pull. It counts toward event pull objectives, and it plays the same ceremony as Gems.
 - Tickets are never a silent fallback for Gems.
+
+> **Launch-set note.** The Ticket quantities below did not change, so each Ticket is now worth 1 card instead of 5. Saved Tickets are kept 1:1 with no conversion and no refund. This is a real cut in what free and paid Tickets are worth and should be revisited with the Gem pull price.
 
 ### Every production Ticket source (ozi, 2026-10-04)
 
 `src/game/box/packAcquisition.test.ts` pins this table, so a new grant fails the test until it is added here.
 
-| Source | Class | Tickets | Packs | Cards | Frequency |
+| Source | Class | Tickets | Pulls | Cards | Frequency |
 |---|---|---|---|---|---|
-| Journey Day 2 | one-time free | 1 | 1 | 5 | once per account |
-| Ranked reward at rating 300 | one-time free | 1 | 1 | 5 | once per account (peak rating) |
-| Weekly mission "Complete 5 daily missions" | recurring free | 1 | 1 | 5 | weekly |
-| Long Vigil login Day 6 | event | 1 | 1 | 5 | once per event run |
-| Starter Pack offer | paid offer (placeholder) | 5 | 5 | 25 | per simulated purchase |
-| Growth Pack offer | paid offer (placeholder) | 3 | 3 | 15 | per simulated purchase |
-| Saved Summon Tickets | legacy save | n (1:1) | n | 5n | once, whatever the save held |
+| Journey Day 2 | one-time free | 1 | 1 | 1 | once per account |
+| Ranked reward at rating 300 | one-time free | 1 | 1 | 1 | once per account (peak rating) |
+| Weekly mission "Complete 5 daily missions" | recurring free | 1 | 1 | 1 | weekly |
+| Long Vigil login Day 6 | event | 1 | 1 | 1 | once per event run |
+| Starter Pack offer | paid offer (placeholder) | 5 | 5 | 5 | per simulated purchase |
+| Growth Pack offer | paid offer (placeholder) | 3 | 3 | 3 | per simulated purchase |
+| Saved Summon / Pack Tickets | legacy save | n (1:1) | n | n | once, whatever the save held |
 
 Nothing else grants Tickets: no daily mission, no other weekly mission, no other event reward, no starting balance, and no first-purchase bonus. The dev tools can grant Tickets, but only in development.
 
-**Recurring free income** is 1 Pack Ticket a week, which is 5 cards. It comes from playing, not from opening packs.
+**Recurring free income** is 1 Pack Ticket a week, which is 1 card since the launch set. It comes from playing, not from pulling.
 
 What changed in the migration:
 - Journey Day 2 went from 3 Tickets to 1.
@@ -35,7 +37,7 @@ What changed in the migration:
 
 ### Saved Summon Tickets: intentional legacy generosity
 
-A Summon Ticket in an old save becomes one Pack Ticket, worth 5 cards instead of 1. Balances are not converted or divided, and no Gems are refunded. This is deliberate while Moonwater is pre-release.
+A Summon Ticket in an old save became one Pack Ticket (then worth a 5-card pack, now 1 pull). Balances are not converted or divided, and no Gems are refunded. This is deliberate while Moonwater is pre-release.
 
 ## Economy cleanup (ozi, 2026-10-04)
 
@@ -84,3 +86,13 @@ The separate monetization/economy pass owns all of the following:
 - Future personalized or contextual offers should vary which product or bundle is offered and its scale. They should not secretly charge different players different prices for the same product.
 
 Offer segmentation is not implemented.
+
+## Launch set placeholders (2026-10-05)
+
+The launch set ([BOX-ARCHITECTURE.md](BOX-ARCHITECTURE.md)) adds prices that are **placeholders only**, all in `economy/config.ts`:
+
+- `BOX_PULL_GEMS = 30`: one pull costs what one card of the retired 150-Gem, 5-card pack cost, so a Gem buys the same number of cards as before. The approved direction is that 30 Gems a pull is far too cheap and around 100 is closer, but no final price is set here; the economy follow-up sets it, and the Ticket value and free income move with it.
+- `PULLS_PER_TICKET = 1`.
+- `STRUCTURE_DECK_GEMS = 600`: the pre-launch Structure Deck price. The study's ~900 is not locked.
+
+Not touched: real-money prices, bundles, Moon Pass, free Gem income, the Ranked reward economy, Gem bundles and the Energy refill.

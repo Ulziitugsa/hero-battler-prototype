@@ -573,6 +573,8 @@ Re-simulated before/after with the production resolver and AI (`scripts/simulate
 
 ## 19. One card-acquisition path: packs (2026-10-03)
 
+> **Superseded by section 20 (launch set):** the Moonfall Box and 5-card packs are retired. Cards now come from Core, nine archetype Boxes (1 pull = 1 card), Structure Decks and the Campaign; a Pack Ticket pays for one pull. The rest of this section is the history of that change.
+
 At ozi's ask (cleanup pass), Moonwater has one model: **"I open packs to get cards."**
 
 - **Packs from finite Boxes** are the only card-acquisition path (plus Structure Decks and the Campaign/Journey grants). The Moonfall Box price (150 Gems a pack), size, rarity counts and duplicate handling are unchanged.
@@ -582,9 +584,50 @@ At ozi's ask (cleanup pass), Moonwater has one model: **"I open packs to get car
 - **Removed:** the Summon screen and route, banners, banner pool, rarity rates, pity, preview, dev controls and the `summon` config section. **Kept:** the Moonwell visual components and the reveal timeline, sound and meteors (renamed to neutral reveal modules), and the saved Summon pity and history, which stay **read-only** (`economy/legacySummon.ts`). A save that used the Summon still counts as having opened packs for Shop unlocks.
 - Terminology: Open Pack, Open 10 Packs, Pack Ticket, Box, Pack Results. Analytics `pack_opened`, `pack_ticket_used` and `pack_results_viewed` replace `summon_*`. The missions were "Open a pack" and "Open 5 packs" until pack-gated missions were retired (2026-10-04, [ECONOMY-BASELINE.md](ECONOMY-BASELINE.md)).
 
+## 20. The launch set: 116 cards, Core and nine archetype Boxes (resolver v5, 2026-10-05)
+
+Implements the approved 116-card set design (project files `moonwater/card-set-120/`: FINAL-PASS over SECOND-PASS over REPORT). No card was invented or rebalanced beyond those files; the one rules fix found during implementation is listed below.
+
+### 20.1 Roster
+
+- 116 cards, 3 factions (Kingdom 39, Undead 38, Infernal 39), 9 archetypes. Every pre-launch card id is kept. `cards/launchRoster.ts` holds one row per card: its archetype, its source (`core`, `box`, `structure-deck` or `event`), its Boxes (headline first), its printed ATK and HPC, and its complexity band (C1-C6, review only, never shown).
+- New cards live in `cards/launchCards.ts`; changed existing cards are rewritten in `cardCombat/cards.ts` (`LAUNCH_CHANGED_IDS`). Printed ATK comes from the roster (`stats.ts` reads `LAUNCH_ATK`), and HP Contribution still follows the formula from it.
+- Renamed: Paladin is **Dawnshield Paladin**, Vharos is **Vharos, the Undying**. Rarity moves: Siege Fire Common, Soul Burn Rare, Death Wave Epic. Bone Soldier gains the Undead tag.
+- Reference decks (`cards/launchDecks.ts`): 3 Core starters, 9 optimized, 6 budget, 3 Structure Decks, all legal and pinned by tests. They are fixtures for the AI, tests and playtest selection, never win-rate claims. No win-rate test exists.
+- Art: the new cards (and Death Wave, now on the roster) have no pixel art yet and use the faction placeholder (`pixelArt.test.ts` NO_ART_YET). TODO: art pass.
+
+### 20.2 New engine primitives
+
+| Primitive | Where | Used by |
+|---|---|---|
+| Units-only Graveyard count | condition `GRAVEYARD_COUNT_AT_LEAST` with `units: true`; count basis `GRAVEYARD_UNIT_COUNT` | Grave Sexton, Bone Wall, Bone Soldier, Bone Dragon |
+| Count cap | `CHANGE_POWER_BY_COUNT` `max` | Bone Soldier (+45), Bone Dragon (+45) and other "up to" cards |
+| "Would lose its lane" targeting | target `ADJACENT_ALLIES_LOSING` | Dawnshield Paladin, Morwen |
+| Revive into an empty lane | `REVIVE_TO_LANE` with `emptyLane: true` (the first empty lane, left to right; none empty = no revive) | Morwen |
+| Attached Spell return on expiry | Passive `RETURN_EXPIRED_ATTACHED`: once per round per Unit, and a copy that already came back once this match goes to the Graveyard instead, so it can never loop | Saint Aveline |
+| Once per battle per physical lane Spell | condition `SPELL_ZONE_NOT_USED_THIS_BATTLE`, `SpellZoneInstance.usedThisBattle` (a recast copy is a new instance and starts fresh) | Grave Totem |
+| Enemy Spell this round OR in play | condition `ENEMY_SPELL_ACTIVE` | Grave Totem, Barrow Knight and the other anti-Spell cards |
+
+Also new: the Skeleton token (65 ATK). `launchPrimitives.test.ts` checks each primitive through the real round resolver.
+
+**Rules fix found during implementation.** Grave Sexton and Bone Wall say "3+ Units in your Graveyard", but the study tooling counted every Graveyard card. The game counts Units only, as printed. Their win rates in the study may read slightly high as a result; no number was changed.
+
+### 20.3 Resolver
+
+`CARD_RESOLVER_VERSION` is **5** and `CONTINUABLE_CARD_RESOLVER_VERSIONS` is `[5]`. A stored v4 match ends with the rules-changed notice (changed cards resolve differently), and the Friendly server answers 409 for it.
+
+### 20.4 Acquisition
+
+- **Core** (30 free cards, 10 per faction, each at its deck limit): a new account picks its starter faction once (`components/StarterFactionPick.tsx`) and gets that package and its starter deck. The other two packages unlock on the first clear of Broken Palisade and Ford of Ash (Kingdom, Undead, Infernal order, skipping the starter). Packages only raise counts, never duplicate. Paladin, Vharos and Infernal Lord are Core.
+- **Nine archetype Boxes** replace the Moonfall Box: 1 pull = 1 card, a 10-pull = 10 cards, drawn without replacement, one flagship Legendary each, restock only when empty. See [BOX-ARCHITECTURE.md](BOX-ARCHITECTURE.md).
+- **Structure Decks**: Bone Legion, Hellfire and Crusade, one per account, each with 2 debut cards that are in no Box. Graveborn Rising is retired from sale; owners keep it.
+- **Event / progression cards** (6, incl. The Grave Tyrant): registered in `cards/eventCards.ts` with their planned source. TODO: hand them out when those events and chapters are built.
+- **Campaign** card rewards are unchanged.
+- The reveal shows exactly 1 or 10 cards (no packs): the same Moonwell opening, a spotlight for each Epic and the Legendary hero reveal, tap, Skip and reduced motion; rewards are saved before the reveal starts. **Pull Results** replaces Pack Results; analytics `box_pulled`, `box_restocked` and `pull_results_viewed` replace `prototype_box_opened`, `pack_opened`, `box_reset` and `pack_results_viewed`.
+
 ## Appendix: collection, Box and save rules
 
 - Collection is a copy count per card. `cardMastery/model.ts` is now a historical read model over legacy Ascension (stored rank 0..4 was Mastery I..V); it has no combat effect (section 17). See [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md).
-- The Moonfall Box is a finite 100-pack pool (500 cards: 258 Common, 168 Rare, 54 Epic, 20 Legendary; per card 14-15 / 8 / 6 / 5) that shows its remaining contents; packs are opened with Gems or Pack Tickets (section 19). The copy split is approved (section 14); prices are unchanged and not part of this design.
+- Cards are pulled one at a time from nine finite archetype Boxes of 25-33 cards (copies per card: Legendary 1, Epic 2, Rare 3, Common 4), paid with Gems or Pack Tickets (section 20, [BOX-ARCHITECTURE.md](BOX-ARCHITECTURE.md)). The retired Moonfall Box (100 five-card packs over the old 52-card roster) is deleted from saves by the launch-set migration; cards opened from it stay owned.
 - Keep card IDs, collection counts, deck definitions, `skyloom:*` storage keys and historical event names intact.
 - Before replacing Legacy Level or Ascension behaviour, ship an idempotent, versioned migration with tests for old saves, missing fields, max-rank cards, duplicate inventory and playable decks.
