@@ -7,7 +7,7 @@
 export const GROWTH_PACK_MIN_ACCOUNT_LEVEL = 5;
 
 export interface OfferVisibilityContext {
-  /** hasOpenedPacks(economy): a pack opened from a Box, or a saved Summon history from before packs. */
+  /** hasOpenedPacks(economy): a Box pull (or Moonfall packs opened before the launch set), or a saved Summon history. */
   openedPacks: boolean;
   accountLevel: number;
 }

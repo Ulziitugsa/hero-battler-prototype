@@ -24,7 +24,7 @@ export interface RevealSequence {
   start: (outcome: RevealOutcome) => void;
   /** A tap: finish the current beat. */
   advance: () => void;
-  /** Skip: straight to the result (Pack Results). */
+  /** Skip: straight to the result (Pull Results). */
   skip: () => void;
   end: () => void;
   finishIntro: () => void;

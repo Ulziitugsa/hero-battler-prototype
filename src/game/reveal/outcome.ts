@@ -5,7 +5,7 @@ import type { Rarity } from '../types';
 import { bestRarity } from './sequence';
 
 // What the reveal ceremony shows: cards that are ALREADY granted and saved (the Box opening decides and persists them
-// first). The ceremony and Pack Results only read this; nothing here can change what was opened.
+// first). The ceremony and Pull Results only read this; nothing here can change what was opened.
 
 export interface RevealCard {
   cardId: string;
@@ -24,9 +24,8 @@ export interface StarterProgressNote {
 }
 
 export interface RevealOutcome {
-  /** The Box the packs came from (shown on the ceremony). */
+  /** The Box the cards came from (shown on the ceremony). */
   boxName: string;
-  packs: number;
   cards: RevealCard[];
   highestRarity: Rarity;
   /** Locked starter decks these cards moved (or unlocked). */
@@ -48,7 +47,8 @@ export function starterProgressBetween(before: OwnedMap, after: OwnedMap): Start
   return notes;
 }
 
-export function packRevealOutcome(boxName: string, packs: number, cards: readonly { cardId: string; rarity: Rarity; isNew: boolean; ownedCopies: number }[], starterProgress: StarterProgressNote[] = []): RevealOutcome {
+/** The reveal of one pull (1 card) or one 10-pull (10 cards), in the order the cards were drawn. */
+export function pullRevealOutcome(boxName: string, cards: readonly { cardId: string; rarity: Rarity; isNew: boolean; ownedCopies: number }[], starterProgress: StarterProgressNote[] = []): RevealOutcome {
   const list = cards.map((c) => ({ cardId: c.cardId, rarity: c.rarity, isNew: c.isNew, owned: c.ownedCopies }));
-  return { boxName, packs, cards: list, highestRarity: bestRarity(list.map((c) => c.rarity)), starterProgress };
+  return { boxName, cards: list, highestRarity: bestRarity(list.map((c) => c.rarity)), starterProgress };
 }

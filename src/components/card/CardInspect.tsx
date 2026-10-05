@@ -68,7 +68,7 @@ function findDeckFor(cardId: string): string | null {
 /** Where the back button returns to. */
 const BACK_LABEL: Record<InspectContext, string> = { collection: 'Cards', deck: 'Deck', battle: 'Battle', opponent: 'Battle', pack: 'Back', shop: 'Shop', event: 'Event', other: 'Back' };
 
-/** Every way to get the card, once each: the acquisition summary (starter, Campaign, Box packs) plus Structure Decks and live events. */
+/** Every way to get the card, once each: the acquisition summary (Core, Campaign, Boxes, Structure Decks, planned event cards) plus live events. */
 function sourcesLine(cardId: string): string {
   const summary = acquisitionSummary(cardId);
   return [summary, ...productAcquisitionLines(cardId).filter((line) => !summary.includes(line))].join(' / ');

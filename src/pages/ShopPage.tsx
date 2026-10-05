@@ -18,9 +18,10 @@ import { useAccount } from '../game/progression/useAccount';
 import { useDialogFocus } from '../components/useDialogFocus';
 import { getCard } from '../game/cards';
 import { track } from '../analytics/track';
-import { MOONFALL_BOX, getBoxProduct, hasOpenedPacks } from '../game/box/boxProduct';
-import { getPrototypeBoxState, prototypeBoxPacksRemaining, prototypeBoxRarityCounts, PROTOTYPE_BOX } from '../game/box/prototypeBox';
-import { STRUCTURE_DECKS, getStructureDeck } from '../game/structureDecks/definitions';
+import { boxPullPrice, boxPullTickets, hasOpenedPacks } from '../game/box/boxProduct';
+import { BOX_FACTION_GROUPS, boxSize, getArchetypeBox, isArchetypeBoxId } from '../game/box/archetypeBoxes';
+import { boxCardsRemaining, getBoxesState, getBoxPool } from '../game/box/boxPool';
+import { STRUCTURE_DECKS_ON_SALE, getStructureDeck } from '../game/structureDecks/definitions';
 import { getStructureDeckState, structureDeckPurchases, subscribeStructureDecks } from '../game/structureDecks/store';
 import { BoxDetail } from './shop/BoxDetail';
 import { StructureDeckDetail } from './shop/StructureDeckDetail';
@@ -155,14 +156,11 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
     return () => window.clearInterval(interval);
   }, [gift]);
 
-  const openBox = getBoxProduct(view.kind === 'box' ? view.id : '');
-  if (openBox) return <BoxDetail box={openBox} onBack={() => setView({ kind: 'main' })} />;
+  if (view.kind === 'box' && isArchetypeBoxId(view.id)) return <BoxDetail box={getArchetypeBox(view.id)} onBack={() => setView({ kind: 'main' })} />;
   const openDeck = getStructureDeck(view.kind === 'structure-deck' ? view.id : '');
   if (openDeck) return <StructureDeckDetail deck={openDeck} onBack={() => setView({ kind: 'main' })} />;
 
-  const boxState = getPrototypeBoxState();
-  const boxPacksLeft = prototypeBoxPacksRemaining(boxState);
-  const boxLegendariesLeft = prototypeBoxRarityCounts(boxState).legendary;
+  const boxState = getBoxesState();
 
   return <main className="shop-screen">
     <header className="shop-header">
@@ -170,21 +168,28 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
       <div className="shop-balances">{economy.tickets > 0 && <span aria-label={`${economy.tickets} Pack ${economy.tickets === 1 ? 'Ticket' : 'Tickets'}`}><TicketIcon size={16} />{economy.tickets.toLocaleString()}</span>}<span><GemIcon size={16} />{economy.gems.toLocaleString()}</span><span><GoldIcon size={16} />{economy.gold.toLocaleString()}</span></div>
     </header>
 
-    <div className="shop-test-note"><Icon name="check" size={14} /> Prototype store · Boxes and Structure Decks use in-game Gems (a Pack Ticket opens one pack); bundles and Gem bundles are simulated test purchases. No real money is charged.</div>
+    <div className="shop-test-note"><Icon name="check" size={14} /> Prototype store · Boxes and Structure Decks use in-game Gems (a Pack Ticket pays for one pull); bundles and Gem bundles are simulated test purchases. No real money is charged.</div>
 
     <section className="shop-section shop-first-section" aria-labelledby="shop-box-title">
-      <div className="shop-section-heading"><div><span className="shop-section-eyebrow">NEWEST BOX</span><h2 id="shop-box-title">Card Boxes</h2></div><span className="shop-section-note">Exact contents shown</span></div>
-      <button type="button" className="shop-box-feature" onClick={() => setView({ kind: 'box', id: MOONFALL_BOX.id })} aria-label={`${MOONFALL_BOX.name}: ${boxPacksLeft} of ${PROTOTYPE_BOX.packCount} packs remaining. Open packs`}>
-        <span className="shop-box-art" aria-hidden="true"><span className="shop-box-moon" />{MOONFALL_BOX.bannerCardIds.map((id, index) => <span key={id} className={`shop-box-figure f${index}`}><CardArtwork cardId={id} /></span>)}</span>
-        <span className="shop-box-copy">
-          <span className="shop-product-type">MAIN BOX · {PROTOTYPE_BOX.cardsPerPack} CARDS PER PACK</span>
-          <strong>{MOONFALL_BOX.name}</strong>
-          <span className="shop-box-theme">{MOONFALL_BOX.theme}</span>
-          <span className="shop-box-status"><span><b>{boxPacksLeft}</b> / {PROTOTYPE_BOX.packCount} packs left</span><span>{boxLegendariesLeft} Legendary {boxLegendariesLeft === 1 ? 'copy' : 'copies'} inside</span></span>
-          <span className="shop-box-meter"><span style={{ width: `${(boxPacksLeft / PROTOTYPE_BOX.packCount) * 100}%` }} /></span>
-          <span className="shop-box-cta"><span>{economy.tickets > 0 ? <><TicketIcon size={14} />1 / pack</> : <><GemIcon size={14} />{MOONFALL_BOX.gemsPerPack} / pack</>}</span><span>Open Pack<Icon name="back" size={14} /></span></span>
-        </span>
-      </button>
+      <div className="shop-section-heading"><div><span className="shop-section-eyebrow">ARCHETYPE BOXES</span><h2 id="shop-box-title">Card Boxes</h2></div><span className="shop-section-note">{economy.tickets > 0 ? <><TicketIcon size={13} />{boxPullTickets(1)} / pull</> : <><GemIcon size={13} />{boxPullPrice(1)} / pull</>}</span></div>
+      {BOX_FACTION_GROUPS.map(group => <div key={group.faction} className={`shop-box-group ${group.faction}`}>
+        <h3 className="shop-box-group-title">{group.name}</h3>
+        <div className="shop-box-tiles">
+          {group.boxIds.map(id => {
+            const box = getArchetypeBox(id);
+            const size = boxSize(id);
+            const left = boxCardsRemaining(id, boxState);
+            const legendaryInside = (getBoxPool(id, boxState).remaining[box.flagshipId] ?? 0) > 0;
+            return <button type="button" key={id} className={`shop-box-tile ${left === 0 ? 'empty' : ''}`} onClick={() => setView({ kind: 'box', id })} aria-label={`${box.name}: ${left} of ${size} cards left. ${box.theme}. Open the Box`}>
+              <span className="shop-box-tile-art" aria-hidden="true"><CardArtwork cardId={box.flagshipId} /></span>
+              <strong>{box.name.replace(/ Box$/, '')}</strong>
+              <span className="shop-box-tile-left">{left === 0 ? 'Empty · restock' : `${left} / ${size} left`}</span>
+              <span className="shop-box-meter"><span style={{ width: `${(left / size) * 100}%` }} /></span>
+              <small>{legendaryInside ? 'Legendary inside' : 'Legendary pulled'}</small>
+            </button>;
+          })}
+        </div>
+      </div>)}
     </section>
 
     <section className={`shop-gift shop-section ${gift.claimed || economy.gold >= MAX_GOLD ? 'claimed' : 'ready'}`} aria-labelledby="shop-gift-title">
@@ -195,7 +200,7 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
 
     <section className="shop-section" aria-labelledby="shop-structure-title">
       <div className="shop-section-heading"><div><span className="shop-section-eyebrow">READY TO PLAY</span><h2 id="shop-structure-title">Structure Decks</h2></div><span className="shop-section-note">Full decklist shown</span></div>
-      {STRUCTURE_DECKS.map(deck => {
+      {STRUCTURE_DECKS_ON_SALE.map(deck => {
         const owned = structureDeckPurchases(deck.id, structurePurchases) >= deck.purchaseLimit;
         return <button type="button" key={deck.id} className={`shop-deck-card ${deck.faction}`} onClick={() => setView({ kind: 'structure-deck', id: deck.id })}>
           <span className="shop-deck-art" aria-hidden="true"><CardArtwork cardId={deck.featuredCardIds[0]} /></span>
@@ -217,14 +222,14 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
           <div className="shop-featured-copy"><span className="shop-product-type">{offer.id === 'starter-pack' ? 'THE FIRST EXPEDITION' : 'ROSTER GROWTH'}</span><h3>{offer.title}</h3><p>{offer.subtitle}</p>{rewardContent(offer)}</div>
           <button type="button" className="shop-buy-button" onClick={() => chooseOffer(offer.id)}><span>{prices[offer.id] ?? 'Test'}</span><small>SIMULATE</small></button>
         </article>)}
-      </div> : <div className="shop-unlock-note"><Icon name="lock" size={18} /><span>Featured bundles appear as you progress and open your first pack.</span></div>}
+      </div> : <div className="shop-unlock-note"><Icon name="lock" size={18} /><span>Featured bundles appear as you progress and pull your first card.</span></div>}
     </section>
 
     <section className="shop-section shop-secondary" aria-labelledby="shop-gems-title">
       <div className="shop-section-heading"><div><span className="shop-section-eyebrow">PREMIUM CURRENCY</span><h2 id="shop-gems-title">Gem bundles</h2></div><span className="shop-section-note">Simulated</span></div>
       {gemPacks.length > 0 ? <div className="shop-gem-row">{gemPacks.map((offer) => <button type="button" key={offer.id} className={`shop-gem-card ${offer.id === 'gem-pack-medium' ? 'recommended' : ''}`} onClick={() => chooseOffer(offer.id)}>
         <span className="shop-gem-crystal"><GemIcon size={27} /></span><strong>{offer.reward.gems?.toLocaleString()}</strong><span className="shop-gem-name">{offer.title.replace('Small Gem Pouch', 'Small Pouch').replace('Gem Purse', 'Gem Purse').replace('Gem Chest', 'Large Chest')}</span><span className="shop-gem-price">{prices[offer.id] ?? 'Test'} · Test</span>
-      </button>)}</div> : <div className="shop-unlock-note"><Icon name="lock" size={18} /><span>Gem bundles become available after you open your first pack.</span></div>}
+      </button>)}</div> : <div className="shop-unlock-note"><Icon name="lock" size={18} /><span>Gem bundles become available after you pull your first card.</span></div>}
     </section>
 
     <section className="shop-section shop-secondary shop-trade-section" aria-labelledby="shop-trade-title">

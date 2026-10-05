@@ -19,7 +19,7 @@ export interface SummonHistoryEntry {
 
 /**
  * Everything the player-economy owns, persisted as ONE document. Cards are not here - they live in the collection
- * store, and a Box's remaining packs live in the Box store.
+ * store, and a Box's remaining cards live in the Box store.
  */
 export interface PlayerEconomy {
   version: number;

@@ -13,7 +13,7 @@ import type { GemGrantResult, GoldGrantResult, PlayerEconomy, TicketGrantResult 
 // The retired Moonwell Summon's per-banner guarantee counters and pull history stay in this document, read-only
 // (legacySummon.ts): nothing writes them any more, and they are saved back unchanged.
 //
-// CRASH-SAFETY NOTE: opening packs spends here first, then writes the Box and the collection (other keys), so a
+// CRASH-SAFETY NOTE: pulling from a Box spends here first, then writes the Box and the collection (other keys), so a
 // crash between the writes could cost the price without delivering the cards. localStorage has no cross-key
 // transaction; for a local prototype that window is a few synchronous microseconds.
 
