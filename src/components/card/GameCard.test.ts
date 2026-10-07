@@ -52,12 +52,13 @@ const CAPTAIN = 'kng-battle-captain';
 const cards = ALL_CARDS.filter((c) => !c.id.startsWith('tok-'));
 
 describe('a two-effect Unit reads without Card Inspect (Battle Captain)', () => {
-  it('in hand: name, ATK and both effects after their timing labels, and no HP Contribution', () => {
+  it('in hand: name, ATK and both effects as whole sentences that say when they happen, and no HP Contribution', () => {
     const html = inBattle(createElement(HandCard, handProps(CAPTAIN)));
     const t = text(html);
     expect(t).toContain('Battle Captain ATK 102');
-    expect(t).toContain('Clash: Allies next to this get +15 ATK this round.');
-    expect(t).toContain('Passive: With another Knight, enemy Unit effects can’t affect this.');
+    expect(t).toContain('Before lanes fight, allies next to this get +15 ATK this round.');
+    expect(t).toContain('While you have another Knight, enemy Unit effects can’t affect this.');
+    expect(html).not.toContain('class="gc-when"');
     expect(t).not.toContain('+77');
     expect(html).toContain('game-card d-hand');
   });
@@ -67,8 +68,8 @@ describe('a two-effect Unit reads without Card Inspect (Battle Captain)', () => 
     const html = inBattle(createElement(BoardChit, { hero: captain, side: 'player', onClick: () => {} }), 'card', new Map([[captain.instanceId, new Map([[1, true]])]]));
     const t = text(html);
     expect(t).toContain('Battle Captain ATK 113');
-    expect(t).toContain('Clash: Allies next to this get +15 ATK this round.');
-    expect(t).toContain('Passive: With another Knight, enemy Unit effects can’t affect this.');
+    expect(t).toContain('Before lanes fight, allies next to this get +15 ATK this round.');
+    expect(t).toContain('While you have another Knight, enemy Unit effects can’t affect this.');
     expect(html).toContain('gc-state on');
     expect(html).toContain('aria-label="active now"');
     expect(t).not.toMatch(/\bHP\b/);
@@ -86,7 +87,7 @@ describe('a two-effect Unit reads without Card Inspect (Battle Captain)', () => 
     const hpc = printedStats(getCard(CAPTAIN))!.hpc;
     const tile = text(face(CAPTAIN, 'tile', { hpContribution: hpc }));
     expect(tile).toContain(`Battle Captain HP +${hpc} ATK 102`);
-    expect(tile).toContain('Clash: Allies next to this get +15 ATK this round. Passive: With another Knight, enemy Unit effects can’t affect this.');
+    expect(tile).toContain('Before lanes fight, allies next to this get +15 ATK this round. While you have another Knight, enemy Unit effects can’t affect this.');
     const inspect = text(face(CAPTAIN, 'inspect', { hpContribution: hpc }));
     expect(inspect).toContain(`HP +${hpc} ATK 102`);
     for (const density of ['hand', 'board'] as const) expect(text(face(CAPTAIN, density)), density).not.toContain(`+${hpc}`);
@@ -106,8 +107,8 @@ describe('every surface shares one effect model and never drops an effect', () =
         expect(e.full.length, card.id).toBeGreaterThan(0);
         expect(e.compact.length, card.id).toBeGreaterThan(0);
         expect(e.compact, card.id).not.toMatch(/…|\.\.\./);
-        // Grave Tyrant and Grave Totem are the longest single lines (two halves in one effect).
-        expect(e.compact.length, `${card.id}: ${e.compact}`).toBeLessThanOrEqual(90);
+        // Grave Tyrant is the longest single sentence (two halves in one effect).
+        expect(e.compact.length, `${card.id}: ${e.compact}`).toBeLessThanOrEqual(130);
         expect(e.board.length, `${card.id}: board wording is never longer than the hand's`).toBeLessThanOrEqual(e.compact.length);
         // Short, but never cryptic: no abbreviations beyond ATK and HP, and no symbols for words.
         expect(`${e.label} ${e.compact}`, card.id).not.toMatch(/\b(Adj|Grv|GY|Dmg|Eff|Imm|Rnd)\b|[≤≥→×]/);
@@ -124,22 +125,22 @@ describe('every surface shares one effect model and never drops an effect', () =
         for (const e of effects) {
           expect(e.compact.length, card.id).toBeGreaterThan(0);
           expect(e.full.length, card.id).toBeGreaterThan(0);
-          expect(e.compact.length, `${card.id}: ${e.compact}`).toBeLessThanOrEqual(90);
+          expect(e.compact.length, `${card.id}: ${e.compact}`).toBeLessThanOrEqual(130);
           expect(e.compact, card.id).not.toMatch(/…|\.\.\./);
         }
       }
     }
   });
 
-  /** Effects that share a label read as one paragraph under it; a one-time Spell's effect (Cast) carries no label. */
+  /** Effects that share a label read as one paragraph under it; a card-combat face (no label) and a one-time Spell's effect (Cast) print alone. */
   function paragraphs(cardId: string, wording: 'compact' | 'board', rules: CardRules = 'card') {
     const card = getCard(cardId);
     const out: string[] = [];
     let last = '';
     for (const e of cardEffects(cardId, { rules })) {
       const implied = card.type === 'spell' && card.spellKind !== 'CONTINUOUS' && (e.trigger === 'CAST' || e.trigger === 'ON_PLAY');
-      const lead = implied || e.keyword ? '' : `${e.faceLabel}: `;
-      if (out.length > 0 && lead === last && !e.keyword) out[out.length - 1] += ` ${e[wording]}`;
+      const lead = implied || e.keyword || !e.faceLabel ? '' : `${e.faceLabel}: `;
+      if (out.length > 0 && lead !== '' && lead === last && !e.keyword) out[out.length - 1] += ` ${e[wording]}`;
       else out.push(`${lead}${e[wording]}`);
       last = lead;
     }
@@ -168,41 +169,42 @@ describe('every surface shares one effect model and never drops an effect', () =
       }
     }
     expect(multi).toBeGreaterThanOrEqual(24);
-    expect(grouped).toBeGreaterThanOrEqual(5);
+    expect(grouped).toBe(0);
   });
 
-  it('effects that share a label read as one paragraph under it', () => {
+  it('each effect is one sentence that says when it happens, with no timing label on the face', () => {
     const html = face('kng-light-priest', 'hand');
-    expect(text(html)).toContain('Survives destruction once. Round End: Restore 45 HP. Your Spell: Gets +15 ATK this round.');
-    // A keyword prints alone ("Shield."), so only the two timing labels lead in.
-    expect(html.match(/class="gc-when"/g)).toHaveLength(2);
-    expect(text(face('und-vharos', 'board'))).toContain('Destroyed: Revive in this lane with 95 ATK once. Return your strongest other Undead to hand.');
+    expect(text(html)).toContain('Survives destruction once. At the end of each round, restore 45 HP. When you cast a Spell, this gets +15 ATK this round.');
+    expect(html).not.toContain('class="gc-when"');
+    expect(text(face('und-vharos', 'board'))).toContain('When this is destroyed, revive it in this lane with 95 ATK. Only once. When this is destroyed, return your strongest other Undead to your hand.');
+    // Legacy battles (old replays) keep their timing labels.
+    expect(face('kng-light-priest', 'hand', { rules: 'legacy' })).toContain('class="gc-when"');
   });
 
   it('the board drops a phrase that stops mattering once the card is in play', () => {
-    expect(text(face('und-shade-thief', 'hand'))).toContain('Passive: With a Spell in play, attacks the player directly, starting next round.');
-    expect(text(face('und-shade-thief', 'board'))).toContain('Passive: With a Spell in play, attacks the player directly.');
+    expect(text(face('und-shade-thief', 'hand'))).toContain('If you have a Spell in play, this attacks the enemy player directly, starting next round.');
+    expect(text(face('und-shade-thief', 'board'))).toContain('If you have a Spell in play, this attacks the enemy player directly.');
     expect(text(face('und-shade-thief', 'board'))).not.toContain('starting next round');
   });
 
   it('the card face is short battle text; the panels keep the full plain-English line', () => {
     const vael = text(face('kng-archmage-vael', 'hand'));
-    expect(vael).toContain('Passive: If your first Spell is one-time, repeat it. 2nd Spell: Deal 90 damage. Round End: If your hand is empty, return a random Spell.');
+    expect(vael).toContain('If your first Spell each round is one-time, it happens twice. When you cast your 2nd Spell in a round, deal 90 damage to the enemy player. At the end of each round, if your hand is empty, return a random Spell to your hand.');
     expect(cardEffects('kng-archmage-vael').map((e) => `${e.label}: ${e.full}`)).toEqual([
       'Passive: If the first Spell you cast each round is a one-time Spell, it happens twice.',
       'When you cast a Spell: If it is your 2nd Spell this round, deal 90 damage to the enemy player.',
       'Round End: If your hand is empty, return a random Spell from your Graveyard to your hand.',
     ]);
-    expect(text(face('inf-runebreaker', 'board'))).toContain('Clash: Destroy the enemy Spell in this lane. Passive: With another Mage Slayer, enemy Spells can’t affect this. Enemy’s 2nd Spell: Deal 90 damage.');
-    expect(text(face('kng-royal-guard', 'hand'))).toContain('Passive: Allies next to this get +15 ATK.');
-    expect(text(face('spl-grave-totem', 'hand'))).toContain('Clash: If enemy cast or has a Spell, your Unit in this lane gets +30 ATK this round. Ally Falls: If it was in this lane, return it to hand. Once per battle.');
+    expect(text(face('inf-runebreaker', 'board'))).toContain('Before lanes fight, destroy the enemy Spell in this lane. While you have another Mage Slayer, enemy Spells can’t affect this. When the enemy casts their 2nd Spell in a round, deal 90 damage to the enemy player.');
+    expect(text(face('kng-royal-guard', 'hand'))).toContain('Allies next to this get +15 ATK.');
+    expect(text(face('spl-grave-totem', 'hand'))).toContain('Before lanes fight, if the enemy cast or has a Spell, your Unit in this lane gets +30 ATK this round. When your Unit in this lane is destroyed, return it to your hand. Once per battle.');
   });
 
   it('the Dawnshield Paladin shows Shield, its lift for losing allies and its heal, each with its timing', () => {
     const t = text(face('kng-paladin', 'board'));
     expect(t).toContain('Survives destruction once.');
-    expect(t).toContain('Clash: Allies next to this that are losing get +15 ATK this round.');
-    expect(t).toContain('Enemy Falls: If it was in this lane, restore 45 HP. Once per round.');
+    expect(t).toContain('Before lanes fight, allies next to this that would lose their lane get +15 ATK this round.');
+    expect(t).toContain('When an enemy Unit is destroyed, if it was in this lane, restore 45 HP. Once per round.');
   });
 
   it('a keyword prints alone on the card and its label replaces the timing; the panels say what it does', () => {
@@ -210,31 +212,31 @@ describe('every surface shares one effect model and never drops an effect', () =
     expect(blood[1].label).toBe('Clash');
     expect(blood[1].full).toBe('If one of your Units was destroyed this round, give this Unit +30 ATK this round.');
     const priest = cardEffects('und-dark-priest')[0];
-    expect([priest.label, priest.timing, priest.full, priest.compact, priest.keyword]).toEqual(['Guard 2', 'Clash', 'If this Unit would lose its lane, give it +30 ATK this round.', 'If losing, gets +30 ATK this round.', true]);
-    expect(text(face('und-dark-priest', 'hand'))).toContain('If losing, gets +30 ATK this round. Clash: With 3+ cards in your Graveyard, gets +15 ATK this round.');
-    expect([cardEffects('inf-runebreaker')[2].label, cardEffects('inf-runebreaker')[2].faceLabel]).toEqual(['When the enemy casts a Spell', 'Enemy’s 2nd Spell']);
+    expect([priest.label, priest.timing, priest.full, priest.compact, priest.keyword]).toEqual(['Guard 2', 'Clash', 'If this Unit would lose its lane, give it +30 ATK this round.', 'If this would lose its lane, it gets +30 ATK this round.', true]);
+    expect(text(face('und-dark-priest', 'hand'))).toContain('If this would lose its lane, it gets +30 ATK this round. Before lanes fight, if your Graveyard has 3+ cards, this gets +15 ATK this round.');
+    expect([cardEffects('inf-runebreaker')[2].label, cardEffects('inf-runebreaker')[2].faceLabel]).toEqual(['When the enemy casts a Spell', '']);
   });
 });
 
 describe('Spells use the same card', () => {
   it('a Continuous Spell on the board shows its rule in its Spell zone', () => {
     const html = inBattle(createElement(SpellZoneChit, { spell: { instanceId: 's1', cardId: 'spl-burning-ground', faction: 'infernal', name: 'Burning Ground', shortName: 'Burning Ground', usedThisRound: false } as never, side: 'enemy', onClick: () => {} }));
-    expect(text(html)).toContain('Burning Ground Round End: Enemy Unit in this lane loses 15 ATK for the battle.');
+    expect(text(html)).toContain('Burning Ground At the end of each round, enemy Unit in this lane loses 15 ATK until the battle ends.');
     expect(html).toContain('game-card d-spell');
   });
 
   it('a Spell names its kind where a Unit shows ATK, and a one-time Spell reads without a timing label', () => {
     const fireballHtml = face('spl-fireball', 'hand');
     const fireball = text(fireballHtml);
-    expect(fireball).toContain('Fireball Spell Enemy Unit in this lane loses 60 ATK for the battle. If the enemy has a Spell in this lane, that Unit has 50 ATK instead.');
+    expect(fireball).toContain('Fireball Spell Enemy Unit in this lane loses 60 ATK until the battle ends. Then, if the enemy has a Spell in this lane, set that Unit’s ATK to 50 until the battle ends.');
     expect(fireball).not.toMatch(/On Play|Cast:/);
     expect(fireballHtml).not.toContain('gc-atk');
     expect(face('spl-fireball', 'tile')).not.toContain('gc-hpc');
     const ground = face('spl-cursed-ground', 'hand');
     expect(ground).toMatch(/class="gc-stat gc-kind-stat"><span class="gc-stat-label">Lane<\/span>/);
-    expect(text(ground)).toContain('Passive: Your Unit in this lane gets +15 ATK. Enemy Falls: Your Unit in this lane gets +15 ATK for the battle, up to +45.');
+    expect(text(ground)).toContain('Your Unit in this lane gets +15 ATK. When an enemy Unit is destroyed, your Unit in this lane gets +15 ATK until the battle ends, up to +45.');
     expect(text(face('spl-cursed-ground', 'inspect'))).toContain('Lane Spell');
-    expect(text(face('spl-battle-banner', 'tile'))).toContain('Attached Passive: The Unit with this Spell gets +15 ATK.');
+    expect(text(face('spl-battle-banner', 'tile'))).toContain('The Unit with this Spell gets +15 ATK.');
     expect(text(face('spl-battle-banner', 'inspect'))).toContain('Attached Spell');
   });
 });
@@ -283,7 +285,7 @@ describe('live ATK and effect state', () => {
   it('a silenced Unit keeps its rules visible and says they are off', () => {
     const t = text(face(CAPTAIN, 'board', { silenced: true }));
     expect(t).toContain('Silenced this round');
-    expect(t).toContain('With another Knight, enemy Unit effects can’t affect this.');
+    expect(t).toContain('While you have another Knight, enemy Unit effects can’t affect this.');
   });
 });
 
@@ -332,7 +334,7 @@ describe('the focused card detail', () => {
     expect(t).toContain('HP Contribution');
     expect(t).toContain('+77');
     expect(t).toContain('Allies next to this Unit have +15 ATK.');
-    expect(t).toContain('Battle Banner');
+    expect(t).toContain('+15 ATK from Battle Banner, until the battle ends');
     expect(t).toContain('Inspect');
   });
 

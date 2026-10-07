@@ -2408,6 +2408,27 @@ button {
   margin-top: 1px;
 }
 
+/* How a round works: the resolver's order (effectText.ts ROUND_STEPS). */
+.help-modal-steps {
+  margin: 0;
+  padding-left: 1.25em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font: var(--text-body);
+  color: var(--ink);
+}
+
+.help-modal-steps strong {
+  color: var(--gold);
+}
+
+.help-modal-note {
+  margin: 0;
+  font: var(--text-body);
+  color: var(--ink);
+}
+
 /* Card words: the glossary every card text uses (effectText.ts CARD_GLOSSARY). */
 .help-modal-subhead {
   margin: 0;

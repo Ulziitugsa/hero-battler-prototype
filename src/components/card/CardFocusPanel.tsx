@@ -39,7 +39,7 @@ const LANE_NAME = { left: 'left', center: 'center', right: 'right' } as const;
 
 function changeText(change: FocusAtkChange): string {
   const lasts = change.lasts === 'round' ? ' this round' : '';
-  const tail = change.lasts === 'spell' ? ', while it stays' : change.lasts === 'aura' ? (change.source === 'its own effect' ? ', while that holds' : ', while it is in play') : '';
+  const tail = change.lasts === 'spell' ? ', while it stays' : change.lasts === 'aura' ? (change.source === 'its own effect' ? ', while that holds' : ', while it is in play') : change.lasts === 'battle' ? ', until the battle ends' : '';
   return `${signed(change.amount)} ATK${lasts} from ${change.source}${tail}`;
 }
 

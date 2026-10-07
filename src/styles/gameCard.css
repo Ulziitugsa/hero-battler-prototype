@@ -17,8 +17,8 @@
   --gc-pad: 2.5px;
   --gc-gap: 1.5px;
   --gc-fs: 10px;
-  /* Card-face rules text is set this much smaller than --gc-fs on every card view (one global step, 2026-10-07). */
-  --gc-text-shift: 1px;
+  /* Card-face rules text is set this much smaller than --gc-fs on every card view (one global step, 2026-10-07; at most 2px). */
+  --gc-text-shift: 2px;
   --gc-lh: 1.15;
   --gc-egap: 2px;
   --gc-art: var(--gc-art-base, 50%);
@@ -372,7 +372,7 @@
 .game-card.d-spell .gc-effect { display: inline; }
 .game-card.d-spell .gc-effect + .gc-effect::before { content: ''; display: block; height: 2px; }
 
-/* Fit levels (useFitCard, on the card root). No level scrolls; rules text never goes below 9px before the global --gc-text-shift (8px as set). The fill levels set
+/* Fit levels (useFitCard, on the card root). No level scrolls; rules text never goes below 9px before the global --gc-text-shift (7px as set). The fill levels set
    --gc-art inline to whatever share of the card the effects leave, down to a floor. */
 .game-card[data-fit='roomy'] { --gc-art: var(--gc-art-roomy); }
 .game-card:is([data-fit='tight'], [data-fit$='fill']) { --gc-egap: 1px; --gc-lh: 1.1; }
