@@ -70,19 +70,19 @@ export type EffectKeyword =
   | 'Attached Spell';
 
 export const KEYWORD_HELP: Record<EffectKeyword, string> = {
-  Shield: 'The first time this Unit would be destroyed, it survives instead.',
-  Guard: 'When this Unit would lose its lane, Guard 1 gives it +15 ATK this round, Guard 2 gives +30.',
+  Shield: 'This Unit survives destruction once.',
+  Guard: 'If this Unit would lose its lane, it gets ATK this round. Guard 1 = +15. Guard 2 = +30.',
   'Spell Immune': 'Enemy Spells can’t affect this Unit.',
   Silence: 'The Unit’s effects do nothing this round. Its Shield still works.',
-  Bypass: 'This Unit skips the fight and hits the enemy player directly.',
-  Summon: 'Put a new token Unit into an empty lane.',
+  Bypass: 'This Unit skips the fight and attacks the enemy player directly.',
+  Summon: 'Put a new token Unit into one of your empty lanes.',
   Token: 'A Unit made during battle. It vanishes when destroyed and never goes to the Graveyard.',
   Revive: 'Move a Unit from your Graveyard into a lane.',
   Exile: 'Remove a card from the Graveyard for the rest of the battle.',
   Graveyard: 'Where your destroyed Units and used Spells go. A card can come back from it once per battle.',
   'Spell in play': 'A Lane Spell or Attached Spell on the battlefield.',
   'Lane Spell': 'Stays in its lane and works every round until it is destroyed.',
-  'Attached Spell': 'Goes onto your Unit in its lane. It leaves play when that Unit does.',
+  'Attached Spell': 'A Spell placed on a Unit. It stays while that Unit stays.',
 };
 
 /**
@@ -108,9 +108,13 @@ export const CARD_GLOSSARY: readonly { term: string; text: string }[] = [
   { term: 'Revive', text: KEYWORD_HELP.Revive },
   { term: 'Exile', text: KEYWORD_HELP.Exile },
   { term: 'Bypass', text: KEYWORD_HELP.Bypass },
+  { term: 'Damage', text: 'Damage hits the enemy player, unless the card names a Unit.' },
+  { term: 'Next to this', text: 'In the lane beside this card (left or right).' },
+  { term: 'If losing', text: 'If this Unit would lose its lane in the fight.' },
   { term: 'Silence', text: KEYWORD_HELP.Silence },
   { term: 'this round', text: 'Until the round ends.' },
   { term: 'for the rest of the battle', text: 'Until the battle ends or this Unit leaves play. A Unit can grow by at most +45 ATK this way.' },
+  { term: 'for the battle', text: 'Card faces say this for “for the rest of the battle”.' },
   { term: 'once per round', text: 'At most one time each round.' },
   { term: 'once per battle', text: 'Only the first time in each battle.' },
 ];

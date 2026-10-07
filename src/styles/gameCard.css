@@ -17,6 +17,8 @@
   --gc-pad: 2.5px;
   --gc-gap: 1.5px;
   --gc-fs: 10px;
+  /* Card-face rules text is set this much smaller than --gc-fs on every card view (one global step, 2026-10-07). */
+  --gc-text-shift: 1px;
   --gc-lh: 1.15;
   --gc-egap: 2px;
   --gc-art: var(--gc-art-base, 50%);
@@ -286,7 +288,7 @@
   background: linear-gradient(180deg, #1d1c1a, #121210);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 0 0 2px color-mix(in srgb, var(--trim) 12%, transparent);
   color: var(--gc-ink);
-  font: 500 var(--gc-fs) / var(--gc-lh) var(--gc-text-font);
+  font: 500 calc(var(--gc-fs) - var(--gc-text-shift)) / var(--gc-lh) var(--gc-text-font);
   text-align: left;
 }
 .gc-effect { display: block; }
@@ -295,7 +297,7 @@
   display: inline;
   margin-right: 1px;
   color: var(--gc-label);
-  font: 700 calc(var(--gc-fs) * 0.9) / 1 var(--gc-label-font);
+  font: 700 calc((var(--gc-fs) - var(--gc-text-shift)) * 0.9) / 1 var(--gc-label-font);
   letter-spacing: 0.02em;
   /* Small caps set the word space for lowercase; "Round End" needs a little more to read as two words. A long label
      ("When the enemy casts a Spell") may wrap. */
@@ -303,20 +305,12 @@
 }
 .gc-when .gc-state { margin-right: 2px; vertical-align: 0.1em; }
 .game-card.is-spell .gc-when { color: #b9a8df; }
-/* A keyword line ("Guard 2.", "Shield.") reads like a label: the keyword is the whole effect. */
-.gc-text.is-keyword {
-  color: var(--gc-label);
-  font: 700 calc(var(--gc-fs) * 0.9) / var(--gc-lh) var(--gc-label-font);
-  letter-spacing: 0.02em;
-  word-spacing: 0.14em;
-}
-.game-card.is-spell .gc-text.is-keyword { color: #b9a8df; }
 /* A conditional Passive: a green dot while it is on; the effect dims while it is off. */
 .gc-state { display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-right: 1px; }
 .gc-state.on { background: #8fe0a0; box-shadow: 0 0 3px #8fe0a0; }
 .gc-state.off { background: transparent; box-shadow: inset 0 0 0 1px #a3aaa4; }
 .gc-text.is-off { color: #9aa19b; }
-.gc-silenced { color: #ffab98; font: 700 var(--gc-fs) / 1.1 var(--gc-label-font); letter-spacing: 0.03em; }
+.gc-silenced { color: #ffab98; font: 700 calc(var(--gc-fs) - var(--gc-text-shift)) / 1.1 var(--gc-label-font); letter-spacing: 0.03em; }
 .game-card.is-silenced .gc-effect .gc-text { text-decoration: line-through; text-decoration-color: rgba(255, 171, 152, 0.7); }
 .gc-none { color: #8f988f; font-style: italic; }
 
@@ -378,7 +372,7 @@
 .game-card.d-spell .gc-effect { display: inline; }
 .game-card.d-spell .gc-effect + .gc-effect::before { content: ''; display: block; height: 2px; }
 
-/* Fit levels (useFitCard, on the card root). No level scrolls; rules text never goes below 9px. The fill levels set
+/* Fit levels (useFitCard, on the card root). No level scrolls; rules text never goes below 9px before the global --gc-text-shift (8px as set). The fill levels set
    --gc-art inline to whatever share of the card the effects leave, down to a floor. */
 .game-card[data-fit='roomy'] { --gc-art: var(--gc-art-roomy); }
 .game-card:is([data-fit='tight'], [data-fit$='fill']) { --gc-egap: 1px; --gc-lh: 1.1; }

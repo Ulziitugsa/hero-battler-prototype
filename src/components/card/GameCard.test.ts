@@ -56,8 +56,8 @@ describe('a two-effect Unit reads without Card Inspect (Battle Captain)', () => 
     const html = inBattle(createElement(HandCard, handProps(CAPTAIN)));
     const t = text(html);
     expect(t).toContain('Battle Captain ATK 102');
-    expect(t).toContain('Clash: Adjacent allies +15 ATK this round.');
-    expect(t).toContain('Passive: Immune to enemy Unit effects with another Knight.');
+    expect(t).toContain('Clash: Allies next to this get +15 ATK this round.');
+    expect(t).toContain('Passive: With another Knight, enemy Unit effects can’t affect this.');
     expect(t).not.toContain('+77');
     expect(html).toContain('game-card d-hand');
   });
@@ -67,8 +67,8 @@ describe('a two-effect Unit reads without Card Inspect (Battle Captain)', () => 
     const html = inBattle(createElement(BoardChit, { hero: captain, side: 'player', onClick: () => {} }), 'card', new Map([[captain.instanceId, new Map([[1, true]])]]));
     const t = text(html);
     expect(t).toContain('Battle Captain ATK 113');
-    expect(t).toContain('Clash: Adjacent allies +15 ATK this round.');
-    expect(t).toContain('Passive: Immune to enemy Unit effects with another Knight.');
+    expect(t).toContain('Clash: Allies next to this get +15 ATK this round.');
+    expect(t).toContain('Passive: With another Knight, enemy Unit effects can’t affect this.');
     expect(html).toContain('gc-state on');
     expect(html).toContain('aria-label="active now"');
     expect(t).not.toMatch(/\bHP\b/);
@@ -86,7 +86,7 @@ describe('a two-effect Unit reads without Card Inspect (Battle Captain)', () => 
     const hpc = printedStats(getCard(CAPTAIN))!.hpc;
     const tile = text(face(CAPTAIN, 'tile', { hpContribution: hpc }));
     expect(tile).toContain(`Battle Captain HP +${hpc} ATK 102`);
-    expect(tile).toContain('Clash: Adjacent allies +15 ATK this round. Passive: Immune to enemy Unit effects with another Knight.');
+    expect(tile).toContain('Clash: Allies next to this get +15 ATK this round. Passive: With another Knight, enemy Unit effects can’t affect this.');
     const inspect = text(face(CAPTAIN, 'inspect', { hpContribution: hpc }));
     expect(inspect).toContain(`HP +${hpc} ATK 102`);
     for (const density of ['hand', 'board'] as const) expect(text(face(CAPTAIN, density)), density).not.toContain(`+${hpc}`);
@@ -108,7 +108,6 @@ describe('every surface shares one effect model and never drops an effect', () =
         expect(e.compact, card.id).not.toMatch(/…|\.\.\./);
         // Grave Tyrant and Grave Totem are the longest single lines (two halves in one effect).
         expect(e.compact.length, `${card.id}: ${e.compact}`).toBeLessThanOrEqual(90);
-        expect(e.compact.length, `${card.id}: compact copy should be shorter than the full rule`).toBeLessThanOrEqual(e.full.length);
         expect(e.board.length, `${card.id}: board wording is never longer than the hand's`).toBeLessThanOrEqual(e.compact.length);
         // Short, but never cryptic: no abbreviations beyond ATK and HP, and no symbols for words.
         expect(`${e.label} ${e.compact}`, card.id).not.toMatch(/\b(Adj|Grv|GY|Dmg|Eff|Imm|Rnd)\b|[≤≥→×]/);
@@ -174,15 +173,15 @@ describe('every surface shares one effect model and never drops an effect', () =
 
   it('effects that share a label read as one paragraph under it', () => {
     const html = face('kng-light-priest', 'hand');
-    expect(text(html)).toContain('Shield. Round End: Restore 45 HP. Your Spell: +15 ATK this round.');
+    expect(text(html)).toContain('Survives destruction once. Round End: Restore 45 HP. Your Spell: Gets +15 ATK this round.');
     // A keyword prints alone ("Shield."), so only the two timing labels lead in.
     expect(html.match(/class="gc-when"/g)).toHaveLength(2);
-    expect(text(face('und-vharos', 'board'))).toContain('Destroyed: Revive here with 95 ATK once. Return your strongest other Undead to hand.');
+    expect(text(face('und-vharos', 'board'))).toContain('Destroyed: Revive in this lane with 95 ATK once. Return your strongest other Undead to hand.');
   });
 
   it('the board drops a phrase that stops mattering once the card is in play', () => {
-    expect(text(face('und-shade-thief', 'hand'))).toContain('Passive: Bypass with a Spell in play, starting next round.');
-    expect(text(face('und-shade-thief', 'board'))).toContain('Passive: Bypass with a Spell in play.');
+    expect(text(face('und-shade-thief', 'hand'))).toContain('Passive: With a Spell in play, attacks the player directly, starting next round.');
+    expect(text(face('und-shade-thief', 'board'))).toContain('Passive: With a Spell in play, attacks the player directly.');
     expect(text(face('und-shade-thief', 'board'))).not.toContain('starting next round');
   });
 
@@ -194,16 +193,16 @@ describe('every surface shares one effect model and never drops an effect', () =
       'When you cast a Spell: If it is your 2nd Spell this round, deal 90 damage to the enemy player.',
       'Round End: If your hand is empty, return a random Spell from your Graveyard to your hand.',
     ]);
-    expect(text(face('inf-runebreaker', 'board'))).toContain('Clash: Destroy the enemy Spell here. Passive: Spell Immune with another Mage Slayer. Enemy’s 2nd Spell: Deal 90 damage.');
-    expect(text(face('kng-royal-guard', 'hand'))).toContain('Passive: Adjacent allies +15 ATK.');
-    expect(text(face('spl-grave-totem', 'hand'))).toContain('Clash: If enemy cast or has a Spell, your Unit here gets +30 ATK this round. Ally Falls: If it was here, return it to hand. Once per battle.');
+    expect(text(face('inf-runebreaker', 'board'))).toContain('Clash: Destroy the enemy Spell in this lane. Passive: With another Mage Slayer, enemy Spells can’t affect this. Enemy’s 2nd Spell: Deal 90 damage.');
+    expect(text(face('kng-royal-guard', 'hand'))).toContain('Passive: Allies next to this get +15 ATK.');
+    expect(text(face('spl-grave-totem', 'hand'))).toContain('Clash: If enemy cast or has a Spell, your Unit in this lane gets +30 ATK this round. Ally Falls: If it was in this lane, return it to hand. Once per battle.');
   });
 
   it('the Dawnshield Paladin shows Shield, its lift for losing allies and its heal, each with its timing', () => {
     const t = text(face('kng-paladin', 'board'));
-    expect(t).toContain('Shield.');
-    expect(t).toContain('Clash: Adjacent allies losing their lane get +15 ATK this round.');
-    expect(t).toContain('Enemy Falls: If it was here, restore 45 HP. Once per round.');
+    expect(t).toContain('Survives destruction once.');
+    expect(t).toContain('Clash: Allies next to this that are losing get +15 ATK this round.');
+    expect(t).toContain('Enemy Falls: If it was in this lane, restore 45 HP. Once per round.');
   });
 
   it('a keyword prints alone on the card and its label replaces the timing; the panels say what it does', () => {
@@ -211,8 +210,8 @@ describe('every surface shares one effect model and never drops an effect', () =
     expect(blood[1].label).toBe('Clash');
     expect(blood[1].full).toBe('If one of your Units was destroyed this round, give this Unit +30 ATK this round.');
     const priest = cardEffects('und-dark-priest')[0];
-    expect([priest.label, priest.timing, priest.full, priest.compact, priest.keyword]).toEqual(['Guard 2', 'Clash', 'If this Unit would lose its lane, give it +30 ATK this round.', 'Guard 2.', true]);
-    expect(text(face('und-dark-priest', 'hand'))).toContain('Guard 2. Clash: +15 ATK this round with 3+ cards in your Graveyard.');
+    expect([priest.label, priest.timing, priest.full, priest.compact, priest.keyword]).toEqual(['Guard 2', 'Clash', 'If this Unit would lose its lane, give it +30 ATK this round.', 'If losing, gets +30 ATK this round.', true]);
+    expect(text(face('und-dark-priest', 'hand'))).toContain('If losing, gets +30 ATK this round. Clash: With 3+ cards in your Graveyard, gets +15 ATK this round.');
     expect([cardEffects('inf-runebreaker')[2].label, cardEffects('inf-runebreaker')[2].faceLabel]).toEqual(['When the enemy casts a Spell', 'Enemy’s 2nd Spell']);
   });
 });
@@ -220,22 +219,22 @@ describe('every surface shares one effect model and never drops an effect', () =
 describe('Spells use the same card', () => {
   it('a Continuous Spell on the board shows its rule in its Spell zone', () => {
     const html = inBattle(createElement(SpellZoneChit, { spell: { instanceId: 's1', cardId: 'spl-burning-ground', faction: 'infernal', name: 'Burning Ground', shortName: 'Burning Ground', usedThisRound: false } as never, side: 'enemy', onClick: () => {} }));
-    expect(text(html)).toContain('Burning Ground Round End: Enemy Unit here −15 ATK for the battle.');
+    expect(text(html)).toContain('Burning Ground Round End: Enemy Unit in this lane loses 15 ATK for the battle.');
     expect(html).toContain('game-card d-spell');
   });
 
   it('a Spell names its kind where a Unit shows ATK, and a one-time Spell reads without a timing label', () => {
     const fireballHtml = face('spl-fireball', 'hand');
     const fireball = text(fireballHtml);
-    expect(fireball).toContain('Fireball Spell Enemy Unit here −60 ATK for the battle. If the enemy has a Spell here, it has 50 ATK instead.');
+    expect(fireball).toContain('Fireball Spell Enemy Unit in this lane loses 60 ATK for the battle. If the enemy has a Spell in this lane, that Unit has 50 ATK instead.');
     expect(fireball).not.toMatch(/On Play|Cast:/);
     expect(fireballHtml).not.toContain('gc-atk');
     expect(face('spl-fireball', 'tile')).not.toContain('gc-hpc');
     const ground = face('spl-cursed-ground', 'hand');
     expect(ground).toMatch(/class="gc-stat gc-kind-stat"><span class="gc-stat-label">Lane<\/span>/);
-    expect(text(ground)).toContain('Passive: Your Unit here +15 ATK. Enemy Falls: Your Unit here +15 ATK for the battle, up to +45.');
+    expect(text(ground)).toContain('Passive: Your Unit in this lane gets +15 ATK. Enemy Falls: Your Unit in this lane gets +15 ATK for the battle, up to +45.');
     expect(text(face('spl-cursed-ground', 'inspect'))).toContain('Lane Spell');
-    expect(text(face('spl-battle-banner', 'tile'))).toContain('Attached Passive: Attached Unit +15 ATK.');
+    expect(text(face('spl-battle-banner', 'tile'))).toContain('Attached Passive: The Unit with this Spell gets +15 ATK.');
     expect(text(face('spl-battle-banner', 'inspect'))).toContain('Attached Spell');
   });
 });
@@ -284,7 +283,7 @@ describe('live ATK and effect state', () => {
   it('a silenced Unit keeps its rules visible and says they are off', () => {
     const t = text(face(CAPTAIN, 'board', { silenced: true }));
     expect(t).toContain('Silenced this round');
-    expect(t).toContain('Immune to enemy Unit effects with another Knight.');
+    expect(t).toContain('With another Knight, enemy Unit effects can’t affect this.');
   });
 });
 
@@ -332,7 +331,7 @@ describe('the focused card detail', () => {
     expect(t).toContain('113');
     expect(t).toContain('HP Contribution');
     expect(t).toContain('+77');
-    expect(t).toContain('Adjacent allies have +15 ATK.');
+    expect(t).toContain('Allies next to this Unit have +15 ATK.');
     expect(t).toContain('Battle Banner');
     expect(t).toContain('Inspect');
   });
@@ -349,7 +348,7 @@ describe('Card Inspect and the card viewer', () => {
   it('outside battle a tap opens the focused detail, with an Inspect action', () => {
     const t = text(renderToStaticMarkup(createElement(CardViewer, { cardId: ROYAL_GUARD, context: 'collection', onClose: () => {} })));
     expect(t).toContain('Royal Guard');
-    expect(t).toContain('Adjacent allies have +15 ATK.');
+    expect(t).toContain('Allies next to this Unit have +15 ATK.');
     expect(t).toContain('Inspect');
   });
 
@@ -360,7 +359,7 @@ describe('Card Inspect and the card viewer', () => {
     expect(t).toContain('113 ATK');
     expect(t).toContain(`+${hpc} HP`);
     expect(t).toContain('HP Contribution');
-    expect(t).toContain('Adjacent allies have +15 ATK.');
+    expect(t).toContain('Allies next to this Unit have +15 ATK.');
     expect(t).not.toContain('Card Mastery');
     expect(t).not.toMatch(/Mastery [IV]+|\+(5|10|15|20)%|never changes ATK|Next Mastery/);
     expect(t).not.toMatch(/\bPower\b|\bHero\b/);

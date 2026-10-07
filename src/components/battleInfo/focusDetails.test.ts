@@ -18,7 +18,7 @@ describe('focus panel details', () => {
   it('Royal Guard on the board: current ATK, full rules, its passive on', () => {
     const guard = unit('player', 'left');
     expect(guard).toMatchObject({ name: 'Royal Guard', owner: 'player', place: 'board', lane: 'left', kind: 'unit', atk: 113, printedAtk: 113, hpContribution: hpc('kng-royal-guard') });
-    expect(guard.effects).toMatchObject([{ label: 'Passive', text: 'Adjacent allies have +15 ATK.' }]);
+    expect(guard.effects).toMatchObject([{ label: 'Passive', text: 'Allies next to this Unit have +15 ATK.' }]);
     expect(guard.changes).toEqual([]);
     expect(guard.status).toEqual([]);
     expect(guard.entered).toBeUndefined();
@@ -67,7 +67,7 @@ describe('focus panel details', () => {
       place: 'spellZone',
       lane: 'center',
       kind: 'attached',
-      effects: [{ label: 'Passive', text: 'The attached Unit has +15 ATK.' }],
+      effects: [{ label: 'Passive', text: 'The Unit with this Spell has +15 ATK.' }],
       laneUnits: { yours: 'Common Knight', theirs: 'Vharos, the Undying' },
       attachedTo: 'Common Knight',
     });

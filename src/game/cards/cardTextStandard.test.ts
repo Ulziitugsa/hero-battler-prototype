@@ -9,17 +9,34 @@ const KEYWORD_LABEL = /^(Shield|Guard [1-3])$/;
 /** Shorter labels only the card face prints (the panels print the full timing label). */
 const FACE_LABELS = new Set([...APPROVED_LABELS, 'Your Spell', 'Enemy Spell', '2nd Spell', 'Enemy’s 2nd Spell']);
 
-/** Old or vague wording the standard replaced, with what to say instead. The card face may say "here" (this lane). */
-const HERE: [RegExp, string] = [/\bhere\b/i, '"in this lane"'];
+/** Old or vague wording the standard replaced, with what to say instead. */
 const BANNED: [RegExp, string][] = [
   [/\b(may|nearby|empower\w*|weaken\w*|curse[sd]?|fallen|grave)\b/i, 'a plain game word'],
   [/restore strength/i, 'a plain game word'],
   [/\ballied\b|\bcontrol\b/i, '"your Units" / "you have"'],
   [/Continuous Spell/, '"Spell in play"'],
   [/\b(dies|died)\b/i, '"is destroyed"'],
-  [/\bif losing\b|\bfell\b/i, '"would lose its lane" / "was destroyed"'],
+  [/\bfell\b/i, '"was destroyed"'],
   [/\bgain (your|a random|a Graveyard)\b/i, '"return ... to your hand"'],
   [/\bOn Play\b|\bBefore Combat\b/, 'the approved timing labels'],
+];
+
+/** Shortcuts a card face must spell out (ozi 2026-10-07): the face explains the effect without Inspect. */
+const FACE_BANNED: [RegExp, string][] = [
+  [/^(Shield|Guard \d)\.?$/, 'its meaning ("Survives destruction once.", "If losing, gets +30 ATK this round.")'],
+  [/\bBypass\b/, '"attacks the player directly"'],
+  [/\badjacent\b/i, '"allies next to this"'],
+  [/\bhere\b/i, '"in this lane"'],
+  [/\bAttached Unit\b/i, '"The Unit with this Spell"'],
+  [/−\d/, '"loses 15 ATK"'],
+  [/an empty lane/, '"one of your empty lanes"'],
+];
+/** The full line keeps the exact rules words. */
+const FULL_BANNED: [RegExp, string][] = [
+  [/\bhere\b/i, '"in this lane"'],
+  [/\bif losing\b/i, '"would lose its lane"'],
+  [/\badjacent\b/i, '"next to this Unit"'],
+  [/\battached Unit\b/i, '"the Unit with this Spell"'],
 ];
 
 const effectsOf = (id: string) => cardEffects(id).map((e) => ({ id, ...e }));
@@ -40,8 +57,12 @@ describe('card-text standard', () => {
     for (const trigger of ['BEFORE_COMBAT', 'ON_DEATH', 'ON_ALLY_SPELL_PLAYED', 'ON_ENEMY_SPELL_PLAYED'] as const) expect(APPROVED_LABELS.has(TIMING_LABEL[trigger])).toBe(true);
   });
 
-  it('a keyword prints alone on the card ("Guard 2.", "Shield.")', () => {
-    for (const e of all.filter((x) => x.keyword)) expect(e.compact.startsWith(e.label), `${e.id}: ${e.compact}`).toBe(true);
+  it('a card face spells out keywords and shortcuts in plain words', () => {
+    for (const e of all) {
+      for (const [pattern, instead] of FACE_BANNED) {
+        for (const t of [e.compact, e.board]) expect(t, `${e.id}: "${t}" (say ${instead})`).not.toMatch(pattern);
+      }
+    }
   });
 
   it('no card uses the old or vague wording', () => {
@@ -49,23 +70,26 @@ describe('card-text standard', () => {
       for (const [pattern, instead] of BANNED) {
         for (const t of [e.compact, e.board, e.full]) expect(t, `${e.id}: "${t}" (use ${instead})`).not.toMatch(pattern);
       }
-      expect(e.full, `${e.id}: "${e.full}" (use ${HERE[1]})`).not.toMatch(HERE[0]);
+      for (const [pattern, instead] of FULL_BANNED) expect(e.full, `${e.id}: "${e.full}" (use ${instead})`).not.toMatch(pattern);
     }
   });
 
   it('the card face is short battle text: one short line per effect, a short box per card', () => {
-    for (const e of all) expect(e.compact.length, `${e.id}: ${e.compact}`).toBeLessThanOrEqual(85);
+    for (const e of all) expect(e.compact.length, `${e.id}: ${e.compact}`).toBeLessThanOrEqual(90);
     for (const id of LAUNCH_CARD_IDS) {
       const box = cardEffects(id).map((e) => (e.keyword ? e.compact : `${e.faceLabel}: ${e.compact}`)).join(' ');
-      expect(box.length, `${id}: ${box}`).toBeLessThanOrEqual(165);
+      expect(box.length, `${id}: ${box}`).toBeLessThanOrEqual(195);
     }
   });
 
   it('the card face keeps how long an ATK change lasts ("this round", "for the battle")', () => {
     for (const e of all) {
       if (/for the rest of the battle/.test(e.full)) expect(e.compact, e.id).toMatch(/for the battle/);
-      if (/ATK this round/.test(e.full) && !e.keyword) expect(e.compact, e.id).toMatch(/this round|\+\d+ more\b/);
+      if (/ATK this round/.test(e.full)) expect(e.compact, e.id).toMatch(/this round|\+\d+ more\b/);
       expect(e.compact, `${e.id}: the face says "for the battle"`).not.toMatch(/for the rest of the battle/);
+      // A gain or loss that is not always on (a Passive's "gets +15 ATK" lasts while it is in play) says how long.
+      const always = e.trigger === 'PASSIVE' || e.trigger === 'CONTINUOUS';
+      if (!always && /\b(gets?|loses?) \+?\d+ ATK/.test(e.compact)) expect(e.compact, e.id).toMatch(/this round|for the battle/);
     }
   });
 
