@@ -20,7 +20,7 @@ describe('battle log', () => {
     const { events } = buildBattleScene('3');
     expect(battleLogEntries(events).map(line)).toEqual([
       '— Round 1 —',
-      'Battle Banner — Attached: Common Knight +15 ATK',
+      'Battle Banner — Attached: Common Knight has +15 ATK',
       'Clash Damage — Center: 50 to Enemy (Common Knight 143 beat Bone Soldier 93)',
       'Dark Priest — Direct Attack: 84 to You',
       'Bone Soldier — Destroyed: Returned to deck',
@@ -40,7 +40,7 @@ describe('battle log', () => {
   it('says when an Attached Spell leaves play with its Unit', () => {
     const { events, state } = buildBattleScene('expire');
     const log = battleLogEntries(events).map(line);
-    expect(log).toContain('Battle Banner — Attached: Light Priest +15 ATK');
+    expect(log).toContain('Battle Banner — Attached: Light Priest has +15 ATK');
     expect(log).toContain('Battle Banner — Expired: Its Unit left play (Light Priest)');
     // Right after the clash that destroyed its Unit, and the lane's Spell slot is free.
     expect(log.indexOf('Battle Banner — Expired: Its Unit left play (Light Priest)')).toBe(log.indexOf('Clash Damage — Center: 37 to You (Vharos, the Undying 130 beat Light Priest 93)') + 1);
@@ -87,13 +87,13 @@ describe('battle log', () => {
     ]);
   });
 
-  it('turns “Your Spell” round for an enemy card, so it never describes the opponent’s cast', () => {
+  it('turns “When you cast a Spell” round for an enemy card, so it never describes the opponent’s cast', () => {
     const log = logOf([
       { hands: { player: [], enemy: ['kng-light-priest'] }, plays: { player: [], enemy: [['kng-light-priest', 'right']] } },
       { hands: { player: [], enemy: ['spl-power-surge'] }, plays: { player: [], enemy: [['spl-power-surge', 'right']] } },
     ]);
-    expect(log).toContain('Light Priest — Their Spell: Gained +15 ATK this round');
-    expect(log.join('\n')).not.toContain('Your Spell');
+    expect(log).toContain('Light Priest — When they cast a Spell: Gained +15 ATK this round');
+    expect(log.join('\n')).not.toContain('When you cast a Spell');
   });
 
   it('adds up one Unit’s ATK changes from one effect, and counts repeated names', () => {

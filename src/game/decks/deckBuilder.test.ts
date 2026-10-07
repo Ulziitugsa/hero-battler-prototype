@@ -69,7 +69,7 @@ describe('Starting HP / deck summary', () => {
 describe('card pool query', () => {
   it('searches names and effect text, all terms required', () => {
     expect(ids(queryCardPool(roster, { ...DEFAULT_POOL_OPTIONS, search: 'paladin' }, ctx()))).toContain('kng-paladin');
-    const heal = queryCardPool(roster, { ...DEFAULT_POOL_OPTIONS, search: 'restore your player' }, ctx());
+    const heal = queryCardPool(roster, { ...DEFAULT_POOL_OPTIONS, search: 'restore 45 hp' }, ctx());
     expect(ids(heal)).toContain('kng-light-priest');
     expect(queryCardPool(roster, { ...DEFAULT_POOL_OPTIONS, search: 'paladin zzzz' }, ctx())).toEqual([]);
   });

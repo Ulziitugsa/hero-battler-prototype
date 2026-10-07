@@ -11,6 +11,7 @@ Moonwater, using the pixel-art direction recorded in the Moonwater design docume
 | [BEHAVIORAL-UX-POLICY.md](BEHAVIORAL-UX-POLICY.md) | Current Home/navigation attention and reward-readiness rules |
 | [NATIVE-MOBILE.md](NATIVE-MOBILE.md) | Capacitor configuration, native shell behavior, sync, and device-verification status |
 | [CARD-COMBAT-DESIGN.md](CARD-COMBAT-DESIGN.md) | **Authoritative** card-combat design (ATK, HP Contribution, Starting HP), rejected models and the production migration plan |
+| [CARD-TEXT.md](CARD-TEXT.md) | Card rules text standard: labels, templates, words and the glossary |
 | [CARD-COMBAT-SIMULATION.md](CARD-COMBAT-SIMULATION.md) | Seeded card-combat simulator: methods, reproduction commands and results |
 | [COMBAT-V2-DESIGN.md](COMBAT-V2-DESIGN.md) | Historical per-Unit-HP Combat V2 experiment and lab; superseded by CARD-COMBAT-DESIGN.md |
 | [COLLECTION-PROGRESSION.md](COLLECTION-PROGRESSION.md) | Player-facing terminology, Card Mastery, duplicates, Account Level, Renown and the legacy-progression migration plan |

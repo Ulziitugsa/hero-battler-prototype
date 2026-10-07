@@ -22,7 +22,7 @@ export function SpellZoneChit({ spell, side, anim, disabled, focused, onClick }:
   const staged = spell.instanceId.startsWith('pending-');
   // Card combat: an Attached Spell belongs to the Unit in its lane and leaves with it.
   const attached = continuous && (display?.rules ?? 'card') === 'card' && isAttachedSpell(spell.cardId);
-  const kind = attached ? 'Attached Spell' : continuous ? 'Continuous Spell' : 'Spell';
+  const kind = attached ? 'Attached Spell' : continuous ? 'Lane Spell' : 'Spell';
 
   return (
     <button

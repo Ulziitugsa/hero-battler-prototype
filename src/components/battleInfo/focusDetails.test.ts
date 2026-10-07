@@ -18,7 +18,7 @@ describe('focus panel details', () => {
   it('Royal Guard on the board: current ATK, full rules, its passive on', () => {
     const guard = unit('player', 'left');
     expect(guard).toMatchObject({ name: 'Royal Guard', owner: 'player', place: 'board', lane: 'left', kind: 'unit', atk: 113, printedAtk: 113, hpContribution: hpc('kng-royal-guard') });
-    expect(guard.effects).toMatchObject([{ label: 'Passive', text: 'Adjacent allied Units have +15 ATK.' }]);
+    expect(guard.effects).toMatchObject([{ label: 'Passive', text: 'Adjacent allies have +15 ATK.' }]);
     expect(guard.changes).toEqual([]);
     expect(guard.status).toEqual([]);
     expect(guard.entered).toBeUndefined();
@@ -67,7 +67,7 @@ describe('focus panel details', () => {
       place: 'spellZone',
       lane: 'center',
       kind: 'attached',
-      effects: [{ label: 'Passive', text: 'The Unit it is attached to has +15 ATK.' }],
+      effects: [{ label: 'Passive', text: 'The attached Unit has +15 ATK.' }],
       laneUnits: { yours: 'Common Knight', theirs: 'Vharos, the Undying' },
       attachedTo: 'Common Knight',
     });
@@ -80,7 +80,7 @@ describe('focus panel details', () => {
     );
     const vael = cardFocusDetails('kng-archmage-vael', { place: 'hand', hpContribution: 98 });
     expect(vael).toMatchObject({ kind: 'unit', atk: 94, printedAtk: 94, hpContribution: 98 });
-    expect(vael.effects.map((e) => e.label)).toEqual(['Passive', 'Your 2nd Spell', 'Round End']);
+    expect(vael.effects.map((e) => e.label)).toEqual(['Passive', 'When you cast a Spell', 'Round End']);
     expect(cardFocusDetails('spl-aegis-ward')).toMatchObject({ kind: 'spell', effects: [{ label: 'Cast' }, { label: 'Cast' }] });
     expect(cardFocusDetails('spl-burning-ground').kind).toBe('continuous');
     expect(cardFocusDetails('spl-fortify').kind).toBe('attached');

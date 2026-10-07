@@ -31,7 +31,7 @@ describe('focus panel', () => {
     expect(text(html)).toContain('Royal Guard Inspect');
     expect(text(html)).toContain('ATK 113');
     expect(text(html)).toContain('HP +77');
-    expect(text(html)).toContain('Passive: Adjacent allied Units have +15 ATK.');
+    expect(text(html)).toContain('Passive: Adjacent allies have +15 ATK.');
     expect(html).toContain('aria-label="Close card details"');
     expect(html).toContain('aria-label="Inspect Royal Guard"');
   });
@@ -47,8 +47,8 @@ describe('focus panel', () => {
   it('an Attached Spell’s bonus and an aura, each by source, and a hand card', () => {
     expect(text(panel(unit('player', 'center')))).toContain('No effect. Current bonuses: +15 ATK from Battle Banner, while it stays; +15 ATK from Royal Guard, while it is in play (printed 128).');
     const vael = text(panel(cardFocusDetails('kng-archmage-vael', { place: 'hand', hpContribution: 98 })));
-    expect(vael).toContain('Passive: The first one-time Spell you cast each round resolves twice.');
-    expect(vael).toContain('Your 2nd Spell:');
+    expect(vael).toContain('Passive: If the first Spell you cast each round is a one-time Spell, it happens twice.');
+    expect(vael).toContain('When you cast a Spell: If it is your 2nd Spell this round, deal 90 damage to the enemy player.');
     expect(vael).toContain('Round End:');
     expect(vael).not.toContain('Current');
     expect(vael).not.toContain('Active now');
@@ -59,7 +59,7 @@ describe('focus panel', () => {
     const html = panel(focusDetails({ kind: 'spell', side: 'player', instanceId: banner.instanceId }, state, events)!);
     expect(html).toContain('aria-label="Battle Banner, Your Spell, center lane"');
     expect(text(html)).toContain('Attached Spell');
-    expect(text(html)).toContain('Passive: The Unit it is attached to has +15 ATK.');
+    expect(text(html)).toContain('Passive: The attached Unit has +15 ATK.');
     expect(text(html)).toContain('Attached to: Common Knight. It goes to the Graveyard when that Unit leaves play.');
     expect(text(html)).toContain('In this lane: your Common Knight, enemy Vharos, the Undying.');
   });
@@ -73,7 +73,7 @@ describe('battle log panel', () => {
     expect(html).toContain('role="dialog"');
     expect(text(html)).toContain('Battle log Newest at the bottom');
     expect(html).toContain('aria-label="Close battle log"');
-    expect(text(html)).toContain('Battle Banner — Attached: Common Knight +15 ATK');
+    expect(text(html)).toContain('Battle Banner — Attached: Common Knight has +15 ATK');
     expect(text(html)).toContain('Clash Damage — Center: 50 to Enemy (Common Knight 143 beat Bone Soldier 93)');
     expect(html).toContain('bd-log-row player clash');
     expect(html).toContain('bd-log-row enemy clash');

@@ -292,18 +292,25 @@
 .gc-effect { display: block; }
 /* The timing label: small caps in a muted gold, a quiet lead-in to the effect. */
 .gc-when {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  display: inline;
   margin-right: 1px;
   color: var(--gc-label);
   font: 700 calc(var(--gc-fs) * 0.9) / 1 var(--gc-label-font);
   letter-spacing: 0.02em;
-  /* Small caps set the word space for lowercase; "Your Spell" needs a little more to read as two words. */
+  /* Small caps set the word space for lowercase; "Round End" needs a little more to read as two words. A long label
+     ("When the enemy casts a Spell") may wrap. */
   word-spacing: 0.14em;
-  white-space: nowrap;
 }
+.gc-when .gc-state { margin-right: 2px; vertical-align: 0.1em; }
 .game-card.is-spell .gc-when { color: #b9a8df; }
+/* A keyword line ("Guard 2.", "Shield.") reads like a label: the keyword is the whole effect. */
+.gc-text.is-keyword {
+  color: var(--gc-label);
+  font: 700 calc(var(--gc-fs) * 0.9) / var(--gc-lh) var(--gc-label-font);
+  letter-spacing: 0.02em;
+  word-spacing: 0.14em;
+}
+.game-card.is-spell .gc-text.is-keyword { color: #b9a8df; }
 /* A conditional Passive: a green dot while it is on; the effect dims while it is off. */
 .gc-state { display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-right: 1px; }
 .gc-state.on { background: #8fe0a0; box-shadow: 0 0 3px #8fe0a0; }

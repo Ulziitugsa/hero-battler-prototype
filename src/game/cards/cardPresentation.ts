@@ -1,6 +1,6 @@
 import type { AbilityDefinition, CardDefinition, Faction, Trigger } from '../types/index.js';
 import { getCard } from './index.js';
-import { KEYWORD_HELP, TIMING_HELP, TIMING_LABEL, cardEffectLines, type EffectKeyword } from './effectText.js';
+import { CARD_GLOSSARY, KEYWORD_HELP, TIMING_HELP, TIMING_LABEL, cardEffectLines, type EffectKeyword } from './effectText.js';
 import { BATTLE_LINES, cardCombatEffectLines, trimTiming, type BattleCopy } from '../cardCombat/cardText.js';
 import { getCombatCard, isAttachedSpell } from '../cardCombat/cards.js';
 import { LAUNCH_NEW_CARD_IDS } from './launchCards.js';
@@ -41,6 +41,8 @@ export interface CardEffect {
   board: string;
   /** The full rule (focus panel, Card Inspect), without the timing phrase or keyword the label already shows. */
   full: string;
+  /** A keyword line ("Guard 2.", "Shield."): card faces print it alone, without "label:". */
+  keyword: boolean;
   oncePerRound: boolean;
   /** Index of the ability in the rules' own ability list (a board Unit's live Passive states are keyed by it). */
   abilityIndex: number;
@@ -122,12 +124,14 @@ for (const def of CARD_ASCENSIONS) {
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-function buildEffect(trigger: Trigger, fullLine: string, copy: BattleCopy | undefined, oncePerRound: boolean, abilityIndex: number, mastery: boolean): CardEffect {
+function buildEffect(trigger: Trigger, fullLine: string, copy: BattleCopy | undefined, oncePerRound: boolean, abilityIndex: number, mastery: boolean, fullFromCopy = false): CardEffect {
   const trimmed = trimTiming(fullLine);
   const face = typeof copy === 'string' ? copy : (copy?.face ?? trimmed);
   const label = (typeof copy === 'object' && copy.label) || TIMING_LABEL[trigger];
-  // A keyword label ("Guard 2") already says what the full rule's own keyword prefix does.
-  const full = trimmed.startsWith(`${label}: `) ? capitalize(trimmed.slice(label.length + 2)) : trimmed;
+  // Card-combat text is authored whole (cardText.ts BATTLE_LINES): the full line is the copy's own, or the face line.
+  // Legacy lines pair a face line with the rules sentence, whose keyword prefix the label already shows ("Guard 2").
+  const authored = fullFromCopy && copy !== undefined ? (typeof copy === 'string' ? copy : (copy.full ?? copy.face)) : null;
+  const full = authored ?? (trimmed.startsWith(`${label}: `) ? capitalize(trimmed.slice(label.length + 2)) : trimmed);
   return {
     trigger,
     label,
@@ -136,6 +140,7 @@ function buildEffect(trigger: Trigger, fullLine: string, copy: BattleCopy | unde
     compact: face,
     board: (typeof copy === 'object' && copy.board) || face,
     full,
+    keyword: typeof copy === 'object' && !!copy.keyword,
     oncePerRound,
     abilityIndex,
     mastery,
@@ -147,7 +152,7 @@ function cardRuleEffects(id: string): CardEffect[] {
   // Stacked thresholds share one line (Ignis): only abilities with text of their own are listed.
   const listed = abilities.map((ability, index) => ({ ability, index })).filter(({ ability }) => ability.text !== '');
   const copy = BATTLE_LINES[id];
-  return cardCombatEffectLines(id).map((line, i) => buildEffect(line.trigger, line.text, copy?.[i], line.oncePerRound, listed[i]?.index ?? i, false));
+  return cardCombatEffectLines(id).map((line, i) => buildEffect(line.trigger, line.text, copy?.[i], line.oncePerRound, listed[i]?.index ?? i, false, true));
 }
 
 function legacyRuleEffects(id: string, masteryRank: number): CardEffect[] {
@@ -204,13 +209,13 @@ export function hasMasteryCopy(ability: AbilityDefinition): boolean {
 export const FACTION_NAME: Record<Faction, string> = { kingdom: 'Kingdom', undead: 'Undead', infernal: 'Infernal', wildborn: 'Wildborn' };
 export const RARITY_NAME = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' } as const;
 
-/** "Unit", "Token", "Spell", "Continuous Spell" or "Attached Spell" (a Continuous Spell that belongs to one Unit). */
+/** "Unit", "Token", "Spell" (one-time), "Lane Spell" or "Attached Spell" (the two kinds of Continuous Spell). */
 export function cardKind(card: CardDefinition): string {
   if (card.type === 'hero') return card.role === 'Token' || card.tags.includes('Token') ? 'Token' : 'Unit';
-  return card.spellKind === 'CONTINUOUS' ? (isAttachedSpell(card.id) ? 'Attached Spell' : 'Continuous Spell') : 'Spell';
+  return card.spellKind === 'CONTINUOUS' ? (isAttachedSpell(card.id) ? 'Attached Spell' : 'Lane Spell') : 'Spell';
 }
 
-/** "Unit · Knight", "Continuous Spell". */
+/** "Unit · Knight", "Lane Spell". */
 export function cardTypeLine(card: CardDefinition): string {
   const kind = cardKind(card);
   return kind === 'Unit' && card.role ? `Unit · ${card.role}` : kind;
@@ -244,7 +249,7 @@ export function cardKeywords(cardOrId: CardDefinition | string, options: CardEff
   const abilities: readonly { actions: readonly { type: string; immunity?: string }[] }[] = legacy ? effectiveAbilities(card.id, options.masteryRank ?? 0) : getCombatCard(card.id).abilities;
   const effects = cardEffects(card, options);
   const found = new Set<EffectKeyword>();
-  if (card.spellKind === 'CONTINUOUS') found.add(isAttachedSpell(card.id) ? 'Attached Spell' : 'Continuous Spell');
+  if (card.spellKind === 'CONTINUOUS') found.add(isAttachedSpell(card.id) ? 'Attached Spell' : 'Lane Spell');
   if (cardKind(card) === 'Token') found.add('Token');
   if (effects.some((effect) => /^Guard \d/.test(effect.label))) found.add('Guard');
   for (const ability of abilities) {
@@ -253,11 +258,16 @@ export function cardKeywords(cardOrId: CardDefinition | string, options: CardEff
       if (action.type === 'GRANT_IMMUNITY' && action.immunity === 'SPELL') found.add('Spell Immune');
       if (action.type === 'SILENCE') found.add('Silence');
       if (action.type === 'GRANT_BYPASS') found.add('Bypass');
-      if (action.type === 'SUMMON_TOKEN') found.add('Token');
+      if (action.type === 'SUMMON_TOKEN') {
+        found.add('Summon');
+        found.add('Token');
+      }
+      if (action.type === 'REVIVE_TO_LANE' || action.type === 'REVIVE_SELF') found.add('Revive');
       if (action.type === 'EXILE_FROM_GRAVEYARD') found.add('Exile');
     }
   }
   if (effects.some((effect) => /Graveyard/.test(effect.full))) found.add('Graveyard');
+  if (effects.some((effect) => /Spells? in play/.test(effect.full))) found.add('Spell in play');
   const order = Object.keys(KEYWORD_HELP) as EffectKeyword[];
   return [...found].sort((a, b) => order.indexOf(a) - order.indexOf(b));
 }
@@ -281,4 +291,4 @@ export function cardSearchText(cardOrId: CardDefinition | string): string {
     .toLowerCase();
 }
 
-export { KEYWORD_HELP, TIMING_HELP, TIMING_LABEL, type EffectKeyword };
+export { CARD_GLOSSARY, KEYWORD_HELP, TIMING_HELP, TIMING_LABEL, type EffectKeyword };

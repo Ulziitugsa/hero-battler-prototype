@@ -95,7 +95,7 @@ export function CardEffectList({ card, rules, masteryRank = 0 }: { card: CardDef
                 {effect.timing}
               </span>
             )}
-            {effect.oncePerRound && <span className="ci-tag">Once per round</span>}
+            {effect.oncePerRound && !/once per round/i.test(effect.full) && <span className="ci-tag">Once per round</span>}
             {effect.mastery && <span className="ci-tag mastery">Mastery</span>}
           </div>
           <p>{effect.full}</p>

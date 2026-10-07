@@ -15,8 +15,9 @@ import { atkDelta, atkFromPower } from './cardFace.js';
 // - "Once per round" is added by the UI from `oncePerRound`, so the copy does not repeat it.
 
 /**
- * Timing labels, the same on every surface: printed in small caps before each effect on a card ("ON PLAY", "CLASH"),
- * in the focus panel, in Card Inspect and in the battle log. Only the moments the current cards actually use.
+ * Timing labels, the same on every surface: printed in small caps before each effect on a card ("CLASH", "ROUND END"),
+ * in the focus panel, in Card Inspect and in the battle log. The card-text standard (docs/CARD-TEXT.md): one label per
+ * effect, from this list or a keyword ("Guard 2", "Shield").
  */
 export const TIMING_LABEL: Record<Trigger, string> = {
   ON_PLAY: 'On Play', // legacy resolver only; no card-combat card uses it
@@ -29,44 +30,90 @@ export const TIMING_LABEL: Record<Trigger, string> = {
   ON_ENEMY_DEATH: 'Enemy Falls',
   ON_DIRECT_DAMAGE: 'Direct Attack',
   ROUND_END: 'Round End',
-  ON_ALLY_SPELL_PLAYED: 'Your Spell',
-  ON_ENEMY_SPELL_PLAYED: 'Enemy Spell',
+  ON_ALLY_SPELL_PLAYED: 'When you cast a Spell',
+  ON_ENEMY_SPELL_PLAYED: 'When the enemy casts a Spell',
   CONTINUOUS: 'Passive',
   PASSIVE: 'Passive',
 };
 
-/** What each timing label means (Card Inspect, tooltips). */
+/** What each timing label means (Card Inspect, tooltips). Short, plain sentences: the glossary's own words. */
 export const TIMING_HELP: Record<Trigger, string> = {
   ON_PLAY: 'When this card is played.',
-  CAST: 'Once, when this Spell resolves.',
-  ROUND_START: 'At the start of each round.',
-  BEFORE_COMBAT: 'Each round, just before the lanes clash.',
-  AFTER_COMBAT: 'Each round, right after the lanes clash.',
-  ON_DEATH: 'When this Unit is destroyed.',
-  ON_ALLY_DEATH: 'When one of your other Units is destroyed.',
-  ON_ENEMY_DEATH: 'When an enemy Unit is destroyed.',
-  ON_DIRECT_DAMAGE: 'When this Unit hits the enemy player directly.',
-  ROUND_END: 'At the end of each round.',
-  ON_ALLY_SPELL_PLAYED: 'Whenever you cast a Spell.',
-  ON_ENEMY_SPELL_PLAYED: 'Whenever the enemy casts a Spell.',
-  CONTINUOUS: 'Always on while this Spell stays in its slot.',
-  PASSIVE: 'Always on while this Unit is in play and its condition, if any, holds.',
+  CAST: 'Happens once, when this Spell is cast.',
+  ROUND_START: 'Happens at the start of each round.',
+  BEFORE_COMBAT: 'Happens each round, just before the lanes fight.',
+  AFTER_COMBAT: 'Happens each round, right after the lanes fight.',
+  ON_DEATH: 'Happens when this Unit is destroyed: it loses or ties a fight, or an effect destroys it.',
+  ON_ALLY_DEATH: 'Happens when one of your other Units is destroyed.',
+  ON_ENEMY_DEATH: 'Happens when an enemy Unit is destroyed.',
+  ON_DIRECT_DAMAGE: 'Happens when this Unit hits the enemy player directly.',
+  ROUND_END: 'Happens at the end of each round.',
+  ON_ALLY_SPELL_PLAYED: 'Happens each time you cast a Spell.',
+  ON_ENEMY_SPELL_PLAYED: 'Happens each time the enemy casts a Spell.',
+  CONTINUOUS: 'Always on while this Spell is in play.',
+  PASSIVE: 'Always on while this Unit is in play.',
 };
 
-export type EffectKeyword = 'Shield' | 'Guard' | 'Spell Immune' | 'Silence' | 'Bypass' | 'Token' | 'Exile' | 'Graveyard' | 'Continuous Spell' | 'Attached Spell';
+export type EffectKeyword =
+  | 'Shield'
+  | 'Guard'
+  | 'Spell Immune'
+  | 'Silence'
+  | 'Bypass'
+  | 'Summon'
+  | 'Token'
+  | 'Revive'
+  | 'Exile'
+  | 'Graveyard'
+  | 'Spell in play'
+  | 'Lane Spell'
+  | 'Attached Spell';
 
 export const KEYWORD_HELP: Record<EffectKeyword, string> = {
   Shield: 'The first time this Unit would be destroyed, it survives instead.',
-  Guard: 'Guard N: just before a clash this Unit would lose, it gains 15 ATK per point of Guard for that round.',
+  Guard: 'When this Unit would lose its lane, Guard 1 gives it +15 ATK this round, Guard 2 gives +30.',
   'Spell Immune': 'Enemy Spells can’t affect this Unit.',
-  Silence: 'A silenced Unit’s effects do nothing for the rest of the round. Its Shield still works.',
-  Bypass: 'Skips the lane clash and attacks the enemy player directly.',
-  Token: 'Created during battle. Disappears when destroyed and never enters the Graveyard.',
-  Exile: 'Removed from the Graveyard for the rest of the battle.',
-  Graveyard: 'Where your destroyed Units and used Spells go.',
-  'Continuous Spell': 'Stays in its lane’s Spell slot, working every round, until it is destroyed.',
-  'Attached Spell': 'Cast onto your Unit in this lane. It works while that Unit is in play, then goes to the Graveyard with it and frees the slot.',
+  Silence: 'The Unit’s effects do nothing this round. Its Shield still works.',
+  Bypass: 'This Unit skips the fight and hits the enemy player directly.',
+  Summon: 'Put a new token Unit into an empty lane.',
+  Token: 'A Unit made during battle. It vanishes when destroyed and never goes to the Graveyard.',
+  Revive: 'Move a Unit from your Graveyard into a lane.',
+  Exile: 'Remove a card from the Graveyard for the rest of the battle.',
+  Graveyard: 'Where your destroyed Units and used Spells go. A card can come back from it once per battle.',
+  'Spell in play': 'A Lane Spell or Attached Spell on the battlefield.',
+  'Lane Spell': 'Stays in its lane and works every round until it is destroyed.',
+  'Attached Spell': 'Goes onto your Unit in its lane. It leaves play when that Unit does.',
 };
+
+/**
+ * The card words, defined once (How to Play, docs/CARD-TEXT.md): the timing labels, the keywords and the durations every
+ * card text uses. Short definitions in plain words.
+ */
+export const CARD_GLOSSARY: readonly { term: string; text: string }[] = [
+  { term: 'Passive', text: 'Always on while this card is in play.' },
+  { term: 'Clash', text: TIMING_HELP.BEFORE_COMBAT },
+  { term: 'Round Start', text: TIMING_HELP.ROUND_START },
+  { term: 'Round End', text: TIMING_HELP.ROUND_END },
+  { term: 'Destroyed', text: TIMING_HELP.ON_DEATH },
+  { term: 'Ally Falls', text: TIMING_HELP.ON_ALLY_DEATH },
+  { term: 'Enemy Falls', text: TIMING_HELP.ON_ENEMY_DEATH },
+  { term: 'Direct Attack', text: TIMING_HELP.ON_DIRECT_DAMAGE },
+  { term: 'Graveyard', text: KEYWORD_HELP.Graveyard },
+  { term: 'Shield', text: KEYWORD_HELP.Shield },
+  { term: 'Guard', text: KEYWORD_HELP.Guard },
+  { term: 'Lane Spell', text: KEYWORD_HELP['Lane Spell'] },
+  { term: 'Attached Spell', text: KEYWORD_HELP['Attached Spell'] },
+  { term: 'Spell in play', text: KEYWORD_HELP['Spell in play'] },
+  { term: 'Summon', text: KEYWORD_HELP.Summon },
+  { term: 'Revive', text: KEYWORD_HELP.Revive },
+  { term: 'Exile', text: KEYWORD_HELP.Exile },
+  { term: 'Bypass', text: KEYWORD_HELP.Bypass },
+  { term: 'Silence', text: KEYWORD_HELP.Silence },
+  { term: 'this round', text: 'Until the round ends.' },
+  { term: 'for the rest of the battle', text: 'Until the battle ends or this Unit leaves play. A Unit can grow by at most +45 ATK this way.' },
+  { term: 'once per round', text: 'At most one time each round.' },
+  { term: 'once per battle', text: 'Only the first time in each battle.' },
+];
 
 const MINUS = '−';
 /** "+30 ATK" / "−45 ATK" for a Power change. */

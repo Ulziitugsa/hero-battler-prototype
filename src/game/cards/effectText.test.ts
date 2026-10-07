@@ -108,7 +108,7 @@ describe('player-facing effect copy', () => {
   it('replaces the old debug shorthand on Royal Guard', () => {
     const guard = getCard('kng-royal-guard');
     expect(guard.boardText).toBe('Adj+1; Spell Immune w/ally');
-    expect(cardEffects(guard)[0].compact).toBe('Adjacent allies +15 ATK.');
+    expect(cardEffects(guard)[0].compact).toBe('Adjacent allies have +15 ATK.');
     expect(cardEffectLines(guard)[0]).toMatchObject({ label: 'On Play', text: 'Adjacent allied Units gain +15 ATK for the rest of the battle.' });
   });
 
@@ -121,9 +121,11 @@ describe('player-facing effect copy', () => {
     expect(cardKeywords(getCard('kng-paladin'))).toEqual(['Shield']);
     expect(cardKeywords(getCard('kng-shieldbearer'))).toEqual(['Guard']);
     expect(cardKeywords(getCard('spl-battle-banner'))).toEqual(['Attached Spell']);
-    expect(cardKeywords(getCard('spl-burning-ground'))).toEqual(['Continuous Spell']);
+    expect(cardKeywords(getCard('spl-burning-ground'))).toEqual(['Lane Spell']);
+    expect(cardKeywords(getCard('inf-cerberus'))).toEqual(['Summon', 'Token']);
+    expect(cardKeywords(getCard('und-morwen'))).toEqual(['Guard', 'Revive', 'Graveyard']);
     expect(cardSearchText(getCard('kng-paladin'))).toContain('shield');
-    expect(cardSearchText('kng-royal-guard')).toContain('adjacent allies +15 atk');
+    expect(cardSearchText('kng-royal-guard')).toContain('adjacent allies have +15 atk');
     expect(cardSearchText('kng-royal-guard')).toContain('rare');
   });
 });

@@ -239,6 +239,8 @@ interface EffectGroup {
   label: string;
   trigger: CardEffect['trigger'];
   implied: boolean;
+  /** A keyword line ("Guard 2.", "Shield."): printed alone, without "label:". */
+  keyword: boolean;
   effects: CardEffect[];
 }
 
@@ -278,16 +280,16 @@ export function GameCard({
   const fitRef = useFitCard(density, `${cardId}|${density}|${rules}|${masteryRank}|${title}|${silenced}|${passiveKey}|${current}|${hpContribution ?? ''}`);
   // A Spell names its kind where a Unit shows ATK. (Card Inspect lists a Unit's role under the card.)
   const attached = continuous && rules === 'card' && isAttachedSpell(cardId);
-  const spellKind = attached ? (inspect ? 'Attached Spell' : 'Attached') : continuous ? (inspect ? 'Continuous Spell' : 'Continuous') : 'Spell';
+  const spellKind = attached ? (inspect ? 'Attached Spell' : 'Attached') : continuous ? (inspect ? 'Lane Spell' : 'Lane') : 'Spell';
 
-  // Effects that share a label read as one paragraph under it ("Clash: Destroy enemy Continuous Spell here. +30 ATK this round.").
+  // Effects that share a label read as one paragraph under it ("Clash: Give this Unit +15 ATK this round. If ...").
   const groups: EffectGroup[] = [];
   for (const effect of effects) {
     // A one-time Spell's effect happens once, when it is cast, so its timing goes without saying (as on a printed card).
     const implied = !unit && !continuous && (effect.trigger === 'CAST' || effect.trigger === 'ON_PLAY');
     const last = groups[groups.length - 1];
-    if (last && last.label === effect.label && last.implied === implied) last.effects.push(effect);
-    else groups.push({ label: effect.label, trigger: effect.trigger, implied, effects: [effect] });
+    if (last && !effect.keyword && !last.keyword && last.label === effect.label && last.implied === implied) last.effects.push(effect);
+    else groups.push({ label: effect.label, trigger: effect.trigger, implied, keyword: effect.keyword, effects: [effect] });
   }
   const stateDot = (state: boolean | undefined) =>
     state !== undefined && !silenced && <span className={`gc-state ${state ? 'on' : 'off'}`} role="img" aria-label={state ? 'active now' : 'inactive now'} title={state ? 'Active now' : 'Not active now'} />;
@@ -307,7 +309,7 @@ export function GameCard({
         const single = group.effects.length === 1;
         return (
           <span className={`gc-effect ${silenced || states.every((state) => state === false) ? 'is-off' : ''}`} key={g} data-trigger={group.trigger}>
-            {!group.implied && (
+            {!group.implied && !group.keyword && (
               <>
                 <span className="gc-when">
                   {single && stateDot(states[0])}
@@ -318,9 +320,9 @@ export function GameCard({
             {group.effects.map((effect, k) => (
               <Fragment key={k}>
                 {k > 0 && ' '}
-                <span className={`gc-text ${silenced || states[k] === false ? 'is-off' : ''} ${effect.mastery ? 'is-mastery' : ''}`}>
-                  {!single && stateDot(states[k])}
-                  {keepTogether(density === 'board' ? effect.board : effect.compact)}
+                <span className={`gc-text ${silenced || states[k] === false ? 'is-off' : ''} ${effect.mastery ? 'is-mastery' : ''} ${effect.keyword ? 'is-keyword' : ''}`}>
+                  {(!single || group.keyword) && stateDot(states[k])}
+                  {keepTogether(density === 'board' || density === 'spell' ? effect.board : effect.compact)}
                 </span>
               </Fragment>
             ))}
