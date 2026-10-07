@@ -31,11 +31,13 @@ export interface CardEffect {
   trigger: Trigger;
   /** What every surface prints before the effect: the timing label ("Round End", "Clash"), or a keyword that says more ("Guard 2", "Your 2nd Spell"). */
   label: string;
+  /** The label the card face prints: `label`, or a shorter one ("Your Spell", "2nd Spell"). */
+  faceLabel: string;
   /** The trigger's own timing label, also where `label` is a keyword (Card Inspect shows both). */
   timing: string;
   /** What the timing means. */
   help: string;
-  /** The battle line on every card face. */
+  /** The short battle line on every card face. */
   compact: string;
   /** The board's wording: the battle line, or a tighter one where part of it no longer matters once in play. */
   board: string;
@@ -122,12 +124,16 @@ for (const def of CARD_ASCENSIONS) {
 
 // ---------------------------------------------------------------------------------------------------------------
 
+/** Card faces shorten the two long timing labels; the panels and Card Inspect print them in full. */
+const FACE_LABEL: Partial<Record<Trigger, string>> = { ON_ALLY_SPELL_PLAYED: 'Your Spell', ON_ENEMY_SPELL_PLAYED: 'Enemy Spell' };
+
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 function buildEffect(trigger: Trigger, fullLine: string, copy: BattleCopy | undefined, oncePerRound: boolean, abilityIndex: number, mastery: boolean, fullFromCopy = false): CardEffect {
   const trimmed = trimTiming(fullLine);
   const face = typeof copy === 'string' ? copy : (copy?.face ?? trimmed);
   const label = (typeof copy === 'object' && copy.label) || TIMING_LABEL[trigger];
+  const faceLabel = (typeof copy === 'object' && copy.faceLabel) || (typeof copy === 'object' && copy.label) || FACE_LABEL[trigger] || label;
   // Card-combat text is authored whole (cardText.ts BATTLE_LINES): the full line is the copy's own, or the face line.
   // Legacy lines pair a face line with the rules sentence, whose keyword prefix the label already shows ("Guard 2").
   const authored = fullFromCopy && copy !== undefined ? (typeof copy === 'string' ? copy : (copy.full ?? copy.face)) : null;
@@ -135,6 +141,7 @@ function buildEffect(trigger: Trigger, fullLine: string, copy: BattleCopy | unde
   return {
     trigger,
     label,
+    faceLabel,
     timing: TIMING_LABEL[trigger],
     help: TIMING_HELP[trigger],
     compact: face,

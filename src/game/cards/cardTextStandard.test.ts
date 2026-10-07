@@ -6,10 +6,12 @@ import { getCard } from './index';
 // The card-text standard (docs/CARD-TEXT.md): every launch card's text uses the approved labels and words.
 const APPROVED_LABELS = new Set(['Passive', 'Cast', 'Clash', 'Round Start', 'Round End', 'Destroyed', 'Ally Falls', 'Enemy Falls', 'Direct Attack', 'When you cast a Spell', 'When the enemy casts a Spell']);
 const KEYWORD_LABEL = /^(Shield|Guard [1-3])$/;
+/** Shorter labels only the card face prints (the panels print the full timing label). */
+const FACE_LABELS = new Set([...APPROVED_LABELS, 'Your Spell', 'Enemy Spell', '2nd Spell', 'Enemy’s 2nd Spell']);
 
-/** Old or vague wording the standard replaced, with what to say instead. */
+/** Old or vague wording the standard replaced, with what to say instead. The card face may say "here" (this lane). */
+const HERE: [RegExp, string] = [/\bhere\b/i, '"in this lane"'];
 const BANNED: [RegExp, string][] = [
-  [/\bhere\b/i, '"in this lane"'],
   [/\b(may|nearby|empower\w*|weaken\w*|curse[sd]?|fallen|grave)\b/i, 'a plain game word'],
   [/restore strength/i, 'a plain game word'],
   [/\ballied\b|\bcontrol\b/i, '"your Units" / "you have"'],
@@ -34,6 +36,7 @@ describe('card-text standard', () => {
 
   it('every effect uses one approved timing label or a keyword (Shield, Guard N)', () => {
     for (const e of all) expect(APPROVED_LABELS.has(e.label) || KEYWORD_LABEL.test(e.label), `${e.id}: ${e.label}`).toBe(true);
+    for (const e of all) expect(FACE_LABELS.has(e.faceLabel) || KEYWORD_LABEL.test(e.faceLabel), `${e.id}: ${e.faceLabel}`).toBe(true);
     for (const trigger of ['BEFORE_COMBAT', 'ON_DEATH', 'ON_ALLY_SPELL_PLAYED', 'ON_ENEMY_SPELL_PLAYED'] as const) expect(APPROVED_LABELS.has(TIMING_LABEL[trigger])).toBe(true);
   });
 
@@ -46,6 +49,23 @@ describe('card-text standard', () => {
       for (const [pattern, instead] of BANNED) {
         for (const t of [e.compact, e.board, e.full]) expect(t, `${e.id}: "${t}" (use ${instead})`).not.toMatch(pattern);
       }
+      expect(e.full, `${e.id}: "${e.full}" (use ${HERE[1]})`).not.toMatch(HERE[0]);
+    }
+  });
+
+  it('the card face is short battle text: one short line per effect, a short box per card', () => {
+    for (const e of all) expect(e.compact.length, `${e.id}: ${e.compact}`).toBeLessThanOrEqual(85);
+    for (const id of LAUNCH_CARD_IDS) {
+      const box = cardEffects(id).map((e) => (e.keyword ? e.compact : `${e.faceLabel}: ${e.compact}`)).join(' ');
+      expect(box.length, `${id}: ${box}`).toBeLessThanOrEqual(165);
+    }
+  });
+
+  it('the card face keeps how long an ATK change lasts ("this round", "for the battle")', () => {
+    for (const e of all) {
+      if (/for the rest of the battle/.test(e.full)) expect(e.compact, e.id).toMatch(/for the battle/);
+      if (/ATK this round/.test(e.full) && !e.keyword) expect(e.compact, e.id).toMatch(/this round|\+\d+ more\b/);
+      expect(e.compact, `${e.id}: the face says "for the battle"`).not.toMatch(/for the rest of the battle/);
     }
   });
 
@@ -60,7 +80,10 @@ describe('card-text standard', () => {
   });
 
   it('a once-per-round effect says so (a "2nd Spell this round" or Direct Attack effect can only happen once a round anyway)', () => {
-    for (const e of all.filter((x) => x.oncePerRound)) expect(`${e.label}: ${e.compact}`, e.id).toMatch(/Once per round|each round|2nd Spell this round|^Direct Attack/);
+    for (const e of all.filter((x) => x.oncePerRound)) {
+      expect(`${e.faceLabel}: ${e.compact}`, e.id).toMatch(/Once per round|each round|2nd Spell|^Direct Attack/);
+      expect(`${e.label}: ${e.full}`, e.id).toMatch(/Once per round|each round|2nd Spell this round|^Direct Attack/);
+    }
   });
 
   it('the glossary defines every card word in short, plain sentences', () => {

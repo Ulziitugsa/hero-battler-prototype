@@ -288,8 +288,8 @@ export function GameCard({
     // A one-time Spell's effect happens once, when it is cast, so its timing goes without saying (as on a printed card).
     const implied = !unit && !continuous && (effect.trigger === 'CAST' || effect.trigger === 'ON_PLAY');
     const last = groups[groups.length - 1];
-    if (last && !effect.keyword && !last.keyword && last.label === effect.label && last.implied === implied) last.effects.push(effect);
-    else groups.push({ label: effect.label, trigger: effect.trigger, implied, keyword: effect.keyword, effects: [effect] });
+    if (last && !effect.keyword && !last.keyword && last.label === effect.faceLabel && last.implied === implied) last.effects.push(effect);
+    else groups.push({ label: effect.faceLabel, trigger: effect.trigger, implied, keyword: effect.keyword, effects: [effect] });
   }
   const stateDot = (state: boolean | undefined) =>
     state !== undefined && !silenced && <span className={`gc-state ${state ? 'on' : 'off'}`} role="img" aria-label={state ? 'active now' : 'inactive now'} title={state ? 'Active now' : 'Not active now'} />;

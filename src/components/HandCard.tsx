@@ -44,7 +44,7 @@ export function HandCard({
       tabIndex={0}
       aria-pressed={selected}
       aria-label={`${card.name}. ${cardEffects(card.id, { rules, masteryRank })
-        .map((e) => `${e.label}: ${e.compact}`)
+        .map((e) => `${e.label}: ${e.full}`)
         .join(' ')} Tap for details; long-press or use the info button to inspect.`}
       className={`hand-card card-face r-${card.rarity} ${selected ? 'selected' : ''}`}
       style={style}

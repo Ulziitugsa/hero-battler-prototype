@@ -302,10 +302,10 @@ export function battleLogEntries(events: GameEvent[], base?: GameState, rules: C
       const always = cardEffects(ev.cardId, { rules }).filter((e) => e.trigger === 'CONTINUOUS');
       const holder = ev.attachedTo?.name;
       if (holder) {
-        const text = always.length > 0 ? always.map((e) => `${holder} ${e.compact.replace(/^The attached Unit\s*/, '').replace(/\.$/, '')}`).join(', ') : `To ${holder}`;
+        const text = always.length > 0 ? always.map((e) => `${holder} ${e.full.replace(/^The attached Unit\s*/, '').replace(/\.$/, '')}`).join(', ') : `To ${holder}`;
         entries.push({ key: `${start}`, until: i, kind: 'effect', side: ev.side, who: ev.name, label: 'Attached', text });
       } else if (always.length > 0) {
-        const text = always.map((e) => e.compact.replace(/^Your Unit in this lane/, 'Unit in this lane').replace(/\.$/, '')).join(', ');
+        const text = always.map((e) => e.full.replace(/^Your Unit in this lane/, 'Unit in this lane').replace(/\.$/, '')).join(', ');
         entries.push({ key: `${start}`, until: i, kind: 'effect', side: ev.side, who: ev.name, label: always[0].label, text });
       }
       i++;
@@ -321,7 +321,7 @@ export function battleLogEntries(events: GameEvent[], base?: GameState, rules: C
       // A Continuous Spell whose effect is always on (Battle Banner) never announces itself: say what it does once.
       const always = cardEffects(ev.cardId, { rules }).filter((e) => e.trigger === 'CONTINUOUS');
       if (always.length > 0) {
-        const text = always.map((e) => e.compact.replace(/^Your Unit in this lane/, 'Unit in this lane').replace(/\.$/, '')).join(', ');
+        const text = always.map((e) => e.full.replace(/^Your Unit in this lane/, 'Unit in this lane').replace(/\.$/, '')).join(', ');
         entries.push({ key: `${start}`, until: i, kind: 'effect', side: ev.side, who: ev.name, label: always[0].label, text });
       }
       i++;

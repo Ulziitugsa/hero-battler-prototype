@@ -108,7 +108,8 @@ describe('player-facing effect copy', () => {
   it('replaces the old debug shorthand on Royal Guard', () => {
     const guard = getCard('kng-royal-guard');
     expect(guard.boardText).toBe('Adj+1; Spell Immune w/ally');
-    expect(cardEffects(guard)[0].compact).toBe('Adjacent allies have +15 ATK.');
+    expect(cardEffects(guard)[0].compact).toBe('Adjacent allies +15 ATK.');
+    expect(cardEffects(guard)[0].full).toBe('Adjacent allies have +15 ATK.');
     expect(cardEffectLines(guard)[0]).toMatchObject({ label: 'On Play', text: 'Adjacent allied Units gain +15 ATK for the rest of the battle.' });
   });
 
