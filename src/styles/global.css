@@ -2366,6 +2366,8 @@ button {
 
 .help-modal {
   width: min(360px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
   padding: var(--sp-5);
   display: flex;
   flex-direction: column;
@@ -2404,6 +2406,37 @@ button {
   color: var(--gold);
   flex-shrink: 0;
   margin-top: 1px;
+}
+
+/* Card words: the glossary every card text uses (effectText.ts CARD_GLOSSARY). */
+.help-modal-subhead {
+  margin: 0;
+  font: var(--text-heading);
+  font-size: 1rem;
+}
+
+.help-modal-glossary {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font: var(--text-body);
+  color: var(--ink);
+}
+
+.help-modal-glossary dt {
+  display: inline;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.help-modal-glossary dt::after {
+  content: ': ';
+}
+
+.help-modal-glossary dd {
+  display: inline;
+  margin: 0;
 }
 
 /* ---- Shared terrace styles ------------------------------------------------

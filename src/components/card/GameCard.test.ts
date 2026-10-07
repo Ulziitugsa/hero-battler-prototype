@@ -57,11 +57,9 @@ describe('a two-effect Unit reads without Card Inspect (Battle Captain)', () => 
     const t = text(html);
     expect(t).toContain('Battle Captain ATK 102');
     expect(t).toContain('Clash: Adjacent allies +15 ATK this round.');
-    expect(t).toContain('Passive: Immune to Unit effects with Knight ally.');
+    expect(t).toContain('Passive: Immune to enemy Unit effects with another Knight.');
     expect(t).not.toContain('+77');
     expect(html).toContain('game-card d-hand');
-    // The full sentences live in the focus panel and Card Inspect.
-    expect(t).not.toContain('adjacent allied Units');
   });
 
   it('on the board: both effects, current ATK, whether the immunity is on, and no Unit health', () => {
@@ -70,7 +68,7 @@ describe('a two-effect Unit reads without Card Inspect (Battle Captain)', () => 
     const t = text(html);
     expect(t).toContain('Battle Captain ATK 113');
     expect(t).toContain('Clash: Adjacent allies +15 ATK this round.');
-    expect(t).toContain('Passive: Immune to Unit effects with Knight ally.');
+    expect(t).toContain('Passive: Immune to enemy Unit effects with another Knight.');
     expect(html).toContain('gc-state on');
     expect(html).toContain('aria-label="active now"');
     expect(t).not.toMatch(/\bHP\b/);
@@ -88,7 +86,7 @@ describe('a two-effect Unit reads without Card Inspect (Battle Captain)', () => 
     const hpc = printedStats(getCard(CAPTAIN))!.hpc;
     const tile = text(face(CAPTAIN, 'tile', { hpContribution: hpc }));
     expect(tile).toContain(`Battle Captain HP +${hpc} ATK 102`);
-    expect(tile).toContain('Clash: Adjacent allies +15 ATK this round. Passive: Immune to Unit effects with Knight ally.');
+    expect(tile).toContain('Clash: Adjacent allies +15 ATK this round. Passive: Immune to enemy Unit effects with another Knight.');
     const inspect = text(face(CAPTAIN, 'inspect', { hpContribution: hpc }));
     expect(inspect).toContain(`HP +${hpc} ATK 102`);
     for (const density of ['hand', 'board'] as const) expect(text(face(CAPTAIN, density)), density).not.toContain(`+${hpc}`);
@@ -108,7 +106,8 @@ describe('every surface shares one effect model and never drops an effect', () =
         expect(e.full.length, card.id).toBeGreaterThan(0);
         expect(e.compact.length, card.id).toBeGreaterThan(0);
         expect(e.compact, card.id).not.toMatch(/…|\.\.\./);
-        expect(e.compact.length, `${card.id}: ${e.compact}`).toBeLessThanOrEqual(70);
+        // Grave Tyrant and Grave Totem are the longest single lines (two halves in one effect).
+        expect(e.compact.length, `${card.id}: ${e.compact}`).toBeLessThanOrEqual(90);
         expect(e.compact.length, `${card.id}: compact copy should be shorter than the full rule`).toBeLessThanOrEqual(e.full.length);
         expect(e.board.length, `${card.id}: board wording is never longer than the hand's`).toBeLessThanOrEqual(e.compact.length);
         // Short, but never cryptic: no abbreviations beyond ATK and HP, and no symbols for words.
@@ -126,7 +125,7 @@ describe('every surface shares one effect model and never drops an effect', () =
         for (const e of effects) {
           expect(e.compact.length, card.id).toBeGreaterThan(0);
           expect(e.full.length, card.id).toBeGreaterThan(0);
-          expect(e.compact.length, `${card.id}: ${e.compact}`).toBeLessThanOrEqual(80);
+          expect(e.compact.length, `${card.id}: ${e.compact}`).toBeLessThanOrEqual(90);
           expect(e.compact, card.id).not.toMatch(/…|\.\.\./);
         }
       }
@@ -140,8 +139,8 @@ describe('every surface shares one effect model and never drops an effect', () =
     let last = '';
     for (const e of cardEffects(cardId, { rules })) {
       const implied = card.type === 'spell' && card.spellKind !== 'CONTINUOUS' && (e.trigger === 'CAST' || e.trigger === 'ON_PLAY');
-      const lead = implied ? '' : `${e.label}: `;
-      if (out.length > 0 && lead === last) out[out.length - 1] += ` ${e[wording]}`;
+      const lead = implied || e.keyword ? '' : `${e.faceLabel}: `;
+      if (out.length > 0 && lead === last && !e.keyword) out[out.length - 1] += ` ${e[wording]}`;
       else out.push(`${lead}${e[wording]}`);
       last = lead;
     }
@@ -165,7 +164,7 @@ describe('every surface shares one effect model and never drops an effect', () =
           expect(hand, `${card.id} ${rules}`).toContain(p);
           expect(tile, `${card.id} ${rules}`).toContain(p);
         }
-        for (const p of paragraphs(card.id, boardDensity === 'board' ? 'board' : 'compact', rules)) expect(board, `${card.id} ${rules}`).toContain(p);
+        for (const p of paragraphs(card.id, 'board', rules)) expect(board, `${card.id} ${rules}`).toContain(p);
         if (effects.length === 0) expect(board, card.id).toContain('No effect');
       }
     }
@@ -175,61 +174,67 @@ describe('every surface shares one effect model and never drops an effect', () =
 
   it('effects that share a label read as one paragraph under it', () => {
     const html = face('kng-light-priest', 'hand');
-    expect(text(html)).toContain('Shield: Survives being destroyed once. Round End: Restore 45 HP. Your Spell: +15 ATK this round.');
-    expect(html.match(/class="gc-when"/g)).toHaveLength(3);
-    expect(text(face('und-vharos', 'board'))).toContain('Destroyed: Revive here with 95 ATK. Gain your strongest other Graveyard Undead.');
+    expect(text(html)).toContain('Shield. Round End: Restore 45 HP. Your Spell: +15 ATK this round.');
+    // A keyword prints alone ("Shield."), so only the two timing labels lead in.
+    expect(html.match(/class="gc-when"/g)).toHaveLength(2);
+    expect(text(face('und-vharos', 'board'))).toContain('Destroyed: Revive here with 95 ATK once. Return your strongest other Undead to hand.');
   });
 
   it('the board drops a phrase that stops mattering once the card is in play', () => {
-    expect(text(face('und-mira', 'hand'))).toContain('Destroyed: Gain your weakest other Graveyard Undead.');
-    expect(text(face('und-shade-thief', 'hand'))).toContain('from next round');
-    expect(text(face('und-shade-thief', 'board'))).not.toContain('from next round');
+    expect(text(face('und-shade-thief', 'hand'))).toContain('Passive: Bypass with a Spell in play, starting next round.');
+    expect(text(face('und-shade-thief', 'board'))).toContain('Passive: Bypass with a Spell in play.');
+    expect(text(face('und-shade-thief', 'board'))).not.toContain('starting next round');
   });
 
-  it('reads in the register of the brief: label, colon, a short line', () => {
+  it('the card face is short battle text; the panels keep the full plain-English line', () => {
     const vael = text(face('kng-archmage-vael', 'hand'));
-    expect(vael).toContain('Passive: Your first one-time Spell each round repeats.');
-    expect(vael).toContain('Your 2nd Spell: Deal 90 damage.');
-    expect(vael).toContain('Round End: If hand is empty, gain a Graveyard Spell.');
-    expect(text(face('inf-runebreaker', 'board'))).toContain('Clash: Destroy enemy Continuous Spell here. Passive: Spell Immune with Mage Slayer ally. Enemy’s 2nd Spell: Deal 90 damage.');
+    expect(vael).toContain('Passive: If your first Spell is one-time, repeat it. 2nd Spell: Deal 90 damage. Round End: If your hand is empty, return a random Spell.');
+    expect(cardEffects('kng-archmage-vael').map((e) => `${e.label}: ${e.full}`)).toEqual([
+      'Passive: If the first Spell you cast each round is a one-time Spell, it happens twice.',
+      'When you cast a Spell: If it is your 2nd Spell this round, deal 90 damage to the enemy player.',
+      'Round End: If your hand is empty, return a random Spell from your Graveyard to your hand.',
+    ]);
+    expect(text(face('inf-runebreaker', 'board'))).toContain('Clash: Destroy the enemy Spell here. Passive: Spell Immune with another Mage Slayer. Enemy’s 2nd Spell: Deal 90 damage.');
     expect(text(face('kng-royal-guard', 'hand'))).toContain('Passive: Adjacent allies +15 ATK.');
+    expect(text(face('spl-grave-totem', 'hand'))).toContain('Clash: If enemy cast or has a Spell, your Unit here gets +30 ATK this round. Ally Falls: If it was here, return it to hand. Once per battle.');
   });
 
   it('the Dawnshield Paladin shows Shield, its lift for losing allies and its heal, each with its timing', () => {
     const t = text(face('kng-paladin', 'board'));
-    expect(t).toContain('Shield: Survives being destroyed once.');
-    expect(t).toContain('Clash: Adjacent allies that would lose +15 ATK this round.');
-    expect(t).toContain('Enemy Falls: If it fell here, restore 45 HP.');
+    expect(t).toContain('Shield.');
+    expect(t).toContain('Clash: Adjacent allies losing their lane get +15 ATK this round.');
+    expect(t).toContain('Enemy Falls: If it was here, restore 45 HP. Once per round.');
   });
 
-  it('a keyword label replaces the timing, and the full rule drops what the label already says', () => {
+  it('a keyword prints alone on the card and its label replaces the timing; the panels say what it does', () => {
     const blood = cardEffects('inf-blood-demon');
     expect(blood[1].label).toBe('Clash');
-    expect(blood[1].full).toBe('If an allied Unit died this round, gain +30 ATK this round.');
+    expect(blood[1].full).toBe('If one of your Units was destroyed this round, give this Unit +30 ATK this round.');
     const priest = cardEffects('und-dark-priest')[0];
-    expect([priest.label, priest.timing, priest.full, priest.compact]).toEqual(['Guard 2', 'Clash', 'If this Unit would lose its lane, gain +30 ATK this round.', '+30 ATK this round if losing.']);
-    expect(cardEffects('inf-runebreaker')[2].label).toBe('Enemy’s 2nd Spell');
+    expect([priest.label, priest.timing, priest.full, priest.compact, priest.keyword]).toEqual(['Guard 2', 'Clash', 'If this Unit would lose its lane, give it +30 ATK this round.', 'Guard 2.', true]);
+    expect(text(face('und-dark-priest', 'hand'))).toContain('Guard 2. Clash: +15 ATK this round with 3+ cards in your Graveyard.');
+    expect([cardEffects('inf-runebreaker')[2].label, cardEffects('inf-runebreaker')[2].faceLabel]).toEqual(['When the enemy casts a Spell', 'Enemy’s 2nd Spell']);
   });
 });
 
 describe('Spells use the same card', () => {
   it('a Continuous Spell on the board shows its rule in its Spell zone', () => {
     const html = inBattle(createElement(SpellZoneChit, { spell: { instanceId: 's1', cardId: 'spl-burning-ground', faction: 'infernal', name: 'Burning Ground', shortName: 'Burning Ground', usedThisRound: false } as never, side: 'enemy', onClick: () => {} }));
-    expect(text(html)).toContain('Burning Ground Round End: Enemy here −15 ATK.');
+    expect(text(html)).toContain('Burning Ground Round End: Enemy Unit here −15 ATK for the battle.');
     expect(html).toContain('game-card d-spell');
   });
 
   it('a Spell names its kind where a Unit shows ATK, and a one-time Spell reads without a timing label', () => {
     const fireballHtml = face('spl-fireball', 'hand');
     const fireball = text(fireballHtml);
-    expect(fireball).toContain('Fireball Spell Enemy here −60 ATK. With their Continuous Spell here, it becomes 50 ATK instead.');
+    expect(fireball).toContain('Fireball Spell Enemy Unit here −60 ATK for the battle. If the enemy has a Spell here, it has 50 ATK instead.');
     expect(fireball).not.toMatch(/On Play|Cast:/);
     expect(fireballHtml).not.toContain('gc-atk');
     expect(face('spl-fireball', 'tile')).not.toContain('gc-hpc');
     const ground = face('spl-cursed-ground', 'hand');
-    expect(ground).toMatch(/class="gc-stat gc-kind-stat"><span class="gc-stat-label">Continuous<\/span>/);
-    expect(text(ground)).toContain('Passive: Your Unit here +15 ATK. Enemy Falls: Your Unit here gains +15 ATK.');
-    expect(text(face('spl-cursed-ground', 'inspect'))).toContain('Continuous Spell');
+    expect(ground).toMatch(/class="gc-stat gc-kind-stat"><span class="gc-stat-label">Lane<\/span>/);
+    expect(text(ground)).toContain('Passive: Your Unit here +15 ATK. Enemy Falls: Your Unit here +15 ATK for the battle, up to +45.');
+    expect(text(face('spl-cursed-ground', 'inspect'))).toContain('Lane Spell');
     expect(text(face('spl-battle-banner', 'tile'))).toContain('Attached Passive: Attached Unit +15 ATK.');
     expect(text(face('spl-battle-banner', 'inspect'))).toContain('Attached Spell');
   });
@@ -279,7 +284,7 @@ describe('live ATK and effect state', () => {
   it('a silenced Unit keeps its rules visible and says they are off', () => {
     const t = text(face(CAPTAIN, 'board', { silenced: true }));
     expect(t).toContain('Silenced this round');
-    expect(t).toContain('Immune to Unit effects with Knight ally.');
+    expect(t).toContain('Immune to enemy Unit effects with another Knight.');
   });
 });
 
@@ -327,7 +332,7 @@ describe('the focused card detail', () => {
     expect(t).toContain('113');
     expect(t).toContain('HP Contribution');
     expect(t).toContain('+77');
-    expect(t).toContain('Adjacent allied Units have +15 ATK.');
+    expect(t).toContain('Adjacent allies have +15 ATK.');
     expect(t).toContain('Battle Banner');
     expect(t).toContain('Inspect');
   });
@@ -344,7 +349,7 @@ describe('Card Inspect and the card viewer', () => {
   it('outside battle a tap opens the focused detail, with an Inspect action', () => {
     const t = text(renderToStaticMarkup(createElement(CardViewer, { cardId: ROYAL_GUARD, context: 'collection', onClose: () => {} })));
     expect(t).toContain('Royal Guard');
-    expect(t).toContain('Adjacent allied Units have +15 ATK.');
+    expect(t).toContain('Adjacent allies have +15 ATK.');
     expect(t).toContain('Inspect');
   });
 
@@ -355,7 +360,7 @@ describe('Card Inspect and the card viewer', () => {
     expect(t).toContain('113 ATK');
     expect(t).toContain(`+${hpc} HP`);
     expect(t).toContain('HP Contribution');
-    expect(t).toContain('Adjacent allied Units have +15 ATK.');
+    expect(t).toContain('Adjacent allies have +15 ATK.');
     expect(t).not.toContain('Card Mastery');
     expect(t).not.toMatch(/Mastery [IV]+|\+(5|10|15|20)%|never changes ATK|Next Mastery/);
     expect(t).not.toMatch(/\bPower\b|\bHero\b/);

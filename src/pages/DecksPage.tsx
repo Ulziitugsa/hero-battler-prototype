@@ -2,6 +2,7 @@ import { CardArtwork } from '../components/CardArtwork';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CardDefinition, Faction, Rarity } from '../game/types';
 import { getCard } from '../game/cards';
+import { isAttachedSpell } from '../game/cardCombat/cards';
 import { cardArtUrl } from '../game/cards/art';
 import { PLAYTEST_ROSTER } from '../game/cards/roster';
 import { DECK_SIZE, maxCopiesFor } from '../game/engine/deckRules';
@@ -100,7 +101,7 @@ function DeckCard({
   const maxed = count >= limit && count > 0;
   const ownedShort = ownedCount < gameLimit;
   const unowned = pool && ownedCount === 0;
-  const role = isHero ? card.role : card.spellKind === 'CONTINUOUS' ? 'Continuous' : 'One use';
+  const role = isHero ? card.role : card.spellKind === 'CONTINUOUS' ? (isAttachedSpell(card.id) ? 'Attached' : 'Lane') : 'One-time';
   const badge = unowned ? null : pool ? (count > 0 ? `${count}/${limit}` : null) : over && ownedShort ? `Own ${ownedCount}` : count > 1 ? `×${count}` : null;
   const copy = cardCopyView(card.id);
 

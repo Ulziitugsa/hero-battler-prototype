@@ -141,7 +141,7 @@ export function CardFocusPanel({
                   )}
                 </>
               ) : (
-                <span className="cf-kind">{details.kind === 'continuous' ? 'Continuous Spell' : details.kind === 'attached' ? 'Attached Spell' : 'Spell'}</span>
+                <span className="cf-kind">{details.kind === 'continuous' ? 'Lane Spell' : details.kind === 'attached' ? 'Attached Spell' : 'Spell'}</span>
               )}
             </span>
           </>
@@ -182,9 +182,9 @@ export function CardFocusPanel({
                 {effect.label}:
               </span>{' '}
               {effect.text}
-              {(effect.oncePerRound || effect.mastery) && (
+              {((effect.oncePerRound && !/once per round/i.test(effect.text)) || effect.mastery) && (
                 <span className="cf-tags">
-                  {effect.oncePerRound && ' Once per round.'}
+                  {effect.oncePerRound && !/once per round/i.test(effect.text) && ' Once per round.'}
                   {effect.mastery && <span className="cf-tag-mastery"> Mastery.</span>}
                 </span>
               )}

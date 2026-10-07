@@ -1,5 +1,5 @@
 import type { CardDefinition, GameEvent, GameState, LaneId, Side, Trigger } from '../../game/types';
-import { LANES, TRIGGER_LABEL } from '../../game/types';
+import { LANES } from '../../game/types';
 import { ALL_CARDS, getCard } from '../../game/cards';
 import { getCombatCard, type CombatCard } from '../../game/cardCombat/cards';
 import { cardEffects, legacyAtk, TIMING_LABEL, type CardRules } from '../../game/cards/cardPresentation';
@@ -48,8 +48,8 @@ const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1
 
 /**
  * The label a triggered card shows in the log: the same label its card face uses for that trigger ("Guard 2" for a
- * Guard, "Your 2nd Spell"). A card whose effects on that trigger have different labels (Dark Priest's Guard 2 and its
- * Clash line) gets the rules' own timing name instead ("Before Combat"): the log can't tell which of them fired.
+ * Guard). A card whose effects on that trigger have different labels (Dark Priest's Guard 2 and its Clash line) gets the
+ * timing label instead ("Clash"): the log can't tell which of them fired.
  */
 function triggerLabel(source: string, trigger: Trigger, rules: CardRules): string {
   const id = CARD_ID_BY_NAME.get(source);
@@ -61,7 +61,7 @@ function triggerLabel(source: string, trigger: Trigger, rules: CardRules): strin
       .filter((e) => e.trigger === trigger)
       .map((e) => e.label),
   );
-  return labels.size === 1 ? [...labels][0] : labels.size > 1 ? TRIGGER_LABEL[trigger] : TIMING_LABEL[trigger];
+  return labels.size === 1 ? [...labels][0] : TIMING_LABEL[trigger];
 }
 
 /** The card as these rules play it: card combat's approved definition, or the live card file in a legacy battle. */
@@ -69,9 +69,9 @@ const definition = (id: string, rules: CardRules): CardDefinition | CombatCard =
 
 /**
  * Labels are the card's own (written from its owner's side, as on the card). In an enemy card's row, the two that
- * say whose Spell it was are turned round, so "Your Spell" never describes the opponent's cast.
+ * say whose Spell it was are turned round, so "When you cast a Spell" never describes the opponent’s cast.
  */
-const ENEMY_ROW_LABEL: Record<string, string> = { 'Your Spell': 'Their Spell', 'Your 2nd Spell': 'Their 2nd Spell', 'Enemy Spell': 'Your Spell', 'Enemy’s 2nd Spell': 'Your 2nd Spell' };
+const ENEMY_ROW_LABEL: Record<string, string> = { 'When you cast a Spell': 'When they cast a Spell', 'When the enemy casts a Spell': 'When you cast a Spell' };
 const rowLabel = (label: string, side: Side) => (side === 'enemy' ? (ENEMY_ROW_LABEL[label] ?? label) : label);
 
 /** A card whose effects can stop its player's next damage (Aegis Ward), so a prevented hit can name it. */
@@ -302,10 +302,10 @@ export function battleLogEntries(events: GameEvent[], base?: GameState, rules: C
       const always = cardEffects(ev.cardId, { rules }).filter((e) => e.trigger === 'CONTINUOUS');
       const holder = ev.attachedTo?.name;
       if (holder) {
-        const text = always.length > 0 ? always.map((e) => `${holder} ${e.compact.replace(/^Attached Unit\s*/, '').replace(/\.$/, '')}`).join(', ') : `To ${holder}`;
+        const text = always.length > 0 ? always.map((e) => `${holder} ${e.full.replace(/^The attached Unit\s*/, '').replace(/\.$/, '')}`).join(', ') : `To ${holder}`;
         entries.push({ key: `${start}`, until: i, kind: 'effect', side: ev.side, who: ev.name, label: 'Attached', text });
       } else if (always.length > 0) {
-        const text = always.map((e) => e.compact.replace(/^Your Unit here/, 'Unit here').replace(/\.$/, '')).join(', ');
+        const text = always.map((e) => e.full.replace(/^Your Unit in this lane/, 'Unit in this lane').replace(/\.$/, '')).join(', ');
         entries.push({ key: `${start}`, until: i, kind: 'effect', side: ev.side, who: ev.name, label: always[0].label, text });
       }
       i++;
@@ -321,7 +321,7 @@ export function battleLogEntries(events: GameEvent[], base?: GameState, rules: C
       // A Continuous Spell whose effect is always on (Battle Banner) never announces itself: say what it does once.
       const always = cardEffects(ev.cardId, { rules }).filter((e) => e.trigger === 'CONTINUOUS');
       if (always.length > 0) {
-        const text = always.map((e) => e.compact.replace(/^Your Unit here/, 'Unit here').replace(/\.$/, '')).join(', ');
+        const text = always.map((e) => e.full.replace(/^Your Unit in this lane/, 'Unit in this lane').replace(/\.$/, '')).join(', ');
         entries.push({ key: `${start}`, until: i, kind: 'effect', side: ev.side, who: ev.name, label: always[0].label, text });
       }
       i++;

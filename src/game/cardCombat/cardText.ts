@@ -2,16 +2,13 @@ import type { CardDefinition } from '../types/index.js';
 import { TIMING_LABEL, cardEffectLines, type CardEffectLine } from '../cards/effectText.js';
 import { getCard } from '../cards/index.js';
 import { getCombatCard, hasCombatOverride } from './cards.js';
-import { HP_PER_LEGACY_POINT, atkFromPower } from './stats.js';
+import { HP_PER_LEGACY_POINT } from './stats.js';
 
 // Player-facing wording for the card-combat rules: the approved ATK + HP Contribution model that card faces show on
-// every surface (cardPresentation.ts pairs these lines into card effects). Two wordings per effect:
-//  - the full rule (cardCombatEffectLines): the focus panel and Card Inspect;
-//  - the battle line (BATTLE_LINES): every card face, in battle and out of it.
-//
-//  - Cards the approved balance pass changed (cards.ts) read their own card-combat ability text.
-//  - Cards that deal or restore Player HP print the converted amount (1 legacy point = 45 HP).
-//  - Every other card reads the live copy (effectText.ts), which already speaks in ATK.
+// every surface (cardPresentation.ts pairs these lines into card effects).
+//  - BATTLE_LINES (below) is the card text: the short face line, the board line and the full line of every effect.
+//  - cardCombatEffectLines lists a card's effects (trigger, once per round) in order. Its text is the rules data's own
+//    sentence: tests and the legacy fallback read it, no card surface prints it.
 
 const hp = (legacyPoints: number) => legacyPoints * HP_PER_LEGACY_POINT;
 
@@ -56,147 +53,148 @@ export function trimTiming(text: string): string {
 }
 
 /**
- * One effect's battle line: the face line, an optional tighter board line, and an optional label that replaces the
- * timing label when a keyword says more than the timing does ("Guard 2" for a Clash effect, "Your 2nd Spell" for a
- * Spell-count trigger).
+ * One effect's wording: the short card-face line, an optional tighter board line, the full plain-English line (focus
+ * panel, Card Inspect) when it says more than the face, an optional label that replaces the timing label everywhere,
+ * and an optional face label that replaces it on the card face only ("2nd Spell" for "When you cast a Spell"). A plain
+ * string is a line that reads the same everywhere. `keyword` marks a keyword line ("Guard 2.", "Shield."): the face
+ * prints it alone, without "label:", and the panels print the label with the full line saying what it does.
  */
-export type BattleCopy = string | { face: string; board?: string; label?: string };
+export type BattleCopy = string | { face: string; board?: string; full?: string; label?: string; faceLabel?: string; keyword?: boolean };
 
 /**
- * Battle copy: each effect as a short battle line under its label ("Passive: Adjacent allies +15 ATK."), written to be
- * read at a glance in hand and on the board. The focus panel and Card Inspect keep the full sentences. Conventions,
- * so the short form still says everything that matters in a fight:
- *  - an ATK change with no duration lasts for the rest of the battle; "this round" marks the temporary ones;
- *  - "here" is this lane; "allies" are your other Units; "the enemy here" is the enemy Unit in this lane;
- *  - "gain a … Spell / Undead / Unit" puts that card in your hand from the Graveyard;
- *  - Units have no HP, so "damage" always hits the enemy player and "HP" is your player's;
- *  - "with …" holds while the condition does (a Passive's dot on the board shows whether it does right now);
- *  - the label carries the trigger, so the line never repeats it; no abbreviations beyond ATK and HP.
- * A board line is only given where a phrase stops mattering once the card is in play ("from next round" on a Bypass,
- * whose dot shows when it starts).
- * Index-aligned with cardCombatEffectLines; a test keeps every card with an effect listed here. Legacy battles read
- * their own lines where the legacy rules differ (cardPresentation.ts LEGACY_LINES).
+ * THE card text of every card-combat card (docs/CARD-TEXT.md is the standard; the wording plan was
+ * moonwater/card-text/WORDING-PLAN.md). Index-aligned with cardCombatEffectLines; a test keeps every card with an effect
+ * listed here. Two registers:
+ *  - CARD FACE (`face`, `board`): short battle text, so the art keeps its room. "this Unit" goes without saying
+ *    ("+15 ATK this round."), "here" means this lane ("Enemy Unit here", "your Unit here", "a Spell here"), "for the
+ *    battle" is the face's "for the rest of the battle", damage is to the enemy player, "return a random Spell" is
+ *    from your Graveyard to your hand, and a summoned token goes to an empty lane.
+ *  - FULL (`full`, focus panel and Card Inspect): one complete plain sentence. Every ATK change says "this round" or
+ *    "for the rest of the battle", targets are "this Unit", "your Unit in this lane", "the enemy Unit in this lane",
+ *    "adjacent allies", "the attached Unit", and "Spell in play" is a Lane or Attached Spell on the battlefield.
+ * Both registers keep: one label per effect (the timing, or a keyword), "up to +45" on repeating growth, "Once per
+ * round", "Once per battle" and "once", and Graveyard counts in "Units" or "cards" exactly as the resolver counts them.
+ * Legacy battles (old replays) read their own lines where the legacy rules differ (cardPresentation.ts LEGACY_LINES).
  */
 export const BATTLE_LINES: Record<string, BattleCopy[]> = {
-  'inf-flame-imp': ['+45 damage.'],
-  'inf-cultist': ['+15 ATK this round.'],
-  'inf-pit-fiend': [`Deal ${hp(2)} damage.`, '+30 ATK this round if an enemy fell.'],
-  'inf-hellhound': ['Enemy here −30 ATK this round.'],
-  'inf-blood-demon': ['+15 ATK, up to +45.', '+30 ATK this round if an ally fell.'],
-  'inf-infernal-lord': [`Deal ${hp(1)} damage.`, 'Every enemy Unit −30 ATK.'],
-  'inf-runebreaker': ['Destroy enemy Continuous Spell here.', 'Spell Immune with Mage Slayer ally.', { face: `Deal ${hp(2)} damage.`, label: 'Enemy’s 2nd Spell' }],
-  'inf-ash-jackal': ['+30 ATK this round per adjacent Beast.'],
-  'inf-packhound': [{ face: 'Summon a Hound Pup, once per round.', label: 'Beast Ally Falls' }],
-  'inf-alpha-hound': ['+15 ATK this round per other Unit you control.'],
-  'inf-mirage-imp': [{ face: 'Bypass with your Continuous Spell here, from next round.', board: 'Bypass with your Continuous Spell here.' }],
-  'und-bone-soldier': ['Return to your deck.', '+15 ATK this round per Graveyard Unit, up to +45.'],
-  'und-dark-priest': [{ face: '+30 ATK this round if losing.', label: 'Guard 2' }, '+15 ATK this round with 3+ Graveyard cards.'],
-  'und-mira': ['Gain your weakest other Graveyard Undead.', 'Immune to Unit effects with 3+ Graveyard Undead.'],
-  'und-cursed-warrior': ['Return to your hand.'],
-  'und-grave-knight': [{ face: '+30 ATK this round if losing.', label: 'Guard 2' }, `Restore ${hp(1)} HP, once per round.`],
-  'und-vharos': ['Revive here with 95 ATK.', 'Gain your strongest other Graveyard Undead.'],
-  'und-grave-sage': ['Gain a random Graveyard Spell.', { face: 'Adjacent allies gain a Shield.', label: 'Your 2nd Spell' }],
-  'und-shade-thief': [{ face: 'Bypass while you have a Continuous Spell, from next round.', board: 'Bypass while you have a Continuous Spell.' }],
-  'und-wraith-prince': [{ face: 'Bypass at −15 ATK while you have a Continuous Spell, from next round.', board: 'Bypass at −15 ATK while you have a Continuous Spell.' }, '+15 ATK.'],
-  'und-crypt-warden': [{ face: '+15 ATK this round if losing.', label: 'Guard 1' }, { face: 'With 2+ Graveyard cards, survives being destroyed once.', label: 'Shield' }],
-  'kng-royal-guard': ['Adjacent allies +15 ATK.'],
-  'kng-light-priest': [{ face: 'Survives being destroyed once.', label: 'Shield' }, `Restore ${hp(1)} HP.`, '+15 ATK this round.'],
-  'kng-archer': ['+15 ATK this round.', '+15 ATK more with your Continuous Spell here.'],
-  'kng-battle-captain': ['Adjacent allies +15 ATK this round.', 'Immune to Unit effects with Knight ally.'],
-  'kng-paladin': [{ face: 'Survives being destroyed once.', label: 'Shield' }, 'Adjacent allies that would lose +15 ATK this round.', `If it fell here, restore ${hp(1)} HP.`],
-  'kng-apprentice-mage': ['+30 ATK this round.', 'Gain a random Graveyard Spell.'],
-  'kng-archmage-vael': ['Your first one-time Spell each round repeats.', { face: `Deal ${hp(2)} damage.`, label: 'Your 2nd Spell' }, 'If hand is empty, gain a Graveyard Spell.'],
-  'kng-spellbreaker': ['+30 ATK this round.'],
-  'kng-null-templar': ['Ignores the first enemy Spell on it each round.'],
-  'wld-forest-wolf': ['+30 ATK while no enemy is here.'],
-  'wld-ancient-treant': ['+15 ATK.'],
-  'wld-titanroot': ['+30 ATK.'],
-  'spl-power-surge': ['Your Unit here +45 ATK this round.'],
-  'spl-weakness': ['Enemy here −45 ATK this round.'],
-  'spl-execute': [`Destroy the enemy here if it has ${atkFromPower(3)} ATK or less.`],
-  'spl-second-chance': ['Gain your strongest Graveyard Unit.'],
-  'spl-raise-fallen': ['With 2+ Graveyard Undead, revive the weakest here.'],
-  'spl-fireball': ['Enemy here −60 ATK.', 'With their Continuous Spell here, it becomes 50 ATK instead.'],
-  'spl-war-cry': ['All allies +15 ATK this round.', 'With 3 Units, +15 more.'],
-  'spl-death-wave': ['All enemies −30 ATK this round.'],
-  'spl-dispel': ['Destroy enemy Continuous Spell here.', 'If it did, draw a card.'],
-  'spl-soul-burn': ['Exile their 2 strongest Graveyard Units.', `Deal ${hp(1)} damage.`],
-  'spl-arcane-bolt': [`Deal ${hp(3)} damage.`, `+${hp(2)} damage if you already cast a Spell this round.`],
-  'spl-aegis-ward': ['Prevent the next damage to you this round.', 'Shield your Unit here.'],
-  'spl-ward-circle': ['Summon a Ward in up to 2 empty lanes.'],
-  'spl-stasis-field': ['Enemy here deals no damage this round.', 'It also gets −15 ATK.'],
-  'spl-hush': ['Silence the enemy here this round.'],
-  'spl-giants-bane': ['If they have more Units, destroy the enemy here.'],
-  'spl-blood-pact': ['Destroy your Unit here, then the enemy here.'],
-  'spl-battle-banner': ['Attached Unit +15 ATK.'],
-  'spl-burning-ground': ['Enemy here −15 ATK.'],
-  'spl-growth-totem': ['Your Unit here +15 ATK.'],
-  'spl-fortify': ['Attached Unit +15 ATK.'],
-  'spl-cursed-ground': ['Your Unit here +15 ATK.', 'Your Unit here gains +15 ATK.'],
-  'spl-siege-fire': [`If no enemy is here, deal ${hp(1)} damage.`],
-  // Launch set: the new cards.
-  'kng-shieldbearer': [{ face: '+30 ATK this round if losing.', label: 'Guard 2' }],
+  'inf-cultist': [{ face: '+15 ATK this round.', full: 'Give this Unit +15 ATK this round.' }],
+  'inf-pit-fiend': [{ face: 'Deal 90 damage.', full: 'Deal 90 damage to the enemy player.' }, { face: 'If an enemy was destroyed this round, +30 ATK this round.', full: 'If an enemy Unit was destroyed this round, give this Unit +30 ATK this round.' }],
+  'inf-soot-imp': [{ face: 'Deal 45 damage.', full: 'Deal 45 damage to the enemy player.' }],
+  'spl-weakness': [{ face: 'Enemy Unit here −45 ATK this round.', full: 'Give the enemy Unit in this lane −45 ATK this round.' }],
+  'inf-flame-imp': [{ face: 'Deal 45 extra damage.', full: 'Deal 45 extra damage to the enemy player.' }],
+  'inf-infernal-lord': [{ face: 'Deal 45 damage.', full: 'Deal 45 damage to the enemy player.' }, { face: 'Each enemy Unit −30 ATK for the battle.', full: 'Give each enemy Unit −30 ATK for the rest of the battle.' }],
+  'spl-fireball': [{ face: 'Enemy Unit here −60 ATK for the battle.', full: 'Give the enemy Unit in this lane −60 ATK for the rest of the battle.' }, { face: 'If the enemy has a Spell here, it has 50 ATK instead.', full: 'If the enemy has a Spell in play in this lane, that Unit has 50 ATK instead.' }],
+  'spl-cinder-bolt': [{ face: 'Deal 90 damage.', full: 'Deal 90 damage to the enemy player.' }],
+  'inf-hellhound': [{ face: 'Enemy Unit here −30 ATK this round.', full: 'Give the enemy Unit in this lane −30 ATK this round.' }],
+  'kng-archer': [{ face: '+15 ATK this round.', full: 'Give this Unit +15 ATK this round.' }, { face: '+15 more if you have a Spell here.', full: 'If you have a Spell in play in this lane, give this Unit +15 more ATK this round.' }],
+  'spl-battle-banner': [{ face: 'Attached Unit +15 ATK.', full: 'The attached Unit has +15 ATK.' }],
+  'spl-power-surge': [{ face: 'Your Unit here +45 ATK this round.', full: 'Give your Unit in this lane +45 ATK this round.' }],
+  'spl-aegis-ward': [{ face: 'Prevent the next damage to you this round.', full: 'Prevent the next damage your player would take this round, including Clash Damage.' }, { face: 'Give your Unit here a Shield.', full: 'Give your Unit in this lane a Shield.' }],
+  'spl-dispel': [{ face: 'Destroy the enemy Spell here.', full: 'Destroy the enemy Spell in play in this lane.' }, 'If you do, draw 1 card.'],
+  'kng-shieldbearer': [{ label: 'Guard 2', keyword: true, face: 'Guard 2.', full: 'If this Unit would lose its lane, give it +30 ATK this round.' }],
+  'kng-royal-guard': [{ face: 'Adjacent allies +15 ATK.', full: 'Adjacent allies have +15 ATK.' }],
+  'kng-light-priest': [{ label: 'Shield', keyword: true, face: 'Shield.', full: 'The first time this Unit would be destroyed, it survives instead.' }, 'Restore 45 HP.', { face: '+15 ATK this round.', full: 'Give this Unit +15 ATK this round.' }],
+  'kng-paladin': [{ label: 'Shield', keyword: true, face: 'Shield.', full: 'The first time this Unit would be destroyed, it survives instead.' }, { face: 'Adjacent allies losing their lane get +15 ATK this round.', full: 'Adjacent allies that would lose their lane get +15 ATK this round.' }, { face: 'If it was here, restore 45 HP. Once per round.', full: 'If the destroyed enemy Unit was in this lane, restore 45 HP. Once per round.' }],
+  'und-bone-soldier': [{ face: 'Return to your deck once.', full: 'Return this card to your deck once.' }, { face: '+15 ATK this round per Unit in your Graveyard, up to +45.', full: 'Give this Unit +15 ATK this round for each Unit in your Graveyard, up to +45.' }],
+  'und-cursed-warrior': [{ face: 'Return to your hand once.', full: 'Return this card to your hand once.' }],
+  'und-crypt-warden': [{ label: 'Guard 1', keyword: true, face: 'Guard 1.', full: 'If this Unit would lose its lane, give it +15 ATK this round.' }, { label: 'Shield', keyword: true, face: 'Shield with 2+ cards in your Graveyard.', full: 'While your Graveyard has 2+ cards, the first time this Unit would be destroyed, it survives instead.' }],
+  'und-dark-priest': [{ label: 'Guard 2', keyword: true, face: 'Guard 2.', full: 'If this Unit would lose its lane, give it +30 ATK this round.' }, { face: '+15 ATK this round with 3+ cards in your Graveyard.', full: 'If your Graveyard has 3+ cards, give this Unit +15 ATK this round.' }],
   'und-grave-sexton': ['If your Graveyard has 3+ Units, restore 45 HP.'],
-  'inf-soot-imp': ['Deal 45 damage.'],
-  'spl-cinder-bolt': ['Deal 90 damage.'],
-  'kng-marshal-aldric': ['If you control 3 Units, your other Units gain +15 ATK this round.', 'Gain a Shield, once per round.'],
-  'kng-oathkeeper': [{ face: 'Survives being destroyed once.', label: 'Shield' }, { face: 'With 3 Units, +15 ATK this round if losing.', label: 'Guard 1' }],
-  'kng-knight-errant': ['+15 ATK this round for each other Knight you control.'],
-  'kng-relic-warden': ['Exile the strongest Unit in the enemy Graveyard.'],
-  'kng-pikeman': ['+15 ATK this round for each adjacent Knight.'],
-  'und-morwen': [{ face: '+30 ATK this round if losing.', label: 'Guard 2' }, 'Adjacent allies that would lose +15 ATK this round.', 'Revive your weakest Graveyard Undead in an empty lane.'],
-  'und-bonecaller': ['If it was Undead, +15 ATK, up to +45.'],
-  'und-skeletal-legionnaire': ['Summon a Skeleton in an empty lane.'],
-  'spl-bone-wall': ['Shield your Unit here.', 'If your Graveyard has 3+ Units, it also gains +30 ATK this round.'],
-  'und-rattling-horde': ['+15 ATK this round per Undead Unit you control, including this one.'],
-  'inf-cerberus': ['If you control 3 Units, every enemy Unit gets −15 ATK this round.', 'Summon a Hound Pup in an empty lane.'],
-  'inf-brimstone-matriarch': ['+15 ATK this round if you control 3 Units.', 'Summon a Hound Pup in an empty lane.'],
-  'spl-call-the-pack': ['Summon a Hound Pup in an empty lane.', 'Draw a card.'],
-  'inf-cinder-jackal': ['Summon a Hound Pup in an empty lane.'],
-  'kng-moonlit-savant': ['+15 ATK, up to +45.'],
-  'spl-mirror-image': ['Return a random Spell from your Graveyard to your hand.', 'Draw a card.'],
-  'kng-battlemage': ['The enemy here gets −30 ATK this round.'],
-  'spl-arcane-barrier': ['Shield your Unit here.', 'Draw a card.'],
-  'spl-spark': ['Deal 45 damage.', 'Draw a card.'],
-  'und-duchess-nyx': [{ face: 'Bypass while you control a Continuous Spell, from next round.', board: 'Bypass while you control a Continuous Spell.' }, 'If you control no Continuous Spell, gain a random Graveyard Spell.', '+15 ATK, up to +45.'],
-  'und-banshee': [{ face: 'Bypass while you control 2+ Continuous Spells, from next round.', board: 'Bypass while you control 2+ Continuous Spells.' }, 'Gain a random Graveyard Spell.'],
-  'und-spectral-assassin': [{ face: 'Bypass at −30 ATK with your Continuous Spell, from next round.', board: 'Bypass at −30 ATK with your Continuous Spell.' }],
-  'spl-ghost-lantern': ['Your Unit here has +15 ATK.'],
-  'inf-ignis': ['Deal 45 damage for each Continuous Spell you control.', '+15 ATK this round.'],
-  'inf-hellfire-warlock': [{ face: 'Deal 90 damage.', label: 'Your 2nd Spell' }, 'Deal 45 damage.'],
-  'spl-inferno': ['Deal 45 damage.', 'Every enemy Unit −15 ATK.'],
-  'inf-ember-witch': ['Deal 45 damage, once per round.'],
-  'inf-cinder-imp': ['If this Unit would lose its lane, deal 45 damage.'],
-  'spl-wall-of-flame': ['The enemy here has −15 ATK.'],
-  'kng-saint-aveline': ['Your Attached Spell that expires returns to hand, once per round.', '+15 ATK this round.'],
-  'kng-crusader-champion': ['+30 ATK with your Continuous Spell here.', 'Spell Immune with your Continuous Spell here.'],
-  'spl-oath-blade': ['The attached Unit has +15 ATK.', 'Restore 45 HP.'],
-  'kng-standard-bearer': ['Adjacent allies +15 ATK with your Continuous Spell here.'],
-  'spl-consecrate': ['Your Unit here gains +15 ATK.'],
-  'kng-oath-acolyte': ['With your Continuous Spell here, restore 45 HP.'],
-  'und-plague-mother': [{ face: 'Survives being destroyed once.', label: 'Shield' }, { face: '+15 ATK this round if losing.', label: 'Guard 1' }, 'Every enemy Unit −15 ATK.'],
-  'und-blightcaster': ['The enemy here gets −15 ATK.', 'Restore 45 HP, once per round.'],
-  'und-withering-lich': ['+15 ATK, up to +45.'],
-  'und-rot-ghoul': ['The enemy here gets −30 ATK.'],
-  'spl-enfeeble': ['Enemy here −30 ATK this round and −15 ATK.'],
-  'inf-kathra': ['Deal 45 damage and gain +15 ATK, up to +45.', 'Deal 90 damage.'],
-  'spl-flesh-altar': ['When one of your Units falls, your Unit here gains +15 ATK.'],
-  'inf-blood-imp': ['Your other Units gain +15 ATK.'],
-  'inf-blood-thrall': ['If this Unit would lose its lane, deal 90 damage.'],
-  'spl-dark-ritual': ['Destroy your Unit here.', 'Draw 2 cards.'],
-  'und-bone-dragon': ['+15 ATK this round per Graveyard Unit, up to +45.'],
-  'und-barrow-knight': [{ face: '+15 ATK this round if losing.', label: 'Guard 1' }, 'Summon a Skeleton in an empty lane.', '+30 ATK this round if the enemy cast a Spell this round.'],
-  'inf-flame-herald': ['Deal 45 damage.'],
-  'spl-meteor': ['Destroy the enemy here if it has 110 ATK or less.', 'Deal 90 damage.'],
-  'kng-banner-knight': ['With your Continuous Spell here, +15 ATK, up to +45.'],
-  'spl-reliquary-blade': ['The attached Unit has +30 ATK.'],
-  'und-grave-tyrant': ['Exile their strongest Graveyard Unit and gain +15 ATK, up to +45.'],
-  'und-ashen-revenant': ['+15 ATK, up to +45.', 'Return to your hand, once.'],
-  'kng-arcane-knight': ['Adjacent allies gain +15 ATK this round.'],
-  'und-night-courier': [{ face: 'Bypass while you have a Continuous Spell, from next round.', board: 'Bypass while you have a Continuous Spell.' }, 'Gain a random Graveyard Spell.'],
-  'inf-pack-warden': ['+30 ATK this round if an ally is adjacent.'],
-  'spl-oath-of-vengeance': ['Your Unit here +30 ATK this round.', 'If an ally fell this round, +30 more.'],
-  'spl-grave-totem': ['Your Unit here +30 ATK this round if the enemy cast or has a Spell.', 'First ally lost here returns to hand, once per battle.'],
+  'und-vharos': [{ face: 'Revive here with 95 ATK once.', full: 'Revive this card in this lane with 95 ATK once.' }, { face: 'Return your strongest other Undead to hand.', full: 'Return your strongest other Undead Unit from your Graveyard to your hand.' }],
+  'spl-second-chance': [{ face: 'Return your strongest Graveyard Unit to hand.', full: 'Return the strongest Unit in your Graveyard to your hand.' }],
+  'spl-raise-fallen': [{ face: 'If your Graveyard has 2+ Undead, revive the weakest here.', full: 'If your Graveyard has 2+ Undead cards, revive your weakest Undead Unit into this lane. If this lane is not empty, nothing happens.' }],
+  'spl-hush': [{ face: 'Silence the enemy Unit here this round.', full: 'Silence the enemy Unit in this lane this round.' }],
+  'inf-cerberus': [{ face: 'With 3 Units, each enemy Unit −15 ATK this round.', full: 'If you have 3 Units, give each enemy Unit −15 ATK this round.' }, { face: 'Summon a Hound Pup.', full: 'Summon a Hound Pup (65 ATK) in an empty lane.' }],
+  'inf-alpha-hound': [{ face: '+15 ATK this round per other Unit you have.', full: 'Give this Unit +15 ATK this round for each other Unit you have.' }],
+  'inf-brimstone-matriarch': [{ face: 'With 3 Units, +15 ATK this round.', full: 'If you have 3 Units, give this Unit +15 ATK this round.' }, { face: 'Summon a Hound Pup.', full: 'Summon a Hound Pup (65 ATK) in an empty lane.' }],
+  'inf-packhound': [{ label: 'Ally Falls', face: 'If a Beast, summon a Hound Pup. Once per round.', full: 'If it was a Beast, summon a Hound Pup (65 ATK) in an empty lane. Once per round.' }],
+  'spl-call-the-pack': [{ face: 'Summon a Hound Pup.', full: 'Summon a Hound Pup (65 ATK) in an empty lane. If there is no empty lane, nothing happens.' }, 'Draw 1 card.'],
+  'inf-ash-jackal': [{ face: '+30 ATK this round per adjacent Beast.', full: 'Give this Unit +30 ATK this round for each adjacent Beast ally.' }],
+  'inf-cinder-jackal': [{ face: 'Summon a Hound Pup.', full: 'Summon a Hound Pup (65 ATK) in an empty lane.' }],
+  'inf-runebreaker': [{ face: 'Destroy the enemy Spell here.', full: 'Destroy the enemy Spell in play in this lane.' }, { face: 'Spell Immune with another Mage Slayer.', full: 'While you have another Mage Slayer, enemy Spells can’t affect this Unit.' }, { label: 'When the enemy casts a Spell', faceLabel: 'Enemy’s 2nd Spell', face: 'Deal 90 damage.', full: 'If it is their 2nd Spell this round, deal 90 damage to the enemy player.' }],
+  'spl-war-cry': [{ face: 'Your Units +15 ATK this round.', full: 'Give your Units +15 ATK this round.' }, { face: 'With 3 Units, +15 more.', full: 'If you have 3 Units, give them +15 more ATK this round.' }],
+  'kng-marshal-aldric': [{ face: 'With 3 Units, your other Units +15 ATK this round.', full: 'If you have 3 Units, give your other Units +15 ATK this round.' }, { face: 'Gain a Shield. Once per round.', full: 'Give this Unit a Shield. Once per round.' }],
+  'kng-battle-captain': [{ face: 'Adjacent allies +15 ATK this round.', full: 'Give adjacent allies +15 ATK this round.' }, { face: 'Immune to enemy Unit effects with another Knight.', full: 'While you have another Knight, enemy Unit effects can’t affect this Unit.' }],
+  'kng-oathkeeper': [{ label: 'Shield', keyword: true, face: 'Shield.', full: 'The first time this Unit would be destroyed, it survives instead.' }, { label: 'Guard 1', keyword: true, face: 'Guard 1 with 3 Units.', full: 'If you have 3 Units and this Unit would lose its lane, give it +15 ATK this round.' }],
+  'kng-knight-errant': [{ face: '+15 ATK this round per other Knight.', full: 'Give this Unit +15 ATK this round for each other Knight you have.' }],
+  'spl-ward-circle': [{ face: 'Summon a Ward in up to 2 empty lanes.', full: 'Summon a Ward (70 ATK) in up to 2 of your empty lanes.' }],
+  'kng-relic-warden': [{ face: 'Exile the strongest enemy Graveyard Unit.', full: 'Exile the strongest Unit from the enemy Graveyard.' }],
+  'kng-pikeman': [{ face: '+15 ATK this round per adjacent Knight.', full: 'Give this Unit +15 ATK this round for each adjacent Knight.' }],
+  'kng-spellbreaker': [{ face: '+30 ATK this round.', full: 'Give this Unit +30 ATK this round.' }],
+  'kng-null-templar': [{ face: 'Ignores the first enemy Spell on it each round.', full: 'The first enemy Spell that would affect this Unit each round does nothing.' }],
+  'und-morwen': [{ label: 'Guard 2', keyword: true, face: 'Guard 2.', full: 'If this Unit would lose its lane, give it +30 ATK this round.' }, { face: 'Adjacent allies losing their lane get +15 ATK this round.', full: 'Adjacent allies that would lose their lane get +15 ATK this round.' }, { face: 'Revive your weakest Undead into an empty lane.', full: 'Revive your weakest Undead Unit from your Graveyard into an empty lane. If there is no empty lane, nothing happens.' }],
+  'und-mira': [{ face: 'Return your weakest other Undead to hand.', full: 'Return your weakest other Undead Unit from your Graveyard to your hand.' }, { face: 'Immune to enemy Unit effects with 3+ Undead in your Graveyard.', full: 'While your Graveyard has 3+ Undead cards, enemy Unit effects can’t affect this Unit.' }],
+  'spl-grave-totem': [{ face: 'If enemy cast or has a Spell, your Unit here gets +30 ATK this round.', board: 'If enemy cast or has a Spell, your Unit +30 ATK this round.', full: 'If the enemy cast a Spell this round or has a Spell in play, give your Unit in this lane +30 ATK this round.' }, { face: 'If it was here, return it to hand. Once per battle.', board: 'If it was here, return it to hand once.', full: 'If your destroyed Unit was in this lane, return that card to your hand. Once per battle.' }],
+  'und-bonecaller': [{ face: 'If Undead, +15 ATK for the battle, up to +45.', full: 'If it was Undead, give this Unit +15 ATK for the rest of the battle, up to +45.' }],
+  'und-skeletal-legionnaire': [{ face: 'Summon a Skeleton.', full: 'Summon a Skeleton (65 ATK) in an empty lane.' }],
+  'spl-bone-wall': [{ face: 'Give your Unit here a Shield.', full: 'Give your Unit in this lane a Shield.' }, { face: 'With 3+ Units in your Graveyard, +30 ATK this round.', full: 'If your Graveyard has 3+ Units, also give it +30 ATK this round.' }],
+  'und-rattling-horde': [{ face: '+15 ATK this round per Undead you have, including this.', full: 'Give this Unit +15 ATK this round for each Undead Unit you have, including this one.' }],
+  'inf-ignis': [{ face: 'Deal 45 damage per Spell you have in play.', full: 'Deal 45 damage to the enemy player for each Spell you have in play.' }, { face: '+15 ATK this round.', full: 'Give this Unit +15 ATK this round.' }],
+  'inf-hellfire-warlock': [{ faceLabel: '2nd Spell', face: 'Deal 90 damage.', full: 'If it is your 2nd Spell this round, deal 90 damage to the enemy player.' }, { face: 'Deal 45 damage.', full: 'Deal 45 damage to the enemy player.' }],
+  'spl-inferno': [{ face: 'Deal 45 damage.', full: 'Deal 45 damage to the enemy player.' }, { face: 'Each enemy Unit −15 ATK for the battle.', full: 'Give each enemy Unit −15 ATK for the rest of the battle.' }],
+  'spl-burning-ground': [{ face: 'Enemy Unit here −15 ATK for the battle.', full: 'Give the enemy Unit in this lane −15 ATK for the rest of the battle.' }],
+  'inf-ember-witch': [{ face: 'Deal 45 damage. Once per round.', full: 'Deal 45 damage to the enemy player. Once per round.' }],
+  'spl-siege-fire': [{ face: 'If no enemy Unit is here, deal 45 damage.', full: 'If the enemy has no Unit in this lane, deal 45 damage to the enemy player.' }],
+  'inf-cinder-imp': [{ face: 'If this would lose its lane, deal 45 damage.', full: 'If this Unit would lose its lane, deal 45 damage to the enemy player.' }],
+  'spl-wall-of-flame': [{ face: 'Enemy Unit here −15 ATK.', full: 'The enemy Unit in this lane has −15 ATK.' }],
+  'spl-arcane-bolt': [{ face: 'Deal 135 damage.', full: 'Deal 135 damage to the enemy player.' }, { face: '+90 damage if you already cast a Spell this round.', full: 'If you already cast a Spell this round, deal 90 more damage.' }],
+  'inf-mirage-imp': [{ face: 'Bypass with a Spell here, starting next round.', board: 'Bypass with a Spell here.', full: 'Bypass while you have a Spell in play in this lane. Starts the round after you play this Unit.' }],
+  'kng-archmage-vael': [{ face: 'If your first Spell is one-time, repeat it.', full: 'If the first Spell you cast each round is a one-time Spell, it happens twice.' }, { faceLabel: '2nd Spell', face: 'Deal 90 damage.', full: 'If it is your 2nd Spell this round, deal 90 damage to the enemy player.' }, { face: 'If your hand is empty, return a random Spell.', full: 'If your hand is empty, return a random Spell from your Graveyard to your hand.' }],
+  'kng-moonlit-savant': [{ face: '+15 ATK for the battle, up to +45.', full: 'Give this Unit +15 ATK for the rest of the battle, up to +45.' }],
+  'spl-mirror-image': [{ face: 'Return a random Spell.', full: 'Return a random Spell from your Graveyard to your hand.' }, 'Draw 1 card.'],
+  'kng-battlemage': [{ face: 'Enemy Unit here −30 ATK this round.', full: 'Give the enemy Unit in this lane −30 ATK this round.' }],
+  'spl-arcane-barrier': [{ face: 'Give your Unit here a Shield.', full: 'Give your Unit in this lane a Shield.' }, 'Draw 1 card.'],
+  'kng-apprentice-mage': [{ face: '+30 ATK this round.', full: 'Give this Unit +30 ATK this round.' }, { face: 'Return a random Spell.', full: 'Return a random Spell from your Graveyard to your hand.' }],
+  'spl-spark': [{ face: 'Deal 45 damage.', full: 'Deal 45 damage to the enemy player.' }, 'Draw 1 card.'],
+  'und-duchess-nyx': [{ face: 'Bypass with a Spell in play, starting next round.', board: 'Bypass with a Spell in play.', full: 'Bypass while you have a Spell in play. Starts the round after you play this Unit.' }, { face: 'With no Spell in play, return a random Spell.', full: 'If you have no Spell in play, return a random Spell from your Graveyard to your hand.' }, { face: '+15 ATK for the battle, up to +45.', full: 'Give this Unit +15 ATK for the rest of the battle, up to +45.' }],
+  'und-wraith-prince': [{ face: 'Bypass at −15 ATK with a Spell in play, starting next round.', board: 'Bypass at −15 ATK with a Spell in play.', full: 'Bypass with −15 ATK while you have a Spell in play. Starts the round after you play this Unit.' }, { face: '+15 ATK for the battle, up to +45.', full: 'Give this Unit +15 ATK for the rest of the battle, up to +45.' }],
+  'und-banshee': [{ face: 'Bypass with 2+ Spells in play, starting next round.', board: 'Bypass with 2+ Spells in play.', full: 'Bypass while you have 2+ Spells in play. Starts the round after you play this Unit.' }, { face: 'Return a random Spell.', full: 'Return a random Spell from your Graveyard to your hand.' }],
+  'spl-cursed-ground': [{ face: 'Your Unit here +15 ATK.', full: 'Your Unit in this lane has +15 ATK.' }, { face: 'Your Unit here +15 ATK for the battle, up to +45.', board: 'Your Unit +15 ATK for the battle, up to +45.', full: 'Give your Unit in this lane +15 ATK for the rest of the battle, up to +45.' }],
+  'und-spectral-assassin': [{ face: 'Bypass at −30 ATK with a Spell in play, starting next round.', board: 'Bypass at −30 ATK with a Spell in play.', full: 'Bypass with −30 ATK while you have a Spell in play. Starts the round after you play this Unit.' }],
+  'und-shade-thief': [{ face: 'Bypass with a Spell in play, starting next round.', board: 'Bypass with a Spell in play.', full: 'Bypass while you have a Spell in play. Starts the round after you play this Unit.' }],
+  'spl-ghost-lantern': [{ face: 'Your Unit here +15 ATK.', full: 'Your Unit in this lane has +15 ATK.' }],
+  'und-grave-sage': [{ face: 'Return a random Spell.', full: 'Return a random Spell from your Graveyard to your hand.' }, { faceLabel: '2nd Spell', face: 'Adjacent allies get a Shield.', full: 'If it is your 2nd Spell this round, give adjacent allies a Shield.' }],
+  'inf-kathra': [{ face: 'Deal 45 damage. +15 ATK for the battle, up to +45.', full: 'Deal 45 damage to the enemy player. Give this Unit +15 ATK for the rest of the battle, up to +45.' }, { face: 'Deal 90 damage.', full: 'Deal 90 damage to the enemy player.' }],
+  'inf-blood-demon': [{ face: '+15 ATK for the battle, up to +45.', full: 'Give this Unit +15 ATK for the rest of the battle, up to +45.' }, { face: 'If an ally was destroyed this round, +30 ATK this round.', full: 'If one of your Units was destroyed this round, give this Unit +30 ATK this round.' }],
+  'spl-flesh-altar': [{ face: 'Your Unit here +15 ATK for the battle, up to +45.', full: 'Give your Unit in this lane +15 ATK for the rest of the battle, up to +45.' }],
+  'spl-blood-pact': [{ face: 'Destroy your Unit here, then the enemy Unit here.', full: 'Destroy your Unit in this lane, then destroy the enemy Unit in this lane.' }],
+  'inf-blood-imp': [{ face: 'Your other Units +15 ATK for the battle.', full: 'Give your other Units +15 ATK for the rest of the battle.' }],
+  'inf-blood-thrall': [{ face: 'If this would lose its lane, deal 90 damage.', full: 'If this Unit would lose its lane, deal 90 damage to the enemy player.' }],
+  'spl-dark-ritual': [{ face: 'Destroy your Unit here.', full: 'Destroy your Unit in this lane.' }, 'Draw 2 cards.'],
+  'spl-soul-burn': [{ face: 'Exile the 2 strongest enemy Graveyard Units.', full: 'Exile the 2 strongest Units from the enemy Graveyard.' }, { face: 'Deal 45 damage.', full: 'Deal 45 damage to the enemy player.' }],
+  'kng-saint-aveline': [{ face: 'When your Attached Spell leaves with its Unit, return it to hand. Once per round.', full: 'When your Attached Spell leaves play with its Unit, return it to your hand. Once per round.' }, { face: '+15 ATK this round.', full: 'Give this Unit +15 ATK this round.' }],
+  'spl-fortify': [{ face: 'Attached Unit +15 ATK for the battle, up to +45.', full: 'Give the attached Unit +15 ATK for the rest of the battle, up to +45.' }],
+  'kng-crusader-champion': [{ face: '+30 ATK with your Spell here.', full: 'While you have a Spell in play in this lane, this Unit has +30 ATK.' }, { face: 'Spell Immune with your Spell here.', full: 'While you have a Spell in play in this lane, enemy Spells can’t affect this Unit.' }],
+  'spl-oath-blade': [{ face: 'Attached Unit +15 ATK.', full: 'The attached Unit has +15 ATK.' }, 'Restore 45 HP.'],
+  'kng-standard-bearer': [{ face: 'Adjacent allies +15 ATK with your Spell here.', full: 'While you have a Spell in play in this lane, adjacent allies have +15 ATK.' }],
+  'spl-consecrate': [{ face: 'Your Unit here +15 ATK for the battle.', full: 'Give your Unit in this lane +15 ATK for the rest of the battle.' }],
+  'kng-oath-acolyte': [{ face: 'If you have a Spell here, restore 45 HP.', full: 'If you have a Spell in play in this lane, restore 45 HP.' }],
+  'spl-giants-bane': [{ face: 'If the enemy has more Units, destroy the enemy Unit here.', full: 'If the enemy has more Units than you, destroy the enemy Unit in this lane.' }],
+  'spl-death-wave': [{ face: 'Each enemy Unit −30 ATK this round.', full: 'Give each enemy Unit −30 ATK this round.' }],
+  'und-plague-mother': [{ label: 'Shield', keyword: true, face: 'Shield.', full: 'The first time this Unit would be destroyed, it survives instead.' }, { label: 'Guard 1', keyword: true, face: 'Guard 1.', full: 'If this Unit would lose its lane, give it +15 ATK this round.' }, { face: 'Each enemy Unit −15 ATK for the battle.', full: 'Give each enemy Unit −15 ATK for the rest of the battle.' }],
+  'und-blightcaster': [{ face: 'Enemy Unit here −15 ATK for the battle.', full: 'Give the enemy Unit in this lane −15 ATK for the rest of the battle.' }, 'Restore 45 HP. Once per round.'],
+  'und-withering-lich': [{ face: '+15 ATK for the battle, up to +45.', full: 'Give this Unit +15 ATK for the rest of the battle, up to +45.' }],
+  'und-grave-knight': [{ label: 'Guard 2', keyword: true, face: 'Guard 2.', full: 'If this Unit would lose its lane, give it +30 ATK this round.' }, 'Restore 45 HP. Once per round.'],
+  'spl-stasis-field': [{ face: 'No Clash here this round.', full: 'The enemy Unit in this lane can’t fight this round, so no Clash happens in this lane.' }, { face: 'Enemy Unit here −15 ATK for the battle.', full: 'Give the enemy Unit in this lane −15 ATK for the rest of the battle.' }],
+  'und-rot-ghoul': [{ face: 'Enemy Unit here −30 ATK for the battle.', full: 'Give the enemy Unit in this lane −30 ATK for the rest of the battle.' }],
+  'spl-enfeeble': [{ face: 'Enemy Unit here −30 ATK this round and −15 ATK for the battle.', full: 'Give the enemy Unit in this lane −30 ATK this round and −15 ATK for the rest of the battle.' }],
+  'inf-flame-herald': [{ face: 'Deal 45 damage.', full: 'Deal 45 damage to the enemy player.' }],
+  'spl-meteor': [{ face: 'Destroy the enemy Unit here if it has 110 ATK or less.', full: 'Destroy the enemy Unit in this lane if it has 110 ATK or less.' }, { face: 'Deal 90 damage.', full: 'Deal 90 damage to the enemy player.' }],
+  'kng-banner-knight': [{ face: 'With your Spell here, +15 ATK for the battle, up to +45.', full: 'If you have a Spell in play in this lane, give this Unit +15 ATK for the rest of the battle, up to +45.' }],
+  'spl-reliquary-blade': [{ face: 'Attached Unit +30 ATK.', full: 'The attached Unit has +30 ATK.' }],
+  'und-bone-dragon': [{ face: '+15 ATK this round per Unit in your Graveyard, up to +45.', full: 'Give this Unit +15 ATK this round for each Unit in your Graveyard, up to +45.' }],
+  'und-barrow-knight': [{ label: 'Guard 1', keyword: true, face: 'Guard 1.', full: 'If this Unit would lose its lane, give it +15 ATK this round.' }, { face: 'Summon a Skeleton.', full: 'Summon a Skeleton (65 ATK) in an empty lane.' }, { face: 'If the enemy cast a Spell this round, +30 ATK this round.', full: 'If the enemy cast a Spell this round, give this Unit +30 ATK this round.' }],
+  'inf-pack-warden': [{ face: '+30 ATK this round with an adjacent ally.', full: 'If you have an adjacent ally, give this Unit +30 ATK this round.' }],
+  'spl-oath-of-vengeance': [{ face: 'Your Unit here +30 ATK this round.', board: 'Your Unit +30 ATK this round.', full: 'Give your Unit in this lane +30 ATK this round.' }, { face: 'If an ally was destroyed this round, +30 more.', full: 'If one of your Units was destroyed this round, give it +30 more ATK this round.' }],
+  'kng-arcane-knight': [{ face: 'Adjacent allies +15 ATK this round. Once per round.', full: 'Give adjacent allies +15 ATK this round. Once per round.' }],
+  'und-ashen-revenant': [{ face: '+15 ATK for the battle, up to +45.', full: 'Give this Unit +15 ATK for the rest of the battle, up to +45.' }, { face: 'Return to your hand once.', full: 'Return this card to your hand once.' }],
+  'und-night-courier': [{ face: 'Bypass with a Spell in play, starting next round.', board: 'Bypass with a Spell in play.', full: 'Bypass while you have a Spell in play. Starts the round after you play this Unit.' }, { face: 'Return a random Spell.', full: 'Return a random Spell from your Graveyard to your hand.' }],
+  'und-grave-tyrant': [{ face: 'Exile the strongest enemy Graveyard Unit. +15 ATK for the battle, up to +45.', full: 'Exile the strongest Unit from the enemy Graveyard. Give this Unit +15 ATK for the rest of the battle, up to +45.' }],
+  'spl-execute': [{ face: 'Destroy the enemy Unit here if it has 80 ATK or less.', full: 'Destroy the enemy Unit in this lane if it has 80 ATK or less.' }],
+  'spl-growth-totem': [{ face: 'Your Unit here +15 ATK for the battle, up to +45.', full: 'Give your Unit in this lane +15 ATK for the rest of the battle, up to +45.' }],
+  'wld-forest-wolf': [{ face: '+30 ATK while no enemy Unit is here.', full: 'While the enemy has no Unit in this lane, this Unit has +30 ATK.' }],
+  'wld-ancient-treant': [{ face: '+15 ATK for the battle, up to +45.', full: 'Give this Unit +15 ATK for the rest of the battle, up to +45.' }],
+  'wld-titanroot': [{ face: '+30 ATK for the battle, up to +45.', full: 'Give this Unit +30 ATK for the rest of the battle, up to +45.' }],
 };
 
 /** How many battle lines a card has (tests keep this equal to its effect count). */
