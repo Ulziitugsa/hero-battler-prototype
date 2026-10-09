@@ -312,6 +312,17 @@ async function main() {
     searchRows.push(...r.trace);
     searchResults.commonRareControl = describe(r.deck, r.final);
   }
+  // --- Control: single-faction searches (Units of one faction, any Spells: Spells are faction-neutral) (does mixing factions matter, or does any searched list beat the shipped ones?) -
+  if (only.has('faction')) {
+    for (const [faction, startId] of [['kingdom', 'vanguard'], ['undead', 'bone-legion'], ['infernal', 'hellpack']]) {
+      const pool = obtainable.filter((id) => !isUnit(id) || card(id).faction === faction);
+      const start = FIELD.find((d) => d.id === startId).cards;
+      log(`${faction}-only search from ${startId}`);
+      const r = await hillClimb(`${faction}-only`, start, pool, (d) => d.every((id) => !isUnit(id) || card(id).faction === faction), { proposals: quick ? 30 : 500, patience: quick ? 15 : 150 });
+      searchRows.push(...r.trace);
+      searchResults[`${faction}Only`] = describe(r.deck, r.final);
+    }
+  }
   if (searchRows.length) write(`soup-search${tag}.csv`, csv(searchRows.map((r) => ({ ...r, score: typeof r.score === 'number' ? +r.score.toFixed(3) : r.score }))));
   summary.searches = searchResults;
 
