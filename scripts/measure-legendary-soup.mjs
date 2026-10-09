@@ -1,5 +1,5 @@
 import { fork } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -134,6 +134,12 @@ async function main() {
 
   // The field: 9 optimized, 6 budget, 3 Structure Decks, 3 starters. Study decks are reported outside the field.
   const FIELD = L.LAUNCH_DECKS.map((d, i) => ({ id: d.id, kind: d.kind, cards: expand(d.cards), seedKey: i + 1 }));
+  // --field-from FILE: replace field lists with tuned ones ({deckId: [[cardId, n], ...]}), e.g. a previous tune pass.
+  const fieldFrom = option('--field-from', '');
+  if (fieldFrom) {
+    const over = JSON.parse(readFileSync(resolve(fieldFrom), 'utf8'));
+    for (const d of FIELD) if (over[d.id]) d.cards = expand(over[d.id]);
+  }
   for (const d of FIELD) if (!legal(d.cards)) throw new Error(`field deck ${d.id} is not legal`);
   const STUDY = Object.entries(AD.ARCHETYPE_DECKS).map(([id, cards], i) => ({ id: `study-${id}`, kind: 'study', cards: [...cards], seedKey: 100 + i }));
   const legendFilter = option('--legends', '');
@@ -374,6 +380,7 @@ async function main() {
   // or the deck's debut cards).
   if (only.has('tune')) {
     const SDM = await server.ssrLoadModule('/src/game/structureDecks/definitions.ts');
+    const AB = await server.ssrLoadModule('/src/game/box/archetypeBoxes.ts');
     const info = new Map(R.LAUNCH_ROSTER.map((r) => [r.id, r]));
     const LABEL = { vanguard: 'Vanguard', arcane: 'Arcane', crusade: 'Crusade', 'bone-legion': 'Bone Legion', phantoms: 'Phantoms', wither: 'Wither', hellpack: 'Hellpack', hellfire: 'Hellfire', bloodbound: 'Bloodbound' };
     const LOCKED = {
@@ -389,21 +396,32 @@ async function main() {
       const arch = L.LAUNCH_DECKS.find((x) => x.id === d.id).archetype;
       const label = LABEL[arch];
       const inBox = (id) => (info.get(id).boxes ?? []).includes(arch);
-      const debut = (id) => info.get(id).source === 'structure-deck' && info.get(id).structureDeck === d.id;
-      const coreOwn = (id) => info.get(id).source === 'core' && info.get(id).archetype === label;
-      const own = (id) => inBox(id) || coreOwn(id) || debut(id) || (info.get(id).source === 'structure-deck' && info.get(id).structureDeck === `sd-${arch}`);
-      const ok = (id) => info.get(id).source !== 'event';
       const sdDebut = (id) => info.get(id).source === 'structure-deck' && info.get(id).structureDeck === `sd-${arch}`;
-      const coreCard = (id) => info.get(id).source === 'core' && (!isLegend(id) || coreOwn(id) || d.cards.includes(id));
-      const shipped = (id) => d.cards.includes(id) && ok(id) && (!isLegend(id) || own(id) || coreCard(id));
-      let pool;
-      if (d.kind === 'optimized') pool = obtainable.filter((id) => ((inBox(id) || sdDebut(id)) && (!isLegend(id) || own(id))) || coreCard(id) || shipped(id));
-      else if (d.kind === 'budget') pool = obtainable.filter((id) => (inBox(id) && ['common', 'rare'].includes(card(id).rarity)) || coreCard(id) || shipped(id));
-      else pool = obtainable.filter((id) => (inBox(id) && !isLegend(id)) || debut(id) || coreCard(id) || shipped(id));
-      const locked = LOCKED[d.id] ?? [];
-      const lockCount = new Map(locked.map((id) => [id, d.cards.filter((x) => x === id).length]));
+      const coreOwn = (id) => info.get(id).source === 'core' && info.get(id).archetype === label;
+      // Archetype-restricted: the archetype's own cards (its Box, its Structure Deck debuts, its Core cards) count toward
+      // the identity rule; the only other cards allowed are the same faction's Core cards and neutral Core Spells. Other
+      // factions' Units come in only when the archetype's own Box lists them.
+      const own = (id) => inBox(id) || sdDebut(id) || coreOwn(id);
+      const unitFactions = new Map();
+      for (const id of d.cards) if (isUnit(id)) unitFactions.set(card(id).faction, (unitFactions.get(card(id).faction) ?? 0) + 1);
+      const faction = [...unitFactions].sort((a, b) => b[1] - a[1])[0][0];
+      const sameFactionCore = (id) => info.get(id).source === 'core' && (isUnit(id) ? card(id).faction === faction : info.get(id).archetype === 'Flex');
+      const ok = (id) => info.get(id).source !== 'event';
+      // Optimized lists always keep their Box's headline Legendary (a launch-set test checks it).
+      const locked = d.kind === 'optimized' ? [AB.getArchetypeBox(arch).flagshipId] : LOCKED[d.id] ?? [];
+      const allowed = (id) => {
+        if (!ok(id)) return false;
+        if (locked.includes(id)) return true;
+        if (!own(id) && !sameFactionCore(id)) return false;
+        if (isLegend(id) && !own(id)) return false; // another archetype's Legendary is never part of this list
+        if (d.kind === 'optimized') return true;
+        if (d.kind === 'budget') return (info.get(id).source === 'core') || ['common', 'rare'].includes(card(id).rarity);
+        return !isLegend(id); // Structure Decks: no Legendaries beyond the locked ones
+      };
+      const pool = obtainable.filter(allowed);
+      const lockCount = new Map(locked.map((id) => [id, Math.max(d.kind === 'optimized' ? 1 : 0, d.cards.filter((x) => x === id).length)]));
       // Never fewer own cards than the shipped list already has (the Crusade Structure Deck is half Vanguard by design).
-      let minOwn = d.kind === 'budget' ? 9 : 10;
+      let minOwn = d.kind === 'budget' ? 10 : 11;
       const accept = (deck) => deck.every((id) => ok(id) && pool.includes(id)) && deck.filter(own).length >= minOwn && locked.every((id) => deck.filter((x) => x === id).length >= lockCount.get(id));
       // Start: the shipped list with any card outside the pool (event cards, other archetypes' Legendaries) swapped for
       // the first legal pool card.
@@ -414,6 +432,14 @@ async function main() {
         const repl = pool.find((id) => own(id) && fits(id)) ?? pool.find(fits);
         tuneRows.push({ deck: d.id, step: 'pre', move: `${name(start[i])} -> ${name(repl)} (not allowed in this list)`, score: '', deck_list: '' });
         start[i] = repl;
+      }
+      // A locked card the start list lacks (an optimized list that lost its headline Legendary) replaces its last
+      // non-locked, non-Legendary Unit.
+      for (const id of locked) {
+        if (start.includes(id)) continue;
+        const i = start.findLastIndex((x) => isUnit(x) && !isLegend(x) && !locked.includes(x));
+        tuneRows.push({ deck: d.id, step: 'pre', move: `${name(start[i])} -> ${name(id)} (locked)`, score: '', deck_list: '' });
+        start[i] = id;
       }
       minOwn = Math.min(minOwn, start.filter(own).length);
       if (!accept(start)) throw new Error(`${d.id}: start list fails its identity rule`);
