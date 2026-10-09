@@ -16,7 +16,7 @@ const SEED = 20261009;
 const self = fileURLToPath(import.meta.url);
 
 async function loadGame() {
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error' });
   const S = await server.ssrLoadModule('/src/game/cardCombat/simulate.ts');
   return { server, S };
 }
@@ -66,6 +66,7 @@ async function main() {
   mkdirSync(outDir, { recursive: true });
 
   const { server } = await loadGame();
+  const tag = option('--tag', '');
   const L = await server.ssrLoadModule('/src/game/cards/launchDecks.ts');
   const AD = await server.ssrLoadModule('/src/game/cards/archetypeDecks.ts');
   const R = await server.ssrLoadModule('/src/game/cards/launchRoster.ts');
@@ -301,7 +302,17 @@ async function main() {
     searchRows.push(...r.trace);
     searchResults.highRarity = describe(r.deck, r.final);
   }
-  if (searchRows.length) write('soup-search.csv', csv(searchRows.map((r) => ({ ...r, score: typeof r.score === 'number' ? +r.score.toFixed(3) : r.score }))));
+  // --- Control: the same search limited to Commons and Rares (is it the Legendaries, or any focused goodstuff?) ---------
+  if (only.has('lowrarity')) {
+    const low = obtainable.filter((id) => ['common', 'rare'].includes(card(id).rarity));
+    const start = STUDY.find((d) => d.id === 'study-general').cards.map((id) => (low.includes(id) ? id : 'kng-common-knight'));
+    while (!legal(start)) start.splice(start.lastIndexOf('kng-common-knight'), 1, 'und-ghoul-brute');
+    log('Common + Rare goodstuff search (control)');
+    const r = await hillClimb('common-rare', start, low, () => true, { proposals: quick ? 30 : 500, patience: quick ? 15 : 150 });
+    searchRows.push(...r.trace);
+    searchResults.commonRareControl = describe(r.deck, r.final);
+  }
+  if (searchRows.length) write(`soup-search${tag}.csv`, csv(searchRows.map((r) => ({ ...r, score: typeof r.score === 'number' ? +r.score.toFixed(3) : r.score }))));
   summary.searches = searchResults;
 
   // --- 4. Transplant matrix ----------------------------------------------------------------------------------------
@@ -380,7 +391,7 @@ async function main() {
     });
   }
 
-  write('health.json', JSON.stringify(summary, null, 2) + '\n');
+  write(`health${tag}.json`, JSON.stringify(summary, null, 2) + '\n');
   log('done');
   for (const w of workers) w.kill();
   await server.close();
