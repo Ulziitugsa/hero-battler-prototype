@@ -255,7 +255,6 @@ async function main() {
     if (!baseScore.has(d.id)) baseScore.set(d.id, (await score(d.cards, G_EVAL, d.id)).mean);
     return baseScore.get(d.id);
   }
-  const optimizedMeans = () => FIELD.filter((d) => d.kind === 'optimized').map((d) => fieldMean.get(d.id) ?? baseScore.get(d.id)).sort((a, b) => a - b);
 
   // --- search helpers -------------------------------------------------------------------------------------------
   let rng = SEED >>> 0;
