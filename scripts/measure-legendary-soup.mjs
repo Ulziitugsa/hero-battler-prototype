@@ -28,6 +28,7 @@ if (process.argv.includes('--worker')) {
   const { S } = await loadGame();
   process.on('message', (job) => {
     const out = [];
+    const tracked = {};
     for (let j = 0; j < job.opponents.length; j++) {
       const opp = job.opponents[j];
       let share = 0;
@@ -36,22 +37,71 @@ if (process.argv.includes('--worker')) {
       for (let i = 0; i < job.games; i++) {
         for (const seat of ['player', 'enemy']) {
           const seed = (SEED + opp.seedKey * 1000003 + i * 7919 + (seat === 'enemy' ? 500009 : 0)) >>> 0;
+          const keepEvents = !!job.track;
           const r = seat === 'player'
-            ? S.playCardAiMatch({ playerDeck: job.deck, enemyDeck: opp.cards, seed })
-            : S.playCardAiMatch({ playerDeck: opp.cards, enemyDeck: job.deck, seed });
+            ? S.playCardAiMatch({ playerDeck: job.deck, enemyDeck: opp.cards, seed }, { keepEvents })
+            : S.playCardAiMatch({ playerDeck: opp.cards, enemyDeck: job.deck, seed }, { keepEvents });
+          if (job.track) countActivation(job.track, r.events, seat, tracked);
           const won = r.status === 'DRAW' ? 0.5 : (r.status === 'PLAYER_WIN') === (seat === 'player') ? 1 : 0;
           share += won;
           rounds.push(r.rounds);
           if (r.endReason && r.endReason !== 'hp') stalls += 1;
         }
       }
-      out.push({ opp: opp.id, share: share / (2 * job.games), rounds, stalls });
+      out.push({ opp: opp.id, share: share / (2 * job.games), rounds, stalls, ...(job.track ? { tracked } : {}) });
     }
     process.send({ id: job.id, out });
   });
   process.send({ ready: true });
-} else {
-  await main();
+}
+
+/**
+ * Home activation of the gated Legendaries, read from one match's event log (our side = `seat`). `names` maps a card name
+ * to its card id:
+ *  - played: the Legendary was placed;
+ *  - gated: its gated line fired at least once (Infernal Lord: Round End damage; Kathra: ally-death damage; The Plague
+ *    Mother: a Round End that hit a second enemy, i.e. the lasting-loss spread);
+ *  - burns / extraHits: how many times.
+ */
+function countActivation(names, events, seat, tracked) {
+  const foe = seat === 'player' ? 'enemy' : 'player';
+  for (const [name, cardId] of Object.entries(names)) {
+    const t = (tracked[name] ??= { games: 0, played: 0, gated: 0, burns: 0, burnDamage: 0, roundEnds: 0, extraHits: 0 });
+    t.games += 1;
+    let played = false;
+    let gated = false;
+    let current = null; // the trigger of ours by this Legendary that the next events belong to
+    let hits = 0;
+    const closeRoundEnd = () => {
+      if (current === 'ROUND_END' && name === 'The Plague Mother' && hits > 1) { t.extraHits += hits - 1; gated = true; }
+      hits = 0;
+    };
+    for (const e of events) {
+      if (e.type === 'REVEAL' && e.placements.some((p) => p.side === seat && p.cardId === cardId)) played = true;
+      if (e.type === 'TRIGGER') {
+        closeRoundEnd();
+        current = e.side === seat && e.sourceName === name ? e.trigger : null;
+        if (current === 'ROUND_END' && name === 'The Plague Mother') t.roundEnds += 1;
+      }
+      if (current === 'ROUND_END' && e.type === 'POWER_CHANGED' && e.side === foe && e.reason === name) hits += 1;
+      const gatedTrigger = name === 'Infernal Lord' ? 'ROUND_END' : name === 'Kathra, Blood Queen' ? 'ON_ALLY_DEATH' : null;
+      if (e.type === 'DIRECT_DAMAGE' && e.side === foe && e.sourceName === name && gatedTrigger && current === gatedTrigger && e.amount > 0) {
+        t.burns += 1;
+        t.burnDamage += e.amount;
+        gated = true;
+      }
+    }
+    closeRoundEnd();
+    if (played) t.played += 1;
+    if (gated) t.gated += 1;
+  }
+}
+
+if (!process.argv.includes('--worker')) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
 }
 
 async function main() {
@@ -86,7 +136,9 @@ async function main() {
   const FIELD = L.LAUNCH_DECKS.map((d, i) => ({ id: d.id, kind: d.kind, cards: expand(d.cards), seedKey: i + 1 }));
   for (const d of FIELD) if (!legal(d.cards)) throw new Error(`field deck ${d.id} is not legal`);
   const STUDY = Object.entries(AD.ARCHETYPE_DECKS).map(([id, cards], i) => ({ id: `study-${id}`, kind: 'study', cards: [...cards], seedKey: 100 + i }));
-  const LEGENDS = R.LAUNCH_ROSTER.filter((r) => isLegend(r.id)).map((r) => r.id);
+  const legendFilter = option('--legends', '');
+  const LEGENDS = R.LAUNCH_ROSTER.filter((r) => isLegend(r.id)).map((r) => r.id)
+    .filter((id) => !legendFilter || legendFilter.split(',').includes(id));
 
   // --- worker pool ---------------------------------------------------------------------------------------------------
   const nWorkers = Math.max(1, cpus().length);
@@ -110,8 +162,8 @@ async function main() {
       w.send(job.payload);
     }
   }
-  const run = (deck, opponents, games) => new Promise((cb) => {
-    queue.push({ payload: { id: ++jobSeq, deck, opponents: opponents.map(({ id, cards, seedKey }) => ({ id, cards, seedKey })), games }, cb });
+  const run = (deck, opponents, games, track = undefined) => new Promise((cb) => {
+    queue.push({ payload: { id: ++jobSeq, deck, opponents: opponents.map(({ id, cards, seedKey }) => ({ id, cards, seedKey })), games, track }, cb });
     pump();
   });
   // Field score: one job per opponent so all cores stay busy. Mirror opponents (same id) are skipped.
@@ -205,9 +257,9 @@ async function main() {
   const legendCount = (deck) => deck.filter(isLegend).length;
   const legendArchetypes = (deck) => new Set(deck.filter(isLegend).map((id) => archetypeOf.get(id))).size;
   const isSoup = (deck) => legendCount(deck) >= 4 && legendArchetypes(deck) >= 3;
-  async function hillClimb(label, start, pool, accept, { proposals, patience }) {
+  async function hillClimb(label, start, pool, accept, { proposals, patience, selfId = null }) {
     let deck = [...start];
-    let best = (await score(deck, G_SEARCH)).mean;
+    let best = (await score(deck, G_SEARCH, selfId)).mean;
     const trace = [{ search: label, step: 0, move: 'start', score: best, deck: deckText(deck) }];
     let sinceGain = 0;
     for (let p = 1; p <= proposals && sinceGain < patience; p++) {
@@ -217,7 +269,7 @@ async function main() {
       const next = [...deck];
       next.splice(next.indexOf(out), 1, inn);
       if (!legal(next) || !accept(next)) continue;
-      const s = (await score(next, G_SEARCH)).mean;
+      const s = (await score(next, G_SEARCH, selfId)).mean;
       sinceGain += 1;
       if (s > best + 0.004) {
         deck = next;
@@ -227,7 +279,7 @@ async function main() {
         log(`${label} step ${p}: ${pct(s)}% (${name(out)} -> ${name(inn)})`);
       }
     }
-    const final = await score(deck, G_FINAL);
+    const final = await score(deck, G_FINAL, selfId);
     trace.push({ search: label, step: 'final', move: `${G_FINAL} games per seat per field deck`, score: final.mean, deck: deckText(deck) });
     return { deck, final, trace };
   }
@@ -312,6 +364,70 @@ async function main() {
     searchRows.push(...r.trace);
     searchResults.commonRareControl = describe(r.deck, r.final);
   }
+  // --- Deck-list tuning: archetype-restricted search for every optimized, budget and Structure Deck list -------------
+  // Pools (no event cards anywhere):
+  //   optimized:      the archetype's Box cards + Core cards of that archetype + Core Flex cards; Legendaries only its own.
+  //   budget:         Commons and Rares of the archetype's Box + every Core card (Core is free) except other archetypes' Legendaries.
+  //   structure-deck: Core + the archetype's Box cards (no Legendary unless the list already has one) + its debut cards;
+  //                   the debut cards and every card the Shop page names (featured / example combo) stay at their counts.
+  // Identity: at least 10 of 15 cards (9 for budget) are "own" cards (in the archetype's Box, or Core of that archetype,
+  // or the deck's debut cards).
+  if (only.has('tune')) {
+    const SDM = await server.ssrLoadModule('/src/game/structureDecks/definitions.ts');
+    const info = new Map(R.LAUNCH_ROSTER.map((r) => [r.id, r]));
+    const LABEL = { vanguard: 'Vanguard', arcane: 'Arcane', crusade: 'Crusade', 'bone-legion': 'Bone Legion', phantoms: 'Phantoms', wither: 'Wither', hellpack: 'Hellpack', hellfire: 'Hellfire', bloodbound: 'Bloodbound' };
+    const LOCKED = {
+      'sd-bone-legion': ['und-bone-dragon', 'und-barrow-knight', 'spl-grave-totem', 'und-bone-soldier', 'und-cursed-warrior', 'spl-raise-fallen'],
+      'sd-hellfire': ['inf-flame-herald', 'spl-meteor', 'inf-ember-witch', 'inf-cinder-imp'],
+      'sd-crusade': ['kng-banner-knight', 'spl-reliquary-blade', 'kng-standard-bearer', 'spl-battle-banner', 'kng-paladin'],
+    };
+    for (const sd of SDM.STRUCTURE_DECKS_ON_SALE) for (const id of [...sd.featuredCardIds, ...sd.debutCardIds]) if (!LOCKED[sd.id].includes(id)) throw new Error(`${sd.id}: ${id} not locked`);
+    const tunedOut = {};
+    const tuneRows = [];
+    const targets = FIELD.filter((d) => d.kind !== 'starter' && (!option('--decks', '') || option('--decks', '').split(',').includes(d.id)));
+    for (const d of targets) {
+      const arch = L.LAUNCH_DECKS.find((x) => x.id === d.id).archetype;
+      const label = LABEL[arch];
+      const inBox = (id) => (info.get(id).boxes ?? []).includes(arch);
+      const debut = (id) => info.get(id).source === 'structure-deck' && info.get(id).structureDeck === d.id;
+      const coreOwn = (id) => info.get(id).source === 'core' && info.get(id).archetype === label;
+      const own = (id) => inBox(id) || coreOwn(id) || debut(id) || (info.get(id).source === 'structure-deck' && info.get(id).structureDeck === `sd-${arch}`);
+      const ok = (id) => info.get(id).source !== 'event';
+      const sdDebut = (id) => info.get(id).source === 'structure-deck' && info.get(id).structureDeck === `sd-${arch}`;
+      const coreCard = (id) => info.get(id).source === 'core' && (!isLegend(id) || coreOwn(id) || d.cards.includes(id));
+      const shipped = (id) => d.cards.includes(id) && ok(id) && (!isLegend(id) || own(id) || coreCard(id));
+      let pool;
+      if (d.kind === 'optimized') pool = obtainable.filter((id) => ((inBox(id) || sdDebut(id)) && (!isLegend(id) || own(id))) || coreCard(id) || shipped(id));
+      else if (d.kind === 'budget') pool = obtainable.filter((id) => (inBox(id) && ['common', 'rare'].includes(card(id).rarity)) || coreCard(id) || shipped(id));
+      else pool = obtainable.filter((id) => (inBox(id) && !isLegend(id)) || debut(id) || coreCard(id) || shipped(id));
+      const locked = LOCKED[d.id] ?? [];
+      const lockCount = new Map(locked.map((id) => [id, d.cards.filter((x) => x === id).length]));
+      // Never fewer own cards than the shipped list already has (the Crusade Structure Deck is half Vanguard by design).
+      let minOwn = d.kind === 'budget' ? 9 : 10;
+      const accept = (deck) => deck.every((id) => ok(id) && pool.includes(id)) && deck.filter(own).length >= minOwn && locked.every((id) => deck.filter((x) => x === id).length >= lockCount.get(id));
+      // Start: the shipped list with any card outside the pool (event cards, other archetypes' Legendaries) swapped for
+      // the first legal pool card.
+      const start = [...d.cards];
+      for (let i = 0; i < start.length; i++) {
+        if (pool.includes(start[i])) continue;
+        const fits = (id) => isUnit(id) === isUnit(start[i]) && !isLegend(id) && legal([...start.slice(0, i), id, ...start.slice(i + 1)]);
+        const repl = pool.find((id) => own(id) && fits(id)) ?? pool.find(fits);
+        tuneRows.push({ deck: d.id, step: 'pre', move: `${name(start[i])} -> ${name(repl)} (not allowed in this list)`, score: '', deck_list: '' });
+        start[i] = repl;
+      }
+      minOwn = Math.min(minOwn, start.filter(own).length);
+      if (!accept(start)) throw new Error(`${d.id}: start list fails its identity rule`);
+      log(`tune ${d.id} (${d.kind}, pool ${pool.length})`);
+      const r = await hillClimb(`tune-${d.id}`, start, pool, accept, { proposals: quick ? 20 : 300, patience: quick ? 10 : 100, selfId: d.id });
+      tuneRows.push(...r.trace.map((t) => ({ deck: d.id, step: t.step, move: t.move, score: typeof t.score === 'number' ? +t.score.toFixed(3) : t.score, deck_list: t.deck })));
+      const counts = new Map();
+      for (const id of r.deck) counts.set(id, (counts.get(id) ?? 0) + 1);
+      tunedOut[d.id] = [...counts].sort((x, y) => (isLegend(y[0]) - isLegend(x[0])) || (isUnit(y[0]) - isUnit(x[0])) || x[0].localeCompare(y[0]));
+    }
+    write(`tuned-decks${tag}.json`, JSON.stringify(tunedOut, null, 1) + '\n');
+    write(`tune${tag}.csv`, csv(tuneRows));
+  }
+
   // --- Control: single-faction searches (Units of one faction, any Spells: Spells are faction-neutral) (does mixing factions matter, or does any searched list beat the shipped ones?) -
   if (only.has('faction')) {
     for (const [faction, startId] of [['kingdom', 'vanguard'], ['undead', 'bone-legion'], ['infernal', 'hellpack']]) {
@@ -400,6 +516,31 @@ async function main() {
         bestAway: bestAway.map((r) => `${r.deck} +${(100 * r.legendaryValue).toFixed(1)}`),
       };
     });
+  }
+
+  // --- 6. Home activation of the gated Legendaries --------------------------------------------------------------
+  if (only.has('activation')) {
+    const GATED = { 'Infernal Lord': 'inf-infernal-lord', 'The Plague Mother': 'und-plague-mother', 'Kathra, Blood Queen': 'inf-kathra' };
+    const rows = [];
+    for (const d of FIELD) {
+      const track = Object.fromEntries(Object.entries(GATED).filter(([, id]) => d.cards.includes(id)));
+      if (!Object.keys(track).length) continue;
+      log(`activation ${d.id}`);
+      const opps = FIELD.filter((o) => o.id !== d.id);
+      const parts = (await Promise.all(opps.map((o) => run(d.cards, [o], G_EVAL, track)))).flat();
+      const winShare = parts.reduce((a, r) => a + r.share, 0) / parts.length;
+      for (const n of Object.keys(track)) {
+        const t = { games: 0, played: 0, gated: 0, burns: 0, burnDamage: 0, roundEnds: 0, extraHits: 0 };
+        for (const r of parts) for (const k of Object.keys(t)) t[k] += r.tracked[n][k];
+        rows.push({
+          deck: d.id, legendary: n, games: t.games, deckWinShare: winShare,
+          playedRate: t.played / t.games, gatedRateOfGames: t.gated / t.games, gatedRateWhenPlayed: t.played ? t.gated / t.played : 0,
+          burnsPerGame: t.burns / t.games, burnDamagePerGame: t.burnDamage / t.games, extraHitsPerRoundEnd: t.roundEnds ? t.extraHits / t.roundEnds : 0,
+        });
+      }
+    }
+    if (rows.length) write(`activation${tag}.csv`, csv(rows));
+    summary.activation = rows.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === 'number' && !Number.isInteger(v) ? +v.toFixed(3) : v])));
   }
 
   write(`health${tag}.json`, JSON.stringify(summary, null, 2) + '\n');
