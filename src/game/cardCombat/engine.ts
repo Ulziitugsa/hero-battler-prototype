@@ -67,6 +67,8 @@ interface Exec {
   deathLane?: LaneId;
   /** The dying copy had already returned once (its Graveyard entry is marked). */
   deathMarked?: boolean;
+  /** The death this reaction answers was caused by its owner's own effect (a sacrifice). */
+  deathByOwnEffect?: boolean;
 }
 
 function playerOf(ctx: Ctx, side: Side): PlayerState {
@@ -227,6 +229,8 @@ function locations(ctx: Ctx, exec: Exec, scope: TargetScope): { side: Side; lane
       return adjacentLanes(lane)
         .filter((l) => !!unitAt(ctx, exec.owner, l) && !!unitAt(ctx, opposite(exec.owner), l) && effectiveAtk(ctx.state, exec.owner, l) < effectiveAtk(ctx.state, opposite(exec.owner), l))
         .map((l) => ({ side: exec.owner, lane: l }));
+    case 'OTHER_ENEMIES_WITH_LASTING_LOSS':
+      return LANES.filter((l) => l !== lane && !!unitAt(ctx, opposite(exec.owner), l)?.lastingLoss).map((l) => ({ side: opposite(exec.owner), lane: l }));
   }
 }
 
@@ -433,6 +437,8 @@ function conditionHolds(ctx: Ctx, exec: Exec, c: ConditionDef): boolean {
     }
     case 'DEAD_HERO_HAS_TAG':
       return !!exec.deathCardId && combat(exec.deathCardId).tags.includes(c.tag);
+    case 'DEATH_BY_OWN_EFFECT':
+      return !!exec.deathCardId && !!exec.deathByOwnEffect;
     default:
       return true;
   }
@@ -480,6 +486,7 @@ function changeAtk(ctx: Ctx, side: Side, lane: LaneId, delta: number, duration: 
   const from = unit.power;
   unit.power += delta;
   if (duration === 'UNTIL_ROUND_END') unit.tempPower += delta;
+  else if (delta < 0) unit.lastingLoss = true;
   push(ctx, { type: 'POWER_CHANGED', side, instanceId: unit.instanceId, name: unit.name, from, to: unit.power, reason, permanent: duration === 'PERMANENT' });
 }
 
@@ -677,7 +684,7 @@ function execute(ctx: Ctx, action: CombatAction, exec: Exec): void {
         if (!unitAt(ctx, loc.side, loc.lane)) return false;
         return action.maxPower === undefined || effectiveAtk(ctx.state, loc.side, loc.lane) <= atkFromPower(action.maxPower);
       });
-      if (targets.length > 0) destroyAndChain(ctx, targets);
+      if (targets.length > 0) destroyAndChain(ctx, targets, exec.owner);
       return;
     }
     case 'DESTROY_SPELL_ZONE':
@@ -842,16 +849,22 @@ function runAbilities(ctx: Ctx, abilities: CombatAbility[], trigger: Trigger, ex
   }
 }
 
-function dispatchUnit(ctx: Ctx, side: Side, lane: LaneId, trigger: Trigger, death?: { cardId: string; lane: LaneId }): void {
-  const unit = unitAt(ctx, side, lane);
-  if (!unit || isSilencedIn(ctx, side, lane)) return;
-  runAbilities(ctx, getCombatCard(unit.cardId).abilities, trigger, { owner: side, kind: 'hero', lane, instanceId: unit.instanceId, name: unit.name, deathCardId: death?.cardId, deathLane: death?.lane }, { holder: unit, zone: 'hero' });
+interface DeathInfo {
+  cardId: string;
+  lane: LaneId;
+  byOwnEffect?: boolean;
 }
 
-function dispatchZone(ctx: Ctx, side: Side, lane: LaneId, trigger: Trigger, death?: { cardId: string; lane: LaneId }): void {
+function dispatchUnit(ctx: Ctx, side: Side, lane: LaneId, trigger: Trigger, death?: DeathInfo): void {
+  const unit = unitAt(ctx, side, lane);
+  if (!unit || isSilencedIn(ctx, side, lane)) return;
+  runAbilities(ctx, getCombatCard(unit.cardId).abilities, trigger, { owner: side, kind: 'hero', lane, instanceId: unit.instanceId, name: unit.name, deathCardId: death?.cardId, deathLane: death?.lane, deathByOwnEffect: death?.byOwnEffect }, { holder: unit, zone: 'hero' });
+}
+
+function dispatchZone(ctx: Ctx, side: Side, lane: LaneId, trigger: Trigger, death?: DeathInfo): void {
   const zone = playerOf(ctx, side).spellZones[lane];
   if (!zone) return;
-  runAbilities(ctx, getCombatCard(zone.cardId).abilities, trigger, { owner: side, kind: 'spell', lane, name: zone.name, deathCardId: death?.cardId, deathLane: death?.lane }, { holder: zone, zone: 'spell' });
+  runAbilities(ctx, getCombatCard(zone.cardId).abilities, trigger, { owner: side, kind: 'spell', lane, name: zone.name, deathCardId: death?.cardId, deathLane: death?.lane, deathByOwnEffect: death?.byOwnEffect }, { holder: zone, zone: 'spell' });
 }
 
 function dispatchAll(ctx: Ctx, trigger: Trigger, order: readonly Side[] = SIDES): void {
@@ -871,6 +884,8 @@ interface Dead {
   silenced: boolean;
   token: boolean;
   marked: boolean;
+  /** Its owner's own effect destroyed it (a sacrifice). */
+  byOwnEffect?: boolean;
 }
 
 function removeUnit(ctx: Ctx, side: Side, lane: LaneId, silencedAtDeath?: boolean): Dead | null {
@@ -932,13 +947,14 @@ function belowDeathLine(ctx: Ctx): { side: Side; lane: LaneId }[] {
   return out;
 }
 
-function destroyAndChain(ctx: Ctx, entries: { side: Side; lane: LaneId }[]): void {
+/** `cause`: the side whose effect destroys these Units (a DESTROY action); a Unit of that side dies by its own effect. */
+function destroyAndChain(ctx: Ctx, entries: { side: Side; lane: LaneId }[], cause?: Side): void {
   const queue: Dead[] = [];
   // Silence is read before anything leaves.
   const silencedNow = entries.map((e) => isSilencedIn(ctx, e.side, e.lane));
   entries.forEach((e, i) => {
     const dead = removeUnit(ctx, e.side, e.lane, silencedNow[i]);
-    if (dead) queue.push(dead);
+    if (dead) queue.push(cause !== undefined && dead.side === cause ? { ...dead, byOwnEffect: true } : dead);
   });
   let guard = 0;
   while (queue.length > 0) {
@@ -948,7 +964,7 @@ function destroyAndChain(ctx: Ctx, entries: { side: Side; lane: LaneId }[]): voi
     }
     const dead = queue.shift()!;
     if (dead.token) continue; // tokens trigger no death effects
-    const death = { cardId: dead.cardId, lane: dead.lane };
+    const death: DeathInfo = { cardId: dead.cardId, lane: dead.lane, byOwnEffect: dead.byOwnEffect };
     if (!dead.silenced) runAbilities(ctx, getCombatCard(dead.cardId).abilities, 'ON_DEATH', { owner: dead.side, kind: 'hero', lane: dead.lane, name: dead.name, deathCardId: dead.cardId, deathLane: dead.lane, deathMarked: dead.marked });
     for (const { lane } of livingUnits(ctx, dead.side)) dispatchUnit(ctx, dead.side, lane, 'ON_ALLY_DEATH', death);
     for (const { lane } of livingUnits(ctx, opposite(dead.side))) dispatchUnit(ctx, opposite(dead.side), lane, 'ON_ENEMY_DEATH', death);

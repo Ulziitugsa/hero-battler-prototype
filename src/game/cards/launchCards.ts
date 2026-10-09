@@ -694,11 +694,19 @@ export const LAUNCH_CARDS: CardDefinition[] = [
     cost: 1,
     power: 4,
     tags: ['Undead'],
-    boardText: 'Shield; Guard 1; enemies −15',
+    boardText: 'Shield; Guard 1; here −15+',
     abilities: [
       { trigger: 'PASSIVE', actions: [{ type: 'GRANT_SHIELD', target: 'SELF' }], text: 'This Unit has a Shield: the first time it would be destroyed, it survives instead.' },
       { trigger: 'BEFORE_COMBAT', conditions: [{ type: 'SELF_LOSING_LANE' }], actions: [{ type: 'CHANGE_POWER', amount: 1, duration: 'UNTIL_ROUND_END', target: 'SELF' }], text: 'Guard 1: Before Combat, if this Unit would lose its lane, gain +15 ATK this round.' },
-      { trigger: 'ROUND_END', actions: [{ type: 'CHANGE_POWER', amount: -1, duration: 'PERMANENT', target: 'ALL_ENEMIES' }], text: 'Round End: every enemy Unit gets −15 ATK for the rest of the battle.' },
+      // Wither gate (2026-10-09): she weakens the enemy in her own lane, and only spreads to enemies that already have lasting ATK loss.
+      {
+        trigger: 'ROUND_END',
+        actions: [
+          { type: 'CHANGE_POWER', amount: -1, duration: 'PERMANENT', target: 'ENEMY_SAME_LANE' },
+          { type: 'CHANGE_POWER', amount: -1, duration: 'PERMANENT', target: 'OTHER_ENEMIES_WITH_LASTING_LOSS' },
+        ],
+        text: 'Round End: the enemy here gets −15 ATK for the rest of the battle, and every other enemy Unit with lasting ATK loss gets −15 ATK more.',
+      },
     ],
   },
   {
@@ -778,9 +786,11 @@ export const LAUNCH_CARDS: CardDefinition[] = [
     cost: 1,
     power: 5,
     tags: ['Demon'],
-    boardText: 'Ally falls: 45 dmg, +15',
+    boardText: 'Ally falls +15; own kill 45',
     abilities: [
-      { trigger: 'ON_ALLY_DEATH', actions: [{ type: 'PLAYER_DAMAGE', amount: 1 }, { type: 'CHANGE_POWER', amount: 1, duration: 'PERMANENT', target: 'SELF' }], text: 'Ally Falls: deal 45 damage and this Unit gains +15 ATK (up to +45).' },
+      // Sacrifice gate (2026-10-09): any death still grows her; only a death your own effect caused deals damage.
+      { trigger: 'ON_ALLY_DEATH', actions: [{ type: 'CHANGE_POWER', amount: 1, duration: 'PERMANENT', target: 'SELF' }], text: 'Ally Falls: this Unit gains +15 ATK (up to +45).' },
+      { trigger: 'ON_ALLY_DEATH', conditions: [{ type: 'DEATH_BY_OWN_EFFECT' }], actions: [{ type: 'PLAYER_DAMAGE', amount: 1 }], text: 'When one of your own cards destroys one of your Units: deal 45 damage.' },
       { trigger: 'ON_DEATH', actions: [{ type: 'PLAYER_DAMAGE', amount: 2 }], text: 'Destroyed: deal 90 damage.' },
     ],
   },

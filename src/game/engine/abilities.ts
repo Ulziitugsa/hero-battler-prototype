@@ -143,7 +143,8 @@ function resolveTargetLocations(ctx: Ctx, exec: AbilityContext, scope: TargetSco
     case 'ADJACENT_ENEMIES':
       return adjacentLanes(exec.selfLane).map((lane) => ({ side: opposite(exec.ownerSide), lane }));
     case 'ADJACENT_ALLIES_LOSING':
-      return []; // card combat only (shared Guard); the legacy resolver has no launch-set cards that use it
+    case 'OTHER_ENEMIES_WITH_LASTING_LOSS':
+      return []; // card combat only (shared Guard, Plague Mother); the legacy resolver has no launch-set cards that use it
   }
 }
 

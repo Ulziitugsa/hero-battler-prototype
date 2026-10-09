@@ -273,12 +273,15 @@ const OVERRIDES: CombatCard[] = [
     boardText: 'Guard 2; 1st/rnd: Heal 45',
     abilities: [guard(2), ability('ON_ENEMY_DEATH', [{ type: 'PLAYER_HEAL', amount: 1 }], 'The first time an enemy Unit dies each round, restore 45 HP to your player.', { oncePerRound: true })],
   }),
-  // Infernal Lord (redesign, Power 6): burns every Round End and curses every enemy Unit when it falls.
+  // Infernal Lord (redesign, Power 6): burns at Round End in a round you cast a Spell (the Hellfire gate, 2026-10-09: it was
+  // as strong in every other deck as in Hellfire) and curses every enemy Unit when it falls.
   rewrite('inf-infernal-lord', {
     power: 6,
-    boardText: 'Round End: 45; Death: enemies −30',
+    boardText: 'Spell: Round End 45; Death −30',
     abilities: [
-      ability('ROUND_END', [{ type: 'PLAYER_DAMAGE', amount: 1 }], 'Round End: deal 45 damage to the enemy player.'),
+      ability('ROUND_END', [{ type: 'PLAYER_DAMAGE', amount: 1 }], 'Round End: if you cast a Spell this round, deal 45 damage to the enemy player.', {
+        conditions: [{ type: 'SPELL_PLAYED_THIS_ROUND' }],
+      }),
       ability('ON_DEATH', [pw(-2, 'PERMANENT', 'ALL_ENEMIES')], 'When Destroyed: every enemy Unit gets −30 ATK for the rest of the battle.'),
     ],
   }),
