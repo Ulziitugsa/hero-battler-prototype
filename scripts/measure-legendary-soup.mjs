@@ -389,6 +389,14 @@ async function main() {
       'sd-crusade': ['kng-banner-knight', 'spl-reliquary-blade', 'kng-standard-bearer', 'spl-battle-banner', 'kng-paladin'],
     };
     for (const sd of SDM.STRUCTURE_DECKS_ON_SALE) for (const id of [...sd.featuredCardIds, ...sd.debutCardIds]) if (!LOCKED[sd.id].includes(id)) throw new Error(`${sd.id}: ${id} not locked`);
+    const IDENTITY = {
+      'bone-legion': {
+        package: ['und-barrow-knight', 'und-crypt-warden', 'und-bonecaller', 'und-cursed-warrior', 'spl-raise-fallen', 'spl-bone-wall', 'und-mira'],
+        minDistinct: 5,
+        borrowLabel: 'Wither',
+        maxBorrow: 1,
+      },
+    };
     const tunedOut = {};
     const tuneRows = [];
     const targets = FIELD.filter((d) => d.kind !== 'starter' && (!option('--decks', '') || option('--decks', '').split(',').includes(d.id)));
@@ -422,7 +430,12 @@ async function main() {
       const lockCount = new Map(locked.map((id) => [id, Math.max(d.kind === 'optimized' ? 1 : 0, d.cards.filter((x) => x === id).length)]));
       // Never fewer own cards than the shipped list already has (the Crusade Structure Deck is half Vanguard by design).
       let minOwn = d.kind === 'budget' ? 10 : 11;
-      const accept = (deck) => deck.every((id) => ok(id) && pool.includes(id)) && deck.filter(own).length >= minOwn && locked.every((id) => deck.filter((x) => x === id).length >= lockCount.get(id));
+      // Extra identity rules for one list (ozi 2026-10-09: Bone Legion is recursion, not Wither-lite).
+      const extra = IDENTITY[d.id];
+      const identityOk = (deck) => !extra || (
+        new Set(deck.filter((id) => extra.package.includes(id))).size >= extra.minDistinct &&
+        deck.filter((id) => info.get(id).archetype === extra.borrowLabel).length <= extra.maxBorrow);
+      const accept = (deck) => deck.every((id) => ok(id) && pool.includes(id)) && deck.filter(own).length >= minOwn && identityOk(deck) && locked.every((id) => deck.filter((x) => x === id).length >= lockCount.get(id));
       // Start: the shipped list with any card outside the pool (event cards, other archetypes' Legendaries) swapped for
       // the first legal pool card.
       const start = [...d.cards];

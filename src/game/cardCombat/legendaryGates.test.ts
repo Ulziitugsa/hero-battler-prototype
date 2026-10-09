@@ -64,6 +64,29 @@ describe('Infernal Lord: Round End damage only in a round you cast a Spell', () 
   });
 });
 
+describe('Infernal Lord: Destroyed curse only in a round you cast a Spell', () => {
+  const curse = (castSpell: boolean) => {
+    const s = blankMatch();
+    put(s, 'player', 'left', 'inf-infernal-lord', 129);
+    put(s, 'enemy', 'left', KNIGHT, 300); // the Lord loses its lane and is destroyed
+    put(s, 'player', 'center', KNIGHT, 400);
+    const watcher = put(s, 'enemy', 'center', KNIGHT, 100);
+    watcher.shielded = true; // survives losing its lane, so its ATK can be read after the round
+    put(s, 'player', 'right', KNIGHT, 60);
+    put(s, 'enemy', 'right', KNIGHT, 200);
+    const plays: PlayerAction = castSpell ? { plays: [{ handId: hand(s, 'player', 'spl-power-surge').handId, cardId: 'spl-power-surge', lane: 'right' }] } : NONE;
+    const r = resolveCardRound(s, plays, NONE);
+    expect(r.nextState.player.heroZones.left).toBeNull();
+    return r.events.filter((e) => e.type === 'POWER_CHANGED' && e.reason === 'Infernal Lord' && e.permanent).length;
+  };
+  it('no Spell cast: no −30 when it is destroyed', () => {
+    expect(curse(false)).toBe(0);
+  });
+  it('a Spell cast this round: every enemy Unit gets −30 when it is destroyed', () => {
+    expect(curse(true)).toBeGreaterThan(0);
+  });
+});
+
 describe('The Plague Mother: her lane, then only enemies with lasting ATK loss', () => {
   it('weakens the enemy in her lane and leaves an unweakened enemy elsewhere alone', () => {
     const s = blankMatch();
