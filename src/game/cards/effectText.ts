@@ -100,7 +100,7 @@ export const CARD_GLOSSARY: readonly { term: string; text: string }[] = [
   { term: 'Enemy Falls', text: TIMING_HELP.ON_ENEMY_DEATH },
   { term: 'Direct Attack', text: TIMING_HELP.ON_DIRECT_DAMAGE },
   { term: 'Graveyard', text: KEYWORD_HELP.Graveyard },
-  { term: 'Lasting ATK loss', text: 'A Unit that lost ATK for the rest of the battle, not only this round, has lasting ATK loss.' },
+  { term: 'Lasting ATK loss', text: 'A Unit that lost ATK until the battle ends, not only this round, has lasting ATK loss.' },
   { term: 'Shield', text: KEYWORD_HELP.Shield },
   { term: 'Guard', text: KEYWORD_HELP.Guard },
   { term: 'Lane Spell', text: KEYWORD_HELP['Lane Spell'] },
