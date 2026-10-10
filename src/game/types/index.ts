@@ -140,7 +140,9 @@ export type ConditionDef =
   /** True if this Hero entered play in an EARLIER round than the current one (i.e. it was not played/revived/summoned this round). */
   | { type: 'SELF_ENTERED_EARLIER' }
   /** True only when dispatched as a reaction to a Hero's death, and that Hero's card carries `tag`. */
-  | { type: 'DEAD_HERO_HAS_TAG'; tag: string };
+  | { type: 'DEAD_HERO_HAS_TAG'; tag: string }
+  /** Card combat only: true when dispatched as a reaction to a death that its owner's own effect caused (a sacrifice: Blood Pact, Dark Ritual). */
+  | { type: 'DEATH_BY_OWN_EFFECT' };
 
 /** Where an effect applies. Always resolved automatically from the ability-owner's own lane/side - never chosen by the player. */
 export type TargetScope =
@@ -152,7 +154,9 @@ export type TargetScope =
   | 'ADJACENT_ALLIES'
   | 'ADJACENT_ENEMIES'
   /** Card combat only: each adjacent allied Unit that would lose its lane right now (an enemy faces it with higher ATK) - shared Guard (Paladin, Morwen). */
-  | 'ADJACENT_ALLIES_LOSING';
+  | 'ADJACENT_ALLIES_LOSING'
+  /** Card combat only: each enemy Unit outside the owner's own lane that has lasting ATK loss (`HeroInstance.lastingLoss`) - The Plague Mother. */
+  | 'OTHER_ENEMIES_WITH_LASTING_LOSS';
 
 /** RANDOM picks uniformly among every eligible card, ignoring Power entirely - for effects that want "any", not "the biggest/smallest". */
 export type GraveyardPick = 'LOWEST_POWER' | 'HIGHEST_POWER' | 'RANDOM';
@@ -341,6 +345,8 @@ export interface HeroInstance {
   token?: boolean;
   /** Set by STALL_COMBAT; cleared at Round End. While true, no combat happens in this Hero's lane. */
   stalled?: boolean;
+  /** Card combat only: this Unit has lost ATK "until the battle ends" (any permanent ATK loss, from any source). Never cleared while it stays in play. */
+  lastingLoss?: boolean;
   /** Ascension rank this Hero entered play with (display only - the engine resolves abilities from GameState.ascensions). Absent = Base. */
   ascension?: number;
   /** Hero Level this Hero entered play with (display only - its Battle Power bonus is already baked into `power`, see makeHeroInstance). Absent = Level 1. */

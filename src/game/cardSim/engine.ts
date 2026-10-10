@@ -408,6 +408,7 @@ function locations(s: SimState, exec: Exec, scope: TargetScope): { side: SideInd
     case 'ADJACENT_ENEMIES':
       return adjacent(lane).map((l) => ({ side: other(exec.owner), lane: l }));
     case 'ADJACENT_ALLIES_LOSING':
+    case 'OTHER_ENEMIES_WITH_LASTING_LOSS':
       return []; // production card resolver only (launch set); the historical simulator never measured it
   }
 }
