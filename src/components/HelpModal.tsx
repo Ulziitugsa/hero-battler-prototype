@@ -1,5 +1,5 @@
 import { Icon } from './Icon';
-import { CARD_GLOSSARY } from '../game/cards/cardPresentation';
+import { CARD_GLOSSARY, DESTROYED_SPELL_RULE, ROUND_STEPS } from '../game/cards/cardPresentation';
 
 // The card-combat rules, short. One list everywhere (battle, Profile): every battle mode plays these rules.
 const RULES: { icon: Parameters<typeof Icon>[0]['name']; text: string }[] = [
@@ -10,7 +10,7 @@ const RULES: { icon: Parameters<typeof Icon>[0]['name']; text: string }[] = [
   { icon: 'battle', text: 'A Unit facing an empty lane hits the enemy player for its full ATK.' },
   { icon: 'spell', text: 'Spells resolve before combat. A one-time Spell happens once. A Lane Spell stays in its lane and works every round until it is destroyed.' },
   { icon: 'attachedSpell', text: 'An Attached Spell goes onto your Unit in its lane. When that Unit leaves play, the Spell goes to the Graveyard with it.' },
-  { icon: 'help', text: 'Each effect starts with when it works: Passive, Round Start, Clash, Round End, Destroyed and more. Card words are below.' },
+  { icon: 'help', text: 'Each effect says when it happens (“Before lanes fight”, “At the end of each round”, “When this is destroyed”). Card Inspect also names its timing. Card words are below.' },
   { icon: 'graveyard', text: 'Destroyed cards go to the Graveyard. A card can come back from it once per battle.' },
   { icon: 'check', text: 'You draw back up to 3 cards each round. An empty deck just stops drawing. Bring the enemy to 0 HP to win.' },
   { icon: 'cards', text: 'Every card plays exactly as printed. Duplicates never change a card’s ATK, HP Contribution or effects.' },
@@ -34,6 +34,15 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
             </li>
           ))}
         </ul>
+        <h3 className="help-modal-subhead">How a round works</h3>
+        <ol className="help-modal-steps">
+          {ROUND_STEPS.map((step) => (
+            <li key={step.term}>
+              <strong>{step.term}.</strong> {step.text}
+            </li>
+          ))}
+        </ol>
+        <p className="help-modal-note">{DESTROYED_SPELL_RULE}</p>
         <h3 className="help-modal-subhead">Card words</h3>
         <dl className="help-modal-glossary">
           {CARD_GLOSSARY.map((entry) => (

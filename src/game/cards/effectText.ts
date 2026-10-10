@@ -11,7 +11,7 @@ import { atkDelta, atkFromPower } from './cardFace.js';
 // Rules for the copy:
 // - one line per ability, in the same order as `card.abilities`;
 // - "Unit", never "Hero"; ATK, never Power (1 Power = 15 ATK, see cardFace.ts);
-// - durations are "this round" (until the round ends) or "for the rest of the battle";
+// - durations are "this round" (until the round ends) or "until the battle ends";
 // - "Once per round" is added by the UI from `oncePerRound`, so the copy does not repeat it.
 
 /**
@@ -41,7 +41,7 @@ export const TIMING_HELP: Record<Trigger, string> = {
   ON_PLAY: 'When this card is played.',
   CAST: 'Happens once, when this Spell is cast.',
   ROUND_START: 'Happens at the start of each round.',
-  BEFORE_COMBAT: 'Happens each round, just before the lanes fight.',
+  BEFORE_COMBAT: 'Happens each round just before the lanes fight, even in a lane with no enemy Unit.',
   AFTER_COMBAT: 'Happens each round, right after the lanes fight.',
   ON_DEATH: 'Happens when this Unit is destroyed: it loses or ties a fight, or an effect destroys it.',
   ON_ALLY_DEATH: 'Happens when one of your other Units is destroyed.',
@@ -70,19 +70,19 @@ export type EffectKeyword =
   | 'Attached Spell';
 
 export const KEYWORD_HELP: Record<EffectKeyword, string> = {
-  Shield: 'The first time this Unit would be destroyed, it survives instead.',
-  Guard: 'When this Unit would lose its lane, Guard 1 gives it +15 ATK this round, Guard 2 gives +30.',
+  Shield: 'This Unit survives the first time it would be destroyed.',
+  Guard: 'If this Unit would lose its lane, it gets ATK this round. Guard 1 = +15. Guard 2 = +30.',
   'Spell Immune': 'Enemy Spells can’t affect this Unit.',
   Silence: 'The Unit’s effects do nothing this round. Its Shield still works.',
-  Bypass: 'This Unit skips the fight and hits the enemy player directly.',
-  Summon: 'Put a new token Unit into an empty lane.',
+  Bypass: 'This Unit skips the fight and attacks the enemy player directly.',
+  Summon: 'Put a new token Unit into one of your empty lanes.',
   Token: 'A Unit made during battle. It vanishes when destroyed and never goes to the Graveyard.',
   Revive: 'Move a Unit from your Graveyard into a lane.',
-  Exile: 'Remove a card from the Graveyard for the rest of the battle.',
+  Exile: 'Remove a card from the Graveyard until the battle ends.',
   Graveyard: 'Where your destroyed Units and used Spells go. A card can come back from it once per battle.',
   'Spell in play': 'A Lane Spell or Attached Spell on the battlefield.',
   'Lane Spell': 'Stays in its lane and works every round until it is destroyed.',
-  'Attached Spell': 'Goes onto your Unit in its lane. It leaves play when that Unit does.',
+  'Attached Spell': 'A Spell placed on a Unit. It stays while that Unit stays.',
 };
 
 /**
@@ -91,6 +91,7 @@ export const KEYWORD_HELP: Record<EffectKeyword, string> = {
  */
 export const CARD_GLOSSARY: readonly { term: string; text: string }[] = [
   { term: 'Passive', text: 'Always on while this card is in play.' },
+  { term: 'Before lanes fight', text: 'Each round, just before the lanes fight, even in a lane with no enemy Unit. Card Inspect calls this Clash.' },
   { term: 'Clash', text: TIMING_HELP.BEFORE_COMBAT },
   { term: 'Round Start', text: TIMING_HELP.ROUND_START },
   { term: 'Round End', text: TIMING_HELP.ROUND_END },
@@ -108,12 +109,36 @@ export const CARD_GLOSSARY: readonly { term: string; text: string }[] = [
   { term: 'Revive', text: KEYWORD_HELP.Revive },
   { term: 'Exile', text: KEYWORD_HELP.Exile },
   { term: 'Bypass', text: KEYWORD_HELP.Bypass },
+  { term: 'Damage', text: 'Damage hits the enemy player, unless the card names a Unit.' },
+  { term: 'Next to this', text: 'In the lane beside this card (left or right).' },
+  { term: 'Would lose its lane', text: 'An enemy Unit faces it in the same lane with more ATK.' },
   { term: 'Silence', text: KEYWORD_HELP.Silence },
   { term: 'this round', text: 'Until the round ends.' },
-  { term: 'for the rest of the battle', text: 'Until the battle ends or this Unit leaves play. A Unit can grow by at most +45 ATK this way.' },
+  { term: 'until the battle ends', text: 'Lasts until the battle ends or this Unit leaves play. A Unit can grow by at most +45 ATK this way.' },
   { term: 'once per round', text: 'At most one time each round.' },
   { term: 'once per battle', text: 'Only the first time in each battle.' },
 ];
+
+/**
+ * How a round works (How to Play, docs/CARD-TEXT.md), in the order the card-combat resolver runs it
+ * (cardCombat/engine.ts beginCardRound + resolveCardRound; roundOrder.test.ts checks it).
+ */
+export const ROUND_STEPS: readonly { term: string; text: string }[] = [
+  { term: 'Round Start', text: 'Round Start effects happen, lane by lane from left to right, your cards before the enemy’s. Then each player draws back up to 3 cards.' },
+  { term: 'Play', text: 'Both players play cards at the same time. When you press FIGHT, all cards are shown together, and each Attached Spell goes onto the Unit in its lane.' },
+  {
+    term: 'Spells',
+    text: 'Spells resolve lane by lane, from left to right. In a lane where both players cast a Spell, the player with initiative goes first: you in odd rounds (1, 3, 5), the enemy in even rounds. Effects that react to a Spell happen right after it.',
+  },
+  { term: 'Before lanes fight', text: 'Clash effects happen, lane by lane from left to right, the player with initiative first in each lane. They happen even in a lane with no enemy Unit.' },
+  { term: 'Lanes fight', text: 'Lanes fight from left to right. Higher ATK wins and the loser is destroyed. After all three lanes, “When this is destroyed” effects happen.' },
+  { term: 'Round End', text: 'Round End effects happen, lane by lane from left to right, your cards before the enemy’s. Then every “this round” change ends.' },
+  { term: 'Win check', text: 'A player at 0 HP loses. If both players reach 0 HP in the same round, it is a draw.' },
+];
+
+/** The common question about Spell order, answered from the resolver (roundOrder.test.ts). */
+export const DESTROYED_SPELL_RULE =
+  'A Spell stops working the moment it is destroyed. If you destroy an enemy Spell that gives +15 ATK while Spells resolve, the enemy Unit fights without that +15. ATK it already gave “until the battle ends” stays.';
 
 const MINUS = '−';
 /** "+30 ATK" / "−45 ATK" for a Power change. */

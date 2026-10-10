@@ -1,6 +1,6 @@
 import type { AbilityDefinition, CardDefinition, Faction, Trigger } from '../types/index.js';
 import { getCard } from './index.js';
-import { CARD_GLOSSARY, KEYWORD_HELP, TIMING_HELP, TIMING_LABEL, cardEffectLines, type EffectKeyword } from './effectText.js';
+import { CARD_GLOSSARY, DESTROYED_SPELL_RULE, KEYWORD_HELP, ROUND_STEPS, TIMING_HELP, TIMING_LABEL, cardEffectLines, type EffectKeyword } from './effectText.js';
 import { BATTLE_LINES, cardCombatEffectLines, trimTiming, type BattleCopy } from '../cardCombat/cardText.js';
 import { getCombatCard, isAttachedSpell } from '../cardCombat/cards.js';
 import { LAUNCH_NEW_CARD_IDS } from './launchCards.js';
@@ -31,7 +31,7 @@ export interface CardEffect {
   trigger: Trigger;
   /** What every surface prints before the effect: the timing label ("Round End", "Clash"), or a keyword that says more ("Guard 2", "Your 2nd Spell"). */
   label: string;
-  /** The label the card face prints: `label`, or a shorter one ("Your Spell", "2nd Spell"). */
+  /** The label the card face prints before the line: empty for card-combat faces (the sentence says when), the timing label in legacy battles. */
   faceLabel: string;
   /** The trigger's own timing label, also where `label` is a keyword (Card Inspect shows both). */
   timing: string;
@@ -124,7 +124,7 @@ for (const def of CARD_ASCENSIONS) {
 
 // ---------------------------------------------------------------------------------------------------------------
 
-/** Card faces shorten the two long timing labels; the panels and Card Inspect print them in full. */
+/** Legacy card faces shorten the two long timing labels; the panels and Card Inspect print them in full. */
 const FACE_LABEL: Partial<Record<Trigger, string>> = { ON_ALLY_SPELL_PLAYED: 'Your Spell', ON_ENEMY_SPELL_PLAYED: 'Enemy Spell' };
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -133,7 +133,9 @@ function buildEffect(trigger: Trigger, fullLine: string, copy: BattleCopy | unde
   const trimmed = trimTiming(fullLine);
   const face = typeof copy === 'string' ? copy : (copy?.face ?? trimmed);
   const label = (typeof copy === 'object' && copy.label) || TIMING_LABEL[trigger];
-  const faceLabel = (typeof copy === 'object' && copy.faceLabel) || (typeof copy === 'object' && copy.label) || FACE_LABEL[trigger] || label;
+  // Card-combat faces are whole sentences that say when they happen ("Before lanes fight, ..."): no label unless the
+  // copy names one. Legacy faces keep their timing label.
+  const faceLabel = fullFromCopy ? (typeof copy === 'object' && copy.faceLabel) || '' : (typeof copy === 'object' && copy.faceLabel) || (typeof copy === 'object' && copy.label) || FACE_LABEL[trigger] || label;
   // Card-combat text is authored whole (cardText.ts BATTLE_LINES): the full line is the copy's own, or the face line.
   // Legacy lines pair a face line with the rules sentence, whose keyword prefix the label already shows ("Guard 2").
   const authored = fullFromCopy && copy !== undefined ? (typeof copy === 'string' ? copy : (copy.full ?? copy.face)) : null;
@@ -298,4 +300,4 @@ export function cardSearchText(cardOrId: CardDefinition | string): string {
     .toLowerCase();
 }
 
-export { CARD_GLOSSARY, KEYWORD_HELP, TIMING_HELP, TIMING_LABEL, type EffectKeyword };
+export { CARD_GLOSSARY, DESTROYED_SPELL_RULE, KEYWORD_HELP, ROUND_STEPS, TIMING_HELP, TIMING_LABEL, type EffectKeyword };

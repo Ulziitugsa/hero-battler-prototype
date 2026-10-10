@@ -31,7 +31,7 @@ describe('focus panel', () => {
     expect(text(html)).toContain('Royal Guard Inspect');
     expect(text(html)).toContain('ATK 113');
     expect(text(html)).toContain('HP +77');
-    expect(text(html)).toContain('Passive: Adjacent allies have +15 ATK.');
+    expect(text(html)).toContain('Passive: Allies next to this Unit have +15 ATK.');
     expect(html).toContain('aria-label="Close card details"');
     expect(html).toContain('aria-label="Inspect Royal Guard"');
   });
@@ -59,7 +59,7 @@ describe('focus panel', () => {
     const html = panel(focusDetails({ kind: 'spell', side: 'player', instanceId: banner.instanceId }, state, events)!);
     expect(html).toContain('aria-label="Battle Banner, Your Spell, center lane"');
     expect(text(html)).toContain('Attached Spell');
-    expect(text(html)).toContain('Passive: The attached Unit has +15 ATK.');
+    expect(text(html)).toContain('Passive: The Unit with this Spell has +15 ATK.');
     expect(text(html)).toContain('Attached to: Common Knight. It goes to the Graveyard when that Unit leaves play.');
     expect(text(html)).toContain('In this lane: your Common Knight, enemy Vharos, the Undying.');
   });
