@@ -1,4 +1,5 @@
 import { useEconomy } from '../game/economy/useEconomy';
+import { BalanceCounter } from './feedback/BalanceCounter';
 
 /** The Gold coin: one small stamped disc, drawn inline like GemIcon - same "no asset" convention. */
 export function GoldIcon({ size = 14 }: { size?: number }) {
@@ -20,13 +21,8 @@ export function GoldAmount({ amount }: { amount: number }) {
   );
 }
 
-/** Current balance, live - same quiet placement convention as GemBalance. */
-export function GoldBalance({ className = '' }: { className?: string }) {
+/** Current balance, live - same quiet placement convention as GemBalance. Gold rewards fly here and roll up. */
+export function GoldBalance({ className = '', id }: { className?: string; id?: string }) {
   const { gold } = useEconomy();
-  return (
-    <span className={`gold-balance ${className}`} aria-label={`${gold} Gold`}>
-      <GoldIcon size={15} />
-      <span>{gold.toLocaleString()}</span>
-    </span>
-  );
+  return <BalanceCounter kind="gold" value={gold} id={id} className={`gold-balance ${className}`} label={`${gold} Gold`} icon={<GoldIcon size={15} />} />;
 }

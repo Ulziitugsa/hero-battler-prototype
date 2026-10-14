@@ -1,0 +1,111 @@
+/* Reusable motion utilities for the product shell. Components opt in with a class (and, for staggered lists, an
+   inline --i index); none of these carry colours or layout, so they compose with any screen's own styles.
+
+   .mw-enter          a screen or panel arriving: fade + short rise
+   .mw-stagger > *    children enter one after another (set --i on each child)
+   .mw-pop-in         a stamp/badge/check landing: a small springy pop
+   .mw-attention      a ready, claimable control breathing a soft glow (never a bounce)
+   .mw-glow-pulse     a one-off glow flash to confirm a state change
+   .mw-float-number   a "+30" / "-12" that rises and fades from where it happened
+   .mw-shake          a short refusal / hit shake
+
+   Entrances animate the individual translate/scale properties with `backwards` fill: they compose with an element's
+   own transform while running and leave nothing behind when done, so hover lifts and press feedback keep working. */
+
+.mw-enter {
+  animation: mw-enter var(--mw-dur-slow) var(--mw-ease-out) backwards;
+  animation-delay: var(--mw-enter-delay, 0ms);
+}
+
+.mw-stagger > * {
+  animation: mw-enter var(--mw-dur-slow) var(--mw-ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * var(--mw-stagger));
+}
+
+.mw-pop-in {
+  animation: mw-pop-in var(--mw-dur-slow) var(--mw-ease-spring) backwards;
+}
+
+.mw-attention {
+  animation: mw-attention var(--mw-dur-ambient) var(--mw-ease-in-out) infinite;
+}
+
+.mw-glow-pulse {
+  animation: mw-glow-pulse var(--mw-dur-reward) var(--mw-ease-out);
+}
+
+.mw-float-number {
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  animation: mw-float-number 900ms var(--mw-ease-out) both;
+}
+
+.mw-shake {
+  animation: mw-shake var(--mw-dur-slow) var(--mw-ease-out);
+}
+
+@keyframes mw-enter {
+  from { opacity: 0; translate: 0 12px; }
+  to { opacity: 1; translate: none; }
+}
+
+@keyframes mw-pop-in {
+  0% { opacity: 0; scale: 0.55; }
+  60% { opacity: 1; scale: 1.12; }
+  100% { opacity: 1; scale: 1; }
+}
+
+/* Glows are drawn with filter: drop-shadow, never box-shadow, so they sit around a control's own shadows and borders
+   instead of replacing them. The colour follows the element (--mw-glow, default reward gold) so a "new" teal or a
+   rarity can reuse them. */
+@keyframes mw-attention {
+  0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+  50% { filter: drop-shadow(0 0 9px color-mix(in srgb, var(--mw-glow, var(--mw-reward)) 55%, transparent)); }
+}
+
+@keyframes mw-glow-pulse {
+  0% { filter: drop-shadow(0 0 0 transparent); }
+  35% { filter: drop-shadow(0 0 14px color-mix(in srgb, var(--mw-glow, var(--mw-reward)) 75%, transparent)); }
+  100% { filter: drop-shadow(0 0 0 transparent); }
+}
+
+/* An element-owned floater (absolutely positioned by its host), so it may keep its end state until it is removed. */
+@keyframes mw-float-number {
+  0% { opacity: 0; translate: 0 8px; scale: 0.8; }
+  18% { opacity: 1; translate: 0 0; scale: 1.12; }
+  32% { translate: 0 -4px; scale: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; translate: 0 -30px; scale: 1; }
+}
+
+@keyframes mw-shake {
+  0%, 100% { translate: 0; }
+  20% { translate: -4px; }
+  40% { translate: 4px; }
+  60% { translate: -2px; }
+  80% { translate: 2px; }
+}
+
+@keyframes mw-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes mw-fade-hold {
+  0% { opacity: 0; }
+  15%, 75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Nothing travels or loops. Entrances become a quick fade, confirmations a single static glow. */
+  .mw-enter,
+  .mw-stagger > * {
+    animation-name: mw-fade-in;
+    animation-delay: 0ms;
+  }
+  .mw-pop-in { animation: mw-fade-in var(--mw-dur-base) linear backwards; }
+  .mw-attention { animation: none; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--mw-glow, var(--mw-reward)) 55%, transparent)); }
+  .mw-float-number { animation: mw-fade-hold 900ms linear both; }
+  .mw-shake { animation: none; }
+}

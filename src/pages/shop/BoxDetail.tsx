@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
-import { GemIcon } from '../../components/GemIcon';
+import { GemBalance, GemIcon } from '../../components/GemIcon';
 import { BoxArtwork } from '../../components/BoxArtwork';
 import { GameCard } from '../../components/card/GameCard';
 import { CardViewer } from '../../components/card/CardViewer';
 import { cardCopyView } from '../../game/cards/cardCopy';
 import { useDialogFocus } from '../../components/useDialogFocus';
 import { getCard } from '../../game/cards';
-import { TicketIcon } from '../../components/TicketIcon';
+import { TicketBalance, TicketIcon } from '../../components/TicketIcon';
+import { flyReward } from '../../components/feedback/rewardBus';
 import { RevealStage } from '../../components/reveal/RevealStage';
 import { useRevealSequence } from '../../components/reveal/useRevealSequence';
 import { canAfford, canAffordTickets } from '../../game/economy/economy';
@@ -77,7 +78,7 @@ function PulledCard({ cardId }: { cardId: string }) {
 
 /** Pull Results: every card the pull added, one grid for 1 card or 10. The cards were granted before the ceremony began;
  * this only shows them. */
-export function PullResults({ pulls, starterProgress = [], onInspect, onClose, preview = false }: { pulls: BoxPull[]; starterProgress?: StarterProgressNote[]; onInspect: (id: string) => void; onClose: () => void; preview?: boolean }) {
+export function PullResults({ pulls, starterProgress = [], onInspect, onClose, preview = false }: { pulls: BoxPull[]; starterProgress?: StarterProgressNote[]; onInspect: (id: string) => void; onClose: (source?: Element) => void; preview?: boolean }) {
   const ref = useDialogFocus(onClose);
   const newCount = pulls.filter(pull => pull.isNew).length;
   const best = [...pulls].sort((a, b) => RARITIES.indexOf(a.rarity) - RARITIES.indexOf(b.rarity))[0];
@@ -87,6 +88,7 @@ export function PullResults({ pulls, starterProgress = [], onInspect, onClose, p
     tracked.current = true;
     track('pull_results_viewed', { cardCount: pulls.length, newCount, highestRarity: best?.rarity ?? 'common' });
   }, [pulls.length, newCount, best?.rarity, preview]);
+  // Cards land in rarity order, one after another; every Rare and up keeps its rarity light (styles/feedback/rarity.css).
   return <div className="box-results-backdrop"><div ref={ref} className="box-results" role="dialog" aria-modal="true" aria-labelledby="box-results-title" tabIndex={-1}>
     <header>
       <span className="box-eyebrow">PULL RESULTS</span>
@@ -94,13 +96,13 @@ export function PullResults({ pulls, starterProgress = [], onInspect, onClose, p
       <p>{newCount > 0 ? `${newCount} new to your collection` : pulls.length === 1 ? 'A duplicate' : 'All duplicates'} · best card: {best ? (getCard(best.cardId).name.startsWith(RARITY_LABEL[best.rarity]) ? getCard(best.cardId).name : `${RARITY_LABEL[best.rarity]} ${getCard(best.cardId).name}`) : '-'}</p>
       {starterProgress.map(note => <p key={note.deckId} className={`box-results-starter ${note.unlockedNow ? 'unlocked' : ''}`}>{note.unlockedNow ? `${note.name} unlocked · ready in Decks` : `${note.name} · ${note.collected} / ${note.total} cards`}</p>)}
     </header>
-    <div className="box-results-grid">
-      {pulls.map((pull, index) => <button type="button" key={`${index}-${pull.cardId}`} className={`box-result r-${pull.rarity}`} onClick={() => onInspect(pull.cardId)} aria-label={`${getCard(pull.cardId).name}, ${RARITY_LABEL[pull.rarity]}${pull.isNew ? ', new' : `, ${pull.ownedCopies} owned`}`}>
-        <PulledCard cardId={pull.cardId} />
-        <small>{pull.isNew ? <b>NEW</b> : `×${pull.ownedCopies}`}</small>
+    <div className="box-results-grid mw-stagger">
+      {pulls.map((pull, index) => <button type="button" key={`${index}-${pull.cardId}`} className={`box-result r-${pull.rarity}`} aria-label={`${getCard(pull.cardId).name}, ${RARITY_LABEL[pull.rarity]}${pull.isNew ? ', new' : `, ${pull.ownedCopies} owned`}`} style={{ ['--i' as string]: index }} onClick={() => onInspect(pull.cardId)}>
+        <span className="box-result-face mw-rarity mw-rarity-reveal" data-rarity={pull.rarity}><PulledCard cardId={pull.cardId} /></span>
+        <small>{pull.isNew ? <b className="mw-pop-in">NEW</b> : `×${pull.ownedCopies}`}</small>
       </button>)}
     </div>
-    <button type="button" className="box-results-done" onClick={onClose}>Done</button>
+    <button type="button" className="box-results-done" onClick={(event) => onClose(event.currentTarget)}>Done</button>
   </div></div>;
 }
 
@@ -137,7 +139,9 @@ export function BoxDetail({ box, onBack }: { box: ArchetypeBoxDef; onBack: () =>
   }, [box.id]);
 
   const results = opening && reveal.view?.isResult ? opening : null;
-  function closeResults() {
+  function closeResults(source?: Element) {
+    // The pulled cards were added to the collection before the ceremony; on Done they visibly head there (the Cards tab).
+    if (source && opening) flyReward({ kind: 'cards', amount: opening.pulls.length, from: source, label: `+${opening.pulls.length} ${opening.pulls.length === 1 ? 'card' : 'cards'} to your collection` });
     setOpening(null);
     reveal.end();
   }
@@ -191,7 +195,7 @@ export function BoxDetail({ box, onBack }: { box: ArchetypeBoxDef; onBack: () =>
   </button> : null;
 
   return <main className="shop-screen box-screen">
-    <nav className="box-nav"><button type="button" onClick={onBack}><Icon name="back" size={18} />Shop</button><span className="box-balances">{economy.tickets > 0 && <span aria-label={`${economy.tickets} Pull ${economy.tickets === 1 ? 'Ticket' : 'Tickets'}`}><TicketIcon size={15} />{economy.tickets.toLocaleString()}</span>}<span id="box-gem-balance"><GemIcon size={15} />{economy.gems.toLocaleString()}</span></span></nav>
+    <nav className="box-nav"><button type="button" onClick={onBack}><Icon name="back" size={18} />Shop</button><span className="box-balances">{economy.tickets > 0 && <TicketBalance />}<GemBalance id="box-gem-balance" /></span></nav>
 
     <section className="box-hero" aria-labelledby="box-title">
       <div className="box-hero-art" aria-hidden="true">
@@ -223,7 +227,7 @@ export function BoxDetail({ box, onBack }: { box: ArchetypeBoxDef; onBack: () =>
           const total = boxContents(box.id, state).find(entry => entry.cardId === id)?.total ?? 0;
           const left = pool.remaining[id] ?? 0;
           return <button type="button" key={id} className={`box-chase-card ${left === 0 ? 'gone' : ''}`} onClick={() => setInspect(id)} aria-label={`${getCard(id).name}, ${left} of ${total} left. Show details.`}>
-            <PulledCard cardId={id} />
+            <span className="box-result-face mw-rarity" data-rarity={left === 0 ? 'common' : getCard(id).rarity}><PulledCard cardId={id} /></span>
             <span className="box-chase-left">{left === 0 ? 'None left' : `${left} of ${total} left`}</span>
           </button>;
         })}

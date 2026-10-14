@@ -2,6 +2,11 @@ import { STARTING_HP } from '../game/engine/constants';
 import { Icon } from './Icon';
 import type { ReactNode } from 'react';
 import type { HpFx } from './animation/chitEffects';
+import type { BattleCallout } from './animation/battleCallouts';
+import { useCountUp } from './feedback/useCountUp';
+
+/** How long the HP numeral takes to roll to a new value (the bar itself drops at once; see .hp-plate-ghost). */
+const HP_ROLL_MS = 420;
 
 /**
  * Battle Screen v8: the enemy banner (top) and the player's HP row (bottom) share the same HP-bar
@@ -26,6 +31,7 @@ export function SideHeader({
   onLogClick,
   logOpen,
   badge,
+  callout,
 }: {
   side: 'player' | 'enemy';
   name: string;
@@ -47,10 +53,14 @@ export function SideHeader({
   logOpen?: boolean;
   /** Small extra HUD element shown beside the pills (the equipped Mastery badge). */
   badge?: ReactNode;
+  /** A word for the damage this bar just took ("Burn −45", "Big Hit −120"); see animation/battleCallouts.ts. */
+  callout?: BattleCallout | null;
 }) {
   const healthMax = maxHp ?? STARTING_HP;
   const pct = Math.max(0, Math.min(100, (hp / healthMax) * 100));
   const low = hp <= healthMax * 0.3;
+  // The numeral rolls down (and up) with the bar instead of jumping; the real value is `hp`, used for everything else.
+  const shownHp = useCountUp(hp, { animateDecrease: true, durationMs: HP_ROLL_MS }).display;
 
   return (
     <div className={`side-header ${side}`} aria-label={`${name}, ${rank}`}>
@@ -65,12 +75,13 @@ export function SideHeader({
       <div className="side-header-body">
         <div className="side-header-name">{name}</div>
         <div className={`hp-plate ${low ? 'low' : ''} ${hpFx?.kind === 'damage' ? 'flash-damage hp-hit' : ''} ${hpFx?.kind === 'heal' ? 'flash-heal hp-hit' : ''}`}>
+          <span className="hp-plate-ghost" style={{ width: `${pct}%` }} />
           <span className="hp-plate-fill" style={{ width: `${pct}%` }} />
           <span className="hp-plate-scrim" />
           <span className="hp-plate-readout">
             <Icon name="hp" size={side === 'enemy' ? 8 : 11} filled />
             <span>
-              {side === 'player' ? `${hp} / ${healthMax}` : `${hp} / ${healthMax}`}
+              {`${shownHp} / ${healthMax}`}
             </span>
           </span>
           {hpFx && (
@@ -81,6 +92,11 @@ export function SideHeader({
           )}
         </div>
       </div>
+      {callout && (
+        <span key={callout.key} className={`mw-battle-callout hp ${callout.kind} ${callout.big ? 'big' : ''}`} role="status">
+          {callout.text}
+        </span>
+      )}
       {side === 'player' && deckCount !== undefined && graveyardCount !== undefined && (
         <div className="side-header-pills">
           {badge}

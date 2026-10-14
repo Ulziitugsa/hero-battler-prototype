@@ -1,0 +1,100 @@
+/* Reward travel: a claimed reward leaves the button that earned it, flies to the counter that holds it, and the counter
+   answers. The flight itself is positioned by components/feedback/RewardFlightLayer.tsx (Web Animations, so each
+   token can take its own arc); everything visual about it is here. */
+
+.mw-flight-layer {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* One travelling token: an icon in a soft halo, placed at its start point by left/top and moved by the animation. */
+.mw-flight-token {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 236, 190, 0.5), transparent 70%);
+  filter: drop-shadow(0 2px 4px rgba(3, 12, 18, 0.65));
+  will-change: transform, opacity;
+}
+.mw-flight-token svg { width: 18px; height: 18px; }
+
+/* A card reward travels as a tiny card back. */
+.mw-flight-card {
+  display: block;
+  width: 15px;
+  height: 21px;
+  border: 1px solid #f0d59a;
+  border-radius: 3px;
+  background: radial-gradient(circle at 50% 42%, #f6e2a8 0 2px, transparent 3px), linear-gradient(160deg, #2c5560, #10262f);
+  box-shadow: 0 0 8px rgba(240, 213, 154, 0.6);
+}
+
+/* What was gained, in words, at the place it was earned. Always shown - with or without motion, with or without a
+   counter on screen - so the claim never depends on the animation to be understood. */
+.mw-flight-label {
+  position: absolute;
+  translate: -50% -100%;
+  padding: 4px 9px;
+  border: 1px solid rgba(244, 216, 146, 0.6);
+  border-radius: 999px;
+  color: #fff3d4;
+  background: rgba(14, 36, 46, 0.92);
+  box-shadow: 0 4px 14px rgba(2, 10, 16, 0.55);
+  font: 800 12px/1.2 var(--moon-ui, system-ui, sans-serif);
+  white-space: nowrap;
+}
+.mw-flight-label[data-kind='gems'] { border-color: rgba(143, 216, 232, 0.65); }
+.mw-flight-label[data-kind='tickets'] { border-color: rgba(224, 184, 240, 0.65); }
+.mw-flight-label[data-kind='cards'] { border-color: rgba(143, 224, 189, 0.65); }
+
+/* The counter that receives a reward: a quick swell and a warm glow, re-triggered by the layer on each arrival. */
+.mw-counter-hit {
+  animation: mw-counter-hit 520ms var(--mw-ease-spring);
+}
+
+@keyframes mw-counter-hit {
+  0% { scale: 1; }
+  30% { scale: 1.16; box-shadow: 0 0 0 3px rgba(244, 216, 146, 0.35), 0 0 18px rgba(244, 216, 146, 0.55); }
+  100% { scale: 1; box-shadow: 0 0 0 0 transparent; }
+}
+
+/* A counter that is counting up shows its digits steady (no width jitter) and lit. */
+.mw-counting { font-variant-numeric: tabular-nums; color: var(--mw-reward); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-counter-hit { animation: mw-counter-flash 520ms linear; }
+  @keyframes mw-counter-flash {
+    0%, 60% { box-shadow: 0 0 0 2px rgba(244, 216, 146, 0.6); }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+}
+
+/* Live balances inside a reward sheet (components/feedback/BalanceStrip.tsx): small chips, right-aligned under the
+   sheet's title, so a claim visibly lands somewhere the player is looking. */
+.mw-balance-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 0 18px 6px;
+}
+.mw-balance-strip > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 3px 9px;
+  border: 1px solid rgba(197, 218, 207, 0.16);
+  border-radius: 999px;
+  color: #f4ecd7;
+  background: rgba(9, 26, 36, 0.7);
+  font: 700 12px/1 var(--moon-ui, system-ui, sans-serif);
+}
+.mw-balance-strip svg { width: 14px; height: 14px; }

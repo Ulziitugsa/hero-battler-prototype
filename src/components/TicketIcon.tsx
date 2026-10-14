@@ -1,4 +1,5 @@
 import { useEconomy } from '../game/economy/useEconomy';
+import { BalanceCounter } from './feedback/BalanceCounter';
 
 /** The Pull Ticket (1 Ticket = 1 pull = 1 card from a Box): a small torn stub, drawn inline like GemIcon/GoldIcon - same "no asset" convention. */
 export function TicketIcon({ size = 14 }: { size?: number }) {
@@ -19,13 +20,8 @@ export function TicketAmount({ amount }: { amount: number }) {
   );
 }
 
-/** Current balance, live - same quiet placement convention as GemBalance/GoldBalance. */
-export function TicketBalance({ className = '' }: { className?: string }) {
+/** Current balance, live - same quiet placement convention as GemBalance/GoldBalance. Ticket rewards fly here. */
+export function TicketBalance({ className = '', id }: { className?: string; id?: string }) {
   const { tickets } = useEconomy();
-  return (
-    <span className={`ticket-balance ${className}`} aria-label={`${tickets} Pull ${tickets === 1 ? 'Ticket' : 'Tickets'}`}>
-      <TicketIcon size={15} />
-      <span>{tickets.toLocaleString()}</span>
-    </span>
-  );
+  return <BalanceCounter kind="tickets" value={tickets} id={id} className={`ticket-balance ${className}`} label={`${tickets} Pull ${tickets === 1 ? 'Ticket' : 'Tickets'}`} icon={<TicketIcon size={15} />} />;
 }

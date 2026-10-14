@@ -9,6 +9,8 @@ import { Icon } from './Icon';
 import { useDialogFocus } from './useDialogFocus';
 import '../styles/missions.css';
 import { RewardFeedback } from './RewardFeedback';
+import { BalanceStrip } from './feedback/BalanceStrip';
+import { flyRewards } from './feedback/rewardBus';
 
 /** Daily/weekly missions - a compact bottom sheet in the same language as GraveyardSheet/HelpModal
  * (mobile-first: a sheet, not a new nav tab). Reachable from Home's footer. */
@@ -17,6 +19,8 @@ export function MissionsSheet({ onClose }: { onClose: () => void }) {
   const state = useMissions();
   const [period, setPeriod] = useState<MissionPeriod>('daily');
   const [claimed, setClaimed] = useState<string | null>(null);
+  // The row claimed last: its check lands with a pop (rows claimed earlier just show theirs).
+  const [justClaimed, setJustClaimed] = useState<string | null>(null);
   useEffect(() => {
     if (!claimed) return;
     const timeout = window.setTimeout(() => setClaimed(null), 1800);
@@ -35,6 +39,8 @@ export function MissionsSheet({ onClose }: { onClose: () => void }) {
             <Icon name="close" size={14} />
           </button>
         </div>
+
+        <BalanceStrip />
 
         <div className="missions-tabs">
           <button type="button" className={`missions-tab ${period === 'daily' ? 'active' : ''}`} onClick={() => setPeriod('daily')}>
@@ -85,13 +91,17 @@ export function MissionsSheet({ onClose }: { onClose: () => void }) {
                   )}
                 </div>
                 {progress.claimed ? (
-                  <span className="missions-claimed-tag">
+                  <span className={`missions-claimed-tag ${justClaimed === def.id ? 'mw-pop-in' : ''}`}>
                     <Icon name="check" size={12} />
                   </span>
                 ) : (
-                  <button type="button" className="missions-claim-btn" disabled={!complete} onClick={() => {
+                  <button type="button" className={`missions-claim-btn ${complete ? 'mw-attention' : ''}`} disabled={!complete} onClick={(event) => {
+                    const source = event.currentTarget.getBoundingClientRect();
                     const result = claimMission(def.id);
                     if (!result.ok) return;
+                    setJustClaimed(def.id);
+                    // The button is replaced by the claimed check, so the flight starts from where it was.
+                    flyRewards({ x: source.left + source.width / 2, y: source.top + source.height / 2 }, { gold: result.gold, gems: result.gems, tickets: result.tickets });
                     const parts = [result.gold > 0 && `+${result.gold.toLocaleString()} Gold`, result.gems > 0 && `+${result.gems} Gems`, result.tickets > 0 && `+${result.tickets} Tickets`].filter(Boolean);
                     setClaimed(parts.join(' · ') || 'Reward claimed');
                   }}>

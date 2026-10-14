@@ -22,11 +22,15 @@ import { useMissions } from '../game/missions/useMissions';
 import { useJourney } from '../game/journey/useJourney';
 import { useEconomy } from '../game/economy/useEconomy';
 import { canAffordAPull } from '../game/box/boxProduct';
-import { boxCardsRemaining, getActiveBoxId } from '../game/box/boxPool';
+import { boxCardsRemaining, getActiveBoxId, getBoxPool } from '../game/box/boxPool';
 import { getArchetypeBox } from '../game/box/archetypeBoxes';
 import { JOURNEY_DAYS } from '../game/journey/definitions';
 import { MAX_LEVEL, xpToNextLevel } from '../game/progression/config';
 import { CardArtwork } from '../components/CardArtwork';
+import { HomeFeaturedCard } from './home/HomeFeaturedCard';
+import { boxChase, deckChampion } from '../game/home/featuredCard';
+import { getOwnedCount } from '../game/collection/collection';
+import { flyReward } from '../components/feedback/rewardBus';
 import { getDailyShopGiftState, subscribeDailyShopGift } from '../game/shop/dailyGift';
 import { HomeEventBanner } from '../components/HomeEventBanner';
 
@@ -92,11 +96,9 @@ export function HomePage(props: HomeProps) {
   const activeBox = getArchetypeBox(getActiveBoxId());
   const packsLeft = boxCardsRemaining(activeBox.id);
   const packReady = packsLeft > 0 && canAffordAPull(economy);
-  const featureCard = [...deck.cardIds].map(getCard).filter(card => card.type === 'hero').sort((a, b) => {
-    const rarity: Record<string, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
-    return rarity[b.rarity] - rarity[a.rarity] || (b.power ?? 0) - (a.power ?? 0);
-  })[0]?.id ?? deck.cardIds[0];
-  const featureDefinition = featureCard ? getCard(featureCard) : null;
+  // The featured card: the active deck's champion, and the active Box's Legendary while it is still there to pull.
+  const featureCard = deckChampion(deck.cardIds, getCard);
+  const chaseId = boxChase(activeBox, getBoxPool(activeBox.id).remaining[activeBox.flagshipId] ?? 0, getOwnedCount(activeBox.flagshipId));
   const xpNeed = xpToNextLevel(account.level);
   const xpPct = account.level >= MAX_LEVEL ? 100 : Math.round(account.xp / xpNeed * 100);
   const DIFFICULTY_TONE = { easy: 'favoured', fair: 'even', hard: 'challenging' } as const;
@@ -154,13 +156,12 @@ export function HomePage(props: HomeProps) {
 
     <section className="home-campaign" aria-labelledby="home-campaign-title">
       <div className="home-campaign-scene" aria-hidden="true" />
-      <div className="home-campaign-top"><div className="home-campaign-heading"><span className="home-kicker">{hub.campaign.chapterLine.replace(/^The /, '').replace(' · Chapter ', ' · Ch. ')}</span><h1 id="home-campaign-title">{currentNode?.name ?? hub.campaign.region}</h1><span className="home-stage-count">Step {Math.min(currentStep, mainRoadNodes.length)} <i>of</i> {mainRoadNodes.length}</span></div>
-        {featureCard && featureDefinition && <button type="button" className={`home-feature-card ${featureDefinition.faction}`} onClick={() => setInspect(featureCard)} aria-label={`View ${featureDefinition.name}, featured card`}><span className="home-feature-wash"/><CardArtwork cardId={featureCard} className="home-feature-art"/><span className="home-feature-caption"><small>FEATURED CARD</small><strong>{featureDefinition.shortName}</strong></span></button>}
-      </div>
+      <div className="home-campaign-top"><div className="home-campaign-heading"><span className="home-kicker">{hub.campaign.chapterLine.replace(/^The /, '').replace(' · Chapter ', ' · Ch. ')}</span><h1 id="home-campaign-title">{currentNode?.name ?? hub.campaign.region}</h1><span className="home-stage-count">Step {Math.min(currentStep, mainRoadNodes.length)} <i>of</i> {mainRoadNodes.length}</span></div></div>
       <div className="home-progress" role="progressbar" aria-label="Campaign chapter progress" aria-valuemin={0} aria-valuemax={mainRoadNodes.length} aria-valuenow={mainRoadCleared}><span style={{ width: `${mainRoadNodes.length ? mainRoadCleared / mainRoadNodes.length * 100 : 0}%` }} /></div>
       <div className="home-power-line"><span>Starting HP <strong>{startingHp.toLocaleString()}</strong></span>{nextDifficulty && <span>Next battle <b className={`home-power-read ${DIFFICULTY_TONE[nextDifficulty]}`}>{DIFFICULTY_LABEL[nextDifficulty]}</b></span>}<span className="home-energy">Energy {hub.energy.current}/{hub.energy.max}</span></div>
       {nextReward && <div className="home-target-reward"><span className="home-reward-spark" aria-hidden="true">✦</span><span><small>NEXT CAMPAIGN REWARD · {rewardDistance.toUpperCase()}</small><strong>{nextReward.label}</strong></span>{nextReward.cardId && <span className="home-reward-art" aria-hidden="true"><CardArtwork cardId={nextReward.cardId} /></span>}</div>}
-      <button className="home-continue" onClick={props.onOpenCampaign}><span>{continueLabel}</span><b aria-hidden="true">→</b></button>
+      {/* The screen's one primary action breathes softly until the chapter is done. */}
+      <button className={`home-continue ${hub.campaign.status === 'complete' ? '' : 'mw-attention'}`} onClick={props.onOpenCampaign}><span>{continueLabel}</span><b aria-hidden="true">→</b></button>
       {refund && (
         <button type="button" className="home-return-note" onClick={() => { dismissRefundNotice(); setRefund(null); }} aria-label="Dismiss the card Level refund note">
           Card Levels are retired: {refund.gold.toLocaleString('en-US')} Gold you put into them is back in your purse. ✕
@@ -171,6 +172,8 @@ export function HomePage(props: HomeProps) {
         : <p className="home-return-note" role="status">{returnState.label}</p>)}
     </section>
 
+    {featureCard && <HomeFeaturedCard cardId={featureCard} deckLabel={deck.label} chase={chaseId ? { cardId: chaseId, boxName: activeBox.name } : null} onPlay={props.onOpenBattleSetup} onInspect={setInspect} onOpenDeck={props.onOpenDecks} onOpenBox={props.onOpenPacks} />}
+
     <section className="home-secondary-actions" aria-label="Other battles"><button onClick={props.onOpenBattleSetup}><span aria-hidden="true">⚔</span><strong>Quick Battle</strong><small>Practice</small></button><span className="home-action-divider" aria-hidden="true"/><button onClick={props.onOpenFriendly}><span aria-hidden="true">◇</span><strong>Friendly Battle</strong><small>Play with a friend</small></button></section>
 
     <button className="home-formation" onClick={props.onOpenDecks}><span className="home-formation-icon" aria-hidden="true">▤</span><span><small>ACTIVE DECK</small><strong>{deck.label}</strong></span><span className="home-formation-meta">{deck.cardIds.length} cards · Edit →</span></button>
@@ -178,10 +181,10 @@ export function HomePage(props: HomeProps) {
     {props.onOpenEvent && <HomeEventBanner onOpen={props.onOpenEvent} />}
 
     <section className="home-reward-rail" aria-label="Rewards and destinations">
-      <button className={dailyReady + weeklyReady > 0 ? 'is-ready' : 'is-passive'} onClick={() => setMissionsOpen(true)}><span className="home-rail-icon">✦</span><strong>Missions</strong><small>{dailyReady + weeklyReady ? `${dailyReady + weeklyReady} ready` : 'Daily · Weekly'}</small>{dailyReady + weeklyReady > 0 && <i>READY</i>}</button>
-      <button className={journey.claimableDays.length > 0 ? 'is-ready' : 'is-passive'} onClick={() => setJourneyOpen(true)}><span className="home-rail-icon">☾</span><strong>Journey</strong><small>{journey.claimableDays.length ? `${journey.claimableDays.length} ready` : nextJourneyDay ? `Tomorrow · ${nextJourneyDay.rewardTickets ? `${nextJourneyDay.rewardTickets} Ticket${nextJourneyDay.rewardTickets === 1 ? '' : 's'}` : nextJourneyDay.title}` : `Day ${journey.currentDay} of 7`}</small>{journey.claimableDays.length > 0 && <i>READY</i>}</button>
-      <button className={hub.idle.availableGold > 0 ? 'is-ready' : 'is-passive'} disabled={hub.idle.availableGold <= 0} onClick={() => { const result = claimIdleReward(); hub.refreshIdle(); if (result.gold > 0) setIdleClaimedGold(result.gold); }}><span className="home-rail-icon">◈</span><strong>Idle Gold</strong><small>{hub.idle.availableGold > 0 ? `${hub.idle.availableGold.toLocaleString()} to claim` : 'Accruing'}</small>{hub.idle.availableGold > 0 && <i>READY</i>}</button>
-      <button className={packReady ? 'is-ready' : 'is-passive'} onClick={props.onOpenPacks}><span className="home-rail-icon">✧</span><strong>Boxes</strong><small>{economy.tickets > 0 ? `${economy.tickets} Pull Ticket${economy.tickets === 1 ? '' : 's'}` : packReady ? `Pull from ${activeBox.name.replace(/ Box$/, '')}` : `${packsLeft} left in ${activeBox.name}`}</small>{packReady && <i>READY</i>}</button>
+      <button className={dailyReady + weeklyReady > 0 ? 'is-ready mw-attention' : 'is-passive'} onClick={() => setMissionsOpen(true)}><span className="home-rail-icon">✦</span><strong>Missions</strong><small>{dailyReady + weeklyReady ? `${dailyReady + weeklyReady} ready` : 'Daily · Weekly'}</small>{dailyReady + weeklyReady > 0 && <i>READY</i>}</button>
+      <button className={journey.claimableDays.length > 0 ? 'is-ready mw-attention' : 'is-passive'} onClick={() => setJourneyOpen(true)}><span className="home-rail-icon">☾</span><strong>Journey</strong><small>{journey.claimableDays.length ? `${journey.claimableDays.length} ready` : nextJourneyDay ? `Tomorrow · ${nextJourneyDay.rewardTickets ? `${nextJourneyDay.rewardTickets} Ticket${nextJourneyDay.rewardTickets === 1 ? '' : 's'}` : nextJourneyDay.title}` : `Day ${journey.currentDay} of 7`}</small>{journey.claimableDays.length > 0 && <i>READY</i>}</button>
+      <button className={hub.idle.availableGold > 0 ? 'is-ready mw-attention' : 'is-passive'} disabled={hub.idle.availableGold <= 0} onClick={(event) => { const source = event.currentTarget; const result = claimIdleReward(); hub.refreshIdle(); if (result.gold > 0) { setIdleClaimedGold(result.gold); flyReward({ kind: 'gold', amount: result.gold, from: source }); } }}><span className="home-rail-icon">◈</span><strong>Idle Gold</strong><small>{hub.idle.availableGold > 0 ? `${hub.idle.availableGold.toLocaleString()} to claim` : 'Accruing'}</small>{hub.idle.availableGold > 0 && <i>READY</i>}</button>
+      <button className={packReady ? 'is-ready mw-attention' : 'is-passive'} onClick={props.onOpenPacks}><span className="home-rail-icon">✧</span><strong>Boxes</strong><small>{economy.tickets > 0 ? `${economy.tickets} Pull Ticket${economy.tickets === 1 ? '' : 's'}` : packReady ? `Pull from ${activeBox.name.replace(/ Box$/, '')}` : `${packsLeft} left in ${activeBox.name}`}</small>{packReady && <i>READY</i>}</button>
     </section>
     {sessionGoalsComplete && <p className="home-session-calm" role="status">Daily rewards claimed · Idle Gold will keep accumulating.</p>}
 

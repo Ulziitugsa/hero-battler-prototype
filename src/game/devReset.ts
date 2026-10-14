@@ -9,6 +9,7 @@
 
 import { resetCollection } from './collection/collection';
 import { resetCardMarks } from './collection/cardMarks';
+import { resetCollectionSeen } from './collection/collectionSeen';
 import { resetEconomy } from './economy/economy';
 import { resetProgression } from './progression/account';
 import { resetHeroLevels } from './heroLevel/store';
@@ -47,6 +48,7 @@ export function resetEverything(): void {
   clearCoreAccess();
   resetCollection();
   resetCardMarks();
+  resetCollectionSeen();
   resetEconomy();
   resetProgression();
   resetHeroLevels();

@@ -11,12 +11,16 @@ import { useDialogFocus } from './useDialogFocus';
 import '../styles/missions.css';
 import '../styles/journey.css';
 import { RewardFeedback } from './RewardFeedback';
+import { BalanceStrip } from './feedback/BalanceStrip';
+import { flyRewards } from './feedback/rewardBus';
 
 /** The 7-day new-player journey - a compact strip, same sheet footprint discipline as MissionsSheet. Days
  * may be claimed out of order and a missed day is never lost (see game/journey/store.ts). */
 export function JourneySheet({ onClose }: { onClose: () => void }) {
   const journey = useJourney();
   const [claimed, setClaimed] = useState<string | null>(null);
+  // The day claimed last: its check lands with a pop.
+  const [justClaimed, setJustClaimed] = useState<number | null>(null);
   const dialog = useDialogFocus(onClose);
   useEffect(() => {
     if (!claimed) return;
@@ -33,6 +37,8 @@ export function JourneySheet({ onClose }: { onClose: () => void }) {
             <Icon name="close" size={14} />
           </button>
         </div>
+
+        <BalanceStrip />
 
         <div className="journey-summary" role="status">
           <strong>{journey.complete ? 'Journey complete' : `Day ${journey.currentDay} of 7`}</strong>
@@ -73,16 +79,19 @@ export function JourneySheet({ onClose }: { onClose: () => void }) {
                   {def.rewardCardId && <span>{getCard(def.rewardCardId).name}</span>}
                 </span>
                 {claimed ? (
-                  <span className="missions-claimed-tag">
+                  <span className={`missions-claimed-tag ${justClaimed === def.day ? 'mw-pop-in' : ''}`}>
                     <Icon name="check" size={12} />
                   </span>
                 ) : unlocked ? (
                   <button
                     type="button"
-                    className="missions-claim-btn"
-                    onClick={() => {
+                    className={`missions-claim-btn ${claimable ? 'mw-attention' : ''}`}
+                    onClick={(event) => {
+                      const source = event.currentTarget.getBoundingClientRect();
                       const result = claimJourneyDay(def.day);
                       if (result.ok) {
+                        setJustClaimed(def.day);
+                        flyRewards({ x: source.left + source.width / 2, y: source.top + source.height / 2 }, { gold: result.gold, gems: result.gems, tickets: result.tickets, cards: result.cardGranted ? 1 : 0 });
                         const parts = [result.gold > 0 && `+${result.gold.toLocaleString()} Gold`, result.gems > 0 && `+${result.gems} Gems`, result.tickets > 0 && `+${result.tickets} Tickets`, result.cardGranted && `${getCard(result.cardGranted).name} added to your collection`].filter(Boolean);
                         setClaimed(parts.join(' · ') || 'Journey reward claimed');
                       }
