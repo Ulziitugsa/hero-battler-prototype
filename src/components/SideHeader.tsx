@@ -91,12 +91,13 @@ export function SideHeader({
             </span>
           )}
         </div>
+        {/* On the bar it describes (its right half; the numeral is on the left), never out over the board. */}
+        {callout && (
+          <span key={callout.key} className={`mw-battle-callout hp ${callout.kind} ${callout.big ? 'big' : ''}`} role="status">
+            {callout.text}
+          </span>
+        )}
       </div>
-      {callout && (
-        <span key={callout.key} className={`mw-battle-callout hp ${callout.kind} ${callout.big ? 'big' : ''}`} role="status">
-          {callout.text}
-        </span>
-      )}
       {side === 'player' && deckCount !== undefined && graveyardCount !== undefined && (
         <div className="side-header-pills">
           {badge}

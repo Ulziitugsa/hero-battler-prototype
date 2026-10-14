@@ -40,8 +40,37 @@
   }
 
   /* Small, high-frequency targets get a slightly deeper press so they still register under a thumb. */
-  .moon-game :is(.mw-press-deep, .hud-medallion, .missions-claim-btn, .home-reward-rail button, .shop-gift-claim) {
+  .moon-game :is(.mw-press-deep, .missions-claim-btn, .home-reward-rail button, .shop-gift-claim) {
     --mw-press-scale: 0.93;
+  }
+
+  /* Controls that already squash with their own :active transform get one press response per control, never two
+     multiplied together (a 0.94 nav medallion times the default 0.96 read as a 13% collapse). Their own rule stays the
+     press; the layer adds only the brightness dip. Controls whose own :active is a translate-only nudge are not listed:
+     a nudge and the layer squash compose into one press. */
+  .moon-game :is(
+      .hud-medallion,
+      .fight-cta,
+      .side-header-pill,
+      .btn,
+      .dk-card,
+      .dk-chit,
+      .skirmish-back,
+      .skirmish-step,
+      .skirmish-pennant,
+      .collection-card,
+      .campaign-region-plate,
+      .campaign-reward-claim,
+      .campaign-result-cta
+    ) {
+    --mw-press-scale: 1;
+  }
+
+  /* Battle hand cards are dragged and long-pressed: a squash or dim would be captured in the drag image and flicker
+     under a held thumb. The gold selection ring is their press response. */
+  .moon-game .hand-card {
+    --mw-press-scale: 1;
+    --mw-press-brightness: 1;
   }
 
   .moon-game .mw-press-none {

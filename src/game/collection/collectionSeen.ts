@@ -1,8 +1,8 @@
 import type { CardMarksState } from './cardMarks';
 
 // When the player last looked at their collection: the one extra fact the Cards tab needs to say "new cards are
-// waiting" truthfully. A card is new when its most recent grant (cardMarks.obtainedAt, written by every real grant)
-// is later than this. Its own additive storage key: no save version changes, and an old save simply starts with
+// waiting" truthfully. A card is new when its FIRST copy arrived (cardMarks.firstObtainedAt) after this; another copy
+// of a card the player already had is not new, matching Pull Results' "New" tags. Its own additive storage key: no save version changes, and an old save simply starts with
 // "seen now", so nothing it already owned is suddenly announced as new.
 
 export const COLLECTION_SEEN_STORAGE_KEY = 'moonwater:collection-seen-at';
@@ -51,9 +51,9 @@ export function markCollectionSeen(now: number = Date.now()): void {
   for (const l of [...listeners]) l();
 }
 
-/** Cards obtained since the player last looked at the collection, most recent first. */
+/** Cards first obtained since the player last looked at the collection, most recent first. */
 export function newCardIds(marks: CardMarksState, seenAt: number): string[] {
-  return Object.entries(marks.obtainedAt)
+  return Object.entries(marks.firstObtainedAt)
     .filter(([, at]) => at > seenAt)
     .sort((a, b) => b[1] - a[1])
     .map(([id]) => id);

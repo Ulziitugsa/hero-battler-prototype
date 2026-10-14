@@ -14,7 +14,7 @@ const store = new Map<string, string>();
   },
 };
 
-const marks = (obtainedAt: Record<string, number>): CardMarksState => ({ version: 1, favorites: [], obtainedAt });
+const marks = (firstObtainedAt: Record<string, number>): CardMarksState => ({ version: 1, favorites: [], obtainedAt: firstObtainedAt, firstObtainedAt });
 
 beforeEach(() => {
   store.clear();
@@ -43,6 +43,12 @@ describe('the Cards tab "new" marker', () => {
     expect(calls).toBe(1);
     expect(getCollectionSeenAt()).toBe(10_000);
     expect(newCardIds(marks({ x: 9_000 }), getCollectionSeenAt())).toEqual([]);
+  });
+
+  it('another copy of a card already owned is not new; only a first copy is', () => {
+    const seen = getCollectionSeenAt(5_000);
+    const state: CardMarksState = { version: 1, favorites: [], obtainedAt: { dupe: 9_000, fresh: 8_000 }, firstObtainedAt: { dupe: 1_000, fresh: 8_000 } };
+    expect(newCardIds(state, seen)).toEqual(['fresh']);
   });
 
   it('never moves backwards', () => {

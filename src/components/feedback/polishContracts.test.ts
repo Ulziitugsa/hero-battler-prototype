@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { easeOutCubic, tweenValue } from './useCountUp';
 import { LOADING_LINES } from '../loadingCopy';
@@ -25,11 +25,17 @@ describe('loading screen', () => {
   it('the static boot screen in index.html says the same lines as the in-app loader', () => {
     const html = read('../../../index.html');
     expect(html).toContain('id="boot-splash"');
-    expect(html).toContain('href="/src/styles/boot.css"');
     for (const line of LOADING_LINES) expect(html).toContain(line);
   });
+  it('is styled inline, so it paints before any stylesheet downloads, on a dark page rather than a white one', () => {
+    const html = read('../../../index.html');
+    const head = html.slice(0, html.indexOf('</head>'));
+    expect(head).not.toMatch(/<link rel="stylesheet"/);
+    expect(head).toMatch(/<style>[\s\S]*:where\(html, body\) \{[^}]*background: #081723;[\s\S]*\.mw-boot \{/);
+    expect(read('../../../vite.config.ts')).toContain('bootScreenFirst()');
+  });
   it('the boot screen stops moving under reduced motion', () => {
-    expect(read('../../styles/boot.css')).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
+    expect(read('../../../index.html')).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.mw-boot,/);
   });
 });
 
@@ -56,6 +62,21 @@ describe('the feedback layer respects reduced motion', () => {
     const press = feedbackCss.find(([name]) => name === 'press')![1];
     expect(press).toContain('@layer mw-feedback');
     expect(press).not.toMatch(/\btransform:/);
+  });
+  it('a control with its own :active squash opts out of the layer squash, so the two never multiply', () => {
+    const press = feedbackCss.find(([name]) => name === 'press')![1];
+    const optOut = press.slice(press.indexOf('Controls that already squash'), press.indexOf('--mw-press-scale: 1;'));
+    const stylesDir = new URL('../../styles/', import.meta.url);
+    const sheets = readdirSync(stylesDir, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.css') && !f.includes('feedback'));
+    const squashing = new Set<string>();
+    for (const sheet of sheets) {
+      for (const [, selector, body] of read(`../../styles/${sheet.replaceAll('\\', '/')}`).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        if (!/transform:[^;]*scale\(/.test(body)) continue;
+        for (const part of selector.split(',')) if (part.includes(':active')) squashing.add(part.trim().match(/\.([\w-]+)/)![1]);
+      }
+    }
+    expect(squashing.size).toBeGreaterThan(0);
+    for (const cls of squashing) expect(optOut, cls).toMatch(new RegExp(`\\.${cls}[,\\s]`));
   });
   it('entrances never leave a transform behind', () => {
     const motion = feedbackCss.find(([name]) => name === 'motion')![1];

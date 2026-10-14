@@ -58,7 +58,8 @@
 @media(max-width:380px) { .shop-screen { padding-inline:12px; }.shop-gift { grid-template-columns:42px 1fr; }.shop-gift-art { width:40px; }.shop-gift-claim { grid-column:2; justify-self:start; min-height:34px; }.shop-featured-art { height:96px; }.shop-featured-card { grid-template-rows:96px 1fr auto; }.shop-gem-row { gap:5px; }.shop-gem-card { padding-inline:3px; }.shop-trade-card { grid-template-columns:34px 1fr auto; gap:7px; padding:9px; }.shop-trade-icon { width:33px; height:33px; } }
 @media(prefers-reduced-motion:reduce) { .shop-gem-card.recommended { transform:none; } }
 
-/* Card products first: featured Box, then Structure Decks. Currency sits below as the means of buying them. */
+/* The free daily gift first (its Gold flies to the balances just above), then card products: Boxes, Structure Decks.
+   Currency sits below as the means of buying them. */
 .shop-first-section { margin-top:4px; }
 .shop-box-meter { margin-top:4px; }
 /* nine archetype Boxes: three faction groups of three tiles */
@@ -73,7 +74,6 @@
 .shop-box-tile small { color:#9fb3ad; font-size:9px; }
 .shop-box-tile.empty { border-color:#4c6664; }
 .shop-box-tile.empty .shop-box-tile-art { filter:grayscale(.7) brightness(.6); }
-.shop-gift.shop-section { margin-top:12px; }
 .shop-deck-card { display:grid; grid-template-columns:92px 1fr; gap:10px; width:100%; min-height:118px; overflow:hidden; padding:0 12px 0 0; border:1px solid rgba(143,208,179,.3); border-radius:17px; color:inherit; text-align:left; background:linear-gradient(110deg,#23443d,#132b36 55%,#0e222d); box-shadow:0 9px 22px #020a1055; }
 .shop-deck-card + .shop-deck-card { margin-top:9px; }
 .shop-deck-art { display:flex; align-items:flex-end; justify-content:center; padding:8px 4px 6px; background:radial-gradient(ellipse at 50% 90%,#4b7a66aa,transparent 70%); }

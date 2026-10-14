@@ -1,4 +1,4 @@
-// The static boot screen in index.html (styled by styles/boot.css) covers the page from first paint until React has
+// The static boot screen in index.html (styled inline there) covers the page from first paint until React has
 // committed its first frame, so a cold start never shows a blank page. Dismissing it fades it out over the live app,
 // then removes it. Safe to call more than once (StrictMode runs effects twice) and when there is no splash (tests).
 

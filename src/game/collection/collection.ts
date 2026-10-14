@@ -70,7 +70,7 @@ export function grantCard(cardId: string, count = 1): GrantResult | null {
   const previous = getOwnedCount(cardId, current);
   commit(sanitizeOwned({ ...current, [cardId]: previous + count }));
   const owned = getOwnedCount(cardId);
-  if (owned > previous) recordCardObtained(cardId);
+  if (owned > previous) recordCardObtained(cardId, previous === 0);
   return { cardId, granted: owned - previous, previous, owned, isNew: previous === 0 };
 }
 

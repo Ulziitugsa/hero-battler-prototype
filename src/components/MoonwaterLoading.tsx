@@ -4,7 +4,7 @@ import { LOADING_KICKER, LOADING_LINES } from './loadingCopy';
 
 /**
  * The in-app loading screen, shown while a lazily-loaded screen is on its way. It is the same branded scene as the
- * boot screen in index.html (styles/boot.css): shuffling card backs before the moon, a travelling progress light and
+ * boot screen in index.html (styled inline there): shuffling card backs before the moon, a travelling progress light and
  * the rotating status line. It only fades in if the wait is long enough to notice, so a fast load never flashes it.
  */
 export function MoonwaterLoading() {

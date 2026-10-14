@@ -176,7 +176,14 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
 
     <div className="shop-test-note"><Icon name="check" size={14} /> Prototype store · Boxes and Structure Decks use in-game Gems (a Pull Ticket pays for one pull); bundles and Gem bundles are simulated test purchases. No real money is charged.</div>
 
-    <section className="shop-section shop-first-section" aria-labelledby="shop-box-title">
+    {/* The free daily gift sits above the fold, under the balances it pays into, so its Gold visibly flies there. */}
+    <section className={`shop-gift shop-section shop-first-section ${gift.claimed || economy.gold >= MAX_GOLD ? 'claimed' : 'ready'}`} aria-labelledby="shop-gift-title">
+      <div className="shop-gift-art" aria-hidden="true"><span>✦</span><GoldIcon size={24} /></div>
+      <div className="shop-gift-copy"><span className="shop-section-eyebrow">DAILY GIFT</span><h2 id="shop-gift-title">A little Gold for the journey</h2><p>{gift.claimed ? `Claimed · resets in ${giftResetCountdown || '…'} (daily UTC reset)` : `${DAILY_SHOP_GIFT_GOLD} Gold · free to claim`}</p></div>
+      <button type="button" className={`shop-gift-claim ${gift.claimed || economy.gold >= MAX_GOLD ? '' : 'mw-attention'}`} onClick={(event) => claimGift(event.currentTarget)} disabled={gift.claimed || economy.gold >= MAX_GOLD}>{economy.gold >= MAX_GOLD ? 'Gold full' : gift.claimed ? 'Claimed' : 'FREE · Ready'}</button>
+    </section>
+
+    <section className="shop-section" aria-labelledby="shop-box-title">
       <div className="shop-section-heading"><div><span className="shop-section-eyebrow">ARCHETYPE BOXES</span><h2 id="shop-box-title">Card Boxes</h2></div><span className="shop-section-note">{economy.tickets > 0 ? <><TicketIcon size={13} />{boxPullTickets(1)} / pull</> : <><GemIcon size={13} />{boxPullPrice(1)} / pull</>}</span></div>
       {BOX_FACTION_GROUPS.map(group => <div key={group.faction} className={`shop-box-group ${group.faction}`}>
         <h3 className="shop-box-group-title">{group.name}</h3>
@@ -196,12 +203,6 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
           })}
         </div>
       </div>)}
-    </section>
-
-    <section className={`shop-gift shop-section ${gift.claimed || economy.gold >= MAX_GOLD ? 'claimed' : 'ready'}`} aria-labelledby="shop-gift-title">
-      <div className="shop-gift-art" aria-hidden="true"><span>✦</span><GoldIcon size={24} /></div>
-      <div className="shop-gift-copy"><span className="shop-section-eyebrow">DAILY GIFT</span><h2 id="shop-gift-title">A little Gold for the journey</h2><p>{gift.claimed ? `Claimed · resets in ${giftResetCountdown || '…'} (daily UTC reset)` : `${DAILY_SHOP_GIFT_GOLD} Gold · free to claim`}</p></div>
-      <button type="button" className={`shop-gift-claim ${gift.claimed || economy.gold >= MAX_GOLD ? '' : 'mw-attention'}`} onClick={(event) => claimGift(event.currentTarget)} disabled={gift.claimed || economy.gold >= MAX_GOLD}>{economy.gold >= MAX_GOLD ? 'Gold full' : gift.claimed ? 'Claimed' : 'FREE · Ready'}</button>
     </section>
 
     <section className="shop-section" aria-labelledby="shop-structure-title">

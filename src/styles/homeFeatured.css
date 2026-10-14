@@ -84,6 +84,8 @@
   margin: 12px 0 8px;
 }
 
+/* Secondary on purpose: Home has one gold primary (the campaign's Continue / Begin plate above). Quick Battle is the
+   alternative, so it is a gold outline that reads as an action without competing for the first tap. */
 .moon-game .mw-featured-cta {
   flex: 1 1 auto;
   display: flex;
@@ -92,14 +94,14 @@
   justify-content: center;
   min-height: 46px;
   padding: 4px 12px;
-  border: 1px solid #f7e5b8;
+  border: 1px solid rgba(241, 217, 159, 0.72);
   border-radius: 14px;
-  color: #282719;
-  background: linear-gradient(135deg, #f1d99f, #c49f68);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.58), 0 4px 0 rgba(89, 69, 43, 0.82), 0 8px 18px rgba(0, 8, 13, 0.3);
+  color: #f6e4b4;
+  background: rgba(13, 34, 45, 0.85);
+  box-shadow: inset 0 1px rgba(255, 240, 200, 0.12);
 }
 .moon-game .mw-featured-cta span { font: 400 18px/1 var(--moon-display); }
-.moon-game .mw-featured-cta small { margin-top: 2px; color: #4c412a; font: 800 9px/1 var(--moon-ui); letter-spacing: 0.08em; text-transform: uppercase; }
+.moon-game .mw-featured-cta small { margin-top: 2px; color: #c9b88e; font: 800 9px/1 var(--moon-ui); letter-spacing: 0.08em; text-transform: uppercase; }
 
 .moon-game .mw-featured-secondary {
   flex: 0 0 auto;

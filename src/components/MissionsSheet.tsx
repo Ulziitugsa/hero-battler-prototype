@@ -29,6 +29,7 @@ export function MissionsSheet({ onClose }: { onClose: () => void }) {
   const rows = listMissions(period, state);
   const readyCount = rows.filter(({ def, progress }) => !progress.claimed && progress.count >= def.target).length;
   const allClaimed = rows.length > 0 && rows.every(({ progress }) => progress.claimed);
+  const ticketReward = rows.some(({ def, progress }) => !progress.claimed && progress.count >= def.target && def.rewardTickets > 0);
 
   return (
     <div className="overlay-backdrop missions-overlay" onClick={onClose}>
@@ -40,7 +41,7 @@ export function MissionsSheet({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <BalanceStrip />
+        <BalanceStrip ticketReward={ticketReward} />
 
         <div className="missions-tabs">
           <button type="button" className={`missions-tab ${period === 'daily' ? 'active' : ''}`} onClick={() => setPeriod('daily')}>

@@ -17,6 +17,80 @@ export function tweenValue(from: number, to: number, progress: number): number {
   return Math.round(from + (to - from) * easeOutCubic(progress));
 }
 
+/** What a roll needs from the page. The browser one is the default; tests pass a fake. */
+export interface CountUpEnv {
+  now(): number;
+  setTimer(fn: () => void, ms: number): number;
+  clearTimer(id: number): void;
+  requestFrame(fn: () => void): number;
+  cancelFrame(id: number): void;
+  isHidden(): boolean;
+  /** Calls `fn` whenever the page is hidden or shown again; returns the unsubscribe. */
+  onVisibilityChange(fn: () => void): () => void;
+}
+
+const browserEnv: CountUpEnv = {
+  now: () => performance.now(),
+  setTimer: (fn, ms) => window.setTimeout(fn, ms),
+  clearTimer: (id) => window.clearTimeout(id),
+  requestFrame: (fn) => requestAnimationFrame(() => fn()),
+  cancelFrame: (id) => cancelAnimationFrame(id),
+  isHidden: () => typeof document !== 'undefined' && document.visibilityState === 'hidden',
+  onVisibilityChange: (fn) => {
+    document.addEventListener('visibilitychange', fn);
+    return () => document.removeEventListener('visibilitychange', fn);
+  },
+};
+
+/** Grace after a roll should have ended before the timer forces the final value (one or two late frames). */
+export const COUNT_UP_SETTLE_SLACK_MS = 50;
+
+/**
+ * Rolls a displayed number from `from` to `to`, reporting each step through `show`. Animation frames only make the
+ * roll smooth; they are never what makes the number correct. The final value is forced by a timer once the roll should
+ * have ended, shown at once when the page is hidden (frames stop there), and re-synced when the page is shown again.
+ * Returns a cancel function.
+ */
+export function runCountUp(from: number, to: number, { delayMs, durationMs }: { delayMs: number; durationMs: number }, show: (value: number, counting: boolean) => void, env: CountUpEnv = browserEnv): () => void {
+  let frame = 0;
+  let start = 0;
+  let done = false;
+  const timers: number[] = [];
+  let unsubscribe = () => {};
+  const cleanup = () => {
+    done = true;
+    timers.forEach(env.clearTimer);
+    env.cancelFrame(frame);
+    unsubscribe();
+  };
+  const finish = () => {
+    if (done) return;
+    cleanup();
+    show(to, false);
+  };
+  if (env.isHidden()) {
+    finish();
+    return cleanup;
+  }
+  const tick = () => {
+    if (done) return;
+    const next = tweenValue(from, to, (env.now() - start) / durationMs);
+    if (next === to) return finish();
+    show(next, true);
+    frame = env.requestFrame(tick);
+  };
+  unsubscribe = env.onVisibilityChange(finish);
+  timers.push(
+    env.setTimer(() => {
+      start = env.now();
+      show(from, true);
+      frame = env.requestFrame(tick);
+    }, delayMs),
+    env.setTimer(finish, delayMs + durationMs + COUNT_UP_SETTLE_SLACK_MS),
+  );
+  return cleanup;
+}
+
 export interface CountUpOptions {
   /** Wait for a reward of this kind to land (rewardBus) before counting. */
   kind?: RewardKind;
@@ -31,7 +105,8 @@ export interface CountUpOptions {
 /**
  * A displayed number that rolls to its new value instead of jumping. Returns the value to render and whether it is
  * mid-roll (for a highlight class). The real value is never delayed for logic: callers render this for DISPLAY only and
- * keep using the store's value everywhere else. Reduced motion shows every change at once.
+ * keep using the store's value everywhere else. Reduced motion shows every change at once; see runCountUp for why the
+ * shown value always ends on the real one.
  */
 export function useCountUp(value: number, { kind, durationMs = COUNT_UP_MS, animateDecrease = false }: CountUpOptions = {}): { display: number; counting: boolean } {
   const reduced = useReducedMotion();
@@ -40,37 +115,21 @@ export function useCountUp(value: number, { kind, durationMs = COUNT_UP_MS, anim
   const shown = useRef(value);
 
   useEffect(() => {
+    const show = (next: number, rolling: boolean) => {
+      shown.current = next;
+      setDisplay(next);
+      setCounting(rolling);
+    };
     const from = shown.current;
-    if (from === value) return;
-    const snap = reduced || durationMs <= 0 || (value < from && !animateDecrease);
-    if (snap) {
-      shown.current = value;
-      setDisplay(value);
+    if (from === value) {
       setCounting(false);
       return;
     }
-    let frame = 0;
-    let start = 0;
-    const tick = (t: number) => {
-      if (!start) start = t;
-      const next = tweenValue(from, value, (t - start) / durationMs);
-      shown.current = next;
-      setDisplay(next);
-      if (next === value) {
-        setCounting(false);
-        return;
-      }
-      frame = requestAnimationFrame(tick);
-    };
-    const delay = kind ? landingDelay(kind) : 0;
-    const timer = window.setTimeout(() => {
-      setCounting(true);
-      frame = requestAnimationFrame(tick);
-    }, delay);
-    return () => {
-      window.clearTimeout(timer);
-      cancelAnimationFrame(frame);
-    };
+    if (reduced || durationMs <= 0 || (value < from && !animateDecrease)) {
+      show(value, false);
+      return;
+    }
+    return runCountUp(from, value, { delayMs: kind ? landingDelay(kind) : 0, durationMs }, show);
   }, [value, reduced, durationMs, animateDecrease, kind]);
 
   return { display, counting };

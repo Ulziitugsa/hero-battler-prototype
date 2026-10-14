@@ -6,7 +6,204 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#100e14" />
     <title>Moonwater · Oaths of the Ashen Road</title>
-    <link rel="stylesheet" href="/src/styles/boot.css" />
+    <!-- The boot screen's styles live inline, not in a bundled stylesheet: the page paints the splash (and a dark
+         background, never white) before any external CSS or script arrives, even on a slow connection.
+         components/MoonwaterLoading.tsx reuses these classes for lazy-screen loads. Self-contained on purpose: no app
+         tokens or fonts are loaded yet. Everything stops moving under reduced motion. -->
+    <style>
+      :where(html, body) {
+        margin: 0;
+        background: #081723;
+      }
+
+      .mw-boot {
+        position: fixed;
+        z-index: 2000;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        padding: calc(32px + env(safe-area-inset-top, 0px)) 24px calc(32px + env(safe-area-inset-bottom, 0px));
+        color: #f5edda;
+        text-align: center;
+        font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        background:
+          radial-gradient(ellipse 70% 45% at 50% 40%, rgba(96, 160, 160, 0.26), transparent 70%),
+          linear-gradient(180deg, rgba(8, 23, 35, 0.72), rgba(6, 16, 25, 0.96) 70%),
+          url('/art/pixel/moonwater.png') center 38% / cover,
+          #081723;
+        image-rendering: pixelated;
+        transition: opacity 360ms ease;
+      }
+
+      .mw-boot.is-leaving {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      /* The in-app fallback only appears if loading takes long enough to notice; a quick chunk load shows nothing. */
+      .mw-boot.mw-boot-deferred {
+        z-index: 120;
+        animation: mw-boot-appear 260ms ease 180ms backwards;
+      }
+
+      .mw-boot-stage {
+        position: relative;
+        width: 200px;
+        height: 150px;
+        margin-bottom: 22px;
+      }
+
+      .mw-boot-moon {
+        position: absolute;
+        top: 2px;
+        left: 50%;
+        width: 116px;
+        height: 116px;
+        margin-left: -58px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 42% 38%, #fff6dc, #f0d59a 48%, #b9955a 100%);
+        box-shadow: 0 0 34px rgba(240, 213, 154, 0.45), 0 0 90px rgba(150, 210, 200, 0.22);
+        opacity: 0.9;
+        animation: mw-boot-moon 3.2s ease-in-out infinite;
+      }
+
+      /* A carved card back: teal field, gold double frame, a crescent at its heart. */
+      .mw-boot-card {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        width: 64px;
+        height: 92px;
+        margin-left: -32px;
+        border: 2px solid #e4c080;
+        border-radius: 8px;
+        background:
+          radial-gradient(circle at 50% 46%, rgba(240, 213, 154, 0.32), transparent 42%),
+          repeating-linear-gradient(45deg, rgba(240, 213, 154, 0.07) 0 3px, transparent 3px 9px),
+          linear-gradient(160deg, #2b5560, #10262f 70%);
+        box-shadow: inset 0 0 0 3px #10262f, inset 0 0 0 4px rgba(228, 192, 128, 0.55), 0 10px 18px rgba(2, 10, 16, 0.6);
+        transform-origin: 50% 120%;
+      }
+      .mw-boot-card::after {
+        content: '\263E';
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #f4dda5;
+        font: 30px/1 Georgia, serif;
+        text-shadow: 0 0 10px rgba(244, 221, 165, 0.7);
+      }
+      .mw-boot-card.c1 { transform: translateX(-34px) rotate(-14deg); animation: mw-boot-shuffle-left 2.4s ease-in-out infinite; }
+      .mw-boot-card.c2 { z-index: 2; transform: translateY(-6px); animation: mw-boot-shuffle-center 2.4s ease-in-out infinite; }
+      .mw-boot-card.c3 { transform: translateX(34px) rotate(14deg); animation: mw-boot-shuffle-right 2.4s ease-in-out infinite; }
+
+      .mw-boot-kicker {
+        margin: 0 0 6px;
+        color: #a9c6bd;
+        font: 800 10px/1.4 'Nunito', system-ui, sans-serif;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+
+      .mw-boot-title {
+        margin: 0;
+        color: #f6e4b4;
+        font: 400 40px/1.1 'Bree Serif', Georgia, serif;
+        letter-spacing: 0.02em;
+        text-shadow: 0 3px 18px rgba(4, 12, 18, 0.9);
+      }
+
+      /* Indeterminate progress: a light travels the rail. It never claims a percentage it does not know. */
+      .mw-boot-rail {
+        position: relative;
+        width: 168px;
+        height: 4px;
+        margin: 22px 0 12px;
+        overflow: hidden;
+        border-radius: 99px;
+        background: rgba(231, 241, 226, 0.14);
+      }
+      .mw-boot-rail i {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 40%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, transparent, #f0d59a, #fff3d0, #8fd0c8, transparent);
+        animation: mw-boot-rail 1.5s ease-in-out infinite;
+      }
+
+      /* The status lines stack in one slot and take turns. */
+      .mw-boot-lines {
+        position: relative;
+        width: 260px;
+        height: 18px;
+        margin: 0;
+        color: #bcd0c8;
+        font: 600 12px/18px 'Nunito', system-ui, sans-serif;
+      }
+      .mw-boot-lines span {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        animation: mw-boot-line 4.5s ease-in-out infinite;
+      }
+      .mw-boot-lines span:nth-child(2) { animation-delay: 1.5s; }
+      .mw-boot-lines span:nth-child(3) { animation-delay: 3s; }
+
+      @keyframes mw-boot-appear {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes mw-boot-moon {
+        0%, 100% { opacity: 0.82; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.04); }
+      }
+      @keyframes mw-boot-shuffle-left {
+        0%, 30%, 100% { transform: translateX(-34px) rotate(-14deg); }
+        45% { transform: translateX(-6px) translateY(-14px) rotate(-4deg); }
+        60% { transform: translateX(-38px) rotate(-16deg); }
+      }
+      @keyframes mw-boot-shuffle-center {
+        0%, 100% { transform: translateY(-6px); }
+        45% { transform: translateY(-22px) rotate(2deg); }
+        70% { transform: translateY(-4px); }
+      }
+      @keyframes mw-boot-shuffle-right {
+        0%, 55%, 100% { transform: translateX(34px) rotate(14deg); }
+        72% { transform: translateX(6px) translateY(-14px) rotate(4deg); }
+        86% { transform: translateX(38px) rotate(16deg); }
+      }
+      @keyframes mw-boot-rail {
+        from { transform: translateX(-110%); }
+        to { transform: translateX(260%); }
+      }
+      @keyframes mw-boot-line {
+        0% { opacity: 0; transform: translateY(5px); }
+        8%, 30% { opacity: 1; transform: none; }
+        38%, 100% { opacity: 0; transform: translateY(-5px); }
+      }
+
+      @media (max-height: 560px) {
+        .mw-boot-stage { transform: scale(0.8); margin-bottom: 6px; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .mw-boot,
+        .mw-boot.mw-boot-deferred { transition: none; animation: none; }
+        .mw-boot-moon,
+        .mw-boot-card,
+        .mw-boot-rail i { animation: none !important; }
+        .mw-boot-rail i { left: 30%; }
+        .mw-boot-lines span { animation: none; }
+        .mw-boot-lines span:first-child { opacity: 1; }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

@@ -38,7 +38,7 @@ export function JourneySheet({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <BalanceStrip />
+        <BalanceStrip ticketReward={JOURNEY_DAYS.some((def) => def.rewardTickets > 0 && def.day <= journey.currentDay && !journey.claimedDays.includes(def.day))} />
 
         <div className="journey-summary" role="status">
           <strong>{journey.complete ? 'Journey complete' : `Day ${journey.currentDay} of 7`}</strong>

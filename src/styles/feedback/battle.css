@@ -5,13 +5,17 @@
 
 /* ---- Round banner ------------------------------------------------------------------------------------------------- */
 
+/* The band between the two Unit rows (global.css: .zone-eHero ends at 38.86%, .zone-pHero starts at 47.39%), with the
+   ribbon centred in it and kept compact enough to fit, so it sits on the clash line and never over a card's name or text. */
 .mw-round-banner {
   position: absolute;
   z-index: 60;
   left: 0;
   right: 0;
-  top: 41%;
+  top: 38.86%;
+  height: 8.53%;
   display: flex;
+  align-items: center;
   justify-content: center;
   pointer-events: none;
 }
@@ -20,9 +24,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   min-width: 62%;
-  padding: 9px 28px 8px;
+  padding: 4px 28px;
   color: #fff3d6;
   background: linear-gradient(90deg, transparent, rgba(10, 30, 40, 0.92) 18%, rgba(10, 30, 40, 0.92) 82%, transparent);
   border-block: 1px solid rgba(240, 213, 154, 0.55);
@@ -30,14 +34,14 @@
   text-shadow: 0 2px 10px rgba(3, 10, 16, 0.9);
   animation: mw-banner var(--mw-banner-ms, 1150ms) var(--mw-ease-out) both;
 }
-.mw-round-banner strong { font: 400 26px/1.05 var(--moon-display, Georgia, serif); letter-spacing: 0.03em; }
-.mw-round-banner small { color: #cfe0d8; font: 800 10px/1.2 var(--moon-ui, system-ui, sans-serif); letter-spacing: 0.16em; text-transform: uppercase; }
+.mw-round-banner strong { font: 400 22px/1 var(--moon-display, Georgia, serif); letter-spacing: 0.03em; }
+.mw-round-banner small { color: #cfe0d8; font: 800 9px/1.2 var(--moon-ui, system-ui, sans-serif); letter-spacing: 0.16em; text-transform: uppercase; }
 
 .mw-round-banner.fight .mw-round-banner-ribbon {
   border-color: rgba(255, 170, 120, 0.7);
   background: linear-gradient(90deg, transparent, rgba(58, 22, 16, 0.9) 18%, rgba(58, 22, 16, 0.9) 82%, transparent);
 }
-.mw-round-banner.fight strong { color: #ffe0b5; font-size: 32px; letter-spacing: 0.06em; }
+.mw-round-banner.fight strong { color: #ffe0b5; font-size: 28px; letter-spacing: 0.06em; }
 
 @keyframes mw-banner {
   0% { opacity: 0; scale: 1.25 0.6; }
@@ -71,10 +75,21 @@
 .mw-battle-callout.spell { border-color: rgba(192, 160, 255, 0.75); color: #efe3ff; background: rgba(30, 20, 52, 0.94); }
 .mw-battle-callout.fizzled { border-color: rgba(160, 170, 175, 0.6); color: #c9d2d0; }
 
-/* Beside the HP bar that took the hit: under the enemy's, above the player's. */
-.side-header .mw-battle-callout.hp { left: 50%; translate: -50% 0; }
-.side-header.enemy .mw-battle-callout.hp { top: calc(100% + 4px); }
-.side-header.player .mw-battle-callout.hp { bottom: calc(100% + 6px); }
+/* On the HP bar that took the hit, starting at its midpoint so the numeral on the left stays readable, and centred on
+   the bar so it stays inside the header band: it never reaches the Spell row or the cards beside the header. A long
+   callout on a narrow bar runs on to the right, over the player's Log / Graveyard pills, which are locked while a round
+   resolves (the only time callouts show). It fades in place rather than rising, which would take it toward the board.
+   The bar is the body's last child, so its centre is half its height up from the body's bottom. */
+.side-header-body { position: relative; --mw-hp-plate-h: 12px; }
+.side-header.player .side-header-body { --mw-hp-plate-h: 20px; }
+.side-header .mw-battle-callout.hp {
+  left: 50%;
+  bottom: calc(var(--mw-hp-plate-h) / 2);
+  transform: translateY(50%);
+  translate: 0 0;
+  --mw-callout-x: 0;
+  --mw-callout-rise: 0;
+}
 
 /* Over the lane it happened in, at the owner's side of the clash line. */
 .battlefield .mw-battle-callout.lane { translate: -50% 0; }
@@ -89,7 +104,7 @@
   16% { opacity: 1; scale: 1.1; }
   28% { scale: 1; }
   80% { opacity: 1; }
-  100% { opacity: 0; translate: var(--mw-callout-x, -50%) -8px; }
+  100% { opacity: 0; translate: var(--mw-callout-x, -50%) var(--mw-callout-rise, -8px); }
 }
 
 /* ---- HP meter: the bar drops at once, a pale chunk lingers and drains after it ------------------------------------ */

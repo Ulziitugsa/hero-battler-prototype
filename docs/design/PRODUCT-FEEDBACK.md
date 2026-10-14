@@ -22,15 +22,15 @@ keeps. Nothing in it changes combat, balance, the economy, Box contents or save 
 | Piece | Where | Use it for |
 | --- | --- | --- |
 | Motion tokens | `styles/feedback/tokens.css` | `--mw-dur-*`, `--mw-ease-*`, `--mw-press-scale`, feedback colours |
-| Press feedback | `styles/feedback/press.css` | Automatic for every button in `.moon-game`. Tune with `--mw-press-scale` or `.mw-press-soft` / `.mw-press-deep` / `.mw-press-none` |
+| Press feedback | `styles/feedback/press.css` | Automatic for every button in `.moon-game`. Tune with `--mw-press-scale` or `.mw-press-soft` / `.mw-press-deep` / `.mw-press-none`. A control with its own `:active` scale must be in press.css's opt-out list (a test enforces it) so two squashes never multiply |
 | Motion utilities | `styles/feedback/motion.css` | `.mw-enter`, `.mw-stagger` (+ `--i`), `.mw-pop-in`, `.mw-attention`, `.mw-glow-pulse`, `.mw-float-number`, `.mw-shake` |
 | Rarity presence | `styles/feedback/rarity.css` | Wrap a card face: `<span class="mw-rarity" data-rarity="epic">`. Add `.mw-rarity-reveal` for a just-revealed card |
 | Reward bus | `components/feedback/rewardBus.ts` | `flyReward({ kind, amount, from })`, `flyRewards(from, { gold, gems, tickets, cards })` |
 | Flight layer | `components/feedback/RewardFlightLayer.tsx` | Mounted once in `App.tsx`; draws every flight |
-| Counters | `components/feedback/BalanceCounter.tsx`, `useCountUp.ts`, `useRewardTarget.ts` | `GoldBalance` / `GemBalance` / `TicketBalance` already use them; any element can be a landing spot with `useRewardTarget(kind)` |
-| Sheet balances | `components/feedback/BalanceStrip.tsx` | Inside a sheet that covers the header, so claims land in view |
+| Counters | `components/feedback/BalanceCounter.tsx`, `useCountUp.ts`, `useRewardTarget.ts` | `GoldBalance` / `GemBalance` / `TicketBalance` already use them; any element can be a landing spot with `useRewardTarget(kind)`. Animation frames only smooth a roll: a timer lands the final value, and a hidden page shows it at once |
+| Sheet balances | `components/feedback/BalanceStrip.tsx` | Inside a sheet that covers the header, so claims land in view. Tickets hide at zero unless a claimable reward in the sheet pays them |
 | Nav state | `components/AppShell.tsx`, `styles/feedback/nav.css` | Dots from real state only; the Cards medallion is the landing spot for card rewards |
-| Loading | `styles/boot.css`, `index.html`, `components/MoonwaterLoading.tsx`, `platform/bootSplash.ts` | Static boot screen before JS; same scene for lazy-screen loads (only after 180 ms) |
+| Loading | `index.html` (inline styles; `vite.config.ts` moves the app stylesheet after the boot markup), `components/MoonwaterLoading.tsx`, `platform/bootSplash.ts` | Static boot screen before JS; same scene for lazy-screen loads (only after 180 ms) |
 | Battle | `components/animation/battleCallouts.ts`, `components/battle/*`, `styles/feedback/battle.css` | Round / Fight banner, event callouts, HP chunk drain |
 
 ### Announcing a reward
@@ -54,8 +54,9 @@ label only and delays nothing.
 * **Clash lean** - each lunge (global.css `chitLungeEnemy/Player`) now opens with a short wind-up.
 * **Callouts** (`battleCalloutForStep`): `Direct Attack -N` / `Big Hit -N` (unopposed attack), `Burn -N` (effect damage
   to a player), `Big Hit -N` (Clash or overflow damage of at least 20% of the damaged side's max HP), `Revived`, a
-  resolved Spell's name (or "... fizzled"). HP callouts sit beside the HP bar; lane callouts over the lane, so they never
-  cover the clash line's own ATK read-out.
+  resolved Spell's name (or "... fizzled"). HP callouts sit on the HP bar from its midpoint (the numeral is on the left), so
+  they never reach the Spell row or a card; lane callouts over the lane, so they never cover the clash line's own ATK
+  read-out. The round banner fills only the band between the two Unit rows.
 * **HP** - the bar drops at once while a pale chunk lingers and drains after it; the numeral rolls.
 * Existing combat VFX (impact bursts, shatter + cracks on destruction, floaters, stage shake) are unchanged.
 
@@ -66,7 +67,8 @@ label only and delays nothing.
   a polish pass.
 * **Decks** tab badge: there is no "deck needs attention" state (an incomplete or invalid active deck cannot be saved).
 * **Ranked / Shop / Home** dots already existed and are unchanged; **Cards** gained a "new cards" dot backed by
-  `game/collection/collectionSeen.ts` (one additive storage key; old saves start as "seen now").
+  `game/collection/collectionSeen.ts` (one additive storage key; old saves start as "seen now"). Only a card's first
+  copy counts as new (`cardMarks.firstObtainedAt`, an additive field); a duplicate is not, matching Pull Results.
 * Quick Battle rewards (`MatchSummary` / `XpSummary`) have no on-screen counter to fly to; they keep their text.
 * Campaign stage rewards (`StageResultSheet`) are not wired yet (see follow-ups).
 
