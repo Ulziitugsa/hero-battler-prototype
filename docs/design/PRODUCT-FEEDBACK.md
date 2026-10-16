@@ -30,7 +30,7 @@ keeps. Nothing in it changes combat, balance, the economy, Box contents or save 
 | Counters | `components/feedback/BalanceCounter.tsx`, `useCountUp.ts`, `useRewardTarget.ts` | `GoldBalance` / `GemBalance` / `TicketBalance` already use them; any element can be a landing spot with `useRewardTarget(kind)`. Animation frames only smooth a roll: a timer lands the final value, and a hidden page shows it at once |
 | Sheet balances | `components/feedback/BalanceStrip.tsx` | Inside a sheet that covers the header, so claims land in view. Tickets hide at zero unless a claimable reward in the sheet pays them |
 | Nav state | `components/AppShell.tsx`, `styles/feedback/nav.css` | Dots from real state only; the Cards medallion is the landing spot for card rewards |
-| Loading | `index.html` (inline styles; `vite.config.ts` moves the app stylesheet after the boot markup), `components/MoonwaterLoading.tsx`, `platform/bootSplash.ts` | Static boot screen before JS; same scene for lazy-screen loads (only after 180 ms) |
+| Loading | `index.html` (inline styles; `vite.config.ts` moves the app stylesheets after the boot markup, and lazy screens' stylesheets after those), `components/MoonwaterLoading.tsx`, `platform/bootSplash.ts` | Static boot screen before JS; same scene for lazy-screen loads (only after 180 ms) |
 | Battle | `components/animation/battleCallouts.ts`, `components/battle/*`, `styles/feedback/battle.css` | Round / Fight banner, event callouts, HP chunk drain |
 
 ### Announcing a reward

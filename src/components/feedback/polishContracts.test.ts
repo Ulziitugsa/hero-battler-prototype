@@ -32,7 +32,10 @@ describe('loading screen', () => {
     const head = html.slice(0, html.indexOf('</head>'));
     expect(head).not.toMatch(/<link rel="stylesheet"/);
     expect(head).toMatch(/<style>[\s\S]*:where\(html, body\) \{[^}]*background: #081723;[\s\S]*\.mw-boot \{/);
-    expect(read('../../../vite.config.ts')).toContain('bootScreenFirst()');
+    const viteConfig = read('../../../vite.config.ts');
+    expect(viteConfig).toContain('bootScreenFirst()');
+    // Lazy screens' stylesheets must still land after the main one, as they did when it was in the head.
+    expect(viteConfig).toContain("'document.body.appendChild(link)'");
   });
   it('the boot screen stops moving under reduced motion', () => {
     expect(read('../../../index.html')).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.mw-boot,/);
