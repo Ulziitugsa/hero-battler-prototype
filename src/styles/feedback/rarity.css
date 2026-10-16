@@ -58,6 +58,17 @@
   animation: mw-rarity-spotlight 3s var(--mw-ease-in-out) infinite;
 }
 
+/* Static presence, for a whole grid of cards (the Cards screen): the same edge and glow, held still. No sheen, no
+   spotlight, no pulse - a hundred looping tiles would be noise, and the rarity reads from the light alone. */
+.mw-rarity-static,
+.mw-rarity-static::before,
+.mw-rarity-static::after { animation: none; }
+.mw-rarity-static::after,
+.mw-rarity-static::before { display: none; }
+.mw-rarity-static:is([data-rarity='epic'], [data-rarity='legendary']) {
+  filter: drop-shadow(0 0 1px var(--mw-rarity-color)) drop-shadow(0 0 9px color-mix(in srgb, var(--mw-rarity-color) 60%, transparent));
+}
+
 /* A rarity card that has just been revealed lands with one strong flash, then settles into its loop. */
 .mw-rarity-reveal:is([data-rarity='epic'], [data-rarity='legendary']) {
   animation:

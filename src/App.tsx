@@ -39,7 +39,8 @@ import { MoonwaterLoading } from './components/MoonwaterLoading';
 import { RewardFlightLayer } from './components/feedback/RewardFlightLayer';
 import { dismissBootSplash } from './platform/bootSplash';
 import { RankedPage } from './pages/RankedPage';
-import { chooseRankedOpponent, getRanked, recordRankedMatch } from './game/ranked/store';
+import { chooseRankedOpponent, getRanked, readyRankRewards, recordRankedMatch } from './game/ranked/store';
+import { rankedChange } from './components/battle/battleOutcome';
 import { CombatV2LabPage } from './pages/CombatV2LabPage';
 import { type CombatModel, type LocalBattleMode, combatModelForMode } from './game/combat/combatModel';
 
@@ -157,9 +158,13 @@ function GameApp() {
           battleSetup.rankedOpponentLabel
             ? (status) => {
                 const result = status === 'PLAYER_WIN' ? 'win' : status === 'DRAW' ? 'draw' : 'loss';
-                const before = recordRankedMatch(result, battleSetup.rankedOpponentLabel!);
+                const was = getRanked();
+                const readyBefore = readyRankRewards(was).length;
+                const after = recordRankedMatch(result, battleSetup.rankedOpponentLabel!);
                 track(result === 'win' ? 'ranked_match_won' : 'ranked_match_lost', { opponent: battleSetup.rankedOpponentLabel });
-                track('ranked_rating_changed', { rating: before.rating, result });
+                track('ranked_rating_changed', { rating: after.rating, result });
+                // Ranked has no result screen of its own: the battle's result card shows the rating change.
+                return { ranked: rankedChange(was.rating, after.rating, readyRankRewards(after).length > readyBefore) };
               }
             : campaignNodeId
             ? (status, stats, events) => {

@@ -39,7 +39,7 @@ export function RewardFlightLayer() {
       const r = target?.getBoundingClientRect();
       const to = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
       setFlights((list) => [...list, { flight, to }]);
-      later(() => setFlights((list) => list.filter((f) => f.flight.id !== flight.id)), Math.max(LABEL_MS, flight.plan.landsInMs) + 60);
+      later(() => setFlights((list) => list.filter((f) => f.flight.id !== flight.id)), Math.max(flight.delayMs + LABEL_MS, flight.plan.landsInMs) + 60);
       // The counter answers on arrival; with no tokens in the air (reduced motion) it answers at once.
       if (to) later(() => pulseRewardTarget(flight.kind), flight.plan.landsInMs);
     });
@@ -63,7 +63,7 @@ function FlightView({ flight, to }: { flight: RewardFlight; to: Point | null }) 
   const tokens = to ? flight.plan.tokens : 0;
   return (
     <>
-      <span className="mw-flight-label mw-float-number" data-kind={flight.kind} style={{ left: flight.from.x, top: flight.from.y - 14 - flight.stack * LABEL_STACK_PX }}>
+      <span className="mw-flight-label mw-float-number" data-kind={flight.kind} style={{ left: flight.from.x, top: flight.from.y - 14 - flight.stack * LABEL_STACK_PX, animationDelay: flight.delayMs ? `${flight.delayMs}ms` : undefined }}>
         {flight.label}
       </span>
       {to && Array.from({ length: tokens }, (_, i) => <FlightToken key={i} index={i} flight={flight} to={to} />)}
@@ -96,7 +96,7 @@ function FlightToken({ index, flight, to }: { index: number; flight: RewardFligh
         { transform: `translate(${mid.x}px, ${mid.y}px) scale(1)`, opacity: 1, offset: 0.55 },
         { transform: `translate(${dx}px, ${dy}px) scale(0.55)`, opacity: 0.9 },
       ],
-      { duration: plan.durationMs, delay: flight.stack * STACK_DELAY_MS + index * plan.staggerMs, easing: 'cubic-bezier(0.45, 0, 0.25, 1)', fill: 'both' },
+      { duration: plan.durationMs, delay: flight.delayMs + flight.stack * STACK_DELAY_MS + index * plan.staggerMs, easing: 'cubic-bezier(0.45, 0, 0.25, 1)', fill: 'both' },
     );
     return () => animation.cancel();
   }, [flight, to, index]);

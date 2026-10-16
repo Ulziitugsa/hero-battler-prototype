@@ -6,6 +6,8 @@ import { cardCopyView } from '../game/cards/cardCopy';
 import { Icon } from '../components/Icon';
 import { Sigil } from '../components/CardParts';
 import { useCollection } from '../game/collection/useCollection';
+import { useCardMarks } from '../game/collection/useCardMarks';
+import { getCollectionSeenAt, newCardIds } from '../game/collection/collectionSeen';
 import { track } from '../analytics/track';
 import { GameCard } from '../components/card/GameCard';
 import { CardViewer } from '../components/card/CardViewer';
@@ -30,11 +32,16 @@ const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
 const RARITY_LABEL: Record<Rarity, string> = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
 const SORTS: SortMode[] = ['rarity', 'power', 'name', 'faction'];
 
-function HeroTile({ card, collection, onClick }: { card: CardDefinition; collection: ReturnType<typeof useCollection>; onClick: () => void }) {
+function HeroTile({ card, collection, isNew, onClick }: { card: CardDefinition; collection: ReturnType<typeof useCollection>; isNew: boolean; onClick: () => void }) {
   const copy = cardCopyView(card.id, collection);
+  // An owned card keeps its rarity's presence (a still glow, no loops: this is a grid of a hundred cards); a missing
+  // one stays veiled. A card whose first copy arrived since the last visit says so.
   return (
-    <button type="button" className={`hr-card hr-card-face r-${card.rarity} ${copy.owned ? '' : 'missing'}`} onClick={onClick} aria-label={`${card.name}, ${RARITY_LABEL[card.rarity]}, ${copy.owned ? 'owned' : 'not collected'}. Show details.`}>
-      <GameCard cardId={card.id} density="tile" owned={copy.owned} copies={copy.copies} hpContribution={copy.hpContribution} />
+    <button type="button" className={`hr-card hr-card-face r-${card.rarity} ${copy.owned ? '' : 'missing'} ${isNew ? 'is-new' : ''}`} onClick={onClick} aria-label={`${card.name}, ${RARITY_LABEL[card.rarity]}, ${copy.owned ? 'owned' : 'not collected'}${isNew ? ', new' : ''}. Show details.`}>
+      <span className="hr-card-presence mw-rarity mw-rarity-static" data-rarity={copy.owned ? card.rarity : 'common'}>
+        <GameCard cardId={card.id} density="tile" owned={copy.owned} copies={copy.copies} hpContribution={copy.hpContribution} />
+      </span>
+      {isNew && <span className="hr-new-tag mw-pop-in">New</span>}
     </button>
   );
 }
@@ -51,9 +58,19 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
   const [sortOpen, setSortOpen] = useState(false);
   const [inspectId, setInspectId] = useState<string | null>(null);
   const closeInspect = useCallback(() => setInspectId(null), []);
+  // Cards whose first copy arrived since the player last opened this screen. Read on arrival, before the shell marks
+  // the collection seen, and kept for the whole visit so the tags do not vanish the moment they are shown.
+  const marks = useCardMarks();
+  const [seenAtArrival] = useState(() => getCollectionSeenAt());
+  const newIds = useMemo(() => new Set(newCardIds(marks, seenAtArrival)), [marks, seenAtArrival]);
 
   const filters: HeroFilters = { owned: ownedFilter, faction: factionFilter, rarity: rarityFilter, query };
-  const list = useMemo(() => filterHeroes(HEROES, owned, { owned: ownedFilter, faction: factionFilter, rarity: rarityFilter, query }, sortMode), [owned, ownedFilter, factionFilter, rarityFilter, query, sortMode]);
+  // New cards lead the list for this visit (in the chosen order among themselves), so a fresh pull is the first thing seen.
+  const list = useMemo(() => {
+    const sorted = filterHeroes(HEROES, owned, { owned: ownedFilter, faction: factionFilter, rarity: rarityFilter, query }, sortMode);
+    return newIds.size === 0 ? sorted : [...sorted.filter((c) => newIds.has(c.id)), ...sorted.filter((c) => !newIds.has(c.id))];
+  }, [owned, ownedFilter, factionFilter, rarityFilter, query, sortMode, newIds]);
+  const newInView = list.filter((c) => newIds.has(c.id)).length;
   const scope = scopeOf(HEROES, filters);
   const t = tally(scope, owned);
 
@@ -149,7 +166,10 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
       <div className="hr-ledger">
         <span className="hr-ledger-count">{counter}</span>
         <span className="hr-ledger-side">
-          <span className="hr-ledger-caption">{caption}</span>
+          <span className="hr-ledger-caption">
+            {caption}
+            {newInView > 0 && <b className="hr-ledger-new mw-pop-in"> · {newInView} new</b>}
+          </span>
           <span className="hr-ledger-bar" aria-hidden="true">
             <span style={{ width: `${pct}%` }} />
           </span>
@@ -181,12 +201,19 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
         <button type="button" className={`hr-rar ${rarityFilter === 'all' ? 'on' : ''}`} onClick={() => setRarityFilter('all')} aria-pressed={rarityFilter === 'all'}>
           <span className="hr-rar-any">Any</span>
         </button>
-        {RARITIES.map((r) => (
-          <button type="button" key={r} className={`hr-rar r-${r} ${rarityFilter === r ? 'on' : ''}`} onClick={() => setRarityFilter(rarityFilter === r ? 'all' : r)} aria-pressed={rarityFilter === r}>
-            <span className="hr-rar-gem" aria-hidden="true" />
-            <span className="hr-rar-name">{RARITY_LABEL[r]}</span>
-          </button>
-        ))}
+        {RARITIES.map((r) => {
+          // How much of this rarity is collected, within the chosen faction.
+          const rt = tally(scopeOf(HEROES, { faction: factionFilter, rarity: r, query: '' }), owned);
+          return (
+            <button type="button" key={r} className={`hr-rar r-${r} ${rarityFilter === r ? 'on' : ''} ${rt.total > 0 && rt.have === rt.total ? 'complete' : ''}`} onClick={() => setRarityFilter(rarityFilter === r ? 'all' : r)} aria-pressed={rarityFilter === r} aria-label={`${RARITY_LABEL[r]}, ${rt.have} of ${rt.total} collected`}>
+              <span className="hr-rar-gem" aria-hidden="true" />
+              <span className="hr-rar-name">{RARITY_LABEL[r]}</span>
+              <span className="hr-rar-count" aria-hidden="true">
+                {rt.have}/{rt.total}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {empty ? (
@@ -212,7 +239,7 @@ export function HeroesPage({ onOpenDecks }: { onOpenDecks: () => void }) {
       ) : (
         <div className="hr-grid">
           {list.map((card) => (
-            <HeroTile key={card.id} card={card} collection={collection} onClick={() => setInspectId(card.id)} />
+            <HeroTile key={card.id} card={card} collection={collection} isNew={newIds.has(card.id)} onClick={() => setInspectId(card.id)} />
           ))}
         </div>
       )}

@@ -22,8 +22,8 @@ export function GemAmount({ amount }: { amount: number }) {
 }
 
 /** Current balance, live: gem + number. Quiet by design - shown on Home and the Summon screen only. */
-export function GemBalance({ className = '', id }: { className?: string; id?: string }) {
+export function GemBalance({ className = '', id, arriving }: { className?: string; id?: string; arriving?: number }) {
   const { gems } = useEconomy();
   const unlimited = useUnlimitedGems(); // dev-only flag; always false in production
-  return <BalanceCounter kind="gems" value={gems} id={id} className={`gem-balance ${className}`} label={unlimited ? 'Unlimited Gems (dev)' : `${gems} Gems`} icon={<GemIcon size={15} />} text={unlimited ? '∞' : undefined} />;
+  return <BalanceCounter kind="gems" value={gems} id={id} arriving={arriving} className={`gem-balance ${className}`} label={unlimited ? 'Unlimited Gems (dev)' : `${gems} Gems`} icon={<GemIcon size={15} />} text={unlimited ? '∞' : undefined} />;
 }

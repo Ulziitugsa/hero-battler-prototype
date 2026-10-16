@@ -36,6 +36,8 @@ export interface RewardFlight {
   plan: FlightPlan;
   /** Position among rewards announced together from one control (flyRewards): labels stack, tokens leave in turn. */
   stack: number;
+  /** Wait before the label shows and the first token leaves (a result screen lets its own entrance finish first). */
+  delayMs: number;
 }
 
 /** Extra wait before the next reward in a group leaves, so Gold, then Gems, then Tickets read as separate arrivals. */
@@ -154,14 +156,16 @@ function pointOf(from: Element | Point): Point {
  * Announces a reward the player just received. `from` is the control (or point) it came from. Safe to call anywhere,
  * any number of times: with no flight layer mounted (tests, a screen outside the app shell) it does nothing.
  */
-export function flyReward({ kind, amount, from, label, stack = 0 }: { kind: RewardKind; amount: number; from: Element | Point; label?: string; stack?: number }): void {
+export function flyReward({ kind, amount, from, label, stack = 0, delayMs = 0 }: { kind: RewardKind; amount: number; from: Element | Point; label?: string; stack?: number; delayMs?: number }): void {
   if (amount <= 0 || listeners.size === 0) return;
   const base = planFlight(kind, amount, reducedMotion());
+  // Reduced motion: nothing travels, so nothing waits either - the label and the counter answer at once.
+  const delay = base.landsInMs > 0 ? Math.max(0, delayMs) : 0;
   const offset = base.landsInMs > 0 ? stack * STACK_DELAY_MS : 0;
-  const plan = { ...base, landsInMs: base.landsInMs + offset };
+  const plan = { ...base, landsInMs: base.landsInMs + offset + delay };
   // Only a flight with somewhere to land delays the counter; a reward whose counter is off screen just shows its label.
   if (plan.landsInMs > 0 && resolveRewardTarget(kind)) landingAt.set(kind, Math.max(landingAt.get(kind) ?? 0, now() + plan.landsInMs));
-  const flight: RewardFlight = { id: nextId++, kind, amount, from: pointOf(from), label: label ?? rewardLabel(kind, amount), plan, stack };
+  const flight: RewardFlight = { id: nextId++, kind, amount, from: pointOf(from), label: label ?? rewardLabel(kind, amount), plan, stack, delayMs: delay };
   for (const l of [...listeners]) l(flight);
 }
 
@@ -169,12 +173,12 @@ export function flyReward({ kind, amount, from, label, stack = 0 }: { kind: Rewa
  * Several rewards earned by one control at once (a mission's Gold and Gems, a Journey day's Tickets and card): each
  * kind flies to its own counter, one after another, with their labels stacked at the source. Zero amounts are skipped.
  */
-export function flyRewards(from: Element | Point, rewards: Partial<Record<RewardKind, number>>): void {
+export function flyRewards(from: Element | Point, rewards: Partial<Record<RewardKind, number>>, { delayMs = 0 }: { delayMs?: number } = {}): void {
   const order: RewardKind[] = ['gold', 'gems', 'tickets', 'cards'];
   let stack = 0;
   for (const kind of order) {
     const amount = rewards[kind] ?? 0;
-    if (amount > 0) flyReward({ kind, amount, from, stack: stack++ });
+    if (amount > 0) flyReward({ kind, amount, from, stack: stack++, delayMs });
   }
 }
 

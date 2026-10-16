@@ -81,6 +81,16 @@ describe('the feedback layer respects reduced motion', () => {
     expect(squashing.size).toBeGreaterThan(0);
     for (const cls of squashing) expect(optOut, cls).toMatch(new RegExp(`\\.${cls}[,\\s]`));
   });
+  it('the battle result screen has a reduced-motion block that stops every travel, spin and fill', () => {
+    const css = read('../../styles/battleResult.css');
+    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(reduced).toContain('.br-crest-rays { animation: none; }');
+    expect(reduced).toContain('.br-meter > span { animation: none; }');
+  });
+  it('a grid of cards wears its rarity still: the static variant drops every loop, sheen and spotlight', () => {
+    const rarity = feedbackCss.find(([name]) => name === 'rarity')![1];
+    expect(rarity).toContain('.mw-rarity-static,\n.mw-rarity-static::before,\n.mw-rarity-static::after { animation: none; }');
+  });
   it('entrances never leave a transform behind', () => {
     const motion = feedbackCss.find(([name]) => name === 'motion')![1];
     for (const cls of ['.mw-enter {', '.mw-stagger > * {', '.mw-pop-in {']) {

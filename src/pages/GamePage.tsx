@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { CombatModelId, DeployPlay, GameEvent, GameState, HandCard as HandCardModel, HeroInstance, LaneId, MasteryLoadout, PlayerAction, SpellZoneInstance } from '../game/types';
 import { LANES } from '../game/types';
 import { getCard } from '../game/cards';
@@ -47,7 +47,9 @@ import { summarizeBattle, type BattleMode } from '../game/events/battleSummary';
 import { track } from '../analytics/track';
 import { resolveDuration } from '../components/animation/timing';
 import type { AnimationSpeed } from '../components/animation/types';
-import type { FriendlyRematchActions } from '../components/MatchSummary';
+import type { BattleResultExtras, FriendlyRematchActions } from '../components/MatchSummary';
+import { finishingBlow, missionAdvances, outcomeOf, type FinishingBlow, type MissionAdvance } from '../components/battle/battleOutcome';
+import { listMissions } from '../game/missions/store';
 import type { RemoteOpponentController } from '../net/friendlyTypes';
 import { isCurrentCardResolver, matchResolver, rulesChangeNotice } from '../game/combat/resolver';
 import { fightButtonState } from '../components/fightButtonState';
@@ -82,8 +84,10 @@ export interface GamePageProps {
   startingHpOverride?: Partial<Record<'player' | 'enemy', number>>;
   /** Fires once, the instant this match reaches MATCH_END - before the player dismisses the summary
    * screen. Campaign uses this to record node progress independent of how/when the player exits;
-   * Quick Battle never passes it, so it never touches Campaign state. */
-  onMatchEnd?: (status: GameState['status'], stats: MatchStats, events: GameEvent[]) => void;
+   * Quick Battle never passes it, so it never touches Campaign state. A mode that returns result extras (Ranked's
+   * rating change) gets this screen's result card with them; one that returns nothing leaves at once for its own
+   * result screen (Campaign's sheet on the map). */
+  onMatchEnd?: (status: GameState['status'], stats: MatchStats, events: GameEvent[]) => BattleResultExtras | void;
   /**
    * Friendly Battle only (src/net/useFriendlyRoom.ts). When set, replaces the local AI opponent with a
    * real remote player: handleFight submits to and awaits this controller instead of calling
@@ -215,6 +219,11 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const [masteryToast, setMasteryToast] = useState<MasteryToast | null>(null);
   const [xpResult, setXpResult] = useState<XpGrantResult | null>(null);
   const [goldResult, setGoldResult] = useState(0);
+  // The result card's "how it ended" and "what it moved forward": read once at MATCH_END from the log and the stores.
+  const [result, setResult] = useState<{ finish: FinishingBlow | null; missions: MissionAdvance[]; extras: BattleResultExtras } | null>(null);
+  // Missions as they stood when this match began, to show which ones it advanced.
+  const missionsAtStart = useRef<ReturnType<typeof listMissions> | null>(null);
+  if (missionsAtStart.current === null) missionsAtStart.current = listMissions();
   // Presentation-only: "Round N" as a round opens for deployment, "Fight!" as its cards are revealed.
   const [banner, setBanner] = useState<RoundBannerSpec | null>(null);
 
@@ -261,6 +270,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     setMasteryToast(null);
     setXpResult(null);
     setGoldResult(0);
+    setResult(null);
+    missionsAtStart.current = listMissions();
   }
 
   // Once the animation queue finishes playing revealEvents, hand off to the next round - using the
@@ -294,14 +305,19 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
         const goldAmount = quickBattleGold(next.status === 'PLAYER_WIN' ? 'win' : next.status === 'DRAW' ? 'draw' : 'loss');
         setGoldResult(goldAmount > 0 ? grantGold(goldAmount, 'quickBattle').gained : 0);
       }
+      let extras: BattleResultExtras | void = undefined;
       if (onMatchEnd) {
         // A Campaign battle owns its own post-match moment - the carved StageResultSheet back on
         // the map, which already covers win/loss/rewards. Hand off straight to it instead of
-        // showing this screen's plain, developer-facing MatchSummary first and making the player
-        // click through two different "you won" screens in a row for the same result.
-        onMatchEnd(next.status, stats, merged);
-        onExit();
+        // showing this screen's result card first and making the player click through two
+        // different "you won" screens in a row for the same result. A mode that hands back result
+        // extras (Ranked) has no screen of its own and shows this one.
+        extras = onMatchEnd(next.status, stats, merged);
+        if (!extras) onExit();
       }
+      // Read after onMatchEnd, which may have advanced missions of its own (a Ranked win).
+      if (!remoteOpponent) setResult({ finish: finishingBlow(merged, next.status), missions: missionAdvances(missionsAtStart.current ?? [], listMissions()), extras: extras ?? {} });
+      else setResult({ finish: finishingBlow(merged, next.status), missions: [], extras: {} });
     } else {
       // Friendly Battle's server already began the next round (its events were part of this reveal); beginning it again
       // here would re-fire Round Start effects on the client only. Local battles begin it now.
@@ -598,10 +614,13 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   // (speed setting + reduced motion, both handled in timing.ts) reaches the DOM.
   const stepMs = anim.currentStep ? resolveDuration(anim.currentStep.timingCategory, animationSpeed, anim.reducedMotion) : 300;
 
+  // Set while the result card is up: the side that fell is marked on the board under it.
+  const matchOutcome = phase === 'MATCH_END' && gameState.status !== 'IN_PROGRESS' ? outcomeOf(gameState.status) : null;
+
   return (
     <CombatDisplayContext.Provider value={display}>
     <div className="app-shell">
-      <div className="battle-stage" style={{ '--step-ms': `${Math.max(stepMs, 1)}ms` } as CSSProperties}>
+      <div className="battle-stage" data-match-end={matchOutcome ?? undefined} style={{ '--step-ms': `${Math.max(stepMs, 1)}ms` } as CSSProperties}>
         <div className="battle-scene card-faces">
           <div className="battle-sky" aria-hidden="true" />
           <div className="battle-terrace" aria-hidden="true" />
@@ -614,7 +633,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             <Icon name="bug" size={14} />
           </button>
 
-          <SideHeader side="enemy" name="Enemy" rank={enemyDeckLabel} hp={displayState.enemy.hp} maxHp={displayState.enemy.maxHp} hpFx={hpFxFor('enemy')} callout={hpCalloutFor('enemy')} onClose={onExit} />
+          <SideHeader side="enemy" name="Enemy" rank={enemyDeckLabel} hp={displayState.enemy.hp} maxHp={displayState.enemy.maxHp} hpFx={hpFxFor('enemy')} callout={hpCalloutFor('enemy')} beaten={matchOutcome === 'victory'} onClose={onExit} />
           <OpponentHand count={displayState.enemy.hand.length} />
 
           <Battlefield
@@ -645,6 +664,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
 
           <SideHeader
             side="player"
+            beaten={matchOutcome === 'defeat'}
             name="You"
             rank={playerDeckLabel}
             hp={displayState.player.hp}
@@ -710,7 +730,23 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
           )}
 
           {inspect && <CardInspect cardId={inspect.cardId} context={inspect.context} battle={inspect.battle} onClose={() => setInspect(null)} />}
-          {phase === 'MATCH_END' && matchStats && <MatchSummary stats={matchStats} xp={xpResult} gold={goldResult} onPlayAgain={() => restartWithSeed(makeSeed())} onExit={onExit} friendlyRematch={friendlyRematch} />}
+          {phase === 'MATCH_END' && matchStats && (
+            <MatchSummary
+              stats={matchStats}
+              outcome={matchOutcome ?? 'draw'}
+              mode={remoteOpponent ? 'friendly' : battleMode}
+              xp={xpResult}
+              gold={goldResult}
+              finish={result?.finish ?? null}
+              hp={{ player: gameState.player.hp, playerMax: gameState.player.maxHp ?? matchStats.finalPlayerHp, enemy: gameState.enemy.hp, enemyMax: gameState.enemy.maxHp ?? matchStats.finalEnemyHp }}
+              missions={result?.missions}
+              extras={result?.extras}
+              // Ranked picks its next rival on its own screen; replaying here would face the same deck off the record.
+              onPlayAgain={result?.extras.ranked ? undefined : () => restartWithSeed(makeSeed())}
+              onExit={onExit}
+              friendlyRematch={friendlyRematch}
+            />
+          )}
 
           {/* Friendly Battle only - deliberately minimal/unstyled (see docs/FRIENDLY-BATTLE.md: "keep
               styling minimal, reuse existing components" - Codex owns the visual pass). */}

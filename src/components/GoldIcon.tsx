@@ -22,7 +22,7 @@ export function GoldAmount({ amount }: { amount: number }) {
 }
 
 /** Current balance, live - same quiet placement convention as GemBalance. Gold rewards fly here and roll up. */
-export function GoldBalance({ className = '', id }: { className?: string; id?: string }) {
+export function GoldBalance({ className = '', id, arriving }: { className?: string; id?: string; arriving?: number }) {
   const { gold } = useEconomy();
-  return <BalanceCounter kind="gold" value={gold} id={id} className={`gold-balance ${className}`} label={`${gold} Gold`} icon={<GoldIcon size={15} />} />;
+  return <BalanceCounter kind="gold" value={gold} id={id} arriving={arriving} className={`gold-balance ${className}`} label={`${gold} Gold`} icon={<GoldIcon size={15} />} />;
 }

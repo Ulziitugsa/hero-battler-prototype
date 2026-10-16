@@ -108,6 +108,21 @@ describe('reward flights are presentation only', () => {
     expect(seen[1].plan.landsInMs).toBe(base + STACK_DELAY_MS);
   });
 
+  it('a delayed flight (a result screen still opening) holds its counter for the delay too, except under reduced motion', () => {
+    const seen: RewardFlight[] = [];
+    subscribeRewardFlights((f) => seen.push(f));
+    registerRewardTarget('gold', fakeElement({ left: 300, top: 10, width: 60, height: 30 }));
+    flyRewards({ x: 50, y: 400 }, { gold: 30 }, { delayMs: 900 });
+    const base = planFlight('gold', 30, false).landsInMs;
+    expect(seen[0].delayMs).toBe(900);
+    expect(seen[0].plan.landsInMs).toBe(base + 900);
+    expect(landingDelay('gold')).toBeGreaterThan(base + 800);
+    reduced = true;
+    flyReward({ kind: 'gems', amount: 20, from: { x: 50, y: 400 }, delayMs: 900 });
+    expect(seen[1].delayMs).toBe(0);
+    expect(seen[1].plan.landsInMs).toBe(0);
+  });
+
   it('pulsing a counter restarts its arrival swell', () => {
     const el = fakeElement({ left: 300, top: 10, width: 60, height: 30 });
     registerRewardTarget('tickets', el);

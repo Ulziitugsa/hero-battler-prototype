@@ -32,6 +32,7 @@ export function SideHeader({
   logOpen,
   badge,
   callout,
+  beaten = false,
 }: {
   side: 'player' | 'enemy';
   name: string;
@@ -55,6 +56,8 @@ export function SideHeader({
   badge?: ReactNode;
   /** A word for the damage this bar just took ("Burn −45", "Big Hit −120"); see animation/battleCallouts.ts. */
   callout?: BattleCallout | null;
+  /** The match is over and this side lost: its HP plate reads as emptied under the result screen. */
+  beaten?: boolean;
 }) {
   const healthMax = maxHp ?? STARTING_HP;
   const pct = Math.max(0, Math.min(100, (hp / healthMax) * 100));
@@ -63,7 +66,7 @@ export function SideHeader({
   const shownHp = useCountUp(hp, { animateDecrease: true, durationMs: HP_ROLL_MS }).display;
 
   return (
-    <div className={`side-header ${side}`} aria-label={`${name}, ${rank}`}>
+    <div className={`side-header ${side} ${beaten ? 'is-beaten' : ''}`} aria-label={`${name}, ${rank}`}>
       {side === 'enemy' && onClose && (
         <button type="button" className="side-header-close" onClick={onClose} aria-label="Exit battle">
           <Icon name="close" size={11} />

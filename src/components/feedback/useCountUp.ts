@@ -100,6 +100,11 @@ export interface CountUpOptions {
    * pretends the player still has what they just spent.
    */
   animateDecrease?: boolean;
+  /**
+   * The number to show first, when a screen opens on a reward that has already been granted (a battle's Gold): the
+   * counter starts here and rolls up to the real value as the reward lands. Read on mount only.
+   */
+  startFrom?: number;
 }
 
 /**
@@ -108,11 +113,12 @@ export interface CountUpOptions {
  * keep using the store's value everywhere else. Reduced motion shows every change at once; see runCountUp for why the
  * shown value always ends on the real one.
  */
-export function useCountUp(value: number, { kind, durationMs = COUNT_UP_MS, animateDecrease = false }: CountUpOptions = {}): { display: number; counting: boolean } {
+export function useCountUp(value: number, { kind, durationMs = COUNT_UP_MS, animateDecrease = false, startFrom }: CountUpOptions = {}): { display: number; counting: boolean } {
   const reduced = useReducedMotion();
-  const [display, setDisplay] = useState(value);
+  const [initial] = useState(() => (startFrom !== undefined && startFrom < value && !reduced ? startFrom : value));
+  const [display, setDisplay] = useState(initial);
   const [counting, setCounting] = useState(false);
-  const shown = useRef(value);
+  const shown = useRef(initial);
 
   useEffect(() => {
     const show = (next: number, rolling: boolean) => {

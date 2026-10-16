@@ -1,0 +1,334 @@
+/* Battle result (components/MatchSummary.tsx): the end of a Quick, Ranked or Friendly battle.
+   It waits --br-delay after the round's last beat so the final blow is seen landing, then the card rises, the crest
+   stamps in and each row follows in turn. Victory is warm gold, Defeat a cool steel, a Draw neutral. */
+
+.br-backdrop {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+  background: radial-gradient(90% 60% at 50% 38%, rgba(8, 23, 35, 0.55), rgba(3, 9, 14, 0.86));
+  animation: mw-fade-in var(--mw-dur-slow) var(--mw-ease-out) var(--br-delay, 0ms) backwards;
+}
+
+.br-card {
+  --br-accent: var(--mw-reward);
+  --br-accent-soft: rgba(244, 216, 146, 0.28);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(380px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 18px 16px;
+  border: 1px solid var(--br-accent-soft);
+  border-top: 2px solid var(--br-accent);
+  border-radius: 18px;
+  color: var(--moon-ivory, #f7f0de);
+  background:
+    radial-gradient(120% 38% at 50% 0%, var(--br-accent-soft), transparent 70%),
+    linear-gradient(180deg, var(--moon-panel-raised, #1a3641), var(--moon-deep, #0d202d) 72%);
+  box-shadow: 0 26px 60px rgba(2, 8, 12, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  text-align: center;
+  font-family: var(--moon-ui, system-ui, sans-serif);
+  animation: br-rise var(--mw-dur-slow) var(--mw-ease-out) var(--br-delay, 0ms) backwards;
+}
+.br-card[data-outcome='defeat'] {
+  --br-accent: #9fb6c4;
+  --br-accent-soft: rgba(126, 156, 176, 0.22);
+}
+.br-card[data-outcome='draw'] {
+  --br-accent: var(--moon-teal, #70c0c0);
+  --br-accent-soft: rgba(112, 192, 192, 0.2);
+}
+
+.br-balances {
+  align-self: flex-end;
+  margin: -4px -6px 2px 0;
+}
+.br-balances .mw-balance-strip { justify-content: flex-end; }
+
+/* ---- Crest + headline ---------------------------------------------------------------------------------------- */
+
+.br-crest {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100px;
+  height: 100px;
+  margin: -6px 0 -8px;
+}
+.br-crest-disc {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 2px solid var(--br-accent);
+  border-radius: 50%;
+  color: var(--br-accent);
+  background: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.12), rgba(8, 23, 35, 0.9) 70%);
+  box-shadow: 0 0 0 4px rgba(8, 23, 35, 0.8), 0 0 22px var(--br-accent-soft);
+  animation: mw-pop-in var(--mw-dur-slow) var(--mw-ease-spring) calc(var(--br-delay, 0ms) + 120ms) backwards;
+}
+/* Victory only: a slow ring of light behind the crest. */
+.br-crest-rays {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0;
+}
+[data-outcome='victory'] .br-crest-rays {
+  opacity: 1;
+  background: repeating-conic-gradient(from 0deg, rgba(244, 216, 146, 0.32) 0 7deg, transparent 7deg 22deg);
+  mask: radial-gradient(closest-side, transparent 72%, #000 77%, #000 93%, transparent 100%);
+  animation: br-rays 14s linear infinite, mw-fade-in var(--mw-dur-reward) var(--mw-ease-out) calc(var(--br-delay, 0ms) + 260ms) backwards;
+}
+
+.br-kicker {
+  margin-top: 6px;
+  color: var(--moon-dim, #91aaa9);
+  font: 800 10px/1.3 var(--moon-ui, system-ui, sans-serif);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.br-title {
+  margin: 2px 0 0;
+  color: var(--br-accent);
+  font: 400 34px/1.1 var(--moon-display, Georgia, serif);
+  letter-spacing: 0.01em;
+  text-shadow: 0 3px 16px rgba(2, 8, 12, 0.85);
+  animation: mw-enter var(--mw-dur-slow) var(--mw-ease-out) calc(var(--br-delay, 0ms) + 180ms) backwards;
+}
+.br-sub {
+  margin: 4px 0 10px;
+  color: var(--moon-muted, #b7c8c6);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* ---- Rows ---------------------------------------------------------------------------------------------------- */
+
+.br-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.br-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px 11px;
+  border: 1px solid var(--moon-line, rgba(174, 202, 193, 0.2));
+  border-radius: 12px;
+  background: rgba(8, 23, 35, 0.5);
+  text-align: left;
+  animation: mw-enter var(--mw-dur-slow) var(--mw-ease-out) backwards;
+  animation-delay: calc(var(--br-delay, 0ms) + 280ms + var(--i, 0) * 90ms);
+}
+.br-label {
+  color: var(--moon-dim, #91aaa9);
+  font: 800 9.5px/1.2 var(--moon-ui, system-ui, sans-serif);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.br-finish-line {
+  color: var(--moon-ivory, #f7f0de);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.br-finish-line b { color: var(--mw-danger, #ff8f7a); white-space: nowrap; }
+
+/* Final HP, both sides: the side that fell reads as emptied. */
+.br-duel { gap: 6px; }
+.br-hp {
+  display: grid;
+  grid-template-columns: 46px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.br-hp-who { color: var(--moon-muted, #b7c8c6); font-weight: 800; }
+.br-hp-bar {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(231, 241, 226, 0.1);
+}
+.br-hp-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #4fae86, #9fe8c0);
+  transform-origin: left;
+  animation: br-fill-in var(--mw-dur-reward) var(--mw-ease-out) calc(var(--br-delay, 0ms) + 380ms) backwards;
+}
+.br-hp.enemy .br-hp-bar > span { background: linear-gradient(90deg, #b0473c, #ff8f7a); }
+.br-hp-num { font-variant-numeric: tabular-nums; font-weight: 800; }
+.br-hp-num small { color: var(--moon-dim, #91aaa9); font-weight: 600; }
+.br-hp.out .br-hp-who,
+.br-hp.out .br-hp-num { color: var(--moon-dim, #91aaa9); }
+.br-hp.out .br-hp-num { text-decoration: line-through; text-decoration-color: rgba(255, 143, 122, 0.7); }
+
+/* Rewards: what was gained, then the Account Level bar filling from where it was to where it is. */
+.br-reward-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+.br-reward-chips .xp-gain { font-size: 1.05rem; }
+.br-level {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 2px;
+}
+.br-level-name { color: var(--moon-muted, #b7c8c6); font-size: 11.5px; font-weight: 800; }
+.br-level.up .br-level-name { color: var(--mw-reward); }
+.br-level-num { color: var(--moon-dim, #91aaa9); font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; }
+.br-level .br-meter { grid-column: 1 / -1; }
+
+.br-meter {
+  position: relative;
+  display: block;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(231, 241, 226, 0.12);
+}
+.br-meter.thin { height: 4px; }
+.br-meter > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--to, 0%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ember-gold-deep, #ad8650), var(--mw-reward));
+  box-shadow: 0 0 10px var(--mw-reward-glow);
+  animation: br-meter var(--mw-dur-reward) var(--mw-ease-out) calc(var(--br-delay, 0ms) + 900ms) backwards;
+}
+
+/* Ranked: the new rating, the change, and the division bar. */
+.br-ranked-line { display: flex; align-items: baseline; gap: 8px; }
+.br-rating { font: 400 26px/1 var(--moon-display, Georgia, serif); color: var(--moon-prestige, #f0d59a); }
+.br-delta { padding: 1px 7px; border-radius: 99px; font-size: 12px; font-weight: 900; background: rgba(231, 241, 226, 0.1); }
+.br-delta.up { color: #10261c; background: var(--mw-heal, #9fe8c0); }
+.br-delta.down { color: #2a0f0a; background: var(--mw-danger, #ff8f7a); }
+.br-division { margin-left: auto; color: var(--moon-muted, #b7c8c6); font-size: 12px; font-weight: 800; }
+.br-note { color: var(--moon-muted, #b7c8c6); font-size: 11.5px; }
+.br-ranked.promoted { border-color: rgba(244, 216, 146, 0.55); }
+.br-ranked.promoted .br-note { color: var(--mw-reward); font-weight: 800; }
+
+/* Missions this battle moved forward. */
+.br-mission {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 3px 10px;
+  font-size: 12.5px;
+}
+.br-mission .br-meter { grid-column: 1 / -1; }
+.br-mission-title { font-weight: 700; }
+.br-mission-count { color: var(--moon-muted, #b7c8c6); font-variant-numeric: tabular-nums; font-weight: 800; }
+.br-mission.done .br-meter > span { background: linear-gradient(90deg, #4fae86, var(--mw-new)); box-shadow: 0 0 10px rgba(143, 224, 189, 0.5); }
+.br-ready {
+  color: var(--mw-new);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  animation-delay: calc(var(--br-delay, 0ms) + 1400ms);
+}
+.br-ready.mw-pop-in {
+  animation-delay: calc(var(--br-delay, 0ms) + 1400ms);
+}
+
+/* The full statistics, folded away. */
+.br-details { padding: 0; }
+.br-details summary {
+  padding: 9px 11px;
+  color: var(--moon-muted, #b7c8c6);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  list-style-position: inside;
+}
+.br-details .summary-stats { margin: 0; padding: 0 11px 10px; }
+
+/* ---- Actions ------------------------------------------------------------------------------------------------- */
+
+.br-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+  animation: mw-enter var(--mw-dur-slow) var(--mw-ease-out) calc(var(--br-delay, 0ms) + 520ms) backwards;
+}
+.br-actions button {
+  flex: 1;
+  min-height: 46px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font: 800 14px/1.2 var(--moon-ui, system-ui, sans-serif);
+}
+.br-primary {
+  border: 1px solid rgba(255, 236, 190, 0.55);
+  color: var(--ember-gold-ink, #272115);
+  background: linear-gradient(180deg, #f6dc9c, #d9b46a);
+  box-shadow: 0 6px 16px rgba(2, 8, 12, 0.45);
+}
+.br-primary:disabled { opacity: 0.6; }
+.br-secondary {
+  border: 1px solid var(--moon-line, rgba(174, 202, 193, 0.2));
+  color: var(--moon-ivory, #f7f0de);
+  background: rgba(8, 23, 35, 0.6);
+}
+
+/* ---- The board under it: the side that fell -------------------------------------------------------------------- */
+
+/* GamePage marks the battle root with data-match-end while the result is up: the beaten side's HP plate drains of
+   colour and gives one hard shake, so the screen says who fell before the card covers it. */
+[data-match-end] .side-header.is-beaten .hp-plate {
+  filter: grayscale(0.85) brightness(0.8);
+  animation: mw-shake var(--mw-dur-slow) var(--mw-ease-out) 120ms;
+  transition: filter var(--mw-dur-slow) var(--mw-ease-out);
+}
+
+@keyframes br-rise {
+  from { opacity: 0; translate: 0 18px; scale: 0.97; }
+  to { opacity: 1; translate: none; scale: 1; }
+}
+@keyframes br-rays { to { rotate: 1turn; } }
+@keyframes br-fill-in { from { scale: 0 1; } }
+@keyframes br-meter { from { width: var(--from, 0%); } }
+
+@media (max-height: 700px) {
+  .br-crest { width: 76px; height: 76px; margin: -4px 0 -6px; }
+  .br-crest-disc { width: 50px; height: 50px; }
+  .br-title { font-size: 28px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Nothing rises, spins or fills: the card and its rows fade in together, bars show their final value at once. The
+     wait for the final blow stays, shortened, so the result still follows the round rather than cutting it off. */
+  .br-backdrop { animation-duration: var(--mw-dur-base); animation-delay: 200ms; }
+  .br-card,
+  .br-row,
+  .br-title,
+  .br-actions { animation: mw-fade-in var(--mw-dur-base) linear 200ms backwards; }
+  .br-crest-disc { animation: none; }
+  [data-outcome='victory'] .br-crest-rays { animation: none; }
+  .br-hp-bar > span,
+  .br-meter > span { animation: none; }
+  [data-match-end] .side-header.is-beaten .hp-plate { animation: none; }
+}
