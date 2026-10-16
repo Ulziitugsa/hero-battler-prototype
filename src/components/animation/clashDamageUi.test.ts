@@ -50,6 +50,9 @@ describe('Quick Battle card mode: Clash Damage feedback', () => {
     const v = computeStepVisuals(dmg, run.s);
     expect(v.hpFx).toEqual([{ side: 'enemy', kind: 'damage', amount: 60 }]);
     expect([...v.heroChit.values()].flatMap((c) => c.floaters)).toEqual([]);
+    // The lane meanwhile shows who won: the beaten Unit dims before it leaves, the winner is lit. Classes only.
+    expect(v.heroChit.get('u1')?.className).toBe('chit-beaten');
+    expect(v.heroChit.get('u0')?.className).toBe('chit-victor');
     expect(calloutAt('left', run, 'clash-damage')).toMatchObject({ line3: 'Clash Damage: 60' });
   });
 

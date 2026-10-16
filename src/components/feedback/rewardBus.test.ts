@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { flyReward, flyRewards, landingDelay, planFlight, pulseRewardTarget, registerRewardTarget, resetRewardBusForTests, resolveRewardTarget, rewardLabel, STACK_DELAY_MS, subscribeRewardFlights, type RewardFlight } from './rewardBus';
+import { cancelRewardFlights, flyReward, flyRewards, landingDelay, planFlight, pulseRewardTarget, registerRewardTarget, resetRewardBusForTests, resolveRewardTarget, rewardLabel, STACK_DELAY_MS, subscribeRewardCancels, subscribeRewardFlights, type RewardFlight } from './rewardBus';
 
 // A stand-in for a DOM element: just the parts the bus reads (position, connection, class list).
 function fakeElement(rect: { left: number; top: number; width: number; height: number }, connected = true) {
@@ -121,6 +121,29 @@ describe('reward flights are presentation only', () => {
     flyReward({ kind: 'gems', amount: 20, from: { x: 50, y: 400 }, delayMs: 900 });
     expect(seen[1].delayMs).toBe(0);
     expect(seen[1].plan.landsInMs).toBe(0);
+  });
+
+  it('a screen that closes before its rewards land calls them off: the layer hears it and the counter stops waiting', () => {
+    const cancelled: number[][] = [];
+    subscribeRewardFlights(() => {});
+    subscribeRewardCancels((ids) => cancelled.push(ids));
+    registerRewardTarget('gold', fakeElement({ left: 300, top: 10, width: 60, height: 30 }));
+    registerRewardTarget('gems', fakeElement({ left: 200, top: 10, width: 60, height: 30 }));
+    const ids = flyRewards({ x: 50, y: 400 }, { gold: 30, gems: 5 }, { delayMs: 1300 });
+    expect(ids).toHaveLength(2);
+    expect(landingDelay('gold')).toBeGreaterThan(1300);
+    // Another claim's Gold still in the air keeps its own hold.
+    const other = flyReward({ kind: 'gold', amount: 10, from: { x: 50, y: 400 } });
+    cancelRewardFlights(ids);
+    expect(cancelled).toEqual([ids]);
+    expect(landingDelay('gems')).toBe(0);
+    expect(landingDelay('gold')).toBeGreaterThan(0);
+    expect(landingDelay('gold')).toBeLessThanOrEqual(planFlight('gold', 10, false).landsInMs);
+    cancelRewardFlights([other]);
+    expect(landingDelay('gold')).toBe(0);
+    // Nothing to call off (no layer was listening when it was announced): no event.
+    cancelRewardFlights([0]);
+    expect(cancelled).toHaveLength(2);
   });
 
   it('pulsing a counter restarts its arrival swell', () => {

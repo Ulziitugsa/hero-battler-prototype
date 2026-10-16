@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { GoldIcon } from '../GoldIcon';
 import { GemIcon } from '../GemIcon';
 import { TicketIcon } from '../TicketIcon';
-import { pulseRewardTarget, resolveRewardTarget, STACK_DELAY_MS, subscribeRewardFlights, type Point, type RewardFlight, type RewardKind } from './rewardBus';
+import { pulseRewardTarget, resolveRewardTarget, STACK_DELAY_MS, subscribeRewardCancels, subscribeRewardFlights, type Point, type RewardFlight, type RewardKind } from './rewardBus';
 
 const ICON: Record<RewardKind, () => ReactNode> = {
   gold: () => <GoldIcon size={18} />,
@@ -27,24 +27,42 @@ export function RewardFlightLayer() {
 
   useEffect(() => {
     const timers = new Set<number>();
-    const later = (fn: () => void, ms: number) => {
+    // Each flight's own timers, so a cancelled flight's arrival swell never fires.
+    const byFlight = new Map<number, number[]>();
+    const later = (fn: () => void, ms: number, flightId: number) => {
       const id = window.setTimeout(() => {
         timers.delete(id);
         fn();
       }, ms);
       timers.add(id);
+      byFlight.set(flightId, [...(byFlight.get(flightId) ?? []), id]);
     };
     const unsubscribe = subscribeRewardFlights((flight) => {
       const target = resolveRewardTarget(flight.kind);
       const r = target?.getBoundingClientRect();
       const to = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
       setFlights((list) => [...list, { flight, to }]);
-      later(() => setFlights((list) => list.filter((f) => f.flight.id !== flight.id)), Math.max(flight.delayMs + LABEL_MS, flight.plan.landsInMs) + 60);
+      later(() => {
+        byFlight.delete(flight.id);
+        setFlights((list) => list.filter((f) => f.flight.id !== flight.id));
+      }, Math.max(flight.delayMs + LABEL_MS, flight.plan.landsInMs) + 60, flight.id);
       // The counter answers on arrival; with no tokens in the air (reduced motion) it answers at once.
-      if (to) later(() => pulseRewardTarget(flight.kind), flight.plan.landsInMs);
+      if (to) later(() => pulseRewardTarget(flight.kind), flight.plan.landsInMs, flight.id);
+    });
+    const unsubscribeCancels = subscribeRewardCancels((ids) => {
+      const gone = new Set(ids);
+      for (const id of ids) {
+        for (const timer of byFlight.get(id) ?? []) {
+          window.clearTimeout(timer);
+          timers.delete(timer);
+        }
+        byFlight.delete(id);
+      }
+      setFlights((list) => (list.some((f) => gone.has(f.flight.id)) ? list.filter((f) => !gone.has(f.flight.id)) : list));
     });
     return () => {
       unsubscribe();
+      unsubscribeCancels();
       for (const id of timers) window.clearTimeout(id);
     };
   }, []);
@@ -59,11 +77,22 @@ export function RewardFlightLayer() {
   );
 }
 
+/** Labels stay inside the screen: one announced from a control at the edge (a Claim button) shifts inwards. */
+const EDGE_PX = 8;
+
 function FlightView({ flight, to }: { flight: RewardFlight; to: Point | null }) {
   const tokens = to ? flight.plan.tokens : 0;
+  const label = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const el = label.current;
+    if (!el || typeof window === 'undefined') return;
+    const half = el.offsetWidth / 2;
+    const x = Math.min(Math.max(flight.from.x, EDGE_PX + half), window.innerWidth - EDGE_PX - half);
+    if (x !== flight.from.x) el.style.left = `${x}px`;
+  }, [flight]);
   return (
     <>
-      <span className="mw-flight-label mw-float-number" data-kind={flight.kind} style={{ left: flight.from.x, top: flight.from.y - 14 - flight.stack * LABEL_STACK_PX, animationDelay: flight.delayMs ? `${flight.delayMs}ms` : undefined }}>
+      <span ref={label} className="mw-flight-label mw-float-number" data-kind={flight.kind} style={{ left: flight.from.x, top: flight.from.y - 14 - flight.stack * LABEL_STACK_PX, animationDelay: flight.delayMs ? `${flight.delayMs}ms` : undefined }}>
         {flight.label}
       </span>
       {to && Array.from({ length: tokens }, (_, i) => <FlightToken key={i} index={i} flight={flight} to={to} />)}

@@ -50,3 +50,30 @@
 @keyframes water-light { to { transform:translateX(8px) scaleX(.75); opacity:.35; } }
 @media(max-height:720px) { .moon-game .ritual .ritual-center,.moon-game .ritual.single.is-result .ritual-center { top:280px; }.moon-game .ritual .rc { width:190px; height:309px; margin:-154px 0 0 -95px; }.moon-game .ritual.single.is-result .ritual-info { margin-top:490px; } }
 @media(prefers-reduced-motion:reduce) { .moon-game .moonwell-arrival *,.moon-game .ritual .rc-reveal { animation:none!important; transition:none!important; }.arrival-motes { display:none; } }
+
+/* A stage card's build-up (Polish Pass 4). The card is on the stage from its telegraph: its back faces out, it gathers
+   its tier's light (--t-main / --t-glow), trembles as the seal breaks, burns brightest as it emerges and turns over on reveal.
+   Each beat starts where the last one ended, so the card never jumps. Reduced motion shows the sealed card, still. */
+.moon-game .ritual :is(.rc-telegraph, .rc-opening, .rc-emerge) .rc-inner { transform: rotateY(180deg); }
+.moon-game .ritual .rc-telegraph { animation: rc-gather var(--step-ms) cubic-bezier(.2, .7, .2, 1) both; }
+.moon-game .ritual .rc-opening { animation: rc-tremble var(--step-ms) linear both; }
+.moon-game .ritual .rc-emerge { animation: rc-rise-in var(--step-ms) cubic-bezier(.2, .7, .2, 1) both; }
+.moon-game .ritual :is(.rc-telegraph, .rc-opening, .rc-emerge) .rc-back-art { animation: rc-charge var(--step-ms) ease-in both; }
+.moon-game .ritual .rc-opening .rc-back-art { animation-name: rc-charge-hot; }
+.moon-game .ritual .rc-emerge .rc-back-art { animation: none; box-shadow: 0 0 64px var(--t-main), inset 0 0 26px rgba(0, 0, 0, .5); }
+@keyframes rc-gather { from { opacity: 0; transform: translateY(46px) scale(.74); } to { opacity: 1; transform: translateY(30px) scale(.86); } }
+@keyframes rc-tremble {
+  0% { transform: translateY(30px) scale(.86); }
+  25% { transform: translate(-2px, 29px) scale(.87); }
+  50% { transform: translate(2px, 28px) scale(.875); }
+  75% { transform: translate(-2px, 27px) scale(.885); }
+  100% { transform: translateY(26px) scale(.89); }
+}
+/* Ends where arrival-card (the reveal) begins. */
+@keyframes rc-rise-in { from { transform: translateY(26px) scale(.89); } to { transform: translateY(25px) scale(.9); } }
+@keyframes rc-charge { from { box-shadow: 0 0 10px var(--t-glow), inset 0 0 26px rgba(0, 0, 0, .7); } to { box-shadow: 0 0 44px var(--t-main), inset 0 0 26px rgba(0, 0, 0, .6); } }
+@keyframes rc-charge-hot { from { box-shadow: 0 0 44px var(--t-main), inset 0 0 26px rgba(0, 0, 0, .6); filter: brightness(1); } to { box-shadow: 0 0 70px var(--t-main), inset 0 0 26px rgba(0, 0, 0, .4); filter: brightness(1.35); } }
+@media (prefers-reduced-motion: reduce) {
+  .moon-game .ritual :is(.rc-telegraph, .rc-opening, .rc-emerge),
+  .moon-game .ritual :is(.rc-telegraph, .rc-opening, .rc-emerge) .rc-back-art { animation: none; }
+}

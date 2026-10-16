@@ -78,3 +78,28 @@
 .hr-sheet .ci-stats { max-width: 420px; margin: 14px auto 0; }
 .hr-sheet .ci-effects { max-width: 420px; margin-inline: auto; }
 .hr-card.hr-card-face { border-radius: 6px; }
+
+/* Opening a card (Polish Pass 4): the sheet fades in and the card rises into place, a beat ahead of its details, so a
+   tap reads as picking the card up. Its rarity glows, held still (rarity.css's colours; the sheet's own frame rule
+   above clears filters, hence the explicit rule here). Epic and Legendary land with their rarity flash
+   (mw-rarity-land, which owns the scale) instead of the plain rise. About a quarter second, so routine inspecting is
+   never slowed; closing stays instant. */
+.card-inspect-backdrop { animation: mw-fade-in 160ms var(--mw-ease-out) backwards; }
+.hr-sheet.card-inspect .hr-sheet-frame.ci-presence:is([data-rarity='rare'], [data-rarity='epic'], [data-rarity='legendary']) {
+  filter: drop-shadow(0 0 1px var(--mw-rarity-color)) drop-shadow(0 0 12px color-mix(in srgb, var(--mw-rarity-color) 60%, transparent));
+}
+.hr-sheet.card-inspect .ci-presence { animation: ci-card-rise 300ms var(--mw-ease-out) backwards, ci-card-settle 300ms var(--mw-ease-spring) backwards; }
+.hr-sheet.card-inspect .ci-presence:is([data-rarity='epic'], [data-rarity='legendary']) {
+  animation: ci-card-rise 300ms var(--mw-ease-out) backwards, mw-rarity-land 620ms var(--mw-ease-spring) backwards;
+}
+@keyframes ci-card-rise {
+  from { opacity: 0; translate: 0 18px; }
+}
+@keyframes ci-card-settle {
+  from { scale: 0.94; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-inspect-backdrop,
+  .hr-sheet.card-inspect .ci-presence,
+  .hr-sheet.card-inspect .ci-presence:is([data-rarity='epic'], [data-rarity='legendary']) { animation: none; }
+}

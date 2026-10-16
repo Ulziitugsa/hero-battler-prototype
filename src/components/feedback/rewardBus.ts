@@ -117,7 +117,8 @@ export function pulseRewardTarget(kind: RewardKind): void {
 
 // ---- Landing coordination ------------------------------------------------------------------------------------------
 
-const landingAt = new Map<RewardKind, number>();
+// When each flight that has somewhere to land arrives, by flight id: a cancelled flight stops holding its counter back.
+const landings = new Map<number, { kind: RewardKind; at: number }>();
 const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 /**
@@ -125,12 +126,18 @@ const now = (): number => (typeof performance !== 'undefined' ? performance.now(
  * than before it has left the button. 0 when nothing is in flight.
  */
 export function landingDelay(kind: RewardKind, at: number = now()): number {
-  return Math.max(0, (landingAt.get(kind) ?? 0) - at);
+  let latest = 0;
+  for (const [id, landing] of landings) {
+    if (landing.at <= at) landings.delete(id);
+    else if (landing.kind === kind) latest = Math.max(latest, landing.at);
+  }
+  return Math.max(0, latest - at);
 }
 
 // ---- Flights -------------------------------------------------------------------------------------------------------
 
 const listeners = new Set<(flight: RewardFlight) => void>();
+const cancelListeners = new Set<(ids: number[]) => void>();
 let nextId = 1;
 
 export function subscribeRewardFlights(listener: (flight: RewardFlight) => void): () => void {
@@ -138,6 +145,26 @@ export function subscribeRewardFlights(listener: (flight: RewardFlight) => void)
   return () => {
     listeners.delete(listener);
   };
+}
+
+/** The flight layer hears here when flights are called off (their screen closed before they landed). */
+export function subscribeRewardCancels(listener: (ids: number[]) => void): () => void {
+  cancelListeners.add(listener);
+  return () => {
+    cancelListeners.delete(listener);
+  };
+}
+
+/**
+ * Calls off flights still in the air - a result screen that closes before its rewards have landed (Play again at once)
+ * takes its coins with it instead of leaving them to fly at a counter that is gone. The rewards themselves were granted
+ * long before; only the drawing stops. Safe to call with flights that have already landed.
+ */
+export function cancelRewardFlights(ids: number[]): void {
+  const live = ids.filter((id) => id > 0);
+  if (live.length === 0) return;
+  for (const id of live) landings.delete(id);
+  for (const l of [...cancelListeners]) l(live);
 }
 
 function reducedMotion(): boolean {
@@ -156,36 +183,42 @@ function pointOf(from: Element | Point): Point {
  * Announces a reward the player just received. `from` is the control (or point) it came from. Safe to call anywhere,
  * any number of times: with no flight layer mounted (tests, a screen outside the app shell) it does nothing.
  */
-export function flyReward({ kind, amount, from, label, stack = 0, delayMs = 0 }: { kind: RewardKind; amount: number; from: Element | Point; label?: string; stack?: number; delayMs?: number }): void {
-  if (amount <= 0 || listeners.size === 0) return;
+export function flyReward({ kind, amount, from, label, stack = 0, delayMs = 0 }: { kind: RewardKind; amount: number; from: Element | Point; label?: string; stack?: number; delayMs?: number }): number {
+  if (amount <= 0 || listeners.size === 0) return 0;
   const base = planFlight(kind, amount, reducedMotion());
   // Reduced motion: nothing travels, so nothing waits either - the label and the counter answer at once.
   const delay = base.landsInMs > 0 ? Math.max(0, delayMs) : 0;
   const offset = base.landsInMs > 0 ? stack * STACK_DELAY_MS : 0;
   const plan = { ...base, landsInMs: base.landsInMs + offset + delay };
   // Only a flight with somewhere to land delays the counter; a reward whose counter is off screen just shows its label.
-  if (plan.landsInMs > 0 && resolveRewardTarget(kind)) landingAt.set(kind, Math.max(landingAt.get(kind) ?? 0, now() + plan.landsInMs));
-  const flight: RewardFlight = { id: nextId++, kind, amount, from: pointOf(from), label: label ?? rewardLabel(kind, amount), plan, stack, delayMs: delay };
+  const id = nextId++;
+  if (plan.landsInMs > 0 && resolveRewardTarget(kind)) landings.set(id, { kind, at: now() + plan.landsInMs });
+  const flight: RewardFlight = { id, kind, amount, from: pointOf(from), label: label ?? rewardLabel(kind, amount), plan, stack, delayMs: delay };
   for (const l of [...listeners]) l(flight);
+  return id;
 }
 
 /**
  * Several rewards earned by one control at once (a mission's Gold and Gems, a Journey day's Tickets and card): each
  * kind flies to its own counter, one after another, with their labels stacked at the source. Zero amounts are skipped.
+ * Returns the ids of the flights it started (for cancelRewardFlights).
  */
-export function flyRewards(from: Element | Point, rewards: Partial<Record<RewardKind, number>>, { delayMs = 0 }: { delayMs?: number } = {}): void {
+export function flyRewards(from: Element | Point, rewards: Partial<Record<RewardKind, number>>, { delayMs = 0 }: { delayMs?: number } = {}): number[] {
   const order: RewardKind[] = ['gold', 'gems', 'tickets', 'cards'];
+  const ids: number[] = [];
   let stack = 0;
   for (const kind of order) {
     const amount = rewards[kind] ?? 0;
-    if (amount > 0) flyReward({ kind, amount, from, stack: stack++, delayMs });
+    if (amount > 0) ids.push(flyReward({ kind, amount, from, stack: stack++, delayMs }));
   }
+  return ids;
 }
 
 /** Test helper: forget every target, listener and pending landing. */
 export function resetRewardBusForTests(): void {
   targets.clear();
   listeners.clear();
-  landingAt.clear();
+  cancelListeners.clear();
+  landings.clear();
   nextId = 1;
 }
