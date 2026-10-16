@@ -5,6 +5,7 @@ import { getOwnedCount } from '../../game/collection/collection';
 import { Icon, type IconName } from '../../components/Icon';
 import { DIFFICULTY_LABEL } from '../../game/campaign/progress';
 import { campaignBattleHp } from '../../game/campaign/battleSetup';
+import { CardArtwork } from '../../components/CardArtwork';
 
 const TYPE_LABEL: Record<string, string> = { battle: 'Battle', elite: 'Elite', boss: 'Boss', challenge: 'Challenge' };
 const TYPE_ICON: Record<string, IconName> = { battle: 'battle', elite: 'power', boss: 'graveyard', challenge: 'warning' };
@@ -47,7 +48,10 @@ export function StagePreviewSheet({ node, cleared, onFight, onClose }: { node: C
         <div className="campaign-sheet-rule" />
 
         <div className="campaign-sheet-foe">
-          <div className={`campaign-sheet-foe-portrait ${encounter.foeFaction}`} />
+          {/* The encounter names a real roster card for its portrait (foeCardId); the frame was drawn empty before. */}
+          <div className={`campaign-sheet-foe-portrait ${encounter.foeFaction}`}>
+            <CardArtwork cardId={encounter.foeCardId} animated={false} />
+          </div>
           <div className="campaign-sheet-foe-text">
             <span className="campaign-sheet-foe-name">{encounter.foeName}</span>
             <div className="campaign-sheet-foe-meta">

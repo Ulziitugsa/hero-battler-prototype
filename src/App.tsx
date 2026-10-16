@@ -43,6 +43,8 @@ import { chooseRankedOpponent, getRanked, readyRankRewards, recordRankedMatch } 
 import { rankedChange } from './components/battle/battleOutcome';
 import { CombatV2LabPage } from './pages/CombatV2LabPage';
 import { type CombatModel, type LocalBattleMode, combatModelForMode } from './game/combat/combatModel';
+// Last: the visual identity layer settles the cascade over every screen's own stylesheet (docs/design/VISUAL-IDENTITY.md).
+import './styles/identity.css';
 
 export default function App() {
   // The first committed frame replaces the static boot screen from index.html (it fades out over the live app).

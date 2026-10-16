@@ -1,0 +1,383 @@
+/* Moonwater visual identity (Polish Pass 3). One material language for every screen in the shell: night-water
+   panels lit from above, a warm gold rim reserved for what matters, Bree Serif for names and titles, Nunito for
+   everything read. Earlier passes left a pixel-era layer (flat squares, Consolas labels, Georgia body) on Ranked,
+   Quick Battle setup, the Campaign map header, the bottom navigation and the How to play sheet; this file brings
+   them onto the same surfaces as Home, Shop and Cards. Presentation only - no markup a flow depends on changes here.
+   Write-up: docs/design/VISUAL-IDENTITY.md. Imported last by App.tsx so it settles the cascade. */
+
+.moon-game {
+  /* Surfaces: one recipe, three weights. */
+  --mw-surface: linear-gradient(180deg, rgba(21, 45, 57, .95), rgba(9, 26, 37, .95));
+  --mw-surface-raised: linear-gradient(180deg, rgba(33, 62, 71, .97), rgba(13, 34, 46, .97));
+  --mw-surface-sunk: rgba(5, 16, 24, .62);
+  --mw-hairline: rgba(176, 204, 195, .14);
+  --mw-rim: rgba(240, 213, 154, .62);
+  --mw-rim-soft: rgba(240, 213, 154, .2);
+  /* Light from above: a bright top edge, a dark lower edge, a soft cast shadow. */
+  --mw-light: inset 0 1px rgba(255, 255, 255, .07), inset 0 -1px rgba(0, 0, 0, .32);
+  --mw-cast: 0 14px 32px rgba(0, 8, 14, .36);
+  --mw-radius: 20px;
+  --mw-radius-sm: 14px;
+  /* Gold, the one warm accent: the primary action, rewards, rank. */
+  --mw-gold-face: linear-gradient(180deg, #f6e3b0, #d2ad6e 62%, #bf9658);
+  --mw-gold-ink: #2a2318;
+  --mw-gold-ledge: 0 4px 0 rgba(96, 72, 40, .9);
+  --mw-eyebrow: 800 10px/1.3 var(--moon-ui);
+}
+
+/* ---- Shared primitives (Ranked, Friendly, Event and the Combat lab use these) ---- */
+
+.moon-game .moon-eyebrow { color: #c9d8cf; font: var(--mw-eyebrow); letter-spacing: .14em; text-transform: uppercase; }
+.moon-game .moon-primary {
+  gap: 12px;
+  border: 1px solid #f7e5b8;
+  border-radius: var(--mw-radius-sm);
+  background: var(--mw-gold-face);
+  color: var(--mw-gold-ink);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .6), var(--mw-gold-ledge), 0 10px 22px rgba(0, 8, 13, .25);
+  font: 800 15px/1 var(--moon-ui);
+}
+.moon-game .moon-primary:hover { background: linear-gradient(180deg, #fbebc0, #d8b679 62%, #c49c5e); }
+.moon-game .moon-primary:active { transform: translateY(2px); box-shadow: inset 0 1px rgba(255, 255, 255, .5), 0 2px 0 rgba(96, 72, 40, .9); }
+
+/* A titled group: Bree Serif, then a gold rule that fades out with a small lozenge at its head. */
+.moon-game :is(.ranked-section-head h2, .ranked-history h2, .skirmish-section) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #f5e7c4;
+  font: 400 19px/1.15 var(--moon-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.moon-game :is(.ranked-history h2, .skirmish-section)::after {
+  flex: 1;
+  height: 1px;
+  content: '';
+  background: linear-gradient(90deg, var(--mw-rim-soft), transparent);
+}
+
+/* ---- Atmosphere: the world behind every shell screen (components/WorldBackdrop.tsx) ----
+   Moonlight pooling from above, two slow mist banks over the water line and a vignette that keeps the edges dark,
+   so the scene reads as a place at night rather than a wallpaper. Gradients only; the mist moves by transform alone
+   (composited, no repaint), and stops under reduced motion. Each destination tints the light a little (:has picks the
+   screen; nothing is announced or stored). */
+.moon-world-halo,
+.moon-world-mist,
+.moon-world-vignette { position: absolute; inset: 0; pointer-events: none; }
+.moon-world-halo {
+  background:
+    radial-gradient(ellipse 70% 38% at 72% 4%, var(--mw-scene-light, rgba(214, 230, 222, .16)), transparent 70%),
+    radial-gradient(ellipse 120% 50% at 50% 104%, rgba(4, 12, 19, .7), transparent 70%);
+  transition: background 600ms ease;
+}
+.moon-world-mist { overflow: hidden; }
+.moon-world-mist i {
+  position: absolute;
+  left: -30%;
+  width: 160%;
+  height: 26%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(180, 208, 214, .1), transparent 72%);
+  animation: mwMistDrift 46s ease-in-out infinite alternate;
+  will-change: transform;
+}
+.moon-world-mist i:nth-child(1) { top: 52%; }
+.moon-world-mist i:nth-child(2) { top: 70%; height: 22%; opacity: .8; animation-duration: 63s; animation-direction: alternate-reverse; }
+.moon-world-vignette { background: radial-gradient(ellipse 100% 80% at 50% 42%, transparent 58%, rgba(3, 10, 16, .62) 100%); }
+@keyframes mwMistDrift { from { transform: translate3d(-6%, 0, 0); } to { transform: translate3d(6%, -2%, 0); } }
+/* A battle paints its own sky over the whole screen: the mist under it stops rather than drifting unseen. */
+.moon-game:has(.battle-stage) .moon-world-mist { display: none; }
+
+.moon-game:has(.shop-screen) { --mw-scene-light: rgba(244, 196, 120, .17); }
+.moon-game:has(.ranked-screen) { --mw-scene-light: rgba(240, 168, 116, .15); }
+.moon-game:has(.heroes-screen) { --mw-scene-light: rgba(186, 170, 236, .14); }
+.moon-game:has(.decks-screen) { --mw-scene-light: rgba(150, 214, 206, .15); }
+
+/* ---- Screen changes: the new destination fades in (opacity only, so a sheet it opens is never displaced) ---- */
+:where(.moon-game .app-frame-content > *) { animation: mwScreenIn 220ms var(--mw-ease-out, ease-out) backwards; }
+@keyframes mwScreenIn { from { opacity: 0; } }
+
+/* ---- Bottom navigation: a carved bar with a lit gold seam, one voice for its labels ---- */
+.moon-game .hud-arc {
+  border-top: 0;
+  background:
+    linear-gradient(90deg, transparent, var(--mw-rim-soft) 18%, rgba(240, 213, 154, .34) 50%, var(--mw-rim-soft) 82%, transparent) top / 100% 1px no-repeat,
+    linear-gradient(180deg, rgba(13, 32, 44, .97), rgba(5, 16, 25, .98));
+}
+.moon-game .hud-medallion-label { font: 700 11px/1.1 var(--moon-ui); letter-spacing: .01em; }
+.moon-game .hud-medallion.active .hud-medallion-chip { box-shadow: 0 0 14px rgba(240, 213, 154, .2), 0 3px 12px rgba(1, 10, 15, .22); }
+
+/* ---- Home: hierarchy and rhythm ---- */
+/* The two companion battles sit side by side with the divider between them (the grid had two columns for three
+   children, so Friendly Battle wrapped under Quick Battle and left half the row empty). */
+.moon-game .home-secondary-actions { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+.moon-game .home-secondary-actions small { font: 600 10px/1.2 var(--moon-ui); }
+.moon-game .home-formation small,
+.moon-game .home-quiet-links > small { font: var(--mw-eyebrow); font-size: 9px; letter-spacing: .12em; }
+/* The Campaign card is the one primary destination: it carries the lit rim, the rest of Home sits a step back. */
+.moon-game .home-campaign { border-top-color: var(--mw-rim); box-shadow: var(--mw-light), 0 0 0 1px rgba(240, 213, 154, .06), 0 18px 40px rgba(0, 8, 14, .42); }
+
+/* ---- Ranked: from flat pixel boxes onto the shared panels ---- */
+.moon-game .ranked-screen { font-family: var(--moon-ui); }
+.moon-game .ranked-header p { color: #c4d2cc; font: 600 14px/1.45 var(--moon-ui); }
+.moon-game .ranked-crest-card,
+.moon-game .ranked-rival {
+  border: 1px solid var(--mw-hairline);
+  border-top-color: var(--mw-rim);
+  border-radius: var(--mw-radius);
+  background: var(--mw-surface-raised);
+  box-shadow: var(--mw-light), var(--mw-cast);
+}
+.moon-game .ranked-crest-card { padding: 18px 18px 16px; }
+.moon-game .ranked-emblem {
+  border: 2px solid rgba(240, 213, 154, .8);
+  background: radial-gradient(circle at 50% 34%, #8d7650, #2b403d 64%, #0f1f27);
+  box-shadow: 0 0 0 4px rgba(6, 17, 26, .7), 0 0 22px rgba(240, 213, 154, .22);
+}
+.moon-game .ranked-crest-card h2 { font: 400 28px/1.05 var(--moon-display); }
+.moon-game .ranked-crest-card strong { font: 400 20px/1.2 var(--moon-display); color: #f7ecd2; }
+.moon-game :is(.ranked-crest-card h2 small, .ranked-crest-card strong small, .ranked-record, .ranked-next, .ranked-battle span, .ranked-ready-tag, .ranked-reward-state, .ranked-next-reward) {
+  font: 700 11px/1.3 var(--moon-ui);
+  letter-spacing: .02em;
+}
+.moon-game .ranked-crest-card strong small { color: #b9cbc5; font-size: 10px; letter-spacing: .12em; }
+.moon-game .ranked-progress { height: 7px; overflow: hidden; border: 0; border-radius: 99px; background: var(--mw-surface-sunk); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .5); }
+.moon-game .ranked-progress span { border-radius: inherit; background: linear-gradient(90deg, #b0814c, #f0d59a); box-shadow: 0 0 10px rgba(240, 213, 154, .35); }
+.moon-game .ranked-rival { border-left: 1px solid var(--mw-hairline); }
+.moon-game .ranked-rival-mark { border: 1px solid var(--mw-rim-soft); border-radius: 12px; background: radial-gradient(circle at 50% 30%, #3f5a55, #1c3437); }
+.moon-game .ranked-rival strong { font: 400 20px/1.15 var(--moon-display); }
+.moon-game .ranked-rival small { font: 600 12px/1.35 var(--moon-ui); }
+.moon-game .ranked-battle { min-height: 54px; }
+.moon-game .ranked-battle span { opacity: .78; }
+.moon-game .ranked-rewards { overflow: hidden; border: 1px solid var(--mw-hairline); border-radius: var(--mw-radius); background: var(--mw-surface); box-shadow: var(--mw-cast); }
+.moon-game .ranked-section-head { padding: 14px 14px 4px; }
+.moon-game .ranked-section-head h2 { margin: 0; }
+.moon-game .ranked-reward { border-bottom-color: var(--mw-hairline); background: transparent; }
+.moon-game .ranked-reward strong { font: 400 17px/1.15 var(--moon-display); }
+.moon-game .ranked-reward small { font: 600 11px/1.3 var(--moon-ui); }
+.moon-game .ranked-reward.ready { background: linear-gradient(90deg, rgba(120, 96, 52, .38), rgba(42, 64, 62, .3)); }
+.moon-game .ranked-reward-state button { border-radius: 999px; background: var(--mw-gold-face); box-shadow: inset 0 1px rgba(255, 255, 255, .55), 0 2px 0 rgba(96, 72, 40, .9); font: 800 12px/1 var(--moon-ui); }
+.moon-game .ranked-next-reward { margin: 0; padding: 10px 14px 13px; color: #b5c6c1; }
+.moon-game .ranked-history { padding: 12px 14px 4px; border: 1px solid var(--mw-hairline); border-radius: var(--mw-radius); background: var(--mw-surface); }
+.moon-game .ranked-history > div { border-bottom-color: var(--mw-hairline); font: 700 13px/1.3 var(--moon-ui); }
+.moon-game .ranked-history > div:last-child { border-bottom: 0; }
+.moon-game .ranked-history-empty { margin: 0 0 10px; color: #a9bdb9; font: 600 12px/1.45 var(--moon-ui); }
+
+/* ---- Quick Battle setup: the same panels, faction-lit rival choices, the shared gold action ---- */
+.moon-game .skirmish { background: transparent; }
+.moon-game .skirmish-world { background: none; }
+.moon-game .skirmish-title { font: 400 28px/1.1 var(--moon-display); }
+.moon-game .skirmish-caption { color: #c4d2cc; font: 600 13px/1.3 var(--moon-ui); }
+.moon-game .skirmish-back,
+.moon-game .skirmish-step { border: 1px solid var(--mw-rim-soft); border-radius: 13px; background: var(--mw-surface-raised); box-shadow: var(--mw-light); }
+.moon-game .skirmish-pennant-cloth {
+  overflow: hidden;
+  border: 1px solid var(--mw-hairline);
+  border-radius: 16px;
+  background: var(--mw-surface-raised);
+  box-shadow: var(--mw-light), 0 8px 18px rgba(0, 8, 14, .3);
+}
+.moon-game .skirmish-pennant.active .skirmish-pennant-cloth { border-color: var(--mw-rim); background: linear-gradient(180deg, rgba(62, 78, 66, .96), rgba(20, 42, 48, .97)); box-shadow: 0 0 0 1px rgba(240, 213, 154, .3), 0 0 22px rgba(240, 213, 154, .2), 0 10px 22px rgba(0, 8, 14, .36); }
+.moon-game .skirmish-pennant-name { font: 400 16px/1.1 var(--moon-display); }
+.moon-game .skirmish-terrace { border: 1px solid var(--mw-hairline); border-top-color: var(--mw-rim); border-radius: var(--mw-radius); background: var(--mw-surface); box-shadow: var(--mw-light), var(--mw-cast); }
+.moon-game .skirmish .home-deck-name { font: 400 18px/1.15 var(--moon-display); }
+.moon-game .skirmish .home-deck-meta { font: 700 12px/1.3 var(--moon-ui); }
+.moon-game .skirmish-card-hp { font: 700 13px/1.4 var(--moon-ui); color: #d9e2dc; }
+.moon-game .skirmish .home-fight-seal { border: 1px solid #f7e5b8; border-radius: var(--mw-radius-sm); background: var(--mw-gold-face); box-shadow: inset 0 1px rgba(255, 255, 255, .6), var(--mw-gold-ledge), 0 10px 22px rgba(0, 8, 13, .25); }
+.moon-game .skirmish .home-fight-seal-core { font: 400 19px/1 var(--moon-display); }
+.moon-game .skirmish .home-fight-seal:disabled { border-color: #4c6664; background: #1a2f37; box-shadow: none; }
+
+/* ---- Campaign map: the header reads as part of the same set, and progress fades instead of cutting ---- */
+.moon-game .campaign-back-medallion { border: 1px solid var(--mw-rim-soft); border-radius: 13px; background: rgba(9, 26, 37, .82); box-shadow: var(--mw-light), 0 6px 16px rgba(0, 8, 14, .35); }
+.moon-game .campaign-map-title span:first-child { font-family: var(--moon-display); text-shadow: 0 2px 12px rgba(4, 12, 19, .9); }
+.moon-game .campaign-map-title span:last-child { font: 700 12px/1.3 var(--moon-ui); color: #d8d0b6; text-shadow: 0 1px 8px rgba(4, 12, 19, .9); }
+.moon-game :is(.campaign-lantern-max, .campaign-lantern-regen) { font-family: var(--moon-ui); font-weight: 700; text-shadow: 0 1px 6px rgba(4, 12, 19, .95); }
+.moon-game .campaign-footer-label { font: 700 13px/1.3 var(--moon-ui); text-shadow: 0 1px 8px rgba(4, 12, 19, .9); }
+/* Cleared ground is lit and the road ahead is veiled; the two now meet in a soft band rather than a hard seam. */
+.moon-game .campaign-warm-glow { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 60px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 60px), transparent); }
+.moon-game .campaign-ash-veil { -webkit-mask-image: linear-gradient(90deg, transparent, #000 60px); mask-image: linear-gradient(90deg, transparent, #000 60px); }
+
+/* ---- How to play: a Moonwater sheet with a guide, instead of the old parchment ---- */
+.moon-game .how-to-play-overlay { background: rgba(3, 12, 19, .76); }
+.moon-game .how-to-play-sheet {
+  position: relative;
+  gap: 16px;
+  border: 1px solid var(--mw-hairline);
+  border-top-color: var(--mw-rim);
+  border-radius: 24px 24px 0 0;
+  background: var(--mw-surface-raised);
+  box-shadow: var(--mw-light), 0 -16px 40px rgba(0, 6, 11, .55);
+  clip-path: none;
+  color: var(--moon-ivory);
+  font-family: var(--moon-ui);
+  animation: mwSheetRise 280ms var(--mw-ease-out, ease-out) backwards;
+}
+@keyframes mwSheetRise { from { opacity: 0; transform: translateY(24px); } }
+.moon-game .how-to-play-header { justify-content: flex-start; gap: 12px; }
+.moon-game .how-to-play-guide {
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  overflow: hidden;
+  border: 1px solid var(--mw-rim);
+  border-radius: 16px;
+  background: #0b1a24;
+  box-shadow: 0 0 0 3px rgba(6, 17, 26, .7), 0 0 18px rgba(240, 190, 110, .22);
+}
+.moon-game .how-to-play-guide :is(canvas, img) { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.moon-game .how-to-play-heading { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.moon-game .how-to-play-heading small { color: #b5c8c2; font: var(--mw-eyebrow); letter-spacing: .12em; text-transform: uppercase; }
+.moon-game .how-to-play-title { color: #f5e7c4; font: 400 24px/1.1 var(--moon-display); }
+.moon-game .how-to-play-close { flex: 0 0 34px; width: 34px; height: 34px; border: 1px solid var(--mw-hairline); background: rgba(9, 26, 37, .85); color: #dbe3d6; box-shadow: none; }
+.moon-game .how-to-play-rule { margin-top: -6px; background: linear-gradient(90deg, var(--mw-rim-soft), transparent); height: 1px; }
+.moon-game .how-to-play-steps { position: relative; gap: 16px; counter-reset: mw-step; }
+/* The three steps hang off one thread: choose, place, fight. */
+.moon-game .how-to-play-steps::before { position: absolute; top: 24px; bottom: 24px; left: 22px; width: 2px; content: ''; background: linear-gradient(180deg, var(--mw-rim-soft), rgba(240, 213, 154, .05)); }
+.moon-game .how-to-play-step { position: relative; }
+.moon-game .how-to-play-step-icon { position: relative; width: 46px; height: 46px; border: 1px solid #f7e5b8; background: var(--mw-gold-face); color: var(--mw-gold-ink); box-shadow: inset 0 1px rgba(255, 255, 255, .55), 0 3px 0 rgba(96, 72, 40, .85), 0 6px 14px rgba(0, 8, 14, .35); counter-increment: mw-step; }
+.moon-game .how-to-play-step-icon::after { position: absolute; right: -4px; bottom: -4px; display: grid; place-items: center; width: 18px; height: 18px; content: counter(mw-step); border: 1px solid var(--mw-rim); border-radius: 50%; background: #10262f; color: #f5e2b0; font: 800 10px/1 var(--moon-ui); }
+.moon-game .how-to-play-step-title { color: #f7ecd2; font: 400 18px/1.2 var(--moon-display); }
+.moon-game .how-to-play-step-desc { color: #c9d6d0; font: 600 13.5px/1.45 var(--moon-ui); }
+.moon-game .how-to-play-footnote { padding: 10px 12px; border: 1px solid var(--mw-hairline); border-left: 2px solid var(--mw-rim); border-radius: 12px; background: var(--mw-surface-sunk); color: #d8d3bd; font: 700 12.5px/1.45 var(--moon-ui); }
+.moon-game .how-to-play-cta { width: 100%; height: 52px; border: 1px solid #f7e5b8; border-radius: var(--mw-radius-sm); background: var(--mw-gold-face); clip-path: none; color: var(--mw-gold-ink); box-shadow: inset 0 1px rgba(255, 255, 255, .6), var(--mw-gold-ledge), 0 10px 22px rgba(0, 8, 13, .25); font: 400 19px/1 var(--moon-display); }
+
+/* ---- First run: the starter choice reads as three banners, each lit by its faction ---- */
+.moon-game .starter-pick-option { --faction: #9fb5ad; border-color: var(--mw-hairline); border-left: 3px solid color-mix(in srgb, var(--faction) 70%, transparent); background: var(--mw-surface-raised); box-shadow: var(--mw-light), 0 10px 24px rgba(0, 8, 14, .3); transition: box-shadow 160ms ease, border-color 160ms ease; }
+.moon-game .starter-pick-option.kingdom { --faction: var(--px-kingdom); }
+.moon-game .starter-pick-option.undead { --faction: var(--px-undead); }
+.moon-game .starter-pick-option.infernal { --faction: var(--px-infernal); }
+.moon-game .starter-pick-option.selected { border-color: var(--mw-rim); border-left-color: var(--faction); box-shadow: 0 0 0 1px rgba(240, 213, 154, .5), 0 0 26px color-mix(in srgb, var(--faction) 34%, transparent), var(--mw-cast); }
+.moon-game .starter-pick-art { border: 1px solid color-mix(in srgb, var(--faction) 45%, transparent); box-shadow: 0 0 16px color-mix(in srgb, var(--faction) 22%, transparent); }
+.moon-game .starter-pick-confirm:not(:disabled) { border-color: #f7e5b8; background: var(--mw-gold-face); box-shadow: inset 0 1px rgba(255, 255, 255, .6), var(--mw-gold-ledge), 0 10px 22px rgba(0, 8, 13, .25); }
+
+/* ---- Empty and waiting states: a framed, quiet moment instead of a dashed box ---- */
+.moon-game .hr-empty-frame { border: 1px solid var(--mw-rim-soft); border-radius: 18px; background: radial-gradient(circle at 50% 30%, rgba(63, 90, 85, .6), rgba(13, 31, 40, .9)); box-shadow: 0 0 24px rgba(240, 213, 154, .1); }
+.moon-game .hr-empty-btn { border: 1px solid var(--mw-rim-soft); border-radius: 999px; background: var(--mw-surface-raised); font: 800 12px/1 var(--moon-ui); letter-spacing: .02em; }
+.moon-game :is(.dk-empty-note, .offers-empty-note, .bd-log-empty) { color: #b2c4bf; font: 600 12.5px/1.5 var(--moon-ui); }
+
+/* ---- Campaign sheets and labels: the brown wood of the first art pass becomes the same night panel, with the gold
+   reserved for the stage's reward and the action ---- */
+.moon-game :is(.campaign-reward-sheet, .campaign-result-sheet) {
+  border: 1px solid var(--mw-hairline);
+  border-top: 1px solid var(--mw-rim);
+  border-radius: 24px;
+  background: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(240, 213, 154, .12), transparent 70%), var(--mw-surface-raised);
+  box-shadow: var(--mw-light), 0 24px 54px rgba(0, 6, 11, .6);
+}
+.moon-game .campaign-result-sheet.defeat { background: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(232, 120, 104, .12), transparent 70%), var(--mw-surface-raised); }
+.moon-game :is(.campaign-reward-kicker, .campaign-result-kicker) { color: #b9cbc5; font: var(--mw-eyebrow); letter-spacing: .12em; text-transform: uppercase; }
+.moon-game :is(.campaign-reward-title, .campaign-result-title) { color: #f7ecd2; font-family: var(--moon-display); }
+.moon-game :is(.campaign-reward-sub, .campaign-result-blurb) { color: #c4d2cc; font-family: var(--moon-ui); }
+.moon-game :is(.campaign-reward-disc, .campaign-result-disc) { box-shadow: 0 0 0 4px rgba(6, 17, 26, .75), 0 0 28px rgba(240, 213, 154, .3), 0 12px 26px rgba(0, 6, 11, .6); }
+.moon-game .campaign-result-disc.defeat { box-shadow: 0 0 0 4px rgba(6, 17, 26, .75), 0 12px 26px rgba(0, 6, 11, .6); }
+.moon-game .campaign-result-row { border: 1px solid var(--mw-hairline); border-radius: 14px; background: var(--mw-surface-sunk); clip-path: none; }
+.moon-game .campaign-result-row-icon:not(.gold) { background: rgba(37, 64, 70, .9); color: #b9cbc5; }
+.moon-game .campaign-result-row-text span:first-child { color: #f3ead2; font-family: var(--moon-ui); }
+.moon-game .campaign-result-row-text span:last-child { color: #a9bdb9; }
+.moon-game .campaign-result-mark-seal { background: rgba(5, 16, 24, .75); color: rgba(240, 213, 154, .2); }
+.moon-game .campaign-result-mark.on .campaign-result-mark-seal { background: var(--mw-gold-face); color: var(--mw-gold-ink); }
+.moon-game .campaign-result-mark span:last-child { color: #91a8a5; }
+.moon-game .campaign-result-mark.on span:last-child { color: #e8dcb8; }
+.moon-game :is(.campaign-reward-claim, .campaign-result-cta) {
+  border: 1px solid #f7e5b8;
+  border-radius: var(--mw-radius-sm);
+  background: var(--mw-gold-face);
+  clip-path: none;
+  color: var(--mw-gold-ink);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .6), var(--mw-gold-ledge), 0 10px 22px rgba(0, 8, 13, .25);
+  font: 400 18px/1 var(--moon-display);
+}
+.moon-game .campaign-result-secondary { border-color: var(--mw-hairline); border-radius: var(--mw-radius-sm); background: var(--mw-surface-sunk); color: #d9e2dc; font: 700 13px/1.3 var(--moon-ui); }
+.moon-game .campaign-story-ribbon {
+  border: 1px solid var(--mw-hairline);
+  border-top-color: var(--mw-rim);
+  border-radius: 18px;
+  background: var(--mw-surface-raised);
+  clip-path: none;
+  box-shadow: var(--mw-light), 0 14px 32px rgba(0, 6, 11, .6);
+}
+.moon-game .campaign-story-line { color: #f3ead2; font: 600 15px/1.5 var(--moon-ui); }
+.moon-game :is(.campaign-story-progress, .campaign-story-continue) { color: #a9bdb9; font-family: var(--moon-ui); }
+.moon-game .campaign-story-backdrop { --px-font-display: var(--moon-display); }
+.moon-game .campaign-story-nameplate { background: linear-gradient(180deg, rgba(33, 62, 71, .97), rgba(13, 34, 46, .97)); }
+.moon-game .campaign-story-skip { border: 1px solid var(--mw-hairline); background: rgba(9, 26, 37, .85); color: #dbe3d6; }
+/* Stage names on the map: small lit plaques rather than terminal labels. */
+.moon-game .campaign-node-name { border: 1px solid var(--mw-rim-soft); border-radius: 8px; background: rgba(7, 20, 29, .88); color: #f5e2b0; font: 800 10px/1.2 var(--moon-ui); letter-spacing: .06em; }
+.moon-game .campaign-node-caption { font-family: var(--moon-ui); }
+/* Energy is a lantern: a lit case that fills with lamplight. */
+.moon-game .campaign-lantern-case { border: 1px solid var(--mw-rim-soft); border-radius: 12px 12px 8px 8px; background: rgba(7, 20, 29, .9); box-shadow: 0 0 16px rgba(240, 180, 96, .22), 0 4px 10px rgba(4, 8, 10, .6); }
+.moon-game .campaign-lantern-fill { background: linear-gradient(180deg, #f7cf7d, #d58a3c); box-shadow: 0 0 12px rgba(247, 200, 110, .6); }
+.moon-game .campaign-lantern-value { font-family: var(--moon-display); text-shadow: 0 1px 4px rgba(60, 30, 6, .9); }
+/* Region select joins the set: Bree titles, Nunito copy, night plates. */
+.moon-game :is(.campaign-regions-title, .campaign-region-plate-name) { font-family: var(--moon-display); }
+.moon-game :is(.campaign-regions-sub, .campaign-region-plate-blurb, .campaign-region-plate-status, .campaign-region-locked-text, .campaign-region-journey-note) { font-family: var(--moon-ui); }
+.moon-game .campaign-region-locked-text span:first-child { color: #d9d2bd; font-family: var(--moon-display); }
+.moon-game :is(.campaign-region-locked-text span:last-child, .campaign-region-journey-note) { color: #98aca8; }
+.moon-game .campaign-region-plate { border-radius: var(--mw-radius); box-shadow: 0 0 0 1px var(--mw-rim-soft), var(--mw-cast); }
+.moon-game .campaign-region-locked-row { border: 1px solid var(--mw-hairline); border-radius: var(--mw-radius-sm); background: var(--mw-surface); }
+
+/* The stage sheet is built on the pixel tokens; re-pointing them inside it moves every plate onto the shared panels
+   and voices at once, without touching the sheet's layout. */
+.moon-game .campaign-sheet {
+  --px-font-display: var(--moon-display);
+  --px-font-label: var(--moon-ui);
+  --px-panel-2: rgba(5, 16, 24, .55);
+  --px-line-dim: var(--mw-hairline);
+  border: 1px solid var(--mw-hairline);
+  border-top: 1px solid var(--mw-rim);
+  border-radius: 24px 24px 0 0;
+  background: radial-gradient(ellipse 80% 30% at 50% 0%, rgba(240, 213, 154, .08), transparent 70%), var(--mw-surface-raised);
+  box-shadow: var(--mw-light), 0 -16px 40px rgba(0, 6, 11, .6);
+  font-family: var(--moon-ui);
+}
+.moon-game .campaign-sheet :is(.campaign-sheet-modifier, .campaign-sheet-reward-card, .campaign-sheet-deck-rail, .campaign-sheet-power-row, .campaign-sheet-cost-plate) { border-radius: var(--mw-radius-sm); }
+.moon-game .campaign-sheet-foe-portrait { overflow: hidden; padding: 0; border-radius: 12px; box-shadow: 0 0 0 1px var(--mw-rim), 0 0 0 4px rgba(6, 17, 26, .8), 0 5px 12px rgba(4, 8, 10, .6); }
+.moon-game .campaign-sheet-foe-portrait::after { display: none; }
+.moon-game .campaign-sheet-foe-portrait .moon-art { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.moon-game .campaign-sheet-deck-fan { border-radius: 6px; background: linear-gradient(160deg, color-mix(in srgb, var(--px-kingdom) 80%, #fff 20%), color-mix(in srgb, var(--px-kingdom) 55%, #0b1a24)); box-shadow: 4px -3px 0 -1px rgba(240, 213, 154, .35), 0 0 0 1px rgba(6, 17, 26, .9); }
+.moon-game .campaign-sheet-deck-fan[data-faction='undead'] { background: linear-gradient(160deg, color-mix(in srgb, var(--px-undead) 80%, #fff 20%), color-mix(in srgb, var(--px-undead) 55%, #0b1a24)); }
+.moon-game .campaign-sheet-deck-fan[data-faction='infernal'] { background: linear-gradient(160deg, color-mix(in srgb, var(--px-infernal) 80%, #fff 20%), color-mix(in srgb, var(--px-infernal) 55%, #0b1a24)); }
+.moon-game .campaign-sheet-fight { border: 1px solid #f7e5b8; border-radius: var(--mw-radius-sm); background: var(--mw-gold-face); box-shadow: inset 0 1px rgba(255, 255, 255, .6), var(--mw-gold-ledge), 0 10px 22px rgba(0, 8, 13, .25); }
+.moon-game .campaign-sheet-fight:active { box-shadow: inset 0 1px rgba(255, 255, 255, .5), 0 1px 0 rgba(96, 72, 40, .9); }
+/* A story speaker has no portrait art yet: the frame reads as a backlit silhouette under the moon, not an empty slab. */
+.moon-game .campaign-story-portrait { border: 1px solid var(--mw-rim-soft); background: radial-gradient(ellipse 60% 40% at 50% 8%, rgba(240, 220, 170, .22), transparent 70%), linear-gradient(176deg, rgba(33, 52, 64, .92), rgba(9, 20, 29, .96)); box-shadow: 0 0 34px rgba(240, 213, 154, .12), inset 0 -40px 50px rgba(3, 9, 14, .65); }
+
+/* ---- Cards, Decks and Profile controls: the pixel pass squared every plate and set labels in Consolas; they take the
+   shared radius and voices (the card faces keep their own Cinzel titles) ---- */
+.moon-game :is(.heroes-screen, .decks-screen) { --px-font-display: var(--moon-display); --px-font-label: var(--moon-ui); }
+.moon-game :is(.hr-search, .hr-sort, .hr-tool, .dk-name-input, .dk-plate-btn, .dk-round-btn, .pf-btn, .dk-plaque, .pf-plaque) { border-radius: var(--mw-radius-sm); }
+.moon-game :is(.hr-ledger, .hr-seg, .dk-seg) { overflow: hidden; border-radius: var(--mw-radius-sm); }
+.moon-game :is(.hr-rar, .hr-crest-coin) { border-radius: 12px; }
+.moon-game :is(.dk-banner, .dk-shelf, .dk-pool, .dk-dock, .pf-account, .pf-detail, .archive-detail) { border-radius: var(--mw-radius); }
+.moon-game .dk-banner { border: 1px solid var(--mw-hairline); border-top-color: var(--mw-rim); background: var(--mw-surface-raised); box-shadow: var(--mw-light), var(--mw-cast); }
+.moon-game .dk-plaque { background: var(--mw-surface-raised); box-shadow: var(--mw-light); }
+
+/* ---- Missions, Journey and Offers sheets: one sheet material with Home's reward rail ---- */
+.moon-game .missions-sheet { border: 1px solid var(--mw-hairline); border-top: 1px solid var(--mw-rim); border-radius: 24px 24px 0 0; background: var(--mw-surface-raised); box-shadow: var(--mw-light), 0 -16px 40px rgba(0, 6, 11, .6); }
+.moon-game .missions-title { color: #f5e7c4; font: 400 22px/1.15 var(--moon-display); }
+.moon-game .missions-close { border-color: var(--mw-hairline); border-radius: 50%; background: rgba(9, 26, 37, .85); }
+.moon-game .missions-tab { border-color: var(--mw-hairline); border-radius: 999px; background: var(--mw-surface-sunk); font: 800 12px/1 var(--moon-ui); letter-spacing: .02em; }
+.moon-game .missions-tab.active { border-color: #f7e5b8; background: var(--mw-gold-face); color: var(--mw-gold-ink); box-shadow: inset 0 1px rgba(255, 255, 255, .55); }
+.moon-game :is(.missions-summary, .journey-note) { font: 600 12.5px/1.45 var(--moon-ui); }
+.moon-game .journey-summary { font: 700 12px/1.3 var(--moon-ui); }
+.moon-game .journey-day-num small { font: 700 10px/1.2 var(--moon-ui); }
+.moon-game .journey-day.featured .journey-day-title { font: 400 17px/1.15 var(--moon-display); }
+.moon-game :is(.missions-row, .journey-day, .offers-card) { border-color: var(--mw-hairline); border-radius: var(--mw-radius-sm); background: var(--mw-surface); box-shadow: var(--mw-light); }
+.moon-game :is(.missions-row.ready, .journey-day.ready, .journey-day.featured) { border-color: var(--mw-rim); background: linear-gradient(180deg, rgba(42, 72, 71, .94), rgba(17, 43, 52, .9)); box-shadow: inset 0 0 0 1px rgba(243, 218, 154, .1), 0 5px 16px rgba(2, 13, 19, .22); }
+.moon-game :is(.missions-row-title, .journey-day-title, .offers-card-title) { font-family: var(--moon-ui); font-weight: 700; }
+.moon-game .missions-row-bar { overflow: hidden; border-radius: 99px; }
+.moon-game .missions-row-bar > span { border-radius: inherit; background: linear-gradient(90deg, #78bdbd, #eed596); }
+.moon-game :is(.missions-claim-btn, .offers-card-price) { border: 1px solid #f7e5b8; border-radius: 999px; background: var(--mw-gold-face); box-shadow: inset 0 1px rgba(255, 255, 255, .55), 0 3px 0 rgba(96, 72, 40, .9); font: 800 13px/1 var(--moon-ui); }
+.moon-game .missions-claim-btn:disabled { border-color: var(--mw-hairline); background: rgba(35, 54, 60, .9); box-shadow: none; }
+.moon-game :is(.missions-claimed-tag, .journey-day-lock) { border-color: var(--mw-hairline); border-radius: 50%; background: var(--mw-surface-sunk); }
+.moon-game .offers-more-options { border-color: var(--mw-hairline); border-radius: 999px; font: 700 12px/1 var(--moon-ui); }
+.moon-game :is(.offers-test-banner, .offers-bonus-banner, .offers-granted-banner) { border-radius: var(--mw-radius-sm); }
+
+@media (prefers-reduced-motion: reduce) {
+  .moon-world-mist i { animation: none; }
+  :where(.moon-game .app-frame-content > *) { animation: none; }
+  .moon-game .how-to-play-sheet { animation: none; }
+  .moon-world-halo,
+  .moon-game .starter-pick-option { transition: none; }
+}
