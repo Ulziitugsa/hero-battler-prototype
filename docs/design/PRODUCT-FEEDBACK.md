@@ -24,11 +24,11 @@ keeps. Nothing in it changes combat, balance, the economy, Box contents or save 
 | Motion tokens | `styles/feedback/tokens.css` | `--mw-dur-*`, `--mw-ease-*`, `--mw-press-scale`, feedback colours |
 | Press feedback | `styles/feedback/press.css` | Automatic for every button in `.moon-game`. Tune with `--mw-press-scale` or `.mw-press-soft` / `.mw-press-deep` / `.mw-press-none`. A control with its own `:active` scale must be in press.css's opt-out list (a test enforces it) so two squashes never multiply |
 | Motion utilities | `styles/feedback/motion.css` | `.mw-enter`, `.mw-stagger` (+ `--i`), `.mw-pop-in`, `.mw-attention`, `.mw-glow-pulse`, `.mw-float-number`, `.mw-shake` |
-| Rarity presence | `styles/feedback/rarity.css` | Wrap a card face: `<span class="mw-rarity" data-rarity="epic">`. Add `.mw-rarity-reveal` for a just-revealed card |
-| Reward bus | `components/feedback/rewardBus.ts` | `flyReward({ kind, amount, from })`, `flyRewards(from, { gold, gems, tickets, cards })` |
+| Rarity presence | `styles/feedback/rarity.css` | Wrap a card face: `<span class="mw-rarity" data-rarity="epic">`. Add `.mw-rarity-reveal` for a just-revealed card, `.mw-rarity-static` in a grid of many cards (same light, no loops) |
+| Reward bus | `components/feedback/rewardBus.ts` | `flyReward({ kind, amount, from })`, `flyRewards(from, { gold, gems, tickets, cards }, { delayMs })`. `delayMs` lets a result screen finish opening first; the counter waits for it too |
 | Flight layer | `components/feedback/RewardFlightLayer.tsx` | Mounted once in `App.tsx`; draws every flight |
 | Counters | `components/feedback/BalanceCounter.tsx`, `useCountUp.ts`, `useRewardTarget.ts` | `GoldBalance` / `GemBalance` / `TicketBalance` already use them; any element can be a landing spot with `useRewardTarget(kind)`. Animation frames only smooth a roll: a timer lands the final value, and a hidden page shows it at once |
-| Sheet balances | `components/feedback/BalanceStrip.tsx` | Inside a sheet that covers the header, so claims land in view. Tickets hide at zero unless a claimable reward in the sheet pays them |
+| Sheet balances | `components/feedback/BalanceStrip.tsx` | Inside a sheet that covers the header, so claims land in view. Tickets hide at zero unless a claimable reward in the sheet pays them. With `arriving={{ gold, gems }}` (a screen that opens on rewards already granted, like a battle result) the counters open on the balance before them and roll up as they land |
 | Nav state | `components/AppShell.tsx`, `styles/feedback/nav.css` | Dots from real state only; the Cards medallion is the landing spot for card rewards |
 | Loading | `index.html` (inline styles; `vite.config.ts` moves the app stylesheets after the boot markup, and lazy screens' stylesheets after those), `components/MoonwaterLoading.tsx`, `platform/bootSplash.ts` | Static boot screen before JS; same scene for lazy-screen loads (only after 180 ms) |
 | Battle | `components/animation/battleCallouts.ts`, `components/battle/*`, `styles/feedback/battle.css` | Round / Fight banner, event callouts, HP chunk drain |
@@ -60,6 +60,36 @@ label only and delays nothing.
 * **HP** - the bar drops at once while a pale chunk lingers and drains after it; the numeral rolls.
 * Existing combat VFX (impact bursts, shatter + cracks on destruction, floaters, stage shake) are unchanged.
 
+## Battle result (Polish Pass 2)
+
+`components/MatchSummary.tsx` and `styles/battleResult.css` end every Quick, Ranked and Friendly battle (Campaign keeps
+its own sheet on the map). The card waits `RESULT_ENTER_DELAY_MS` after the round's last beat so the final blow is seen
+landing, and the beaten side's HP plate drains of colour under it. Everything on it is read, never invented
+(`components/battle/battleOutcome.ts`, pure and tested):
+
+* **How it ended** - the last damage the losing player took, from the log: a Direct Attack, a Clash (winner beat loser)
+  or a card's effect, with its round. A draw has no single finishing blow and shows none.
+* **Final HP** of both sides.
+* **Rewards** - XP, with the Account Level bar filling from where it was; Gold and Gems fly into the card's own balances.
+* **Ranked** - the rating, its change, the division bar, the next division, a promotion, and a Division reward that just
+  became claimable. (Ranked used to return straight to its tab with no result shown.)
+* **Missions** this battle moved forward (the missions store at match start against now); one it completed says
+  "Ready to claim".
+* The full statistics table is folded under "Match details". Ranked has no "Play again": its next rival is chosen on its
+  own screen.
+
+Campaign's `StageResultSheet` flies its Gold and Gems into balances on the sheet the same way.
+
+## Collection and decks (Polish Pass 2)
+
+* **Cards screen** - owned Rare and up wear their rarity, held still (`.mw-rarity-static`). Cards whose first copy arrived
+  since the last visit carry a New tag and lead the list for that visit, and the counter says how many are new. Each
+  rarity filter shows collected / total within the faction filter.
+* **Pull Results** - Done sends the cards from the middle of the grid down to the Cards tab (it used to hop sideways from
+  the Done button).
+* **Deck builder** - an added card's chit pops in and scrolls into view and the count answers; a refused add (deck full,
+  no more copies) shakes the count beside its reason.
+
 ## Missing state (deliberately not faked)
 
 * **Sacrifice** callout: `HERO_DESTROYED` does not record what caused a destruction. The resolver knows
@@ -69,8 +99,7 @@ label only and delays nothing.
 * **Ranked / Shop / Home** dots already existed and are unchanged; **Cards** gained a "new cards" dot backed by
   `game/collection/collectionSeen.ts` (one additive storage key; old saves start as "seen now"). Only a card's first
   copy counts as new (`cardMarks.firstObtainedAt`, an additive field); a duplicate is not, matching Pull Results.
-* Quick Battle rewards (`MatchSummary` / `XpSummary`) have no on-screen counter to fly to; they keep their text.
-* Campaign stage rewards (`StageResultSheet`) are not wired yet (see follow-ups).
+* Quick Battle and Campaign rewards fly to balances on their result screens (Pass 2).
 
 ## Where to take screenshots
 

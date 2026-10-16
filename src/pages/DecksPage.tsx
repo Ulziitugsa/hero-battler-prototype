@@ -186,6 +186,11 @@ export function DecksPage() {
   const [cardIds, setCardIds] = useState<string[]>([]);
   const [baseline, setBaseline] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
+  // Edit feedback: the card just added (its chit pops in and scrolls into view, the count answers) and a refused add
+  // (the count shakes). `n` re-triggers the animation when the same thing happens twice in a row.
+  const [lastAdded, setLastAdded] = useState<{ id: string; n: number } | null>(null);
+  const [refused, setRefused] = useState(0);
+  const stripRef = useRef<HTMLDivElement>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [poolOpts, setPoolOpts] = useState<CardPoolOptions>(DEFAULT_POOL_OPTIONS);
@@ -252,6 +257,8 @@ export function DecksPage() {
     setPoolOpts(DEFAULT_POOL_OPTIONS);
     setNotice(null);
     setConfirmDiscard(false);
+    setLastAdded(null);
+    setRefused(0);
     setMode('edit');
   }
 
@@ -267,18 +274,33 @@ export function DecksPage() {
   function addCard(card: CardDefinition) {
     if (cardIds.length >= DECK_SIZE) {
       setNotice(`Deck is full — tap a card above to make room`);
+      setRefused((n) => n + 1);
       return;
     }
     const have = getOwnedCount(card.id, owned);
     const gameLimit = maxCopiesFor(card.id);
     if ((copies.get(card.id) ?? 0) >= Math.min(have, gameLimit)) {
       setNotice(have < gameLimit ? `You own ${have} ${card.shortName}` : card.rarity === 'legendary' ? `Only ${gameLimit} ${card.shortName} per deck` : `Max ${gameLimit} of ${card.shortName}`);
+      setRefused((n) => n + 1);
       return;
     }
     setConfirmDiscard(false);
     setNotice(null);
     setCardIds((prev) => [...prev, card.id]);
+    setLastAdded((prev) => ({ id: card.id, n: (prev?.n ?? 0) + 1 }));
   }
+
+  // Bring the chit of the card just added into view in the deck strip (horizontally only - the page never jumps).
+  useEffect(() => {
+    const strip = stripRef.current;
+    const chit = lastAdded ? strip?.querySelector<HTMLElement>(`[data-card-id="${lastAdded.id}"]`) : null;
+    if (!strip || !chit) return;
+    const left = chit.offsetLeft - strip.offsetLeft;
+    if (left < strip.scrollLeft || left + chit.offsetWidth > strip.scrollLeft + strip.clientWidth) {
+      const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      strip.scrollTo?.({ left: Math.max(0, left - 16), behavior: reduced ? 'auto' : 'smooth' });
+    }
+  }, [lastAdded]);
 
   function removeOneCopy(cardId: string) {
     setConfirmDiscard(false);
@@ -366,7 +388,7 @@ export function DecksPage() {
           </div>
 
           <div className={`dk-dock-status ${status.state} ${notice ? 'notice' : ''}`} aria-live="polite">
-            <span className={`dk-count-seal ${status.state}`}>
+            <span key={`seal-${lastAdded?.n ?? 0}-${refused}`} className={`dk-count-seal ${status.state} ${refused > 0 && notice ? 'mw-shake' : lastAdded ? 'mw-glow-pulse' : ''}`}>
               {cardIds.length}
               <small>/{DECK_SIZE}</small>
             </span>
@@ -375,11 +397,11 @@ export function DecksPage() {
           </div>
           <DeckSummaryBar summary={summary} />
 
-          <div className="dk-strip" aria-label="Current deck">
+          <div ref={stripRef} className="dk-strip" aria-label="Current deck">
             {entries.map(({ card, count }) => (
-              <button type="button" key={card.id} className={`dk-chit r-${card.rarity} ${count > usableCopies(card.id, owned) ? 'over' : ''}`} onClick={() => removeOneCopy(card.id)} aria-label={`Remove one ${card.name}`}>
+              <button type="button" key={card.id} data-card-id={card.id} className={`dk-chit r-${card.rarity} ${count > usableCopies(card.id, owned) ? 'over' : ''}`} onClick={() => removeOneCopy(card.id)} aria-label={`Remove one ${card.name}`}>
                 {count > 1 && <span className="dk-chit-under" aria-hidden="true" />}
-                <span className="dk-chit-frame">
+                <span key={lastAdded?.id === card.id ? lastAdded.n : 0} className={`dk-chit-frame ${lastAdded?.id === card.id ? 'mw-pop-in' : ''}`}>
                   <CardArt card={card} sigil="md" />
                   <span className="dk-chit-name">{card.shortName}</span>
                   {count > 1 && <span className="dk-chit-count">×{count}</span>}

@@ -148,6 +148,30 @@
 .hr-rar-any { font-size: 0.85rem; }
 .hr-rar.on { border-color: var(--gem); background: var(--px-panel-raised); color: var(--px-ink, #fff6e6); box-shadow: inset 0 2px 0 var(--gem); }
 .hr-rar-name { max-width: 100%; letter-spacing: 0; }
+/* Collected / total for that rarity (within the faction filter); a finished rarity turns gold. */
+.hr-rar-count { margin-top: -3px; font: 700 9px/1 var(--px-font-label); letter-spacing: 0; color: var(--px-ink-faint, #a98d78); font-variant-numeric: tabular-nums; }
+.hr-rar.complete .hr-rar-count { color: var(--px-gold, #ebc989); }
+.hr-ledger-new { color: var(--mw-new, #8fe0bd); }
+
+/* The card face inside a tile, wearing its rarity (styles/feedback/rarity.css, static variant). */
+.hr-card-presence { display: block; }
+/* New since the last visit: a teal tag and a soft teal edge, until the player leaves the screen. */
+.hr-card.is-new .hr-card-presence { filter: drop-shadow(0 0 1px var(--mw-new, #8fe0bd)) drop-shadow(0 0 7px rgba(143, 224, 189, 0.55)); }
+.hr-new-tag {
+  position: absolute;
+  z-index: 6;
+  top: 13%;
+  right: 6px;
+  padding: 2px 6px;
+  border: 1px solid rgba(143, 224, 189, 0.8);
+  color: #0c2a20;
+  background: var(--mw-new, #8fe0bd);
+  box-shadow: 0 2px 6px rgba(2, 8, 12, 0.6);
+  font: 800 9px/1.2 var(--px-font-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
 
 /* ---- Card grid ---- */
 

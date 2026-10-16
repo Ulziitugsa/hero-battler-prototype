@@ -8,7 +8,7 @@ import { cardCopyView } from '../../game/cards/cardCopy';
 import { useDialogFocus } from '../../components/useDialogFocus';
 import { getCard } from '../../game/cards';
 import { TicketBalance, TicketIcon } from '../../components/TicketIcon';
-import { flyReward } from '../../components/feedback/rewardBus';
+import { flyReward, type Point } from '../../components/feedback/rewardBus';
 import { RevealStage } from '../../components/reveal/RevealStage';
 import { useRevealSequence } from '../../components/reveal/useRevealSequence';
 import { canAfford, canAffordTickets } from '../../game/economy/economy';
@@ -78,8 +78,18 @@ function PulledCard({ cardId }: { cardId: string }) {
 
 /** Pull Results: every card the pull added, one grid for 1 card or 10. The cards were granted before the ceremony began;
  * this only shows them. */
-export function PullResults({ pulls, starterProgress = [], onInspect, onClose, preview = false }: { pulls: BoxPull[]; starterProgress?: StarterProgressNote[]; onInspect: (id: string) => void; onClose: (source?: Element) => void; preview?: boolean }) {
+export function PullResults({ pulls, starterProgress = [], onInspect, onClose, preview = false }: { pulls: BoxPull[]; starterProgress?: StarterProgressNote[]; onInspect: (id: string) => void; onClose: (source?: Element | Point) => void; preview?: boolean }) {
   const ref = useDialogFocus(onClose);
+  const gridRef = useRef<HTMLDivElement>(null);
+  // Done sends the cards on to the collection from where they are on screen - the middle of the visible grid - so they
+  // travel down to the Cards tab rather than hopping sideways from the Done button just above it.
+  const cardsOrigin = (fallback: Element): Element | Point => {
+    const r = gridRef.current?.getBoundingClientRect();
+    if (!r) return fallback;
+    const top = Math.max(r.top, 0);
+    const bottom = Math.min(r.bottom, window.innerHeight);
+    return bottom > top ? { x: r.left + r.width / 2, y: (top + bottom) / 2 } : fallback;
+  };
   const newCount = pulls.filter(pull => pull.isNew).length;
   const best = [...pulls].sort((a, b) => RARITIES.indexOf(a.rarity) - RARITIES.indexOf(b.rarity))[0];
   const tracked = useRef(false);
@@ -96,13 +106,13 @@ export function PullResults({ pulls, starterProgress = [], onInspect, onClose, p
       <p>{newCount > 0 ? `${newCount} new to your collection` : pulls.length === 1 ? 'A duplicate' : 'All duplicates'} · best card: {best ? (getCard(best.cardId).name.startsWith(RARITY_LABEL[best.rarity]) ? getCard(best.cardId).name : `${RARITY_LABEL[best.rarity]} ${getCard(best.cardId).name}`) : '-'}</p>
       {starterProgress.map(note => <p key={note.deckId} className={`box-results-starter ${note.unlockedNow ? 'unlocked' : ''}`}>{note.unlockedNow ? `${note.name} unlocked · ready in Decks` : `${note.name} · ${note.collected} / ${note.total} cards`}</p>)}
     </header>
-    <div className="box-results-grid mw-stagger">
+    <div ref={gridRef} className="box-results-grid mw-stagger">
       {pulls.map((pull, index) => <button type="button" key={`${index}-${pull.cardId}`} className={`box-result r-${pull.rarity}`} aria-label={`${getCard(pull.cardId).name}, ${RARITY_LABEL[pull.rarity]}${pull.isNew ? ', new' : `, ${pull.ownedCopies} owned`}`} style={{ ['--i' as string]: index }} onClick={() => onInspect(pull.cardId)}>
         <span className="box-result-face mw-rarity mw-rarity-reveal" data-rarity={pull.rarity}><PulledCard cardId={pull.cardId} /></span>
         <small>{pull.isNew ? <b className="mw-pop-in">NEW</b> : `×${pull.ownedCopies}`}</small>
       </button>)}
     </div>
-    <button type="button" className="box-results-done" onClick={(event) => onClose(event.currentTarget)}>Done</button>
+    <button type="button" className="box-results-done" onClick={(event) => onClose(cardsOrigin(event.currentTarget))}>Done</button>
   </div></div>;
 }
 
@@ -139,7 +149,7 @@ export function BoxDetail({ box, onBack }: { box: ArchetypeBoxDef; onBack: () =>
   }, [box.id]);
 
   const results = opening && reveal.view?.isResult ? opening : null;
-  function closeResults(source?: Element) {
+  function closeResults(source?: Element | Point) {
     // The pulled cards were added to the collection before the ceremony; on Done they visibly head there (the Cards tab).
     if (source && opening) flyReward({ kind: 'cards', amount: opening.pulls.length, from: source, label: `+${opening.pulls.length} ${opening.pulls.length === 1 ? 'card' : 'cards'} to your collection` });
     setOpening(null);

@@ -4,7 +4,9 @@ import { Icon, type IconName } from '../../components/Icon';
 import { RewardCard } from './RewardCard';
 import { XpSummary } from '../../components/XpSummary';
 import { track } from '../../analytics/track';
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { BalanceStrip } from '../../components/feedback/BalanceStrip';
+import { flyRewards } from '../../components/feedback/rewardBus';
 import { haptics } from '../../platform/haptics';
 
 const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', emblem: 'hero', star: 'trophy' };
@@ -20,6 +22,18 @@ export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { o
   useEffect(() => {
     if (won) void (chapterComplete ? haptics.chapterComplete() : haptics.campaignVictory());
   }, [won, chapterComplete]);
+
+  // The stage's Gold and Gems (a level-up's Gems included) were granted with the result; once the sheet has risen they
+  // fly from the reward line into the sheet's own balances, which open on the amounts before them and roll up.
+  const totalGems = gems + (chapterComplete ? 0 : (xp?.gemsGained ?? 0));
+  const totalGold = gold;
+  const rewardsRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (rewardsRef.current && (totalGold > 0 || totalGems > 0)) flyRewards(rewardsRef.current, { gold: totalGold, gems: totalGems }, { delayMs: 450 });
+    // Once, for the result this sheet opened on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const balances = totalGold > 0 || totalGems > 0 ? <div className="campaign-result-balances"><BalanceStrip arriving={{ gold: totalGold, gems: totalGems }} /></div> : null;
 
   if (!won) {
     return (
@@ -43,13 +57,16 @@ export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { o
     return (
       <div className="overlay-backdrop campaign-sheet-backdrop">
         <div className="campaign-result-sheet">
+          {balances}
           <div className="campaign-result-disc chapter">
             <Icon name="hero" size={30} />
           </div>
           <span className="campaign-result-kicker">The Ashen Road · Chapter 1</span>
           <span className="campaign-result-title">Watch on the dust road</span>
           <span className="campaign-result-blurb">Thirteen nodes walked. The Grave Tyrant is put back in the ground.</span>
-          <XpSummary xp={null} gems={gems} gold={gold} />
+          <div ref={rewardsRef}>
+            <XpSummary xp={null} gems={gems} gold={gold} />
+          </div>
           <div className="campaign-result-rows">
             <div className="campaign-result-row">
               <span className="campaign-result-row-icon gold">
@@ -90,13 +107,16 @@ export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { o
   return (
     <div className="overlay-backdrop campaign-sheet-backdrop">
       <div className="campaign-result-sheet">
+        {balances}
         <div className="campaign-result-disc">
           <Icon name="trophy" size={30} />
         </div>
         <span className="campaign-result-kicker">{node.name}</span>
         <span className="campaign-result-title">{node.encounter ? 'Stage cleared' : 'Reward claimed'}</span>
         <span className="campaign-result-blurb">{node.encounter ? `${node.teach} - held.` : node.reward?.sub}</span>
-        <XpSummary xp={xp} gems={gems} gold={gold} />
+        <div ref={rewardsRef}>
+          <XpSummary xp={xp} gems={gems} gold={gold} />
+        </div>
 
         {objectivesMet.length > 0 && (
           <div className="campaign-result-marks">
