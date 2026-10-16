@@ -6,6 +6,7 @@ import { FightSeal } from './FightSeal';
 import type { FightButtonState } from './fightButtonState';
 import { CombatVfxLayer } from './animation/CombatVfxLayer';
 import type { ChitVisual, ClashCallout, StepVisuals, VfxCue } from './animation/chitEffects';
+import type { BattleCallout } from './animation/battleCallouts';
 
 const LANE_TICKS = ['18.98%', '44.55%', '56.20%', '81.58%'];
 
@@ -25,6 +26,7 @@ export function Battlefield({
   spellAnimById,
   clashLane,
   clashCallout = null,
+  laneCallout = null,
   vfxCues,
   stageShake,
   interactionDisabled,
@@ -49,6 +51,8 @@ export function Battlefield({
   clashLane: StepVisuals['clashLane'];
   /** Card combat: the current clash in ATK numbers, drawn on the clash line of its lane. */
   clashCallout?: ClashCallout | null;
+  /** A word over a lane for what just happened to a card there ("Revived", a Spell's name); see animation/battleCallouts.ts. */
+  laneCallout?: BattleCallout | null;
   vfxCues: VfxCue[];
   /** A subtle whole-battlefield shake for the current step - see chitEffects.ts's `stageShake`. */
   stageShake: boolean;
@@ -148,6 +152,11 @@ export function Battlefield({
           <b>{clashCallout.line1}</b>
           <small>{clashCallout.line2}</small>
           {clashCallout.line3 && <small className="clash-callout-damage">{clashCallout.line3}</small>}
+        </span>
+      )}
+      {laneCallout?.lane && (
+        <span key={laneCallout.key} className={`mw-battle-callout lane lane-${laneCallout.lane} side-${laneCallout.side} ${laneCallout.kind}`} role="status">
+          {laneCallout.text}
         </span>
       )}
     </div>

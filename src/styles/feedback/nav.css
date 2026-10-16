@@ -1,0 +1,36 @@
+/* Navigation state: the bottom bar says where you are and where something is waiting, never more than that.
+   Dots only ever render from real state (components/AppShell.tsx); this file only decides how they feel. */
+
+/* A marker arrives with a small pop, then breathes slowly so it is noticed without nagging. */
+.moon-game .attention-dot {
+  animation:
+    mw-pop-in var(--mw-dur-slow) var(--mw-ease-spring) backwards,
+    mw-dot-breathe var(--mw-dur-ambient) var(--mw-ease-in-out) var(--mw-dur-slow) infinite;
+}
+.moon-game .attention-dot-ready { --mw-dot-glow: rgba(221, 119, 81, 0.55); }
+.moon-game .attention-dot-new { --mw-dot-glow: rgba(120, 200, 152, 0.6); }
+
+@keyframes mw-dot-breathe {
+  0%, 100% { box-shadow: 0 1px 4px #08131dcc, 0 0 0 0 transparent; }
+  50% { box-shadow: 0 1px 4px #08131dcc, 0 0 0 4px var(--mw-dot-glow, rgba(221, 119, 81, 0.55)); }
+}
+
+/* The active destination: its chip lifts a touch and its label brightens, eased so switching tabs reads as movement. */
+.moon-game .hud-medallion .hud-medallion-chip {
+  transition:
+    translate var(--mw-dur-base) var(--mw-ease-spring),
+    background-color var(--mw-dur-base) ease,
+    border-color var(--mw-dur-base) ease;
+}
+.moon-game .hud-medallion.active .hud-medallion-chip { translate: 0 -2px; }
+.moon-game .hud-medallion .hud-medallion-label { transition: color var(--mw-dur-base) ease; }
+.moon-game .hud-medallion.active .hud-medallion-label { color: #f6e4b4; }
+
+/* An inactive destination with something waiting is a shade brighter than a quiet one. */
+.moon-game .hud-medallion.has-attention:not(.active) { color: #d6e2dc; }
+.moon-game .hud-medallion.has-attention:not(.active) .hud-medallion-chip { color: #e3ece6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .moon-game .attention-dot { animation: none; box-shadow: 0 1px 4px #08131dcc, 0 0 0 3px var(--mw-dot-glow, rgba(221, 119, 81, 0.5)); }
+  .moon-game .hud-medallion.active .hud-medallion-chip { translate: none; }
+}

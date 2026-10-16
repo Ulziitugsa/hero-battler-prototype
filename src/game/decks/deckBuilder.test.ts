@@ -182,12 +182,22 @@ describe('card marks (favorites + last obtained)', () => {
   it('records the time a card was obtained through the collection grant path', () => {
     grantCard('und-mira', 1);
     expect(getCardMarks().obtainedAt['und-mira']).toBeGreaterThan(0);
-    recordCardObtained('kng-archer', 1234);
+    recordCardObtained('kng-archer', false, 1234);
     expect(JSON.parse(localStorage.getItem(CARD_MARKS_STORAGE_KEY)!).obtainedAt['kng-archer']).toBe(1234);
   });
 
+  it('records a first copy separately from a duplicate', () => {
+    grantCard('und-mira', 1);
+    const first = getCardMarks().firstObtainedAt['und-mira'];
+    expect(first).toBeGreaterThan(0);
+    grantCard('und-mira', 1);
+    expect(getCardMarks().firstObtainedAt['und-mira']).toBe(first);
+    recordCardObtained('kng-archer', false, 1234);
+    expect(getCardMarks().firstObtainedAt['kng-archer']).toBeUndefined();
+  });
+
   it('drops malformed stored data instead of throwing', () => {
-    expect(sanitizeCardMarks({ favorites: ['a', 3, 'a', ''], obtainedAt: { x: 'no', y: -1, z: 5 } })).toEqual({ version: 1, favorites: ['a'], obtainedAt: { z: 5 } });
+    expect(sanitizeCardMarks({ favorites: ['a', 3, 'a', ''], obtainedAt: { x: 'no', y: -1, z: 5 }, firstObtainedAt: { z: 4, w: 'no' } })).toEqual({ version: 1, favorites: ['a'], obtainedAt: { z: 5 }, firstObtainedAt: { z: 4 } });
     localStorage.setItem(CARD_MARKS_STORAGE_KEY, '{not json');
     reloadCardMarks();
     expect(getCardMarks().favorites).toEqual([]);

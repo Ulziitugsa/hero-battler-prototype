@@ -1,0 +1,51 @@
+/* Moonwater product feedback layer - motion tokens.
+   Every press, reward flight, counter pulse, rarity treatment and battle banner reads its timing and easing from
+   here, so the whole product keeps one rhythm and one place to tune it. Pixel-art CONTENT keeps its stepped motion
+   (styles/pixel/motion.css); these tokens are for the product shell around it. Battle beat pacing stays in
+   components/animation/timing.ts (it drives --step-ms) and is not duplicated here.
+
+   Reduced motion: durations collapse to near-instant and nothing scales or travels. State still changes visibly
+   (colour, glow, text), it just does not move to get there. */
+
+:root {
+  --mw-dur-instant: 70ms;
+  --mw-dur-fast: 140ms;
+  --mw-dur-base: 240ms;
+  --mw-dur-slow: 420ms;
+  --mw-dur-reward: 680ms;
+  --mw-dur-ambient: 2600ms;
+
+  --mw-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --mw-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --mw-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --mw-ease-in-out: cubic-bezier(0.45, 0, 0.25, 1);
+
+  /* Press: compact controls squash a little, wide panels barely move (set per element with --mw-press-scale). */
+  --mw-press-scale: 0.96;
+  --mw-press-brightness: 0.9;
+
+  /* Stagger step for lists that enter together (grid tiles, result cards). */
+  --mw-stagger: 45ms;
+
+  /* Feedback colours: one warm "you got something" gold, one cool "new" teal, rarity from the global contract. */
+  --mw-reward: #f4d892;
+  --mw-reward-glow: rgba(244, 216, 146, 0.55);
+  --mw-new: #8fe0bd;
+  --mw-danger: #ff8f7a;
+  --mw-heal: #9fe8c0;
+  --mw-rare: var(--rarity-rare, #7fb0d9);
+  --mw-epic: var(--rarity-epic, #c084fc);
+  --mw-legendary: var(--rarity-legendary, #ebc989);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mw-dur-instant: 1ms;
+    --mw-dur-fast: 1ms;
+    --mw-dur-base: 120ms;
+    --mw-dur-slow: 160ms;
+    --mw-dur-reward: 1ms;
+    --mw-press-scale: 1;
+    --mw-stagger: 0ms;
+  }
+}

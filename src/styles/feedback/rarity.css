@@ -1,0 +1,100 @@
+/* Rarity presence: one escalating treatment shared by every place a card is shown off (Pull Results, the Home
+   featured card, Box headline cards). The wrapper carries data-rarity; the card face inside is untouched.
+
+     common     no treatment - the card face is enough
+     rare       a crisp blue edge and a steady glow, and a cool sheen sweeps across now and then
+     epic       a stronger violet pulse around the frame, plus the sheen
+     legendary  a spotlight behind the card and a gold ring that breathes. Its sweep is GameCard's own Legendary frame
+                sheen (gameCard.css gc-sheen), so this layer adds none: one sweep, not two crossing each other.
+
+   ::before is the light behind the card, ::after the sheen over it; both ignore taps. The sheen sits above the card
+   face's body layers (GameCard's .gc-body is z-index 4) or it would pass invisibly underneath them. Reduced motion
+   keeps the glow (the rarity still reads) and drops every loop. */
+
+.mw-rarity {
+  position: relative;
+  isolation: isolate;
+  --mw-rarity-color: transparent;
+}
+
+.mw-rarity[data-rarity='rare'] { --mw-rarity-color: var(--mw-rare); }
+.mw-rarity[data-rarity='epic'] { --mw-rarity-color: var(--mw-epic); }
+.mw-rarity[data-rarity='legendary'] { --mw-rarity-color: var(--mw-legendary); }
+
+.mw-rarity:is([data-rarity='rare'], [data-rarity='epic'])::after {
+  content: '';
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 38%, color-mix(in srgb, var(--mw-rarity-color) 30%, #fff 34%) 50%, transparent 62%) no-repeat;
+  background-size: 260% 100%;
+  background-position: 160% 0;
+  mix-blend-mode: screen;
+  opacity: 0.75;
+  animation: mw-rarity-sheen 4.6s var(--mw-ease-in-out) 0.5s infinite;
+}
+
+.mw-rarity[data-rarity='rare'] {
+  filter: drop-shadow(0 0 1px var(--mw-rarity-color)) drop-shadow(0 0 8px color-mix(in srgb, var(--mw-rarity-color) 70%, transparent));
+}
+
+.mw-rarity[data-rarity='epic'] {
+  animation: mw-rarity-pulse 2.4s var(--mw-ease-in-out) infinite;
+}
+.mw-rarity[data-rarity='epic']::after { animation-duration: 3.6s; opacity: 0.85; }
+
+.mw-rarity[data-rarity='legendary'] {
+  animation: mw-rarity-pulse 2s var(--mw-ease-in-out) infinite;
+}
+.mw-rarity[data-rarity='legendary']::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -22% -30%;
+  pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--mw-rarity-color) 42%, transparent), transparent 75%);
+  animation: mw-rarity-spotlight 3s var(--mw-ease-in-out) infinite;
+}
+
+/* A rarity card that has just been revealed lands with one strong flash, then settles into its loop. */
+.mw-rarity-reveal:is([data-rarity='epic'], [data-rarity='legendary']) {
+  animation:
+    mw-rarity-land 620ms var(--mw-ease-spring) backwards,
+    mw-rarity-pulse 2.2s var(--mw-ease-in-out) 620ms infinite;
+}
+
+@keyframes mw-rarity-sheen {
+  0% { background-position: 160% 0; }
+  32%, 100% { background-position: -60% 0; }
+}
+
+@keyframes mw-rarity-pulse {
+  0%, 100% { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--mw-rarity-color) 40%, transparent)); }
+  50% { filter: drop-shadow(0 0 13px color-mix(in srgb, var(--mw-rarity-color) 80%, transparent)); }
+}
+
+@keyframes mw-rarity-spotlight {
+  0%, 100% { opacity: 0.65; scale: 0.96; }
+  50% { opacity: 1; scale: 1.04; }
+}
+
+@keyframes mw-rarity-land {
+  0% { scale: 0.8; filter: brightness(2.2) drop-shadow(0 0 22px var(--mw-rarity-color)); }
+  55% { scale: 1.06; }
+  100% { scale: 1; filter: brightness(1) drop-shadow(0 0 6px color-mix(in srgb, var(--mw-rarity-color) 50%, transparent)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-rarity,
+  .mw-rarity::before,
+  .mw-rarity::after,
+  .mw-rarity-reveal {
+    animation: none !important;
+  }
+  .mw-rarity:is([data-rarity='epic'], [data-rarity='legendary']) {
+    filter: drop-shadow(0 0 9px color-mix(in srgb, var(--mw-rarity-color) 70%, transparent));
+  }
+  .mw-rarity::after { opacity: 0; }
+}

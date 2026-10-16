@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Icon } from '../components/Icon';
-import { GoldIcon } from '../components/GoldIcon';
-import { GemIcon } from '../components/GemIcon';
-import { TicketIcon } from '../components/TicketIcon';
+import { GoldBalance, GoldIcon } from '../components/GoldIcon';
+import { GemBalance, GemIcon } from '../components/GemIcon';
+import { TicketBalance, TicketIcon } from '../components/TicketIcon';
+import { flyReward, flyRewards } from '../components/feedback/rewardBus';
 import { CardArtwork } from '../components/CardArtwork';
 import { BoxArtwork } from '../components/BoxArtwork';
 import { getConfig } from '../config/config';
@@ -49,7 +50,7 @@ function ShopConfirmation({ pending, energy, prices, onCancel, onConfirm }: {
   energy: ReturnType<typeof loadEnergy>;
   prices: Record<string, string>;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: (source: Element) => void;
 }) {
   const confirmationRef = useDialogFocus(onCancel);
   const offer = pending.kind === 'offer' ? OFFERS.find((item) => item.id === pending.id) : undefined;
@@ -57,7 +58,7 @@ function ShopConfirmation({ pending, energy, prices, onCancel, onConfirm }: {
     <button type="button" className="shop-confirm-close" onClick={onCancel} aria-label="Cancel"><Icon name="close" size={18} /></button>
     <span className="shop-section-eyebrow">REVIEW EXCHANGE</span><h2 id="shop-confirm-title">{offer?.title ?? 'Energy refill'}</h2>
     {offer ? <><p>{offer.subtitle}</p><div className="shop-confirm-reward">{rewardContent(offer)}</div><p className="shop-confirm-test">{prices[offer.id] ?? 'Test offer'} · simulated only · no charge</p></> : <p>Spend {ENERGY_REFILL_GEMS} Gems to restore up to {ENERGY_REFILL_AMOUNT} Energy. Current: {energy.current}/{energy.max}.</p>}
-    <div className="shop-confirm-actions"><button type="button" onClick={onCancel}>Cancel</button><button type="button" className="confirm" onClick={onConfirm}>Confirm {pending.kind === 'offer' ? '(Test)' : 'Exchange'}</button></div>
+    <div className="shop-confirm-actions"><button type="button" onClick={onCancel}>Cancel</button><button type="button" className="confirm" onClick={(event) => onConfirm(event.currentTarget)}>Confirm {pending.kind === 'offer' ? '(Test)' : 'Exchange'}</button></div>
   </div></div>;
 }
 
@@ -125,11 +126,12 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
     setPending({ kind: 'offer', id });
   }
 
-  function confirmPurchase() {
+  function confirmPurchase(source?: Element) {
     if (!pending) return;
     if (pending.kind === 'offer') {
       const result = simulatePurchase(pending.id);
       if (result.ok) {
+        if (source) flyRewards(source, { gold: result.gold, gems: result.gems, tickets: result.tickets, cards: result.cardGranted ? 1 : 0 });
         track('shop_purchase_simulated', { productId: pending.id, productType: pending.id.startsWith('gem-pack-') ? 'gems' : 'bundle', simulated: true });
         const gained = [result.gold > 0 && `${result.gold.toLocaleString()} Gold`, result.gems > 0 && `${result.gems.toLocaleString()} Gems`, result.tickets > 0 && `${result.tickets} Tickets`, result.cardGranted && getCard(result.cardGranted).shortName].filter(Boolean);
         setNotice(`${gained.join(' · ')} added. Test purchase only; no charge.`);
@@ -143,8 +145,11 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
     setPending(null);
   }
 
-  function claimGift() {
-    if (claimDailyShopGift()) setNotice(`${DAILY_SHOP_GIFT_GOLD} Gold collected. Your next free gift is available after the daily reset.`);
+  function claimGift(source: Element) {
+    const before = economy.gold;
+    if (!claimDailyShopGift()) return;
+    flyReward({ kind: 'gold', amount: Math.min(DAILY_SHOP_GIFT_GOLD, MAX_GOLD - before), from: source });
+    setNotice(`${DAILY_SHOP_GIFT_GOLD} Gold collected. Your next free gift is available after the daily reset.`);
   }
 
   useEffect(() => {
@@ -166,12 +171,19 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
   return <main className="shop-screen">
     <header className="shop-header">
       <div><span className="shop-kicker">THE MOONWATER MARKET</span><h1>Shop</h1><p>Card Boxes, Structure Decks and supplies.</p></div>
-      <div className="shop-balances">{economy.tickets > 0 && <span aria-label={`${economy.tickets} Pull ${economy.tickets === 1 ? 'Ticket' : 'Tickets'}`}><TicketIcon size={16} />{economy.tickets.toLocaleString()}</span>}<span><GemIcon size={16} />{economy.gems.toLocaleString()}</span><span><GoldIcon size={16} />{economy.gold.toLocaleString()}</span></div>
+      <div className="shop-balances">{economy.tickets > 0 && <TicketBalance />}<GemBalance /><GoldBalance /></div>
     </header>
 
     <div className="shop-test-note"><Icon name="check" size={14} /> Prototype store · Boxes and Structure Decks use in-game Gems (a Pull Ticket pays for one pull); bundles and Gem bundles are simulated test purchases. No real money is charged.</div>
 
-    <section className="shop-section shop-first-section" aria-labelledby="shop-box-title">
+    {/* The free daily gift sits above the fold, under the balances it pays into, so its Gold visibly flies there. */}
+    <section className={`shop-gift shop-section shop-first-section ${gift.claimed || economy.gold >= MAX_GOLD ? 'claimed' : 'ready'}`} aria-labelledby="shop-gift-title">
+      <div className="shop-gift-art" aria-hidden="true"><span>✦</span><GoldIcon size={24} /></div>
+      <div className="shop-gift-copy"><span className="shop-section-eyebrow">DAILY GIFT</span><h2 id="shop-gift-title">A little Gold for the journey</h2><p>{gift.claimed ? `Claimed · resets in ${giftResetCountdown || '…'} (daily UTC reset)` : `${DAILY_SHOP_GIFT_GOLD} Gold · free to claim`}</p></div>
+      <button type="button" className={`shop-gift-claim ${gift.claimed || economy.gold >= MAX_GOLD ? '' : 'mw-attention'}`} onClick={(event) => claimGift(event.currentTarget)} disabled={gift.claimed || economy.gold >= MAX_GOLD}>{economy.gold >= MAX_GOLD ? 'Gold full' : gift.claimed ? 'Claimed' : 'FREE · Ready'}</button>
+    </section>
+
+    <section className="shop-section" aria-labelledby="shop-box-title">
       <div className="shop-section-heading"><div><span className="shop-section-eyebrow">ARCHETYPE BOXES</span><h2 id="shop-box-title">Card Boxes</h2></div><span className="shop-section-note">{economy.tickets > 0 ? <><TicketIcon size={13} />{boxPullTickets(1)} / pull</> : <><GemIcon size={13} />{boxPullPrice(1)} / pull</>}</span></div>
       {BOX_FACTION_GROUPS.map(group => <div key={group.faction} className={`shop-box-group ${group.faction}`}>
         <h3 className="shop-box-group-title">{group.name}</h3>
@@ -191,12 +203,6 @@ export function ShopPage({ initialView = { kind: 'main' } }: { initialView?: Sho
           })}
         </div>
       </div>)}
-    </section>
-
-    <section className={`shop-gift shop-section ${gift.claimed || economy.gold >= MAX_GOLD ? 'claimed' : 'ready'}`} aria-labelledby="shop-gift-title">
-      <div className="shop-gift-art" aria-hidden="true"><span>✦</span><GoldIcon size={24} /></div>
-      <div className="shop-gift-copy"><span className="shop-section-eyebrow">DAILY GIFT</span><h2 id="shop-gift-title">A little Gold for the journey</h2><p>{gift.claimed ? `Claimed · resets in ${giftResetCountdown || '…'} (daily UTC reset)` : `${DAILY_SHOP_GIFT_GOLD} Gold · free to claim`}</p></div>
-      <button type="button" className="shop-gift-claim" onClick={claimGift} disabled={gift.claimed || economy.gold >= MAX_GOLD}>{economy.gold >= MAX_GOLD ? 'Gold full' : gift.claimed ? 'Claimed' : 'FREE · Ready'}</button>
     </section>
 
     <section className="shop-section" aria-labelledby="shop-structure-title">

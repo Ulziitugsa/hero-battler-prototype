@@ -348,7 +348,6 @@
 .home-campaign-top { display:flex; align-items:flex-start; justify-content:space-between; min-height:105px; gap:12px; }
 .home-kicker,.home-target-reward small,.home-formation small,.home-acquisition small { display:block; color:#d6bd83; font:9px/1.4 var(--mono); letter-spacing:.09em; }
 .home-campaign h1 { margin:6px 0 0; color:#fff0ca; font:400 clamp(24px,7vw,32px)/1.05 Georgia,serif; }
-.home-feature-card { flex:0 0 62px; width:62px; height:98px; overflow:hidden; padding:0; border:1px solid #d8bf85; background:#10232d; box-shadow:2px 2px 0 #07131a; }
 .home-progress { height:7px; margin:1px 0 9px; overflow:hidden; border:1px solid #71877c; background:#081923; }
 .home-progress>span { display:block; height:100%; background:linear-gradient(90deg,#b9955e,#f0d391); }
 .home-power-line { display:flex; align-items:center; flex-wrap:wrap; gap:5px 13px; color:#bdcdc7; font:9px var(--mono); }
@@ -400,7 +399,6 @@
   .moon-game .moon-home-hub .moon-home-header>.moon-quiet span { display:inline; margin:0; }
   .moon-game .home-campaign { padding:13px; }
   .moon-game .home-campaign-top { min-height:89px; }
-  .moon-game .home-feature-card { width:53px; height:82px; flex-basis:53px; }
   .moon-game .home-target-reward { min-height:39px; margin:8px 0; }
   .moon-game .home-continue { min-height:43px; }
   .moon-game .home-secondary-actions button { min-height:48px; }

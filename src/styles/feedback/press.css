@@ -1,0 +1,89 @@
+/* Press feedback: every tappable control in the game answers the finger the instant it lands.
+
+   It lives in a cascade layer on purpose. Layered rules lose to every unlayered rule, so this is only ever the
+   DEFAULT: a component that already owns its transition or filter keeps it, and nothing here can fight a component's
+   own transform. It squashes with the individual `scale` property, which composes with `transform` instead of
+   replacing it (hover lifts, battle lunges and the Fight seal's own transforms keep working underneath).
+
+   Tuning per element is a variable, not a new rule: --mw-press-scale (1 = no squash) and --mw-press-brightness. */
+
+@layer mw-feedback {
+  .moon-game :is(button, [role='button'], a[href]) {
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      scale var(--mw-dur-base) var(--mw-ease-spring),
+      filter var(--mw-dur-base) ease;
+  }
+
+  .moon-game :is(button, [role='button'], a[href]):not(:disabled, [aria-disabled='true']):active {
+    scale: var(--mw-press-scale);
+    filter: brightness(var(--mw-press-brightness));
+    transition-duration: var(--mw-dur-instant);
+  }
+
+  /* Wide panels and full-width CTAs: a squash that reads on a 60px chip would lurch a 400px plate. */
+  .moon-game :is(
+      .mw-press-soft,
+      .home-continue,
+      .home-formation,
+      .home-return-note,
+      .hh-plate,
+      .shop-deck-card,
+      .shop-featured-card button,
+      .box-open,
+      .box-results-done,
+      .mw-featured-cta,
+      .moon-home .hh-note,
+      .campaign-region-card
+    ) {
+    --mw-press-scale: 0.985;
+  }
+
+  /* Small, high-frequency targets get a slightly deeper press so they still register under a thumb. */
+  .moon-game :is(.mw-press-deep, .missions-claim-btn, .home-reward-rail button, .shop-gift-claim) {
+    --mw-press-scale: 0.93;
+  }
+
+  /* Controls that already squash with their own :active transform get one press response per control, never two
+     multiplied together (a 0.94 nav medallion times the default 0.96 read as a 13% collapse). Their own rule stays the
+     press; the layer adds only the brightness dip. Controls whose own :active is a translate-only nudge are not listed:
+     a nudge and the layer squash compose into one press. */
+  .moon-game :is(
+      .hud-medallion,
+      .fight-cta,
+      .side-header-pill,
+      .btn,
+      .dk-card,
+      .dk-chit,
+      .skirmish-back,
+      .skirmish-step,
+      .skirmish-pennant,
+      .collection-card,
+      .campaign-region-plate,
+      .campaign-reward-claim,
+      .campaign-result-cta
+    ) {
+    --mw-press-scale: 1;
+  }
+
+  /* Battle hand cards are dragged and long-pressed: a squash or dim would be captured in the drag image and flicker
+     under a held thumb. The gold selection ring is their press response. */
+  .moon-game .hand-card {
+    --mw-press-scale: 1;
+    --mw-press-brightness: 1;
+  }
+
+  .moon-game .mw-press-none {
+    --mw-press-scale: 1;
+    --mw-press-brightness: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No squash; the brightness dip alone confirms the tap. */
+  @layer mw-feedback {
+    .moon-game :is(button, [role='button'], a[href]):not(:disabled, [aria-disabled='true']):active {
+      scale: none;
+    }
+  }
+}

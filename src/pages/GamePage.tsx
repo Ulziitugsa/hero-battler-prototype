@@ -20,6 +20,9 @@ import { ATK_PER_POWER } from '../game/cardCombat/stats';
 import { battleLogEntries } from '../components/battleInfo/battleLog';
 import { focusDetails, type BattleFocus } from '../components/battleInfo/focusDetails';
 import { clashCalloutForStep } from '../components/animation/chitEffects';
+import { battleCalloutForStep } from '../components/animation/battleCallouts';
+import { RoundBanner } from '../components/battle/RoundBanner';
+import { fightBanner, roundBanner, type RoundBannerSpec } from '../components/battle/bannerSpecs';
 import { computeMatchStats, type MatchStats } from '../game/engine/stats';
 import { saveRecentMatch } from '../game/engine/localMatchHistory';
 import { SideHeader } from '../components/SideHeader';
@@ -212,6 +215,21 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const [masteryToast, setMasteryToast] = useState<MasteryToast | null>(null);
   const [xpResult, setXpResult] = useState<XpGrantResult | null>(null);
   const [goldResult, setGoldResult] = useState(0);
+  // Presentation-only: "Round N" as a round opens for deployment, "Fight!" as its cards are revealed.
+  const [banner, setBanner] = useState<RoundBannerSpec | null>(null);
+
+  useEffect(() => {
+    if (phase === 'DEPLOY' && gameState.status === 'IN_PROGRESS' && !rulesMismatch) setBanner(roundBanner(gameState.round, seed));
+    else if (phase === 'REVEALING' && animationSpeed !== 'instant') setBanner(fightBanner(gameState.round, seed));
+    // Keyed on the phase and round only: a speed change mid-round must not replay the banner.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, gameState.round, seed]);
+
+  useEffect(() => {
+    if (!banner) return;
+    const t = window.setTimeout(() => setBanner(null), banner.ms);
+    return () => window.clearTimeout(t);
+  }, [banner]);
 
   useEffect(() => {
     if (!masteryToast) return;
@@ -487,6 +505,9 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const playerBoardState = cardMode ? withEffectiveAtk({ ...displayState, player: playerZonesForDisplay }, 'player') : withEffectivePowers({ ...displayState, player: playerZonesForDisplay }, 'player');
   const enemyBoardState = cardMode ? withEffectiveAtk(displayState, 'enemy') : withEffectivePowers(displayState, 'enemy');
   const clashCallout = isRevealing ? clashCalloutForStep(anim.currentStep, revealEvents, displayState) : null;
+  // A word for the step's big moment, if it has one: beside the HP bar it hit, or over the lane it happened in.
+  const eventCallout = isRevealing && animationSpeed !== 'instant' ? battleCalloutForStep(anim.currentStep, displayState) : null;
+  const hpCalloutFor = (side: 'player' | 'enemy') => (eventCallout?.anchor === 'hp' && eventCallout.side === side ? eventCallout : null);
   // Which conditional always-on effects are live on the board as shown (pending plays included).
   const shownState = { ...displayState, player: playerZonesForDisplay };
   const passiveFor = cardMode ? passiveEffectStates : legacyPassiveEffectStates;
@@ -593,7 +614,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             <Icon name="bug" size={14} />
           </button>
 
-          <SideHeader side="enemy" name="Enemy" rank={enemyDeckLabel} hp={displayState.enemy.hp} maxHp={displayState.enemy.maxHp} hpFx={hpFxFor('enemy')} onClose={onExit} />
+          <SideHeader side="enemy" name="Enemy" rank={enemyDeckLabel} hp={displayState.enemy.hp} maxHp={displayState.enemy.maxHp} hpFx={hpFxFor('enemy')} callout={hpCalloutFor('enemy')} onClose={onExit} />
           <OpponentHand count={displayState.enemy.hand.length} />
 
           <Battlefield
@@ -606,6 +627,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             spellAnimById={anim.visuals.spellChit}
             clashLane={anim.visuals.clashLane}
             clashCallout={clashCallout}
+            laneCallout={eventCallout?.anchor === 'lane' ? eventCallout : null}
             vfxCues={anim.visuals.vfx}
             stageShake={anim.visuals.stageShake && !anim.reducedMotion}
             interactionDisabled={isRevealing}
@@ -628,6 +650,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             hp={displayState.player.hp}
             maxHp={displayState.player.maxHp}
             hpFx={hpFxFor('player')}
+            callout={hpCalloutFor('player')}
             graveyardPulse={anim.visuals.graveyardPulse === 'player'}
             deckCount={displayState.player.deck.length}
             graveyardCount={displayState.player.graveyard.length}
@@ -637,6 +660,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
             logOpen={logShown}
             badge={playerMastery && !cardMode ? <MasteryBadge loadout={playerMastery} toast={masteryToast} /> : undefined}
           />
+
+          <RoundBanner banner={banner} />
 
           {/* The hint sits under the enemy bar, clear of the hand cards' art and ATK. */}
           <div className="battle-hint">{hint}</div>

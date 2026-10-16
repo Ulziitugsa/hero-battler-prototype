@@ -4249,9 +4249,13 @@ button {
 
 /* ---- Hero clash: both cards physically lunge toward the centre line, then collide ---- */
 
+/* Each lunge opens with a short wind-up (the card leans back from the clash line) so the strike reads as a strike. */
 @keyframes chitLungeEnemy {
   0% {
     transform: translateY(0) scale(1);
+  }
+  14% {
+    transform: translateY(calc(var(--vfx-lunge-distance) * -0.14)) scale(0.97);
   }
   42% {
     transform: translateY(var(--vfx-lunge-distance)) scale(var(--vfx-lunge-scale));
@@ -4271,6 +4275,9 @@ button {
 @keyframes chitLungePlayer {
   0% {
     transform: translateY(0) scale(1);
+  }
+  14% {
+    transform: translateY(calc(var(--vfx-lunge-distance) * 0.14)) scale(0.97);
   }
   42% {
     transform: translateY(calc(var(--vfx-lunge-distance) * -1)) scale(var(--vfx-lunge-scale));

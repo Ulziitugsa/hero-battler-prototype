@@ -1,0 +1,174 @@
+/* Home's featured card (pages/home/HomeFeaturedCard.tsx): the real card face, tilted in its rarity light, beside its
+   name and one gold Play button. Built for a 360-430px portrait phone first; wider screens only get more air. */
+
+.moon-game .mw-featured {
+  --mw-faction: #8fd0c8;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(104px, 34%) minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 16px;
+  padding: 14px 14px 14px 18px;
+  border: 1px solid rgba(185, 209, 199, 0.2);
+  border-top-color: rgba(242, 219, 165, 0.5);
+  border-radius: 22px;
+  background: linear-gradient(120deg, rgba(14, 38, 48, 0.94), rgba(9, 25, 35, 0.88));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.06), 0 14px 30px rgba(0, 8, 13, 0.32);
+}
+.moon-game .mw-featured.kingdom { --mw-faction: #7fa7d9; }
+.moon-game .mw-featured.undead { --mw-faction: #6fbfa0; }
+.moon-game .mw-featured.infernal { --mw-faction: #d9704a; }
+
+/* The faction's light pools behind the card. */
+.moon-game .mw-featured::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 20% 50%, color-mix(in srgb, var(--mw-faction) 30%, transparent), transparent 52%);
+  pointer-events: none;
+}
+
+.moon-game .mw-featured-card {
+  display: block;
+  width: 100%;
+  margin: -26px 0 -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  rotate: -4deg;
+  transition: rotate var(--mw-dur-slow) var(--mw-ease-spring);
+}
+.moon-game .mw-featured-card:hover { rotate: -1deg; }
+.moon-game .mw-featured-card .game-card { box-shadow: 0 14px 24px rgba(2, 10, 16, 0.6); }
+
+.moon-game .mw-featured-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.moon-game .mw-featured-kicker {
+  color: #e8d39e;
+  font: 800 9px/1.3 var(--moon-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Long card names take two lines rather than losing their ending. */
+.moon-game .mw-featured h2 {
+  display: -webkit-box;
+  max-width: 100%;
+  margin: 4px 0 3px;
+  overflow: hidden;
+  color: #fff5df;
+  font: 400 clamp(19px, 5.4vw, 25px)/1.1 var(--moon-display);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.moon-game .mw-featured-meta { color: #b8cbc6; font: 700 11px/1.3 var(--moon-ui); }
+.moon-game .mw-featured-meta.r-rare { color: #a9cdf0; }
+.moon-game .mw-featured-meta.r-epic { color: #d3b8ff; }
+.moon-game .mw-featured-meta.r-legendary { color: #f3d692; }
+
+.moon-game .mw-featured-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin: 12px 0 8px;
+}
+
+/* Secondary on purpose: Home has one gold primary (the campaign's Continue / Begin plate above). Quick Battle is the
+   alternative, so it is a gold outline that reads as an action without competing for the first tap. */
+.moon-game .mw-featured-cta {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 4px 12px;
+  border: 1px solid rgba(241, 217, 159, 0.72);
+  border-radius: 14px;
+  color: #f6e4b4;
+  background: rgba(13, 34, 45, 0.85);
+  box-shadow: inset 0 1px rgba(255, 240, 200, 0.12);
+}
+.moon-game .mw-featured-cta span { font: 400 18px/1 var(--moon-display); }
+.moon-game .mw-featured-cta small { margin-top: 2px; color: #c9b88e; font: 800 9px/1 var(--moon-ui); letter-spacing: 0.08em; text-transform: uppercase; }
+
+.moon-game .mw-featured-secondary {
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 0 13px;
+  border: 1px solid rgba(197, 218, 207, 0.28);
+  border-radius: 14px;
+  color: #e3ebe2;
+  background: rgba(13, 34, 45, 0.85);
+  font: 700 12px/1 var(--moon-ui);
+}
+
+.moon-game .mw-featured-deck {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 4px 0;
+  overflow: hidden;
+  border: 0;
+  color: #dce6de;
+  background: none;
+  font: 700 12px/1.2 var(--moon-ui);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.moon-game .mw-featured-deck small { color: #93aeab; font: 800 9px/1 var(--moon-ui); letter-spacing: 0.1em; text-transform: uppercase; }
+.moon-game .mw-featured-deck b { color: #ebc989; }
+
+/* The chase row: the Box's Legendary, still inside and not yet owned. */
+.moon-game .mw-featured-chase {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  margin-top: 10px;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid rgba(240, 213, 154, 0.3);
+  border-radius: 14px;
+  color: inherit;
+  background: linear-gradient(90deg, rgba(52, 45, 26, 0.55), rgba(10, 27, 37, 0.6));
+  text-align: left;
+}
+.moon-game .mw-featured-chase-art {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border: 1px solid rgba(240, 213, 154, 0.7);
+  border-radius: 10px;
+}
+.moon-game .mw-featured-chase-art img,
+.moon-game .mw-featured-chase-art canvas { display: block; width: 100%; height: 100%; object-fit: cover; }
+.moon-game .mw-featured-chase-copy { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; }
+.moon-game .mw-featured-chase-copy small { overflow: hidden; color: #d8cda8; font: 800 9px/1.3 var(--moon-ui); letter-spacing: 0.06em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.moon-game .mw-featured-chase-copy strong { overflow: hidden; color: #fff0cc; font: 700 14px/1.2 var(--moon-display); text-overflow: ellipsis; white-space: nowrap; }
+.moon-game .mw-featured-chase-cta { flex: 0 0 auto; color: #ffe3a3; font: 800 11px/1 var(--moon-ui); }
+
+@media (max-width: 360px) {
+  .moon-game .mw-featured { grid-template-columns: minmax(92px, 33%) minmax(0, 1fr); gap: 4px 12px; padding: 12px; }
+  .moon-game .mw-featured-secondary { padding: 0 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moon-game .mw-featured-card,
+  .moon-game .mw-featured-card:hover { transition: none; rotate: -4deg; }
+}

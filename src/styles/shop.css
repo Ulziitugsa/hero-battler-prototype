@@ -3,8 +3,8 @@
 .shop-kicker,.shop-section-eyebrow,.shop-product-type { color:#a6c1b9; font:800 9px/1.3 var(--moon-ui,system-ui,sans-serif); letter-spacing:.14em; }
 .shop-header h1 { margin:3px 0 0; color:#f5e8c8; font:400 34px/1.1 var(--moon-display,Georgia,serif); }
 .shop-header p { margin:4px 0 0; color:#aabfba; font-size:12px; }
-.shop-balances { display:flex; flex-direction:column; gap:6px; padding-bottom:2px; }
-.shop-balances span { display:flex; justify-content:flex-end; align-items:center; gap:6px; color:#e7dfca; font-size:12px; font-weight:800; }
+.shop-balances { display:flex; flex-direction:column; align-items:flex-end; gap:6px; padding-bottom:2px; }
+.shop-balances > span { display:flex; justify-content:flex-end; align-items:center; gap:6px; min-height:26px; padding:3px 9px; color:#e7dfca; font-family:inherit; font-size:12px; font-weight:800; }
 .shop-test-note { display:flex; align-items:flex-start; gap:7px; margin:11px 0 14px; color:#a5bbb7; font-size:10px; line-height:1.4; }
 .shop-test-note svg { flex:none; color:#b9d2a9; }
 .shop-gift { display:grid; grid-template-columns:54px 1fr auto; align-items:center; gap:10px; min-height:88px; padding:12px; border:1px solid rgba(232,207,143,.32); border-radius:17px; background:linear-gradient(110deg,rgba(104,95,57,.35),rgba(23,49,54,.88) 45%,rgba(15,35,47,.96)); box-shadow:inset 0 1px rgba(255,255,255,.08),0 9px 24px #020a1070; }
@@ -58,7 +58,8 @@
 @media(max-width:380px) { .shop-screen { padding-inline:12px; }.shop-gift { grid-template-columns:42px 1fr; }.shop-gift-art { width:40px; }.shop-gift-claim { grid-column:2; justify-self:start; min-height:34px; }.shop-featured-art { height:96px; }.shop-featured-card { grid-template-rows:96px 1fr auto; }.shop-gem-row { gap:5px; }.shop-gem-card { padding-inline:3px; }.shop-trade-card { grid-template-columns:34px 1fr auto; gap:7px; padding:9px; }.shop-trade-icon { width:33px; height:33px; } }
 @media(prefers-reduced-motion:reduce) { .shop-gem-card.recommended { transform:none; } }
 
-/* Card products first: featured Box, then Structure Decks. Currency sits below as the means of buying them. */
+/* The free daily gift first (its Gold flies to the balances just above), then card products: Boxes, Structure Decks.
+   Currency sits below as the means of buying them. */
 .shop-first-section { margin-top:4px; }
 .shop-box-meter { margin-top:4px; }
 /* nine archetype Boxes: three faction groups of three tiles */
@@ -73,7 +74,6 @@
 .shop-box-tile small { color:#9fb3ad; font-size:9px; }
 .shop-box-tile.empty { border-color:#4c6664; }
 .shop-box-tile.empty .shop-box-tile-art { filter:grayscale(.7) brightness(.6); }
-.shop-gift.shop-section { margin-top:12px; }
 .shop-deck-card { display:grid; grid-template-columns:92px 1fr; gap:10px; width:100%; min-height:118px; overflow:hidden; padding:0 12px 0 0; border:1px solid rgba(143,208,179,.3); border-radius:17px; color:inherit; text-align:left; background:linear-gradient(110deg,#23443d,#132b36 55%,#0e222d); box-shadow:0 9px 22px #020a1055; }
 .shop-deck-card + .shop-deck-card { margin-top:9px; }
 .shop-deck-art { display:flex; align-items:flex-end; justify-content:center; padding:8px 4px 6px; background:radial-gradient(ellipse at 50% 90%,#4b7a66aa,transparent 70%); }

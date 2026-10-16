@@ -1,4 +1,5 @@
 import { useEconomy, useUnlimitedGems } from '../game/economy/useEconomy';
+import { BalanceCounter } from './feedback/BalanceCounter';
 
 /** The Gem: one small faceted stone, drawn inline so it takes no asset and reads at 12-20px. */
 export function GemIcon({ size = 14 }: { size?: number }) {
@@ -21,13 +22,8 @@ export function GemAmount({ amount }: { amount: number }) {
 }
 
 /** Current balance, live: gem + number. Quiet by design - shown on Home and the Summon screen only. */
-export function GemBalance({ className = '' }: { className?: string }) {
+export function GemBalance({ className = '', id }: { className?: string; id?: string }) {
   const { gems } = useEconomy();
   const unlimited = useUnlimitedGems(); // dev-only flag; always false in production
-  return (
-    <span className={`gem-balance ${className}`} aria-label={unlimited ? 'Unlimited Gems (dev)' : `${gems} Gems`}>
-      <GemIcon size={15} />
-      <span>{unlimited ? '∞' : gems.toLocaleString()}</span>
-    </span>
-  );
+  return <BalanceCounter kind="gems" value={gems} id={id} className={`gem-balance ${className}`} label={unlimited ? 'Unlimited Gems (dev)' : `${gems} Gems`} icon={<GemIcon size={15} />} text={unlimited ? '∞' : undefined} />;
 }

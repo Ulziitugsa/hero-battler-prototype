@@ -42,23 +42,17 @@
 .moon-help-button { flex: 0 0 32px; width: 32px; height: 32px; border: 1px solid rgba(197, 218, 207, .22); border-radius: 50%; background: rgba(11, 30, 41, .84); color: #dbe3d6; font: 700 14px var(--moon-ui); }
 
 /* Campaign becomes an illustrated destination with a single clear action. */
-.moon-game .home-campaign { isolation: isolate; min-height: 326px; padding: 18px 18px 16px; border: 1px solid rgba(185, 209, 199, .3); border-radius: 24px; border-top: 1px solid rgba(242, 219, 165, .78); background: linear-gradient(120deg, rgba(8, 23, 34, .94) 0%, rgba(10, 27, 38, .82) 50%, rgba(11, 28, 39, .44) 100%), #0d202d; box-shadow: inset 0 1px rgba(255,255,255,.07), 0 16px 36px rgba(0, 8, 14, .34); }
+.moon-game .home-campaign { isolation: isolate; min-height: 0; padding: 18px 18px 16px; border: 1px solid rgba(185, 209, 199, .3); border-radius: 24px; border-top: 1px solid rgba(242, 219, 165, .78); background: linear-gradient(120deg, rgba(8, 23, 34, .94) 0%, rgba(10, 27, 38, .82) 50%, rgba(11, 28, 39, .44) 100%), #0d202d; box-shadow: inset 0 1px rgba(255,255,255,.07), 0 16px 36px rgba(0, 8, 14, .34); }
 .moon-game .home-campaign::before { position: absolute; z-index: -2; inset: 0; content: ''; background: url('/art/pixel/ashen-road.png') center 44% / cover; opacity: .7; image-rendering: pixelated; }
 .moon-game .home-campaign::after { z-index: -1; inset: 0; width: auto; height: auto; background: linear-gradient(90deg, rgba(6, 19, 29, .72), rgba(7, 22, 32, .5) 50%, rgba(7, 22, 32, .05)), linear-gradient(0deg, rgba(7, 21, 31, .98), rgba(7, 21, 31, .1) 70%); }
 .home-campaign-scene { display: none; }
-.moon-game .home-campaign-top { position: relative; min-height: 164px; align-items: flex-start; }
+.moon-game .home-campaign-top { position: relative; min-height: 124px; align-items: flex-start; }
 .home-campaign-heading { position: relative; z-index: 2; width: 62%; padding-top: 3px; }
 .moon-game .home-kicker { max-width: 195px; color: #e8d39e; font: 800 10px/1.35 var(--moon-ui); letter-spacing: .11em; text-transform: uppercase; text-shadow: 0 2px 10px #06141e; }
 .moon-game .home-kicker { display: block; width: 100%; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; letter-spacing: .08em; }
 .moon-game .home-campaign h1 { max-width: 240px; margin: 10px 0 4px; color: #fff5df; font: 400 clamp(27px, 7.2vw, 36px)/1.05 var(--moon-display); text-shadow: 0 3px 15px #07141d; }
 .home-stage-count { display: inline-flex; align-items: baseline; gap: 5px; color: #d3e0d9; font: 700 12px/1.3 var(--moon-ui); }
 .home-stage-count i { color: #a9bdbc; font-style: normal; font-weight: 600; }
-.moon-game .home-feature-card { position: absolute; z-index: 1; top: -18px; right: -18px; bottom: -4px; display: flex; align-items: stretch; justify-content: flex-end; width: 56%; height: auto; padding: 0; overflow: hidden; border: 0; background: transparent; box-shadow: none; }
-.home-feature-wash { position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(7, 22, 31, .18) 35%, rgba(7, 22, 31, .04)); }
-.moon-game .home-feature-art { position: absolute; inset: 4px -8px 13px auto; width: 100%; height: 100%; object-fit: contain; object-position: right bottom; transform: scale(1.22); filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .38)); image-rendering: pixelated; }
-.home-feature-caption { position: absolute; right: 8px; bottom: 10px; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; padding: 5px 9px; border: 1px solid rgba(226, 216, 170, .2); border-radius: 12px; background: rgba(7, 22, 32, .79); box-shadow: 0 5px 18px #06131c77; }
-.home-feature-caption small { color: #c9cfb4; font: 800 8px/1.2 var(--moon-ui); letter-spacing: .12em; }
-.home-feature-caption strong { color: #fff0c9; font: 700 13px/1.15 var(--moon-display); }
 .moon-game .home-progress { position: relative; z-index: 2; height: 6px; margin: 2px 0 10px; overflow: hidden; border: 0; border-radius: 99px; background: rgba(231, 241, 226, .19); box-shadow: inset 0 1px 2px #06151e88; }
 .moon-game .home-progress > span { border-radius: inherit; background: linear-gradient(90deg, #70b8ba, #ead29a); box-shadow: 0 0 12px #a9d5c788; }
 .moon-game .home-power-line { position: relative; z-index: 2; gap: 7px 12px; color: #d3e0dc; font: 700 12px/1.35 var(--moon-ui); }
@@ -215,11 +209,10 @@
   .moon-player-copy small { font-size: 10px; }
   .moon-game .moon-home-tools { gap: 4px; }
   .moon-game .moon-home-tools :is(.gem-balance, .gold-balance, .ticket-balance) { min-height: 32px; padding: 4px 6px; font-size: 11px; }
-  .moon-game .home-campaign { min-height: 312px; padding: 15px 14px 15px; border-radius: 22px; }
-  .moon-game .home-campaign-top { min-height: 153px; }
+  .moon-game .home-campaign { min-height: 0; padding: 15px 14px 15px; border-radius: 22px; }
+  .moon-game .home-campaign-top { min-height: 112px; }
   .home-campaign-heading { width: 66%; }
   .moon-game .home-campaign h1 { max-width: 195px; font-size: clamp(26px, 7vw, 32px); }
-  .moon-game .home-feature-card { top: -15px; right: -14px; width: 53%; bottom: -2px; }
   .moon-game .home-target-reward { min-height: 46px; margin: 10px 0 9px; }
   .moon-game .home-target-reward strong { font-size: 14px; }
   .moon-game .home-continue { min-height: 48px; }
@@ -242,7 +235,7 @@
   .moon-game .home-power-line .home-energy { margin-left: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .moon-player-avatar,.home-feature-art,.hud-medallion,.home-continue { transition: none !important; animation: none !important; }
+  .moon-player-avatar,.hud-medallion,.home-continue { transition: none !important; animation: none !important; }
 }
 
 /* World personalization: each environment keeps its own color identity while retaining text contrast. */
@@ -290,15 +283,5 @@
 .moon-game .pf-background-option>svg { color:#e2c77f; }
 
 /* A real lazy-chunk wait gets a short branded loader; there is no artificial minimum duration. */
-.moon-game .moon-loading { position:fixed; z-index:120; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:calc(30px + env(safe-area-inset-top)) 24px calc(30px + env(safe-area-inset-bottom)); color:#f5edda; text-align:center; background:radial-gradient(ellipse at 50% 38%,rgba(82,136,143,.3),transparent 55%),linear-gradient(180deg,#0b2633,#081723 72%); }
-.moon-loading-orb { position:relative; display:grid; place-items:center; width:78px; height:78px; margin-bottom:20px; border:1px solid #d9c7848c; border-radius:50%; color:#f0d99f; background:radial-gradient(circle,#9bbdac37,transparent 68%); box-shadow:0 0 34px #a6d7d022,inset 0 0 22px #d8cb8720; }
-.moon-loading-orb span { font-size:47px; line-height:1; transform:rotate(-25deg); }
-.moon-loading-orb i { position:absolute; inset:-8px; border:1px solid #a3c4be38; border-left-color:#dbc887; border-radius:50%; animation:moon-loading-turn 2.4s linear infinite; }
-.moon-loading-kicker { margin:0 0 5px; color:#a9c6bd; font:800 9px/1.4 var(--moon-ui); letter-spacing:.2em; }
-.moon-game .moon-loading h1 { margin:0; color:#f3e4bd; font:400 38px/1.15 var(--moon-display); }
-.moon-loading-tip { max-width:280px; min-height:38px; margin:11px 0 24px; color:#bacbc2; font-size:12px; line-height:1.5; }
-.moon-loading-spinner { width:23px; height:23px; border:2px solid #b6cabe55; border-top-color:#eed698; border-radius:50%; animation:moon-loading-turn .8s linear infinite; }
-.moon-loading-label { margin-top:8px; color:#94afaa; font-size:10px; letter-spacing:.04em; }
-@keyframes moon-loading-turn { to { transform:rotate(360deg); } }
 @media(max-width:390px) { .moon-game .hr-sheet-stage { min-height:36dvh; padding-inline:35px; }.moon-game .hr-sheet-window .hr-art { height:min(36dvh,320px); }.moon-game .hr-sheet-body { padding-inline:16px; }.moon-game .pf-background-grid { grid-template-columns:1fr; } }
-@media(prefers-reduced-motion:reduce) { .moon-game .moon-world-scene,.moon-game .moon-world-shade { transition:none; }.moon-game .moon-world-scene.fade-in { animation:none; }.moon-loading-orb i,.moon-loading-spinner { animation:none; } }
+@media(prefers-reduced-motion:reduce) { .moon-game .moon-world-scene,.moon-game .moon-world-shade { transition:none; }.moon-game .moon-world-scene.fade-in { animation:none; }}

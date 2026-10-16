@@ -36,13 +36,18 @@ import { configureStatusBar } from './platform/statusBar';
 import { App as NativeApp } from '@capacitor/app';
 import './styles/moonwaterPolish.css';
 import { MoonwaterLoading } from './components/MoonwaterLoading';
+import { RewardFlightLayer } from './components/feedback/RewardFlightLayer';
+import { dismissBootSplash } from './platform/bootSplash';
 import { RankedPage } from './pages/RankedPage';
 import { chooseRankedOpponent, getRanked, recordRankedMatch } from './game/ranked/store';
 import { CombatV2LabPage } from './pages/CombatV2LabPage';
 import { type CombatModel, type LocalBattleMode, combatModelForMode } from './game/combat/combatModel';
 
 export default function App() {
-  return <div className="moon-game"><WorldBackdrop /><Suspense fallback={<MoonwaterLoading />}><GameApp /></Suspense>{isDebugPanelEnabled() && <AnalyticsDebugPanel />}</div>;
+  // The first committed frame replaces the static boot screen from index.html (it fades out over the live app).
+  useEffect(() => dismissBootSplash(), []);
+  // The reward flight layer is the root's last child: a flight starting in any screen or sheet draws above all of them.
+  return <div className="moon-game"><WorldBackdrop /><Suspense fallback={<MoonwaterLoading />}><GameApp /></Suspense>{isDebugPanelEnabled() && <AnalyticsDebugPanel />}<RewardFlightLayer /></div>;
 }
 
 function GameApp() {
