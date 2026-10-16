@@ -18,3 +18,5 @@ This pass keeps Moonwater's current portrait layout, pixel character art, progre
 - Profile repeats the account frame and progress styling. The bottom navigation uses rounded active treatment and readable mixed-case labels.
 
 The Home state and navigation rules remain data driven. No claim state, scarcity, sale, progress, or player customization was added. The identity name remains the existing `Wanderer` placeholder, and its frame/title are visual presentation of the current Level and equipped Mastery rather than new editable profile systems.
+
+Polish Pass 3 extends this material to every remaining screen (Ranked, Quick Battle setup, Campaign and its sheets, Missions, Journey, the navigation and How to play) and adds the backdrop atmosphere: see [VISUAL-IDENTITY.md](VISUAL-IDENTITY.md).

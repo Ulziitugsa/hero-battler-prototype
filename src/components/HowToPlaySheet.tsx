@@ -1,4 +1,5 @@
 import { Icon, type IconName } from './Icon';
+import { CardArtwork } from './CardArtwork';
 
 // Home's own "how to play" entry point (Home Screen v3) - a compact 3-step sheet, distinct from the
 // fuller 9-point HelpModal used elsewhere (TopControls, Profile). Deliberately short: "no walls of
@@ -14,7 +15,14 @@ export function HowToPlaySheet({ onClose }: { onClose: () => void }) {
     <div className="how-to-play-overlay" onClick={onClose}>
       <div className="how-to-play-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="how-to-play-header">
-          <span className="how-to-play-title">How to play</span>
+          {/* Pip, the ember familiar from the launch art, keeps the reader company (still under reduced motion). */}
+          <span className="how-to-play-guide" aria-hidden="true">
+            <CardArtwork companion="pip" />
+          </span>
+          <span className="how-to-play-heading">
+            <small>Three steps</small>
+            <span className="how-to-play-title">How to play</span>
+          </span>
           <button type="button" className="how-to-play-close" onClick={onClose} aria-label="Close">
             <Icon name="close" size={14} />
           </button>

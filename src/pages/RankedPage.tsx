@@ -26,6 +26,6 @@ export function RankedPage({ onBattle }: { onBattle: () => void }) {
       {RANK_REWARDS.map(reward => { const claimed=state.claimed.includes(reward.id); const isReady=ready.some(r=>r.id===reward.id); return <div className={`ranked-reward ${isReady?'ready':''}`} key={reward.id}><span className="ranked-reward-crest">✦</span><span><strong>{reward.rank}</strong><small>{reward.gems} Gems · {reward.gold} Gold{reward.tickets ? ` · ${reward.tickets} Ticket` : ''}</small></span><span className="ranked-reward-state">{claimed?'Claimed':isReady?<button type="button" onClick={()=>{if(claimRankReward(reward.id))track('ranked_reward_claimed',{rewardId:reward.id});}}>Claim</button>:`${reward.rating} rating`}</span></div>; })}
       {nextReward && <p className="ranked-next-reward">Next: {nextReward.rank} reward at {nextReward.rating} rating</p>}
     </section>
-    {state.matches.length > 0 && <section className="ranked-history"><h2>Recent trials</h2>{state.matches.slice(0,4).map(m=><div key={m.id}><span>{m.result==='win'?'Victory':m.result==='loss'?'Defeat':'Draw'} · AI rival</span><strong>{m.delta>0?'+':''}{m.delta}</strong></div>)}</section>}
+    <section className="ranked-history"><h2>Recent trials</h2>{state.matches.length === 0 && <p className="ranked-history-empty">No trials yet. Each Ranked battle you finish is listed here with its rating change.</p>}{state.matches.slice(0,4).map(m=><div key={m.id}><span>{m.result==='win'?'Victory':m.result==='loss'?'Defeat':'Draw'} · AI rival</span><strong>{m.delta>0?'+':''}{m.delta}</strong></div>)}</section>
   </main>;
 }
