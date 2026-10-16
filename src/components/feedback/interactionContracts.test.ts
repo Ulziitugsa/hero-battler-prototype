@@ -60,6 +60,19 @@ describe('battle cards are dragged with the pointer, not HTML drag-and-drop', ()
     expect(css).toMatch(/\.hand-drag-ghost \{[^}]*pointer-events: none/);
     expect(css).toContain('.battle-zone.targetable.drag-over');
   });
+  it('one drag at a time: a second finger neither starts another drag nor ends or hijacks the one under way', () => {
+    // Two drags at once would place whichever card was selected last; a second press on the dragged card stranded its copy.
+    const src = read('../HandCard.tsx');
+    expect(src).toContain('let dragOwner: object | null = null;');
+    expect(src).toContain('if (drag.current?.active || (dragOwner && dragOwner !== self.current)) return;');
+    expect(src).toContain('if (d && d.pointerId !== event.pointerId) return;');
+    expect(src).toContain('onLostPointerCapture=');
+  });
+  it('a hand card that leaves mid-gesture lets go of the drag, the lit slot and the pending long-press', () => {
+    const src = read('../HandCard.tsx');
+    const cleanup = src.slice(src.indexOf('() => () => {'), src.indexOf('[],'));
+    for (const step of ['clearPress();', "classList.remove('drag-over')", 'dragOwner = null;', 'dragEnd.current()']) expect(cleanup).toContain(step);
+  });
   it('the Clash Damage beat marks the beaten and the winning Unit, and stops easing under reduced motion', () => {
     const css = read('../../styles/feedback/battle.css');
     expect(css).toMatch(/\.zone-card\.chit-beaten \{[^}]*filter/);

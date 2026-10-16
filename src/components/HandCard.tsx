@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { HandCard as HandCardModel } from '../game/types';
 import { getCard } from '../game/cards';
@@ -10,6 +10,10 @@ import { cardEffects } from '../game/cards/cardPresentation';
 const LONG_PRESS_MS = 450;
 /** How far a press has to travel before it is a drag rather than a tap (and before long-press stops counting). */
 export const DRAG_START_PX = 10;
+
+/** One drag at a time across the hand: a second finger must not start another (dropping either would place whichever
+ * card was selected last) or take over the one in progress. */
+let dragOwner: object | null = null;
 
 /** The slot a dragged card is over: the same element a tap would place it on (LaneSlot / SpellLaneSlot). */
 function targetUnder(x: number, y: number): HTMLElement | null {
@@ -54,6 +58,26 @@ export function HandCard({
   const suppressClick = useRef(false);
   const ghostRef = useRef<HTMLDivElement>(null);
   const [ghost, setGhost] = useState<{ width: number; height: number; x: number; y: number } | null>(null);
+  const self = useRef({});
+  const dragEnd = useRef(onDragEnd);
+  useEffect(() => {
+    dragEnd.current = onDragEnd;
+  });
+
+  // Unmounted mid-gesture (the round moved on, the battle ended): no late Inspect, no lit slot, no held drag.
+  useEffect(
+    () => () => {
+      clearPress();
+      const d = drag.current;
+      drag.current = null;
+      d?.over?.classList.remove('drag-over');
+      if (dragOwner === self.current) {
+        dragOwner = null;
+        if (d?.active) dragEnd.current();
+      }
+    },
+    [],
+  );
 
   const setOver = (next: HTMLElement | null) => {
     const d = drag.current;
@@ -64,7 +88,10 @@ export function HandCard({
   };
   const endDrag = (event: ReactPointerEvent<HTMLDivElement>, drop: boolean) => {
     const d = drag.current;
+    // Another finger lifting is not the end of this drag.
+    if (d && d.pointerId !== event.pointerId) return;
     drag.current = null;
+    if (dragOwner === self.current) dragOwner = null;
     if (!d?.active) return;
     const target = drop ? d.over : null;
     d.over?.classList.remove('drag-over');
@@ -100,6 +127,9 @@ export function HandCard({
         onSelect();
       }}
       onPointerDown={(event) => {
+        // A drag is already under way (this card or another): leave it alone. (A press that never became a drag holds
+        // nothing: a mouse released off the card sends its pointerup elsewhere, so it must not lock the card.)
+        if (drag.current?.active || (dragOwner && dragOwner !== self.current)) return;
         longPressed.current = false;
         suppressClick.current = false;
         clearPress();
@@ -121,6 +151,8 @@ export function HandCard({
         if (!d || d.pointerId !== event.pointerId) return;
         if (!d.active) {
           if (Math.hypot(event.clientX - d.x0, event.clientY - d.y0) < DRAG_START_PX) return;
+          if (dragOwner && dragOwner !== self.current) return;
+          dragOwner = self.current;
           d.active = true;
           clearPress();
           event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -133,13 +165,20 @@ export function HandCard({
         setOver(targetUnder(event.clientX, event.clientY));
       }}
       onPointerUp={(event) => {
+        if (drag.current && drag.current.pointerId !== event.pointerId) return;
         clearPress();
         endDrag(event, true);
+      }}
+      onLostPointerCapture={(event) => {
+        // Capture taken away from the card mid-drag: the pointerup may never come here. (Only the card's own capture: a touch
+        // starts captured to the element under the finger, and handing that to the card fires this from the child.)
+        if (event.target === event.currentTarget && drag.current?.active && drag.current.pointerId === event.pointerId) endDrag(event, false);
       }}
       onPointerLeave={() => {
         if (!drag.current?.active) clearPress();
       }}
       onPointerCancel={(event) => {
+        if (drag.current && drag.current.pointerId !== event.pointerId) return;
         clearPress();
         endDrag(event, false);
       }}
