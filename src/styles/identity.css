@@ -153,6 +153,8 @@
 .moon-game .ranked-rewards { overflow: hidden; border: 1px solid var(--mw-hairline); border-radius: var(--mw-radius); background: var(--mw-surface); box-shadow: var(--mw-cast); }
 .moon-game .ranked-section-head { padding: 14px 14px 4px; }
 .moon-game .ranked-section-head h2 { margin: 0; }
+/* Balances in view while a Division reward can be claimed (RankedPage): the claim lands here. */
+.moon-game .ranked-balances { display: flex; justify-content: flex-end; padding: 2px 14px 8px; }
 .moon-game .ranked-reward { border-bottom-color: var(--mw-hairline); background: transparent; }
 .moon-game .ranked-reward strong { font: 400 17px/1.15 var(--moon-display); }
 .moon-game .ranked-reward small { font: 600 11px/1.3 var(--moon-ui); }
@@ -214,6 +216,8 @@
   animation: mwSheetRise 280ms var(--mw-ease-out, ease-out) backwards;
 }
 @keyframes mwSheetRise { from { opacity: 0; transform: translateY(24px); } }
+/* Every bottom sheet rises the same way (Polish Pass 4): Missions, Journey, Offers and the Campaign stage sheet. */
+.moon-game :is(.missions-sheet, .campaign-sheet) { animation: mwSheetRise 260ms var(--mw-ease-out, ease-out) backwards; }
 .moon-game .how-to-play-header { justify-content: flex-start; gap: 12px; }
 .moon-game .how-to-play-guide {
   flex: 0 0 52px;
@@ -378,6 +382,7 @@
   .moon-world-mist i { animation: none; }
   :where(.moon-game .app-frame-content > *) { animation: none; }
   .moon-game .how-to-play-sheet { animation: none; }
+  .moon-game :is(.missions-sheet, .campaign-sheet) { animation: none; }
   .moon-world-halo,
   .moon-game .starter-pick-option { transition: none; }
 }

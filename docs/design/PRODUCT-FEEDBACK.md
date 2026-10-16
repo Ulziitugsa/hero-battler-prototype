@@ -25,7 +25,7 @@ keeps. Nothing in it changes combat, balance, the economy, Box contents or save 
 | Press feedback | `styles/feedback/press.css` | Automatic for every button in `.moon-game`. Tune with `--mw-press-scale` or `.mw-press-soft` / `.mw-press-deep` / `.mw-press-none`. A control with its own `:active` scale must be in press.css's opt-out list (a test enforces it) so two squashes never multiply |
 | Motion utilities | `styles/feedback/motion.css` | `.mw-enter`, `.mw-stagger` (+ `--i`), `.mw-pop-in`, `.mw-attention`, `.mw-glow-pulse`, `.mw-float-number`, `.mw-shake` |
 | Rarity presence | `styles/feedback/rarity.css` | Wrap a card face: `<span class="mw-rarity" data-rarity="epic">`. Add `.mw-rarity-reveal` for a just-revealed card, `.mw-rarity-static` in a grid of many cards (same light, no loops) |
-| Reward bus | `components/feedback/rewardBus.ts` | `flyReward({ kind, amount, from })`, `flyRewards(from, { gold, gems, tickets, cards }, { delayMs })`. `delayMs` lets a result screen finish opening first; the counter waits for it too |
+| Reward bus | `components/feedback/rewardBus.ts` | `flyReward({ kind, amount, from })`, `flyRewards(from, { gold, gems, tickets, cards }, { delayMs })`. `delayMs` lets a result screen finish opening first; the counter waits for it too. Both return flight ids: a screen that can close before its flights land passes them to `cancelRewardFlights` on unmount (the result card and the Campaign result sheet do) |
 | Flight layer | `components/feedback/RewardFlightLayer.tsx` | Mounted once in `App.tsx`; draws every flight |
 | Counters | `components/feedback/BalanceCounter.tsx`, `useCountUp.ts`, `useRewardTarget.ts` | `GoldBalance` / `GemBalance` / `TicketBalance` already use them; any element can be a landing spot with `useRewardTarget(kind)`. Animation frames only smooth a roll: a timer lands the final value, and a hidden page shows it at once |
 | Sheet balances | `components/feedback/BalanceStrip.tsx` | Inside a sheet that covers the header, so claims land in view. Tickets hide at zero unless a claimable reward in the sheet pays them. With `arriving={{ gold, gems }}` (a screen that opens on rewards already granted, like a battle result) the counters open on the balance before them and roll up as they land |
@@ -89,6 +89,29 @@ Campaign's `StageResultSheet` flies its Gold and Gems into balances on the sheet
   the Done button).
 * **Deck builder** - an added card's chit pops in and scrolls into view and the count answers; a refused add (deck full,
   no more copies) shakes the count beside its reason.
+
+## Interaction refinement (Polish Pass 4)
+
+* **Clash Damage beat** - while a clash's damage lands on the HP bar, the lane shows the result: the beaten Unit dims
+  (it leaves on the next beat) and the winner stands lit (`chit-beaten` / `chit-victor`, chitEffects.ts). The lane no
+  longer sits still for most of a second with the loser looking alive. No timing changed.
+* **Drag to place** - battle hand cards are dragged with the pointer (touch, pen or mouse), not HTML drag-and-drop, which
+  on a phone only starts on a long press (the gesture that opens Inspect). A copy follows the finger, the card left
+  behind fades, the slot under it lights and letting go places the card exactly as tapping that slot would. Tap to
+  select and long-press to inspect are unchanged.
+* **Card Inspect** - the card rises into place (Epic and Legendary land with their rarity flash) and wears its rarity's
+  still glow. About a quarter second; paging replays it; closing stays instant.
+* **Box ceremony** - an Epic or Legendary is on the stage, sealed, from its telegraph: it gathers its tier's light,
+  trembles as the seal breaks, then turns over. That stretch used to show an empty sky. The timeline (and so the
+  length of a ceremony) is unchanged; tap and Skip work as before. The stage heading names the tier the light already
+  shows ("An Epic card rises").
+* **Ranked Division rewards** - Claim flies the Gold, Gems and Ticket the wallet actually gained into balances shown in
+  the rewards panel (the Ranked tab has no header balances). The balances stay for the visit once a reward was ready.
+* **Result screens** - Play again (or Continue) before the rewards have landed calls the flights off
+  (`cancelRewardFlights`) instead of leaving coins flying at a card that has closed.
+* **Labels** stay inside the screen when the control that earned them is at its edge.
+* **Sheets** - Missions, Journey, Offers and the Campaign stage sheet rise in like How to play (260ms, off under reduced
+  motion).
 
 ## Missing state (deliberately not faked)
 

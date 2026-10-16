@@ -8,7 +8,7 @@ import { Icon } from './Icon';
 import { GoldAmount } from './GoldIcon';
 import { GemAmount } from './GemIcon';
 import { BalanceStrip } from './feedback/BalanceStrip';
-import { flyRewards } from './feedback/rewardBus';
+import { cancelRewardFlights, flyRewards } from './feedback/rewardBus';
 import { finishingBlowText, xpBar, type FinishingBlow, type MissionAdvance, type Outcome, type RankedChange } from './battle/battleOutcome';
 import '../styles/battleResult.css';
 
@@ -83,8 +83,10 @@ export function MatchSummary({
   // card has settled (the strip's counters open on the balance before them and roll up as they land). A layout effect,
   // so the landing time is known before the counters schedule their roll.
   useLayoutEffect(() => {
-    if (rewardsRef.current && (gold > 0 || gems > 0)) flyRewards(rewardsRef.current, { gold, gems }, { delayMs: REWARD_FLIGHT_DELAY_MS });
+    const flights = rewardsRef.current && (gold > 0 || gems > 0) ? flyRewards(rewardsRef.current, { gold, gems }, { delayMs: REWARD_FLIGHT_DELAY_MS }) : [];
     // Once, for the match this screen opened on.
+    // Closing before they land (Play again, or Continue at once) takes the coins with it.
+    return () => cancelRewardFlights(flights);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

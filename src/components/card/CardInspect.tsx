@@ -120,7 +120,8 @@ export function CardInspect({ cardId, onClose, context = 'other', battle, treatm
       >
         <div className="hr-sheet-scroll" ref={scroller}>
           <div className="hr-sheet-stage">
-            <div className="hr-sheet-frame hr-sheet-card">
+            {/* Keyed by card: paging to the next card plays its entrance again. Its rarity glows, held still (one big card, no loops). */}
+            <div key={cardId} className="hr-sheet-frame hr-sheet-card ci-presence mw-rarity mw-rarity-static" data-rarity={owned ? card.rarity : 'common'}>
               <GameCard
                 cardId={cardId}
                 density="inspect"

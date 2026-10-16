@@ -118,7 +118,22 @@
   transition: width 520ms var(--mw-ease-in-out) 260ms;
 }
 
+/* The Clash Damage beat (chitEffects.ts): while the damage lands on the HP bar, the lane shows who won. The beaten Unit
+   dims (it leaves on the next beat), the winner stands lit. Filter and shadow only: the lunge owns the transform. */
+.zone-card.chit-beaten { filter: grayscale(.75) brightness(.6); transition: filter 140ms ease-out; }
+.zone-card.chit-victor { box-shadow: 0 0 0 2px rgba(255, 216, 148, .85), 0 0 18px rgba(255, 196, 120, .45); transition: box-shadow 140ms ease-out; }
+
+/* Drag to place (HandCard.tsx): the hand takes the gesture (nothing in the battle scrolls), the card left behind fades, a
+   copy follows the finger, and the slot under it answers. A tap still selects; a long press still inspects. */
+.hand-fan .hand-card { touch-action: none; }
+.hand-fan .hand-card.dragging { opacity: .35; }
+.hand-drag-ghost { position: fixed; top: 0; left: 0; z-index: 60; pointer-events: none; border-radius: 7px; filter: drop-shadow(0 16px 22px rgba(4, 8, 10, .7)); will-change: transform; }
+.hand-drag-ghost > .game-card { width: 100%; height: 100%; border-radius: 7px; }
+.battle-zone.targetable.drag-over { box-shadow: inset 0 0 0 2px rgba(255, 220, 153, .95), 0 0 22px rgba(255, 210, 140, .45); background-color: rgba(255, 214, 140, .12); }
+
 @media (prefers-reduced-motion: reduce) {
+  .zone-card.chit-beaten,
+  .zone-card.chit-victor { transition: none; }
   .mw-round-banner-ribbon { animation: mw-fade-hold var(--mw-banner-ms, 1150ms) linear both; }
   .mw-battle-callout { animation: mw-fade-hold var(--mw-callout-ms, 1000ms) linear both; }
   .hp-plate-ghost { transition: none; }

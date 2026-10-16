@@ -201,6 +201,14 @@ function applyEventVisual(v: StepVisuals, e: GameEvent, state: GameState): void 
       // Clash Damage lands on the LOSING PLAYER's HP meter as "-N". No Unit takes damage, so nothing is drawn on
       // either chit. A tie (side null) or a fully prevented hit moves no HP.
       if (e.side !== null && e.amount > 0) v.hpFx.push({ side: e.side, kind: 'damage', amount: e.amount });
+      // While the damage lands up on the HP bar, the lane itself says who won: the beaten Unit (already decided, it
+      // leaves on the next beat) dims and the winner stands lit. Classes only - nothing is written on either card.
+      // A tie has no beat of its own (it rides on the clash), so nothing is marked there.
+      if (e.side !== null) {
+        for (const gone of e.destroyed) addHeroClass(v, gone.instanceId, 'chit-beaten');
+        const winner = e.winner === 'tie' ? null : (e.winner === 'player' ? state.player : state.enemy).heroZones[e.lane];
+        if (winner && !e.destroyed.some((g) => g.instanceId === winner.instanceId)) addHeroClass(v, winner.instanceId, 'chit-victor');
+      }
       return;
     case 'OVERFLOW_DAMAGE':
       // Combat overflow is damage to the LOSER'S PLAYER (`e.side`), not to either Hero: the winner survives at

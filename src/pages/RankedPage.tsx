@@ -1,7 +1,10 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent } from 'react';
 import { Icon } from '../components/Icon';
 import { chooseRankedOpponent, claimRankReward, getRanked, rankAt, readyRankRewards, RANK_REWARDS, subscribeRanked, type RankedState } from '../game/ranked/store';
 import { track } from '../analytics/track';
+import { getGems, getGold, getTickets } from '../game/economy/economy';
+import { BalanceStrip } from '../components/feedback/BalanceStrip';
+import { flyRewards } from '../components/feedback/rewardBus';
 import '../styles/ranked.css';
 
 export function RankedPage({ onBattle }: { onBattle: () => void }) {
@@ -12,6 +15,18 @@ export function RankedPage({ onBattle }: { onBattle: () => void }) {
   const openedAtRating=useRef(state.rating);
   useEffect(() => { track('ranked_opened', { rating: openedAtRating.current }); }, []);
   const nextReward = RANK_REWARDS.find(r => state.peakRating < r.rating);
+  // Once a Division reward has been claimable on this visit, the section keeps balances in view, so a claim lands on a
+  // counter the player can see (the Ranked tab has no header balances) and does not vanish under the coins in flight.
+  const [showBalances, setShowBalances] = useState(ready.length > 0);
+  if (ready.length > 0 && !showBalances) setShowBalances(true);
+  function claim(id: string, event: MouseEvent<HTMLButtonElement>) {
+    // The button becomes "Claimed" on success: take its position first, and fly what the wallet actually gained.
+    const r = event.currentTarget.getBoundingClientRect();
+    const before = { gold: getGold(), gems: getGems(), tickets: getTickets() };
+    if (!claimRankReward(id)) return;
+    track('ranked_reward_claimed', { rewardId: id });
+    flyRewards({ x: r.left + r.width / 2, y: r.top + r.height / 2 }, { gold: getGold() - before.gold, gems: getGems() - before.gems, tickets: getTickets() - before.tickets });
+  }
   return <main className="ranked-screen">
     <header className="ranked-header"><span className="moon-eyebrow">RANKED TRIALS · SEASON 1</span><h1>Prove your deck</h1><p>Climb against rival decks guided by Moonwater’s battle AI.</p></header>
     <section className="ranked-crest-card" aria-label={`${rank.division} ${rank.tier}`}>
@@ -22,8 +37,8 @@ export function RankedPage({ onBattle }: { onBattle: () => void }) {
     </section>
     <section className="ranked-rival"><div className="ranked-rival-mark"><Icon name="battle" size={24} /></div><div><span className="moon-eyebrow">NEXT RIVAL</span><strong>{rival.deck.name}</strong><small>{rival.tier.blurb}</small></div><span className="ranked-record">{state.wins}W · {state.losses}L</span></section>
     <button type="button" className="ranked-battle moon-primary" onClick={onBattle}><Icon name="battle" size={18} /> Battle for rating <span>WIN +24 · LOSS −12</span></button>
-    <section className="ranked-rewards"><div className="ranked-section-head"><h2>Division rewards</h2>{ready.length > 0 && <span className="ranked-ready-tag">{ready.length} READY</span>}</div>
-      {RANK_REWARDS.map(reward => { const claimed=state.claimed.includes(reward.id); const isReady=ready.some(r=>r.id===reward.id); return <div className={`ranked-reward ${isReady?'ready':''}`} key={reward.id}><span className="ranked-reward-crest">✦</span><span><strong>{reward.rank}</strong><small>{reward.gems} Gems · {reward.gold} Gold{reward.tickets ? ` · ${reward.tickets} Ticket` : ''}</small></span><span className="ranked-reward-state">{claimed?'Claimed':isReady?<button type="button" onClick={()=>{if(claimRankReward(reward.id))track('ranked_reward_claimed',{rewardId:reward.id});}}>Claim</button>:`${reward.rating} rating`}</span></div>; })}
+    <section className="ranked-rewards"><div className="ranked-section-head"><h2>Division rewards</h2>{ready.length > 0 && <span className="ranked-ready-tag">{ready.length} READY</span>}</div>{showBalances && <div className="ranked-balances"><BalanceStrip ticketReward={ready.some(r => (r.tickets ?? 0) > 0)} /></div>}
+      {RANK_REWARDS.map(reward => { const claimed=state.claimed.includes(reward.id); const isReady=ready.some(r=>r.id===reward.id); return <div className={`ranked-reward ${isReady?'ready':''}`} key={reward.id}><span className="ranked-reward-crest">✦</span><span><strong>{reward.rank}</strong><small>{reward.gems} Gems · {reward.gold} Gold{reward.tickets ? ` · ${reward.tickets} Ticket` : ''}</small></span><span className="ranked-reward-state">{claimed?'Claimed':isReady?<button type="button" onClick={(event)=>claim(reward.id, event)}>Claim</button>:`${reward.rating} rating`}</span></div>; })}
       {nextReward && <p className="ranked-next-reward">Next: {nextReward.rank} reward at {nextReward.rating} rating</p>}
     </section>
     <section className="ranked-history"><h2>Recent trials</h2>{state.matches.length === 0 && <p className="ranked-history-empty">No trials yet. Each Ranked battle you finish is listed here with its rating change.</p>}{state.matches.slice(0,4).map(m=><div key={m.id}><span>{m.result==='win'?'Victory':m.result==='loss'?'Defeat':'Draw'} · AI rival</span><strong>{m.delta>0?'+':''}{m.delta}</strong></div>)}</section>

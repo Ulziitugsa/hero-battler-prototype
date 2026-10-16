@@ -6,7 +6,7 @@ import { XpSummary } from '../../components/XpSummary';
 import { track } from '../../analytics/track';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { BalanceStrip } from '../../components/feedback/BalanceStrip';
-import { flyRewards } from '../../components/feedback/rewardBus';
+import { cancelRewardFlights, flyRewards } from '../../components/feedback/rewardBus';
 import { haptics } from '../../platform/haptics';
 
 const REWARD_ICON: Record<string, IconName> = { card: 'cards', ember: 'ember', emblem: 'hero', star: 'trophy' };
@@ -29,8 +29,10 @@ export function StageResultSheet({ outcome, onContinue, recovery, onRetry }: { o
   const totalGold = gold;
   const rewardsRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    if (rewardsRef.current && (totalGold > 0 || totalGems > 0)) flyRewards(rewardsRef.current, { gold: totalGold, gems: totalGems }, { delayMs: 450 });
+    const flights = rewardsRef.current && (totalGold > 0 || totalGems > 0) ? flyRewards(rewardsRef.current, { gold: totalGold, gems: totalGems }, { delayMs: 450 }) : [];
     // Once, for the result this sheet opened on.
+    // Closing before they land (Play again, or Continue at once) takes the coins with it.
+    return () => cancelRewardFlights(flights);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const balances = totalGold > 0 || totalGems > 0 ? <div className="campaign-result-balances"><BalanceStrip arriving={{ gold: totalGold, gems: totalGems }} /></div> : null;

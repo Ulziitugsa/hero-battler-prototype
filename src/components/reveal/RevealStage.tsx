@@ -83,6 +83,9 @@ function CardTile({ card, revealed, faction }: { card: RevealCard; revealed: boo
   );
 }
 
+/** The stage heading names the tier the light is already showing (data-tier colours the scene from the telegraph on). */
+const STAGE_HEADING: Record<Rarity, string> = { common: 'Your card arrives', rare: 'A Rare card rises', epic: 'An Epic card rises', legendary: 'A Legendary card rises' };
+
 const HEADING: Partial<Record<SeqView['phase'], string>> = { charging: 'A light beyond the clouds', telegraph: 'The Moonwell stirs', opening: 'The seal breaks' };
 
 /**
@@ -95,11 +98,13 @@ const HEADING: Partial<Record<SeqView['phase'], string>> = { charging: 'A light 
 export function RevealStage({ outcome, plan, view, faction = 'kingdom', onAdvance, onSkip, onIntroFinished }: { outcome: RevealOutcome; plan: PackPlan; view: SeqView; faction?: StarterFaction; onAdvance: () => void; onSkip: () => void; onIntroFinished: () => void }) {
   const dialog = useDialogFocus(onSkip);
   const stageCard = view.stageCard !== null ? outcome.cards[view.stageCard] : null;
-  const showStage = !!stageCard && (view.phase === 'emerge' || view.phase === 'reveal');
+  // The card takes the stage from its build-up on: sealed (its back, gathering its rarity's light) while the light
+  // telegraphs and the seal breaks, then it rises and turns over. Before, the build-up showed an empty sky.
+  const showStage = !!stageCard;
   const gridOn = view.phase === 'slot' || view.revealed > 0 || view.stageCard !== null;
   const ten = plan.mode === 'ten';
   const count = outcome.cards.length;
-  const heading = stageCard ? 'A rare card emerges' : gridOn ? (ten ? 'Your cards arrive' : 'Your card arrives') : (HEADING[view.phase] ?? 'The Moonwell stirs');
+  const heading = stageCard ? STAGE_HEADING[stageCard.rarity] : gridOn ? (ten ? 'Your cards arrive' : 'Your card arrives') : (HEADING[view.phase] ?? 'The Moonwell stirs');
   // One meteor per card worth one: the card of a single pull; the Rares and up of a 10-pull.
   const meteors = stageCard ? [stageCard] : ten ? outcome.cards.filter((c) => c.rarity !== 'common') : outcome.cards;
 
