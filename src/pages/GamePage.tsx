@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { CombatModelId, DeployPlay, GameEvent, GameState, HandCard as HandCardModel, HeroInstance, LaneId, MasteryLoadout, PlayerAction, SpellZoneInstance } from '../game/types';
 import { LANES } from '../game/types';
 import { getCard } from '../game/cards';
@@ -103,6 +103,27 @@ export interface GamePageProps {
   friendlyRematch?: FriendlyRematchActions;
   /** Which local mode this match belongs to, reported on the battle_completed analytics event. Omit for Quick Battle. */
   battleMode?: BattleMode;
+  /**
+   * Card Discovery Lab only (src/lab, never in a production build): the match records nothing and grants nothing. No
+   * match history, no battle_completed event (so no mission or event progress), no XP or Gold.
+   */
+  sandbox?: boolean;
+  /**
+   * Card Discovery Lab only: an extra layer over the board, drawn from the resolver's own events. While a round
+   * resolves it gets that round's events and how far playback has reached; between rounds, the round just played.
+   */
+  labLayer?: (view: LabLayerView) => ReactNode;
+}
+
+export interface LabLayerView {
+  /** The round's events: the one resolving now, or the last one resolved. Empty before the first Fight. */
+  events: GameEvent[];
+  /** The board before those events. */
+  base: GameState | null;
+  /** Index of the last event playback has shown. */
+  revealedUntil: number;
+  resolving: boolean;
+  round: number;
 }
 
 /** Overlays this round's not-yet-locked plays onto the real board, Deploy-phase display only. A
@@ -162,7 +183,7 @@ function buildPreviewZones(
   return { heroZones: previewHero, spellZones: previewSpell };
 }
 
-export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, startingHpOverride, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel: requestedModel = 'card', battleMode = 'quick' }: GamePageProps) {
+export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabel, onExit, playerMastery, playerAscensions, enemyAscensions, playerHeroLevels, enemyHeroLevels, startingHp, startingHpOverride, onMatchEnd, remoteOpponent, initialState, initialEvents, friendlyRematch, combatModel: requestedModel = 'card', battleMode = 'quick', sandbox = false, labLayer }: GamePageProps) {
   // A match handed in ready-made (Friendly Battle) plays the resolver that built it; it says which in its own state.
   const combatModel: CombatModelId = initialState ? (initialState.combatModel ?? 'legacy') : requestedModel;
   const cardMode = combatModel === 'card';
@@ -225,7 +246,9 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const [result, setResult] = useState<{ finish: FinishingBlow | null; missions: MissionAdvance[]; extras: BattleResultExtras } | null>(null);
   // Missions as they stood when this match began, to show which ones it advanced.
   const missionsAtStart = useRef<ReturnType<typeof listMissions> | null>(null);
-  if (missionsAtStart.current === null) missionsAtStart.current = listMissions();
+  if (missionsAtStart.current === null) missionsAtStart.current = sandbox ? [] : listMissions();
+  // Card Discovery Lab only: the round just resolved, for its layer between rounds.
+  const [lastRound, setLastRound] = useState<{ events: GameEvent[]; base: GameState } | null>(null);
   // Presentation-only: "Round N" as a round opens for deployment, "Fight!" as its cards are revealed.
   const [banner, setBanner] = useState<RoundBannerSpec | null>(null);
 
@@ -273,7 +296,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
     setXpResult(null);
     setGoldResult(0);
     setResult(null);
-    missionsAtStart.current = listMissions();
+    missionsAtStart.current = sandbox ? [] : listMissions();
+    setLastRound(null);
   }
 
   // Once the animation queue finishes playing revealEvents, hand off to the next round - using the
@@ -294,15 +318,16 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
       );
       // Friendly Battle grants 0 XP/rewards and isn't tracked in local match history - it's an isolated
       // networking experiment, not a progression-affecting mode (see docs/FRIENDLY-BATTLE.md).
-      if (!remoteOpponent) saveRecentMatch(seed, stats, matchResolver(next));
+      // The Card Discovery Lab (sandbox) records nothing at all.
+      if (!remoteOpponent && !sandbox) saveRecentMatch(seed, stats, matchResolver(next));
       // Event missions count local battles from this one summary (game/events); Friendly Battle stays out.
-      if (!remoteOpponent) track('battle_completed', summarizeBattle(next.status, merged, battleMode));
+      if (!remoteOpponent && !sandbox) track('battle_completed', summarizeBattle(next.status, merged, battleMode));
       setFullLog(merged);
       setMatchStats(stats);
       setGameState(next);
       setPhase('MATCH_END');
       // Quick Battle grants its small XP/Gold here; a Campaign battle grants its own inside recordBattleResult.
-      if (!onMatchEnd && !remoteOpponent) {
+      if (!onMatchEnd && !remoteOpponent && !sandbox) {
         setXpResult(grantQuickBattleXp(next.status));
         const goldAmount = quickBattleGold(next.status === 'PLAYER_WIN' ? 'win' : next.status === 'DRAW' ? 'draw' : 'loss');
         setGoldResult(goldAmount > 0 ? grantGold(goldAmount, 'quickBattle').gained : 0);
@@ -318,7 +343,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
         if (!extras) onExit();
       }
       // Read after onMatchEnd, which may have advanced missions of its own (a Ranked win).
-      if (!remoteOpponent) setResult({ finish: finishingBlow(merged, next.status), missions: missionAdvances(missionsAtStart.current ?? [], listMissions()), extras: extras ?? {} });
+      if (!remoteOpponent && !sandbox) setResult({ finish: finishingBlow(merged, next.status), missions: missionAdvances(missionsAtStart.current ?? [], listMissions()), extras: extras ?? {} });
       else setResult({ finish: finishingBlow(merged, next.status), missions: [], extras: {} });
     } else {
       // Friendly Battle's server already began the next round (its events were part of this reveal); beginning it again
@@ -326,6 +351,7 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
       const begun = remoteOpponent ? { nextState: next, events: [] } : cardMode ? beginCardRound(next) : beginRound(next);
       const toast = masteryToastFrom(begun.events);
       if (toast) setMasteryToast(toast);
+      if (labLayer) setLastRound({ events: revealEvents, base: baseStateForReveal ?? gameState });
       setFullLog([...fullLog, ...revealEvents, ...begun.events]);
       setGameState(begun.nextState);
       setPhase('DEPLOY');
@@ -687,6 +713,13 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
           />
 
           <RoundBanner banner={banner} />
+          {labLayer?.({
+            events: isRevealing ? revealEvents : (lastRound?.events ?? []),
+            base: isRevealing ? baseStateForReveal : (lastRound?.base ?? null),
+            revealedUntil: isRevealing ? revealedUntil : Number.MAX_SAFE_INTEGER,
+            resolving: isRevealing,
+            round: gameState.round,
+          })}
 
           {/* The hint sits under the enemy bar, clear of the hand cards' art and ATK. */}
           <div className="battle-hint">{hint}</div>
