@@ -36,7 +36,9 @@ describe('sheets are dialogs a keyboard (and Android back) can leave', () => {
 describe('developer tools stay out of battles with stakes in a production build', () => {
   it('New match and the developer panel show in Quick Battle (and any development build) only', () => {
     const src = read('../pages/GamePage.tsx');
-    expect(src).toContain("const devToolsShown = import.meta.env.DEV || (battleMode === 'quick' && !remoteOpponent);");
+    // Never in a sandbox (the experiments' arranged battles, development builds only): their New match would replace the
+    // arranged position. Without `sandbox` (every real mode) the rule is unchanged.
+    expect(src).toContain("const devToolsShown = !sandbox && (import.meta.env.DEV || (battleMode === 'quick' && !remoteOpponent));");
     expect(src).toContain('hideNewMatch={!!remoteOpponent || !devToolsShown}');
     expect(src).toContain('{devToolsShown && <button type="button" className="mobile-debug-toggle"');
     // The side panel a desktop (900px+) shows beside the battle, with its "reveal hand" toggle.

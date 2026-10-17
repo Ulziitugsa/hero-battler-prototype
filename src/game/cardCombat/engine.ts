@@ -1,8 +1,8 @@
 import type { ConditionDef, CountBasis, DeployPlay, Faction, GameEvent, GameState, GraveyardPick, HandCard, HeroInstance, LaneId, Placement, PlayerAction, PlayerState, ResolveResult, Side, SpellZoneInstance, TargetScope, Trigger } from '../types/index.js';
 import { LANES, TRIGGER_LABEL, adjacentLanes } from '../types/index.js';
 import { nextRandom } from '../engine/rng.js';
-import { type CombatAbility, type CombatAction, type CombatCard, getCombatCard, isAttachedSpell, isCardOnlyAction, isPacify } from './cards.js';
-import { ATK_PER_POWER, DEATH_LINE_ATK, GROWTH_CAP_ATK, HP_PER_LEGACY_POINT, atkFromPower, deckStartingHp, hpContribution, printedStats } from './stats.js';
+import { type CombatAbility, type CombatAction, type CombatCard, type ExperimentalAction, type ExperimentalTarget, CONDUIT_LABEL, getCombatCard, isAttachedSpell, isCardOnlyAction, isExperimentalAction, isPacify } from './cards.js';
+import { ATK_CEILING, ATK_PER_POWER, DEATH_LINE_ATK, GROWTH_CAP_ATK, HP_PER_LEGACY_POINT, atkFromPower, deckStartingHp, hpContribution, printedStats } from './stats.js';
 
 // The production card-combat resolver (docs/CARD-COMBAT-DESIGN.md, Phase 1/2 of section 12).
 //
@@ -54,7 +54,12 @@ interface Ctx {
   state: GameState;
   events: GameEvent[];
   rng: number;
+  /** Ally Returns reactions in progress (nested), the backstop against a return chain (MAX_RETURN_DEPTH). */
+  returnDepth?: number;
 }
+
+/** Ally Returns reactions nest at most this deep before the resolver stops the chain and logs SAFEGUARD_TRIPPED. */
+const MAX_RETURN_DEPTH = 8;
 
 interface Exec {
   owner: Side;
@@ -69,6 +74,12 @@ interface Exec {
   deathMarked?: boolean;
   /** The death this reaction answers was caused by its owner's own effect (a sacrifice). */
   deathByOwnEffect?: boolean;
+  /** Experimental Undying: how many times the dying copy had already risen. */
+  deathUndying?: number;
+  /** Experimental Ally Returns: the lane of the allied Unit that just returned (RETURNED_ALLY). */
+  returnedLane?: LaneId;
+  /** Experimental Conduit: this one-time Spell's "enemy Unit in this lane" effects reach the adjacent lanes too. */
+  conduit?: boolean;
 }
 
 function playerOf(ctx: Ctx, side: Side): PlayerState {
@@ -169,7 +180,7 @@ export function passiveAtkSources(state: GameState, side: Side, lane: LaneId): {
 /** A Unit's clash ATK right now: its stored ATK plus any Continuous Spell overlay and Passive aura. 0 for an empty lane. */
 export function effectiveAtk(state: GameState, side: Side, lane: LaneId): number {
   const unit = (side === 'player' ? state.player : state.enemy).heroZones[lane];
-  return unit ? unit.power + continuousAtkBonus(state, side, lane) + passiveAtkBonus(state, side, lane) : 0;
+  return unit ? Math.min(ATK_CEILING, unit.power + continuousAtkBonus(state, side, lane) + passiveAtkBonus(state, side, lane)) : 0;
 }
 
 /** Display copy of `side`'s board: every Unit's `power` is its effective ATK and `shielded` includes a printed Shield that is still ready. */
@@ -215,7 +226,8 @@ function locations(ctx: Ctx, exec: Exec, scope: TargetScope): { side: Side; lane
     case 'ALLY_SAME_LANE':
       return [{ side: exec.owner, lane }];
     case 'ENEMY_SAME_LANE':
-      return [{ side: opposite(exec.owner), lane }];
+      // Experimental Conduit: a one-time Spell's effect on the enemy Unit in its lane also reaches the lanes next to it.
+      return exec.conduit ? [lane, ...adjacentLanes(lane)].map((l) => ({ side: opposite(exec.owner), lane: l })) : [{ side: opposite(exec.owner), lane }];
     case 'ALL_ALLIES':
       return LANES.filter((l) => unitAt(ctx, exec.owner, l)).map((l) => ({ side: exec.owner, lane: l }));
     case 'ALL_ENEMIES':
@@ -336,6 +348,13 @@ function spellEchoSource(ctx: Ctx, side: Side): string | null {
 function isHostile(action: CombatAction): boolean {
   if (isPacify(action)) return true;
   switch (action.type) {
+    case 'UNMAKE':
+    case 'DESTROY_SCALING':
+      return true;
+    case 'MULTIPLY_ATK':
+      return action.factor < 1;
+    case 'EMPOWER':
+      return action.atk < 0;
     case 'DESTROY':
     case 'SILENCE':
     case 'SET_POWER':
@@ -473,15 +492,17 @@ function countBasis(ctx: Ctx, exec: Exec, basis: CountBasis, faction: Faction | 
 // State changes (each one logs its event)
 // ---------------------------------------------------------------------------
 
-function changeAtk(ctx: Ctx, side: Side, lane: LaneId, delta: number, duration: 'PERMANENT' | 'UNTIL_ROUND_END', reason: string): void {
+function changeAtk(ctx: Ctx, side: Side, lane: LaneId, delta: number, duration: 'PERMANENT' | 'UNTIL_ROUND_END', reason: string, opts: { uncapped?: boolean } = {}): void {
   const unit = unitAt(ctx, side, lane);
   if (!unit) return;
-  if (duration === 'PERMANENT' && delta > 0) {
+  if (duration === 'PERMANENT' && delta > 0 && !opts.uncapped) {
     // Growth cap: permanent gains stop at +45 above the ATK this Unit entered with.
     const entry = unit.entryAtk ?? unit.power - unit.tempPower;
     const room = Math.max(0, entry + GROWTH_CAP_ATK - (unit.power - unit.tempPower));
     if (delta > room) delta = room;
   }
+  // No Unit ever goes above ATK_CEILING (no production card comes near it).
+  if (delta > 0 && unit.power + delta > ATK_CEILING) delta = Math.max(0, ATK_CEILING - unit.power);
   if (delta === 0) return;
   const from = unit.power;
   unit.power += delta;
@@ -620,8 +641,119 @@ function returnToHand(ctx: Ctx, side: Side, index: number, usedSpellZoneLane?: L
   push(ctx, { type: 'RETURNED_TO_HAND', side, cardId, name: getCombatCard(cardId).name, graveyardIndex: index, handId: hand.handId, ...(usedSpellZoneLane ? { usedSpellZoneLane } : {}) });
 }
 
+// ---------------------------------------------------------------------------
+// Experimental rules (Power Fantasy Phase 1, docs/design/POWER-FANTASY-P1.md). No production card uses them.
+// ---------------------------------------------------------------------------
+
+function experimentalLocations(ctx: Ctx, exec: Exec, target: ExperimentalTarget): { side: Side; lane: LaneId }[] {
+  if (target === 'RETURNED_ALLY') return exec.returnedLane !== undefined && unitAt(ctx, exec.owner, exec.returnedLane) ? [{ side: exec.owner, lane: exec.returnedLane }] : [];
+  return locations(ctx, exec, target);
+}
+
+/**
+ * A Unit leaves play without being destroyed (Unmaking): no Shield, no Destroyed effect, no Ally Falls or Enemy Falls
+ * reaction, no Graveyard (the card is gone for the battle). An Attached Spell on it still expires to the Graveyard.
+ */
+function exileUnit(ctx: Ctx, side: Side, lane: LaneId): void {
+  const unit = unitAt(ctx, side, lane);
+  if (!unit) return;
+  const p = playerOf(ctx, side);
+  p.heroZones[lane] = null;
+  push(ctx, { type: 'HERO_DESTROYED', side, instanceId: unit.instanceId, cardId: unit.cardId, name: unit.name, lane, exiled: true, ...(unit.token ? { token: true } : {}) });
+  const zone = p.spellZones[lane];
+  if (zone?.boundTo === unit.instanceId) {
+    p.spellZones[lane] = null;
+    pushGrave(ctx, side, zone.cardId, !!zone.returned);
+    push(ctx, { type: 'SPELL_EXPIRED', side, instanceId: zone.instanceId, cardId: zone.cardId, name: zone.name, lane, unitName: unit.name });
+    returnExpiredAttached(ctx, side, zone);
+  }
+}
+
+/**
+ * Ally Returns: a Unit of `side` just came back from the Graveyard into `lane`. Each other living, unsilenced allied Unit
+ * reacts, left to right. No production card has the timing, so for them this does nothing and logs nothing.
+ */
+function announceReturn(ctx: Ctx, side: Side, lane: LaneId): void {
+  const returned = unitAt(ctx, side, lane);
+  if (!returned) return;
+  const depth = ctx.returnDepth ?? 0;
+  if (depth >= MAX_RETURN_DEPTH) {
+    push(ctx, { type: 'SAFEGUARD_TRIPPED', reason: `Ally Returns reactions nested more than ${MAX_RETURN_DEPTH} deep` });
+    return;
+  }
+  ctx.returnDepth = depth + 1;
+  for (const { lane: l, unit } of livingUnits(ctx, side)) {
+    if (unit.instanceId === returned.instanceId || isSilencedIn(ctx, side, l)) continue;
+    runAbilities(ctx, getCombatCard(unit.cardId).abilities, 'ON_ALLY_RETURN', { owner: side, kind: 'hero', lane: l, instanceId: unit.instanceId, name: unit.name, returnedLane: lane }, { holder: unit, zone: 'hero' });
+  }
+  ctx.returnDepth = depth;
+}
+
+/** The living, unsilenced Unit of `side` with a Conduit, if any (its name, for the log). */
+function conduitSource(ctx: Ctx, side: Side): string | null {
+  for (const lane of LANES) {
+    for (const { ability, unit } of passiveAbilities(ctx, side, lane)) if (ability.actions.some((a) => a.type === 'CONDUIT')) return unit.name;
+  }
+  return null;
+}
+
+function executeExperimental(ctx: Ctx, action: ExperimentalAction, exec: Exec): void {
+  const me = playerOf(ctx, exec.owner);
+  switch (action.type) {
+    case 'MULTIPLY_ATK':
+      for (const loc of hostileFilter(ctx, exec, action, experimentalLocations(ctx, exec, action.target))) {
+        const unit = unitAt(ctx, loc.side, loc.lane);
+        if (!unit) continue;
+        // Its lasting ATK (without this round's changes) is multiplied; this round's changes still expire as usual.
+        const lasting = unit.power - unit.tempPower;
+        changeAtk(ctx, loc.side, loc.lane, Math.round(lasting * action.factor) - lasting, 'PERMANENT', exec.name, { uncapped: true });
+      }
+      return;
+    case 'EMPOWER':
+      for (const loc of hostileFilter(ctx, exec, action, experimentalLocations(ctx, exec, action.target))) changeAtk(ctx, loc.side, loc.lane, action.atk, 'PERMANENT', exec.name, { uncapped: true });
+      return;
+    case 'UNDYING': {
+      if (exec.lane === undefined || !exec.deathCardId || me.heroZones[exec.lane]) return;
+      const risen = exec.deathUndying ?? 0;
+      if (risen >= action.returns) {
+        push(ctx, { type: 'RETURN_BLOCKED', side: exec.owner, cardId: exec.deathCardId, name: getCombatCard(exec.deathCardId).name, sourceName: exec.name });
+        return;
+      }
+      const idx = me.graveyard.lastIndexOf(exec.deathCardId);
+      if (idx < 0) return;
+      const cardId = takeFromGrave(ctx, exec.owner, idx);
+      const unit = makeUnit(ctx, exec.owner, exec.lane, cardId, { atk: Math.min(ATK_CEILING, cardAtk(cardId) + action.atkPerReturn * (risen + 1)), returned: true });
+      unit.undyingReturns = risen + 1;
+      me.heroZones[exec.lane] = unit;
+      push(ctx, { type: 'REVIVED', side: exec.owner, instanceId: unit.instanceId, cardId, name: unit.name, lane: exec.lane, power: unit.power, graveyardIndex: idx });
+      announceReturn(ctx, exec.owner, exec.lane);
+      return;
+    }
+    case 'UNMAKE':
+      for (const loc of hostileFilter(ctx, exec, action, locations(ctx, exec, action.target))) {
+        const unit = unitAt(ctx, loc.side, loc.lane);
+        if (!unit) continue;
+        if (action.onlyIfGrown && effectiveAtk(ctx.state, loc.side, loc.lane) <= cardAtk(unit.cardId)) continue;
+        exileUnit(ctx, loc.side, loc.lane);
+      }
+      return;
+    case 'CONDUIT':
+      return; // read live as PASSIVE when each one-time Spell resolves
+    case 'DESTROY_SCALING': {
+      const threshold = action.baseAtk + action.atkPerSpell * meta(ctx).spellsThisRound[exec.owner];
+      const targets = hostileFilter(ctx, exec, action, locations(ctx, exec, action.target)).filter((loc) => !!unitAt(ctx, loc.side, loc.lane) && effectiveAtk(ctx.state, loc.side, loc.lane) <= threshold);
+      if (targets.length > 0) destroyAndChain(ctx, targets, exec.owner);
+      return;
+    }
+  }
+}
+
 function execute(ctx: Ctx, action: CombatAction, exec: Exec): void {
   const me = playerOf(ctx, exec.owner);
+  if (isExperimentalAction(action)) {
+    executeExperimental(ctx, action, exec);
+    return;
+  }
   if (isCardOnlyAction(action)) {
     switch (action.type) {
       case 'PACIFY':
@@ -750,6 +882,7 @@ function execute(ctx: Ctx, action: CombatAction, exec: Exec): void {
       const unit = makeUnit(ctx, exec.owner, lane, cardId, { returned: true });
       me.heroZones[lane] = unit;
       push(ctx, { type: 'REVIVED', side: exec.owner, instanceId: unit.instanceId, cardId, name: unit.name, lane, power: unit.power, graveyardIndex: idx });
+      announceReturn(ctx, exec.owner, lane);
       return;
     }
     case 'REVIVE_SELF': {
@@ -760,6 +893,7 @@ function execute(ctx: Ctx, action: CombatAction, exec: Exec): void {
       const unit = makeUnit(ctx, exec.owner, exec.lane, cardId, { atk: atkFromPower(action.power), returned: true });
       me.heroZones[exec.lane] = unit;
       push(ctx, { type: 'REVIVED', side: exec.owner, instanceId: unit.instanceId, cardId, name: unit.name, lane: exec.lane, power: unit.power, graveyardIndex: idx });
+      announceReturn(ctx, exec.owner, exec.lane);
       return;
     }
     case 'PLAYER_DAMAGE':
@@ -886,6 +1020,8 @@ interface Dead {
   marked: boolean;
   /** Its owner's own effect destroyed it (a sacrifice). */
   byOwnEffect?: boolean;
+  /** Experimental Undying: how many times this copy had already risen. */
+  undyingReturns?: number;
 }
 
 function removeUnit(ctx: Ctx, side: Side, lane: LaneId, silencedAtDeath?: boolean): Dead | null {
@@ -917,7 +1053,7 @@ function removeUnit(ctx: Ctx, side: Side, lane: LaneId, silencedAtDeath?: boolea
     push(ctx, { type: 'SPELL_EXPIRED', side, instanceId: zone.instanceId, cardId: zone.cardId, name: zone.name, lane, unitName: unit.name });
     returnExpiredAttached(ctx, side, zone);
   }
-  return { side, lane, cardId: unit.cardId, name: unit.name, silenced, token: !!unit.token, marked: !!unit.returned };
+  return { side, lane, cardId: unit.cardId, name: unit.name, silenced, token: !!unit.token, marked: !!unit.returned, ...(unit.undyingReturns ? { undyingReturns: unit.undyingReturns } : {}) };
 }
 
 /**
@@ -965,7 +1101,7 @@ function destroyAndChain(ctx: Ctx, entries: { side: Side; lane: LaneId }[], caus
     const dead = queue.shift()!;
     if (dead.token) continue; // tokens trigger no death effects
     const death: DeathInfo = { cardId: dead.cardId, lane: dead.lane, byOwnEffect: dead.byOwnEffect };
-    if (!dead.silenced) runAbilities(ctx, getCombatCard(dead.cardId).abilities, 'ON_DEATH', { owner: dead.side, kind: 'hero', lane: dead.lane, name: dead.name, deathCardId: dead.cardId, deathLane: dead.lane, deathMarked: dead.marked });
+    if (!dead.silenced) runAbilities(ctx, getCombatCard(dead.cardId).abilities, 'ON_DEATH', { owner: dead.side, kind: 'hero', lane: dead.lane, name: dead.name, deathCardId: dead.cardId, deathLane: dead.lane, deathMarked: dead.marked, deathUndying: dead.undyingReturns });
     for (const { lane } of livingUnits(ctx, dead.side)) dispatchUnit(ctx, dead.side, lane, 'ON_ALLY_DEATH', death);
     for (const { lane } of livingUnits(ctx, opposite(dead.side))) dispatchUnit(ctx, opposite(dead.side), lane, 'ON_ENEMY_DEATH', death);
     for (const lane of LANES) {
@@ -1009,6 +1145,14 @@ export function cardSpellHasTarget(state: GameState, side: Side, card: CombatCar
         if (action.maxPower !== undefined && effectiveAtk(state, targetSide, lane) > atkFromPower(action.maxPower)) return false;
       }
       if (action.type === 'STALL_COMBAT' && action.target === 'ENEMY_SAME_LANE' && !zonesOf(foe).heroZones[lane]) return false;
+      // Experimental: Unmaking needs an enemy Unit here (grown above its printed ATK, when it asks); scaling destruction needs
+      // an enemy Unit here (its threshold depends on the Spells cast before it, so it is read when it resolves).
+      if (action.type === 'UNMAKE' && action.target === 'ENEMY_SAME_LANE') {
+        const unit = zonesOf(foe).heroZones[lane];
+        if (!unit) return false;
+        if (action.onlyIfGrown && effectiveAtk(state, foe, lane) <= cardAtk(unit.cardId)) return false;
+      }
+      if (action.type === 'DESTROY_SCALING' && action.target === 'ENEMY_SAME_LANE' && !zonesOf(foe).heroZones[lane]) return false;
       if (action.type === 'DESTROY_SPELL_ZONE' && action.target === 'ENEMY_SAME_LANE' && !zonesOf(foe).spellZones[lane]) return false;
     }
   }
@@ -1216,6 +1360,13 @@ export function resolveCardRound(state: GameState, playerAction: PlayerAction, e
         const exec: Exec = { owner: side, kind: 'spell', lane, name: card.name };
         const echo = m.spellsThisRound[side] === 0 ? spellEchoSource(ctx, side) : null;
         if (echo) push(ctx, { type: 'TRIGGER', side, sourceName: echo, trigger: 'PASSIVE', label: TRIGGER_LABEL.PASSIVE });
+        // Experimental Conduit, read live as this Spell resolves: only a Spell with an effect on the enemy Unit in its lane spreads.
+        const conduit = card.abilities.some((a) => a.trigger === 'CAST' && a.actions.some((x) => 'target' in x && x.target === 'ENEMY_SAME_LANE')) ? conduitSource(ctx, side) : null;
+        if (conduit) {
+          exec.conduit = true;
+          // Labelled 'Conduit' so the log and the layer can tell it from Archmage Vael's echo (also a Passive announcement).
+          push(ctx, { type: 'TRIGGER', side, sourceName: conduit, trigger: 'PASSIVE', label: CONDUIT_LABEL });
+        }
         const before = ctx.events.length;
         for (let pass = 0; pass < (echo ? 2 : 1); pass++) runAbilities(ctx, card.abilities, 'CAST', exec);
         pushGrave(ctx, side, card.id, returnedHand.has(play.handId));

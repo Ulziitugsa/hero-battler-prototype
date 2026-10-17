@@ -1,0 +1,109 @@
+/* Arcane Trials (experiment builds only). The list, brief and result screens reuse the Card Discovery Lab's plain chrome
+   (lab/lab.css); this file adds the trial pieces and the signature visual treatments over the battle board. Every effect
+   is an overlay: it never moves or hides a card, and reduced motion keeps the labels and drops the movement. */
+
+.tr-root .lab-head h1 { color: #f3d48e; }
+.tr-trial .lab-archetype-body > span:not(.lab-eyebrow) { color: #c8d8d2; }
+.tr-status { justify-self: start; margin-top: 2px; padding: 2px 8px; border-radius: 8px; background: rgba(5, 16, 24, .6); font-size: 11px; font-weight: 800; color: #9fc2b8; }
+.tr-status.solved { background: linear-gradient(180deg, #f6e3b0, #d2ad6e); color: #2a2318; }
+.tr-objective-block { border-color: rgba(240, 213, 154, .35); }
+.tr-objective-block p:first-of-type b { font-size: 16px; color: #f4ecd6; }
+.tr-hints ol, .tr-solution { margin: 0 0 8px; padding-left: 20px; }
+.tr-hints li, .tr-solution li { font-size: 13px; line-height: 1.45; color: #e8efe9; }
+.tr-hints button { min-height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(240, 213, 154, .4); background: rgba(5, 16, 24, .6); color: #f0d59a; font-weight: 800; }
+.tr-result.success .lab-detail-head h2 { color: #b9f0c6; }
+.tr-result.failure .lab-detail-head h2 { color: #f2b09e; }
+
+/* ---- The trial bar over the battle -------------------------------------------------------------------------- */
+
+.tr-layer { z-index: 46; }
+.tr-objective { position: absolute; left: 50%; top: 12.6%; transform: translateX(-50%); max-width: min(92%, 420px); display: flex; align-items: center; gap: 8px; padding: 3px 4px 3px 10px; border-radius: 12px; background: rgba(6, 18, 26, .82); border: 1px solid rgba(240, 213, 154, .35); color: #e8efe9; font: 700 11px/1.25 var(--moon-ui, system-ui, sans-serif); pointer-events: none; }
+.tr-objective-round { flex: none; color: #f0d59a; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
+.tr-objective-goal { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-hint-button { flex: none; pointer-events: auto; min-height: 28px; padding: 0 10px; border-radius: 9px; border: 1px solid rgba(240, 213, 154, .5); background: rgba(240, 213, 154, .12); color: #f0d59a; font: 800 11px/1 var(--moon-ui, system-ui, sans-serif); position: relative; }
+.tr-hint-button::after { content: ''; position: absolute; inset: -8px -4px; }
+.tr-hint-toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 56px); transform: translateX(-50%); z-index: 95; width: min(92vw, 420px); display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; padding: 10px 6px 10px 12px; border-radius: 14px; background: rgb(13, 34, 46); border: 1px solid rgba(240, 213, 154, .5); box-shadow: 0 12px 28px rgba(0, 8, 14, .55); color: #f4ecd6; font: 600 13px/1.4 var(--moon-ui, system-ui, sans-serif); }
+.tr-hint-toast button { min-width: 36px; min-height: 36px; border: 0; background: none; color: #c8d8d2; font-size: 15px; }
+
+/* ---- Lane moments ------------------------------------------------------------------------------------------- */
+
+.tr-cue { position: absolute; display: grid; place-items: center; pointer-events: none; }
+.tr-fx { position: absolute; inset: 0; border-radius: 12px; }
+.tr-cue-label { position: relative; z-index: 2; display: grid; justify-items: center; gap: 0; padding: 3px 8px 4px; border-radius: 10px; background: rgba(6, 12, 20, .84); text-align: center; white-space: nowrap; animation: tr-label-in 1.4s ease-out both; }
+.tr-cue-label b { font: 400 15px/1.05 var(--moon-display, Georgia, serif); letter-spacing: .04em; text-transform: uppercase; }
+.tr-cue-label strong { font: 900 20px/1.05 var(--moon-ui, system-ui, sans-serif); font-variant-numeric: tabular-nums; color: #fff; }
+
+/* The Immortal Army: the slot cracks, then a pillar of grave-light raises the Unit; Mordrath pulses violet. */
+.tr-rise .tr-fx { background: radial-gradient(60% 40% at 50% 92%, rgba(170, 255, 226, .55), rgba(110, 70, 200, .25) 55%, transparent 75%); animation: tr-rise 1.5s ease-out both; }
+.tr-rise .tr-fx::before { content: ''; position: absolute; left: 22%; right: 22%; bottom: 4%; top: -40%; border-radius: 40% 40% 12px 12px; background: linear-gradient(0deg, rgba(160, 255, 220, .85), rgba(140, 110, 255, .35) 60%, transparent); filter: blur(2px); animation: tr-pillar 1.5s ease-out both; }
+.tr-rise .tr-fx::after { content: ''; position: absolute; inset: 18% 10%; border: 2px dashed rgba(200, 255, 236, .8); border-radius: 50%; animation: tr-crack 1.5s ease-out both; }
+.tr-rise .tr-cue-label b { color: #b8ffe6; }
+.tr-endless .tr-fx { border: 2px solid rgba(190, 140, 255, .9); box-shadow: 0 0 22px rgba(170, 110, 255, .8), inset 0 0 18px rgba(170, 110, 255, .55); animation: tr-pulse 1.3s ease-out both; }
+.tr-endless .tr-cue-label b { color: #d9b8ff; }
+
+/* The Apocalypse: a burning beam joins the lanes a Spell spreads to; each struck lane takes a falling ember. */
+.tr-conduit-beam { position: absolute; height: 6px; margin-top: -3px; border-radius: 6px; background: linear-gradient(90deg, transparent, #ff9a3c 12%, #fff1b8 50%, #ff9a3c 88%, transparent); box-shadow: 0 0 14px #ff7a2a, 0 0 30px rgba(255, 90, 30, .6); pointer-events: none; animation: tr-beam 1.1s ease-out both; }
+.tr-conduit .tr-fx { border: 2px solid rgba(255, 170, 80, .85); box-shadow: 0 0 16px rgba(255, 120, 40, .7); animation: tr-pulse 1.1s ease-out both; }
+.tr-strike .tr-fx { background: radial-gradient(circle at 50% 55%, #fff3c4 0, #ffb347 18%, rgba(255, 70, 20, .75) 38%, transparent 66%); animation: tr-impact 1.5s ease-out both; }
+.tr-strike .tr-fx::before { content: ''; position: absolute; left: 50%; top: -120%; width: 14px; height: 120%; margin-left: -7px; border-radius: 7px; background: linear-gradient(180deg, transparent, rgba(255, 190, 90, .9) 70%, #fff3c4); transform: rotate(-18deg); transform-origin: 50% 100%; animation: tr-fall 1.5s ease-in both; }
+.tr-strike .tr-fx::after { content: ''; position: absolute; inset: 4%; border: 3px solid rgba(255, 210, 120, .9); border-radius: 50%; animation: tr-ring 1.5s ease-out both; }
+
+/* The Unstoppable Champion: a gold ×2 stamp with the new ATK counting up; immunity flashes a ward. */
+.tr-double .tr-fx { border: 3px solid #ffe08a; box-shadow: 0 0 24px rgba(255, 210, 110, .9), inset 0 0 22px rgba(255, 210, 110, .5); animation: tr-pulse 1.5s ease-out both; }
+.tr-double .tr-cue-label { background: linear-gradient(180deg, rgba(60, 40, 8, .92), rgba(24, 16, 4, .92)); border: 1px solid rgba(255, 220, 140, .7); }
+.tr-double .tr-cue-label b { font-size: 24px; color: #ffe08a; animation: tr-stamp 1.5s cubic-bezier(.2, 1.6, .4, 1) both; }
+.tr-immune .tr-fx { border-radius: 14px; background: repeating-linear-gradient(60deg, rgba(255, 230, 160, .0) 0 10px, rgba(255, 230, 160, .35) 10px 12px); border: 2px solid rgba(255, 230, 160, .9); box-shadow: 0 0 18px rgba(255, 220, 140, .8); animation: tr-pulse 1.3s ease-out both; }
+.tr-immune .tr-cue-label b { color: #ffe9b0; }
+.tr-unmade .tr-fx { background: radial-gradient(circle, rgba(12, 0, 24, .95) 0, rgba(80, 20, 140, .7) 35%, transparent 70%); animation: tr-implode 1.5s ease-in both; }
+.tr-unmade .tr-cue-label b { color: #e2c4ff; }
+
+/* The lasting power aura and ATK plaque: grows with each tier. */
+.tr-aura { position: absolute; pointer-events: none; }
+.tr-aura-glow { position: absolute; inset: -2px; border-radius: 12px; box-shadow: 0 0 10px rgba(255, 214, 120, .45); animation: tr-breathe 2.4s ease-in-out infinite; }
+.tr-aura.tier-1 .tr-aura-glow { box-shadow: 0 0 16px rgba(255, 214, 120, .7); }
+.tr-aura.tier-2 .tr-aura-glow { box-shadow: 0 0 22px rgba(255, 220, 130, .85), 0 0 4px #fff3c4; }
+.tr-aura.tier-3 .tr-aura-glow, .tr-aura.tier-4 .tr-aura-glow { box-shadow: 0 0 30px rgba(255, 236, 170, .95), 0 0 8px #fffbe8, inset 0 0 14px rgba(255, 236, 170, .5); }
+.tr-atk-plaque { position: absolute; left: 50%; top: 33%; transform: translateX(-50%); display: grid; justify-items: center; padding: 1px 8px 2px; border-radius: 9px; background: linear-gradient(180deg, #3a2a0c, #1c1404); border: 1px solid rgba(255, 220, 140, .75); color: #ffe7a6; font: 900 15px/1.1 var(--moon-ui, system-ui, sans-serif); font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 4px 10px rgba(0, 0, 0, .45); }
+.tr-atk-plaque small { font: 800 8px/1.1 var(--moon-ui, system-ui, sans-serif); letter-spacing: .1em; text-transform: uppercase; color: #f0c870; }
+.tr-aura.tier-3 .tr-atk-plaque, .tr-aura.tier-4 .tr-atk-plaque { font-size: 17px; background: linear-gradient(180deg, #6a4a10, #2a1c04); }
+
+/* The Spell chain while Spells resolve: on the band between the rows. */
+.tr-chain { position: absolute; left: 50%; top: 43.2%; transform: translate(-50%, -50%); margin: 0; padding: 0; list-style: none; display: flex; gap: 4px; max-width: 96%; pointer-events: none; }
+.tr-chain li { display: flex; align-items: center; gap: 4px; padding: 3px 7px 3px 3px; border-radius: 10px; background: rgba(30, 10, 4, .88); border: 1px solid rgba(255, 150, 70, .55); color: #ffd8b0; font: 700 10px/1.2 var(--moon-ui, system-ui, sans-serif); animation: tr-chip 320ms ease-out both; min-width: 0; }
+.tr-chain-n { display: grid; place-items: center; flex: none; width: 18px; height: 18px; border-radius: 50%; background: #ff9a3c; color: #2a0d04; font-weight: 900; }
+.tr-chain-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-chain li.tr-chain-finisher { border-color: #ffd27a; background: rgba(60, 20, 4, .92); color: #fff1cf; box-shadow: 0 0 12px rgba(255, 140, 50, .6); }
+
+/* A power tier crossed: a full-width banner on the band. */
+.tr-tier-banner { position: absolute; left: 0; right: 0; top: 43.2%; transform: translateY(-50%); display: grid; justify-items: center; padding: 6px 12px 8px; background: linear-gradient(90deg, transparent, rgba(60, 40, 6, .94) 18%, rgba(90, 62, 10, .96) 50%, rgba(60, 40, 6, .94) 82%, transparent); border-top: 1px solid rgba(255, 220, 140, .6); border-bottom: 1px solid rgba(255, 220, 140, .6); color: #fff1cf; pointer-events: none; animation: tr-banner 2.2s ease-out both; }
+.tr-tier-banner b { font: 400 26px/1 var(--moon-display, Georgia, serif); letter-spacing: .12em; text-transform: uppercase; color: #ffe08a; text-shadow: 0 0 14px rgba(255, 200, 90, .9); }
+.tr-tier-banner strong { font: 900 22px/1.1 var(--moon-ui, system-ui, sans-serif); font-variant-numeric: tabular-nums; }
+.tr-tier-banner span { font: 700 11px/1.2 var(--moon-ui, system-ui, sans-serif); color: #f0d59a; }
+
+@keyframes tr-label-in { 0% { opacity: 0; transform: translateY(6px) scale(.9); } 12% { opacity: 1; transform: none; } 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes tr-rise { 0% { opacity: 0; } 15% { opacity: 1; } 80% { opacity: .9; } 100% { opacity: 0; } }
+@keyframes tr-pillar { 0% { transform: scaleY(0); transform-origin: 50% 100%; opacity: 0; } 25% { opacity: 1; } 60% { transform: scaleY(1); } 100% { transform: scaleY(1.1); opacity: 0; } }
+@keyframes tr-crack { 0% { transform: scale(.4); opacity: 0; } 15% { opacity: 1; } 40% { transform: scale(1.15); opacity: .8; } 100% { transform: scale(1.4); opacity: 0; } }
+@keyframes tr-pulse { 0% { opacity: 0; transform: scale(.92); } 18% { opacity: 1; transform: scale(1.04); } 70% { opacity: .9; transform: scale(1); } 100% { opacity: 0; } }
+@keyframes tr-beam { 0% { transform: scaleX(0); opacity: 0; } 25% { transform: scaleX(1); opacity: 1; } 80% { opacity: .9; } 100% { opacity: 0; } }
+@keyframes tr-impact { 0%, 30% { opacity: 0; transform: scale(.4); } 42% { opacity: 1; transform: scale(1.2); } 100% { opacity: 0; transform: scale(1); } }
+@keyframes tr-fall { 0% { transform: rotate(-18deg) translateY(-60%); opacity: 0; } 10% { opacity: 1; } 38% { transform: rotate(-18deg) translateY(0); opacity: 1; } 45%, 100% { opacity: 0; } }
+@keyframes tr-ring { 0%, 36% { transform: scale(.3); opacity: 0; } 46% { opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+@keyframes tr-stamp { 0% { transform: scale(2.2); opacity: 0; } 25% { transform: scale(1); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes tr-implode { 0% { transform: scale(1.4); opacity: 0; } 30% { opacity: 1; } 100% { transform: scale(.1); opacity: 0; } }
+@keyframes tr-breathe { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+@keyframes tr-chip { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes tr-banner { 0% { opacity: 0; transform: translateY(-50%) scaleX(.6); } 14% { opacity: 1; transform: translateY(-50%) scaleX(1); } 82% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Reduced motion: every label and number stays for the same time; nothing moves, scales, falls or pulses. */
+.tr-layer.reduced-motion *, .tr-layer.reduced-motion *::before, .tr-layer.reduced-motion *::after { animation: none !important; }
+.tr-layer.reduced-motion .tr-fx::before, .tr-layer.reduced-motion .tr-fx::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .tr-layer *, .tr-layer *::before, .tr-layer *::after { animation: none !important; }
+}
+
+/* The headline of a destruction Spell's strike, over the lanes it hit. */
+.tr-strike-title { position: absolute; z-index: 3; translate: -50% -50%; display: grid; justify-items: center; padding: 4px 12px 5px; border-radius: 12px; background: linear-gradient(180deg, rgba(70, 18, 4, .94), rgba(30, 8, 2, .94)); border: 1px solid rgba(255, 170, 80, .8); box-shadow: 0 0 22px rgba(255, 110, 40, .7); white-space: nowrap; pointer-events: none; animation: tr-label-in 1.5s ease-out both; }
+.tr-strike-title b { font: 400 22px/1.05 var(--moon-display, Georgia, serif); letter-spacing: .06em; text-transform: uppercase; color: #ffd27a; text-shadow: 0 0 10px rgba(255, 130, 40, .9); }
+.tr-strike-title span { font: 700 11px/1.2 var(--moon-ui, system-ui, sans-serif); color: #ffe2c4; }
+.tr-objective-tag { flex: none; padding: 1px 6px; border-radius: 6px; background: rgba(159, 194, 184, .18); color: #9fc2b8; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }

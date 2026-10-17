@@ -40,6 +40,11 @@ export type Trigger =
   | 'ON_ALLY_SPELL_PLAYED'
   | 'ON_ENEMY_SPELL_PLAYED'
   /**
+   * Card combat only (Power Fantasy Phase 1, experimental cards only): dispatched to each other living allied Unit the
+   * moment one of your Units returns from the Graveyard to play (any revive: Undying, Raise Fallen, Morwen, Vharos).
+   */
+  | 'ON_ALLY_RETURN'
+  /**
    * A passive Continuous Spell modifier - e.g. Battle Banner's "+2 while active". This is NEVER
    * dispatched like the other triggers (nothing calls dispatch*(..., 'CONTINUOUS')); instead
    * `effectivePower()` reads CONTINUOUS-trigger abilities live, every time Power is needed, so the
@@ -68,6 +73,7 @@ export const TRIGGER_LABEL: Record<Trigger, string> = {
   ROUND_END: 'Round End',
   ON_ALLY_SPELL_PLAYED: 'You Play a Spell',
   ON_ENEMY_SPELL_PLAYED: 'Enemy Plays a Spell',
+  ON_ALLY_RETURN: 'Ally Returns',
   CONTINUOUS: 'Continuous',
   PASSIVE: 'Passive',
 };
@@ -364,6 +370,8 @@ export interface HeroInstance {
   returned?: boolean;
   /** Card combat only: this Unit's printed Shield (a Passive Shield on the card) has saved it once already. */
   printedShieldUsed?: boolean;
+  /** Card combat only (experimental Undying): how many times this copy has already risen again this match. */
+  undyingReturns?: number;
 }
 
 export interface SpellZoneInstance {
@@ -577,7 +585,11 @@ export type GameEvent =
     }
   | { type: 'HEAL'; side: Side; amount: number; from: number; to: number; sourceName: string }
   /** `token` is set for a summoned token: it vanishes instead of entering the Graveyard. */
-  | { type: 'HERO_DESTROYED'; side: Side; instanceId: string; cardId: string; name: string; lane: LaneId; token?: boolean }
+  /**
+   * `exiled` (card combat, experimental Unmaking only): the Unit left play without being destroyed. No Shield saved it, no
+   * Destroyed effect ran and it did not enter the Graveyard.
+   */
+  | { type: 'HERO_DESTROYED'; side: Side; instanceId: string; cardId: string; name: string; lane: LaneId; token?: boolean; exiled?: boolean }
   | { type: 'SPELL_ZONE_DESTROYED'; side: Side; instanceId: string; cardId: string; name: string; lane: LaneId }
   /**
    * Card combat: a Continuous Spell took its slot this round. `attachedTo` names the Unit an Attached Spell is attached to.

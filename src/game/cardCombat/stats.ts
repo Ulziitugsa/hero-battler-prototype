@@ -26,6 +26,11 @@ export const ATK_PER_POWER = 15;
 export const HP_PER_LEGACY_POINT = 45;
 /** Most ATK a permanent effect can add to a Unit above the ATK it entered with (balance pass, section 14). */
 export const GROWTH_CAP_ATK = 45;
+/**
+ * The most ATK any Unit can have (Power Fantasy Phase 1). No production card comes near it; it exists so experimental
+ * multiplication stays readable on a card face (four digits) and can never run away.
+ */
+export const ATK_CEILING = 9999;
 /** Units in a deck that plays card combat (approved 8-Unit minimum). */
 export const MIN_UNITS_CARD_COMBAT = 8;
 

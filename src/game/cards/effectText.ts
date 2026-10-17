@@ -32,6 +32,7 @@ export const TIMING_LABEL: Record<Trigger, string> = {
   ROUND_END: 'Round End',
   ON_ALLY_SPELL_PLAYED: 'When you cast a Spell',
   ON_ENEMY_SPELL_PLAYED: 'When the enemy casts a Spell',
+  ON_ALLY_RETURN: 'Ally Returns',
   CONTINUOUS: 'Passive',
   PASSIVE: 'Passive',
 };
@@ -50,6 +51,7 @@ export const TIMING_HELP: Record<Trigger, string> = {
   ROUND_END: 'Happens at the end of each round.',
   ON_ALLY_SPELL_PLAYED: 'Happens each time you cast a Spell.',
   ON_ENEMY_SPELL_PLAYED: 'Happens each time the enemy casts a Spell.',
+  ON_ALLY_RETURN: 'Happens each time another of your Units returns from the Graveyard to play.',
   CONTINUOUS: 'Always on while this Spell is in play.',
   PASSIVE: 'Always on while this Unit is in play.',
 };
