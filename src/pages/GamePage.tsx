@@ -214,6 +214,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
   const [lastAiAction, setLastAiAction] = useState<PlayerAction | null>(null);
   const [matchStats, setMatchStats] = useState<MatchStats | null>(() => initialState && initialState.status !== 'IN_PROGRESS' ? computeMatchStats(initialEvents ?? [], initialState.player.hp, initialState.enemy.hp, { player: initialState.player.graveyard.length, enemy: initialState.enemy.graveyard.length }, { player: playerDeckLabel ?? 'You', enemy: enemyDeckLabel ?? 'Friend' }) : null);
   const [mobileDebugOpen, setMobileDebugOpen] = useState(false);
+  // Developer tools (New match, the developer panel): a development build everywhere; a production build in Quick Battle.
+  const devToolsShown = import.meta.env.DEV || (battleMode === 'quick' && !remoteOpponent);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
   // Presentation-only: the last Mastery trigger (label shown briefly) and the Quick Battle XP result.
   const [masteryToast, setMasteryToast] = useState<MasteryToast | null>(null);
@@ -628,10 +630,13 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
           <div className="battle-glow right" aria-hidden="true" />
           <div className="battle-band" aria-hidden="true" />
 
-          <TopControls seed={seed} animationSpeed={animationSpeed} onNewMatch={() => restartWithSeed(makeSeed())} onReplaySameSeed={() => restartWithSeed(seed)} onSetAnimationSpeed={setAnimationSpeed} hideNewMatch={!!remoteOpponent} />
-          <button type="button" className="mobile-debug-toggle" onClick={() => setMobileDebugOpen(true)} aria-label="Open developer panel">
+          {/* The developer tools stay out of battles with stakes in a production build: "New match" restarts on a fresh seed
+              and records nothing (a losing Ranked or Campaign battle re-rolled for free on one unconfirmed tap), and the
+              developer panel can reveal the enemy's hand. Quick Battle (and any development build) keeps both. */}
+          <TopControls seed={seed} animationSpeed={animationSpeed} onNewMatch={() => restartWithSeed(makeSeed())} onReplaySameSeed={() => restartWithSeed(seed)} onSetAnimationSpeed={setAnimationSpeed} hideNewMatch={!!remoteOpponent || !devToolsShown} />
+          {devToolsShown && <button type="button" className="mobile-debug-toggle" onClick={() => setMobileDebugOpen(true)} aria-label="Open developer panel">
             <Icon name="bug" size={14} />
-          </button>
+          </button>}
 
           <SideHeader side="enemy" name="Enemy" rank={enemyDeckLabel} hp={displayState.enemy.hp} maxHp={displayState.enemy.maxHp} hpFx={hpFxFor('enemy')} callout={hpCalloutFor('enemy')} beaten={matchOutcome === 'victory'} onClose={onExit} />
           <OpponentHand count={displayState.enemy.hand.length} />

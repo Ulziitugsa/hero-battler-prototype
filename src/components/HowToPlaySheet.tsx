@@ -1,5 +1,6 @@
 import { Icon, type IconName } from './Icon';
 import { CardArtwork } from './CardArtwork';
+import { useDialogFocus } from './useDialogFocus';
 
 // Home's own "how to play" entry point (Home Screen v3) - a compact 3-step sheet, distinct from the
 // fuller 9-point HelpModal used elsewhere (TopControls, Profile). Deliberately short: "no walls of
@@ -11,9 +12,11 @@ const STEPS: { icon: IconName; title: string; text: string }[] = [
 ];
 
 export function HowToPlaySheet({ onClose }: { onClose: () => void }) {
+  // A dialog like the other sheets: focus moves in, Escape (and Android back) closes it, focus returns to the "?" button.
+  const dialog = useDialogFocus(onClose);
   return (
     <div className="how-to-play-overlay" onClick={onClose}>
-      <div className="how-to-play-sheet" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialog} tabIndex={-1} className="how-to-play-sheet" role="dialog" aria-modal="true" aria-labelledby="how-to-play-title" onClick={(e) => e.stopPropagation()}>
         <div className="how-to-play-header">
           {/* Pip, the ember familiar from the launch art, keeps the reader company (still under reduced motion). */}
           <span className="how-to-play-guide" aria-hidden="true">
@@ -21,7 +24,7 @@ export function HowToPlaySheet({ onClose }: { onClose: () => void }) {
           </span>
           <span className="how-to-play-heading">
             <small>Three steps</small>
-            <span className="how-to-play-title">How to play</span>
+            <span className="how-to-play-title" id="how-to-play-title">How to play</span>
           </span>
           <button type="button" className="how-to-play-close" onClick={onClose} aria-label="Close">
             <Icon name="close" size={14} />
