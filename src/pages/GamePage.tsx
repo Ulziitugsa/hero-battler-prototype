@@ -775,7 +775,8 @@ export function GamePage({ playerDeck, enemyDeck, playerDeckLabel, enemyDeckLabe
         </div>
       </div>
 
-      <DebugPanel seed={seed} state={gameState} lastAiAction={lastAiAction} fullLog={fullLog} />
+      {/* The desktop (900px+) copy of the developer panel, under the same rule as the mobile drawer. */}
+      {devToolsShown && <DebugPanel seed={seed} state={gameState} lastAiAction={lastAiAction} fullLog={fullLog} />}
     </div>
     </CombatDisplayContext.Provider>
   );

@@ -39,6 +39,9 @@ describe('developer tools stay out of battles with stakes in a production build'
     expect(src).toContain("const devToolsShown = import.meta.env.DEV || (battleMode === 'quick' && !remoteOpponent);");
     expect(src).toContain('hideNewMatch={!!remoteOpponent || !devToolsShown}');
     expect(src).toContain('{devToolsShown && <button type="button" className="mobile-debug-toggle"');
+    // The side panel a desktop (900px+) shows beside the battle, with its "reveal hand" toggle.
+    expect(src).toContain('{devToolsShown && <DebugPanel seed={seed} state={gameState} lastAiAction={lastAiAction} fullLog={fullLog} />}');
+    expect(src.match(/<DebugPanel /g)).toHaveLength(2);
   });
 });
 
