@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 
 const PRELOAD_HELPER_ID = '\0vite/preload-helper.js'
 const PRELOAD_APPEND = 'document.head.appendChild(link)'
@@ -42,7 +42,21 @@ function bootScreenFirst(): Plugin {
   }
 }
 
+/**
+ * The Card Discovery Lab (src/lab, docs/design/CARD-DISCOVERY-LAB.md) is built in only for the development server, a test
+ * build asked for with VITE_CARD_LAB=1, or a Vercel preview deployment (VERCEL_ENV=preview; previews sit behind Vercel's
+ * login). VITE_CARD_LAB=0 turns it off anywhere. Everywhere else __CARD_LAB__ is the constant false, and the bundler
+ * drops the lab, its chunk and its ?lab entry from the build.
+ */
+function cardLabEnabled(command: 'build' | 'serve', env: Record<string, string | undefined>): boolean {
+  if (env.VITE_CARD_LAB === '0') return false
+  return command === 'serve' || env.VITE_CARD_LAB === '1' || env.VERCEL_ENV === 'preview'
+}
+
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command, mode }) => ({
   plugins: [react(), bootScreenFirst()],
-})
+  define: {
+    __CARD_LAB__: JSON.stringify(mode !== 'test' && cardLabEnabled(command, { ...loadEnv(mode, process.cwd(), 'VITE_'), VERCEL_ENV: process.env.VERCEL_ENV })),
+  },
+}))
