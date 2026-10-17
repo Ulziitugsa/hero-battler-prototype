@@ -40,7 +40,81 @@ export interface ClashShieldAction {
   amount: number;
 }
 
-export type CombatAction = ActionDef | PacifyAction | ReduceClashDamageAction | ClashShieldAction;
+// ---- Power Fantasy Phase 1 (docs/design/POWER-FANTASY-P1.md): experimental combat rules -----------------------------
+// Reusable resolver rules, used by no production card (engineParity.test.ts proves every production battle is unchanged).
+// Their amounts are in ATK, not legacy Power steps. None of them is subject to the +45 growth cap; all of them stop at
+// ATK_CEILING (stats.ts).
+
+/** Where an experimental ATK effect lands: the usual lane scopes, or (an Ally Returns reaction) the Unit that just returned. */
+export type ExperimentalTarget = TargetScope | 'RETURNED_ALLY';
+
+/** Multiply the target's lasting ATK (its ATK without this round's changes) by `factor`, until the battle ends. Uncapped up to ATK_CEILING. */
+export interface MultiplyAtkAction {
+  type: 'MULTIPLY_ATK';
+  factor: number;
+  target: ExperimentalTarget;
+}
+
+/** +`atk` ATK until the battle ends, ignoring the +45 growth cap (up to ATK_CEILING). */
+export interface EmpowerAction {
+  type: 'EMPOWER';
+  atk: number;
+  target: ExperimentalTarget;
+}
+
+/**
+ * Undying, a Destroyed effect: the copy that was just destroyed rises again in its own lane (if it is empty) with its
+ * printed ATK + `atkPerReturn` for each time it has risen, this time included. At most `returns` times per copy per
+ * battle; the count travels with the copy, so it can never loop. A copy that rose by Undying is marked as returned, so
+ * no other effect can bring it back once its rises are spent. A Unit that is Silenced when it dies does not rise.
+ */
+export interface UndyingAction {
+  type: 'UNDYING';
+  returns: number;
+  atkPerReturn: number;
+}
+
+/**
+ * Unmaking: the target leaves play without being destroyed (exiled): no Shield saves it, no Destroyed effect or Ally
+ * Falls reaction runs, and it never reaches the Graveyard. With `onlyIfGrown`, only a target whose ATK right now is
+ * above its printed ATK. Hostile: immunity blocks it.
+ */
+export interface UnmakeAction {
+  type: 'UNMAKE';
+  target: TargetScope;
+  onlyIfGrown?: boolean;
+}
+
+/**
+ * Conduit, PASSIVE on a Unit: while it is in play and not Silenced, each one-time Spell its side casts also applies its
+ * "enemy Unit in this lane" effects to the enemy Units in the lanes next to that Spell's lane. Read live as each Spell
+ * resolves.
+ */
+export interface ConduitAction {
+  type: 'CONDUIT';
+}
+
+/** Destroy the target if its ATK is at most `baseAtk` + `atkPerSpell` for each other Spell its side cast earlier this round. */
+export interface DestroyScalingAction {
+  type: 'DESTROY_SCALING';
+  baseAtk: number;
+  atkPerSpell: number;
+  target: TargetScope;
+}
+
+export type ExperimentalAction = MultiplyAtkAction | EmpowerAction | UndyingAction | UnmakeAction | ConduitAction | DestroyScalingAction;
+
+/** The TRIGGER label a Conduit announces itself with, so the log and the trials layer can tell it from Archmage Vael's echo. */
+export const CONDUIT_LABEL = 'Conduit';
+
+const EXPERIMENTAL_ACTION_TYPES = new Set<string>(['MULTIPLY_ATK', 'EMPOWER', 'UNDYING', 'UNMAKE', 'CONDUIT', 'DESTROY_SCALING']);
+
+/** True for a Power Fantasy Phase 1 experimental rule. */
+export function isExperimentalAction(action: CombatAction): action is ExperimentalAction {
+  return EXPERIMENTAL_ACTION_TYPES.has(action.type);
+}
+
+export type CombatAction = ActionDef | PacifyAction | ReduceClashDamageAction | ClashShieldAction | ExperimentalAction;
 
 export interface CombatAbility extends Omit<AbilityDefinition, 'actions'> {
   actions: CombatAction[];

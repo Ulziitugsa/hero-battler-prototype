@@ -1,7 +1,7 @@
 import type { CardDefinition, GameEvent, GameState, LaneId, Side, Trigger } from '../../game/types';
 import { LANES } from '../../game/types';
 import { ALL_CARDS, getCard } from '../../game/cards';
-import { getCombatCard, type CombatCard } from '../../game/cardCombat/cards';
+import { CONDUIT_LABEL, getCombatCard, type CombatCard } from '../../game/cardCombat/cards';
 import { cardEffects, legacyAtk, TIMING_LABEL, type CardRules } from '../../game/cards/cardPresentation';
 import { ATK_PER_POWER } from '../../game/cardCombat/stats';
 
@@ -177,6 +177,10 @@ function describeEffects(events: GameEvent[], source: string, side: Side, board:
         say(`silenced ${ev.name}`);
         break;
       case 'HERO_DESTROYED':
+        // An experimental Unmaking (Arcane Trials only) exiles instead of destroying.
+        if (ev.exiled) say(`exiled ${ev.name}: it never reaches the Graveyard`);
+        else named('destroyed').push(ev.name);
+        break;
       case 'SPELL_ZONE_DESTROYED':
         named('destroyed').push(ev.name);
         break;
@@ -280,7 +284,8 @@ export function battleLogEntries(events: GameEvent[], base?: GameState, rules: C
         // Archmage Vael's echo: the next Spell resolves twice.
         const next = events.slice(i + 1).find((e) => e.type === 'TRIGGER' || e.type === 'SPELL_RESOLVED') as { sourceName?: string; name?: string } | undefined;
         const spell = next?.sourceName ?? next?.name;
-        text = spell ? `${spell} resolves twice` : text;
+        // An experimental Conduit (Arcane Trials only) announces itself the same way, under its own label.
+        text = spell ? (ev.label === CONDUIT_LABEL ? `${spell} reaches the lanes next to it` : `${spell} resolves twice`) : text;
       }
       if (preventsDamage(ev.sourceName, rules)) preventer[ev.side] = ev.sourceName;
       // A Unit or Continuous Spell whose effect found nothing to do (no enemy in its lane, nothing in the Graveyard)

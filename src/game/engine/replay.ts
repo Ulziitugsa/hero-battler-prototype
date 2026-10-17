@@ -97,7 +97,8 @@ export function applyEvent(state: GameState, event: GameEvent): GameState {
     case 'HERO_DESTROYED': {
       const side = event.side === 'player' ? p : e;
       side.heroZones[event.lane] = null;
-      if (!event.token) side.graveyard.push(event.cardId); // a token vanishes instead of entering the Graveyard
+      // A token vanishes instead of entering the Graveyard; an exiled Unit (experimental Unmaking) never reaches it either.
+      if (!event.token && !event.exiled) side.graveyard.push(event.cardId);
       return next;
     }
     case 'TOKEN_SUMMONED': {

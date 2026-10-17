@@ -19,8 +19,25 @@ export const ALL_CARDS: CardDefinition[] = [
 
 const CARD_BY_ID = new Map(ALL_CARDS.map((c) => [c.id, c]));
 
+// Experimental cards (Power Fantasy Phase 1, docs/design/POWER-FANTASY-P1.md). Like tokens they resolve by id and are in
+// no list: not ALL_CARDS, not a collection, a Box, the Deck Builder or a deck. Only the Arcane Trials experiment
+// (src/trials, which a production build does not contain) and tests register them, for one page load.
+const EXPERIMENTAL_BY_ID = new Map<string, CardDefinition>();
+
+/** Makes experimental cards resolvable by `getCard`. Their ids must not clash with a real card or token. */
+export function registerExperimentalCards(cards: readonly CardDefinition[]): void {
+  for (const card of cards) {
+    if (CARD_BY_ID.has(card.id) || getTokenCard(card.id)) throw new Error(`Experimental card id ${card.id} clashes with a real card`);
+    EXPERIMENTAL_BY_ID.set(card.id, card);
+  }
+}
+
+export function isExperimentalCardId(cardId: string): boolean {
+  return EXPERIMENTAL_BY_ID.has(cardId);
+}
+
 export function getCard(cardId: string): CardDefinition {
-  const card = CARD_BY_ID.get(cardId) ?? getTokenCard(cardId);
+  const card = CARD_BY_ID.get(cardId) ?? getTokenCard(cardId) ?? EXPERIMENTAL_BY_ID.get(cardId);
   if (!card) throw new Error(`Unknown card id: ${cardId}`);
   return card;
 }

@@ -1,0 +1,112 @@
+/* Card Discovery Lab (test builds only). Plain, readable, mobile-first; it reuses the game's card faces and battle screen
+   and keeps its own chrome to a minimum. */
+
+.lab-root {
+  min-height: 100dvh;
+  background: radial-gradient(120% 60% at 50% 0%, #1d3a46 0%, #0b1a24 60%, #070f16 100%);
+  color: #e8efe9;
+  font-family: var(--moon-ui, system-ui, sans-serif);
+}
+
+.lab-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 32px);
+}
+
+.lab-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.lab-head h1 { margin: 2px 0 0; font: 400 26px/1.1 var(--moon-display, Georgia, serif); color: #f0d59a; }
+.lab-eyebrow { display: block; font: 800 10px/1.3 var(--moon-ui, system-ui, sans-serif); letter-spacing: .08em; text-transform: uppercase; color: #9fc2b8; }
+.lab-exit { flex: none; min-height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(240, 213, 154, .4); background: rgba(5, 16, 24, .6); color: #f0d59a; font-weight: 700; }
+.lab-safety { margin: 10px 0 14px; padding: 10px 12px; border-radius: 12px; background: rgba(5, 16, 24, .55); border: 1px solid rgba(176, 204, 195, .16); font-size: 13px; line-height: 1.4; color: #c8d8d2; }
+.lab-note { font-size: 13px; line-height: 1.45; color: #c8d8d2; }
+
+.lab-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
+.lab-tabs button { min-height: 44px; border-radius: 12px; border: 1px solid rgba(176, 204, 195, .18); background: rgba(5, 16, 24, .5); color: #c8d8d2; font-weight: 800; font-size: 13px; }
+.lab-tabs button.active { background: linear-gradient(180deg, #f6e3b0, #d2ad6e 62%, #bf9658); color: #2a2318; border-color: transparent; }
+
+.lab-grid { display: grid; gap: 10px; }
+.lab-archetype { display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: center; width: 100%; padding: 10px; border-radius: 16px; border: 1px solid rgba(176, 204, 195, .16); background: linear-gradient(180deg, rgba(33, 62, 71, .9), rgba(13, 34, 46, .9)); color: inherit; text-align: left; }
+.lab-archetype-body { display: grid; gap: 3px; font-size: 13px; line-height: 1.35; color: #c8d8d2; }
+.lab-archetype-body b { font-size: 17px; color: #f4ecd6; }
+.lab-archetype-card .game-card, .lab-card-tile .game-card { width: 100%; }
+
+.lab-back { min-height: 40px; padding: 0 4px; border: 0; background: none; color: #9fc2b8; font-weight: 700; }
+.lab-detail-head h2 { margin: 2px 0 6px; font: 400 28px/1.1 var(--moon-display, Georgia, serif); color: #f0d59a; }
+.lab-detail-head p { margin: 0; font-size: 14px; line-height: 1.45; }
+
+.lab-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.lab-actions button, .lab-match > button, .lab-scenario > button, .lab-pick-body button { min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(176, 204, 195, .25); background: rgba(5, 16, 24, .6); color: #e8efe9; font-weight: 800; font-size: 13px; }
+.lab-primary { background: linear-gradient(180deg, #f6e3b0, #d2ad6e 62%, #bf9658) !important; color: #2a2318 !important; border-color: transparent !important; }
+
+.lab-block { margin: 12px 0; padding: 12px; border-radius: 16px; background: rgba(5, 16, 24, .45); border: 1px solid rgba(176, 204, 195, .12); }
+.lab-block h3 { margin: 0 0 8px; font-size: 15px; color: #f4ecd6; }
+.lab-block p, .lab-block li { font-size: 13px; line-height: 1.45; color: #d6e2dd; }
+.lab-block ul { margin: 0; padding-left: 18px; }
+.lab-limit { color: #b6c9c3 !important; }
+.lab-ai { border-color: rgba(240, 213, 154, .22); }
+
+.lab-card-row { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; }
+.lab-card-tile { flex: none; width: 76px; padding: 0; border: 0; background: none; border-radius: 10px; }
+.lab-card-tile:focus-visible { outline: 2px solid #f0d59a; outline-offset: 2px; }
+
+.lab-decklist { list-style: none; padding: 0 !important; display: grid; gap: 2px; }
+.lab-decklist li { display: flex; justify-content: space-between; align-items: center; }
+.lab-decklist button { min-height: 32px; padding: 0; border: 0; background: none; color: #e8efe9; font: inherit; text-align: left; }
+.lab-decklist span { font-size: 11px; color: #9fc2b8; text-transform: capitalize; }
+
+.lab-match { display: grid; gap: 12px; }
+.lab-field { display: grid; gap: 4px; font-size: 12px; font-weight: 800; color: #9fc2b8; }
+.lab-field select { min-height: 44px; padding: 0 10px; border-radius: 12px; border: 1px solid rgba(176, 204, 195, .25); background: #0d222e; color: #e8efe9; font-size: 15px; }
+
+.lab-pick { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(176, 204, 195, .1); }
+.lab-pick:first-of-type { border-top: 0; }
+.lab-pick-body { display: grid; gap: 4px; align-content: start; }
+.lab-pick-body b { font-size: 15px; color: #f4ecd6; }
+.lab-pick-body p { margin: 0; }
+.lab-pick-did { color: #f0d59a !important; }
+.lab-pick-text { font-size: 12px !important; color: #b6c9c3 !important; }
+.lab-pick-source { font-weight: 700; }
+.lab-pick-source.unavailable { color: #e6a08a !important; }
+.lab-pick-body button { justify-self: start; min-height: 36px; }
+
+.lab-moment-list { list-style: none; padding: 0 !important; display: grid; gap: 8px; }
+.lab-moment-line { display: grid; gap: 2px; padding-left: 10px; border-left: 3px solid #7fd1c0; }
+.lab-moment-line.lab-moment-enemy { border-left-color: #e5806b; }
+.lab-moment-line b { font-size: 12px; color: #f4ecd6; }
+
+/* ---- The battle layer ---------------------------------------------------- */
+
+.lab-battle { position: relative; }
+.lab-battle-badge { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 2px); transform: translateX(-50%); z-index: 90; padding: 1px 8px; border-radius: 8px; background: rgba(5, 16, 24, .72); color: #9fc2b8; font: 700 9px/1.4 var(--moon-ui, system-ui, sans-serif); pointer-events: none; }
+
+.lab-layer { position: absolute; inset: 0; z-index: 45; pointer-events: none; }
+.lab-callouts { position: absolute; left: 50%; top: 43%; transform: translate(-50%, -50%); width: min(94%, 380px); display: grid; gap: 6px; }
+
+.lab-moment { display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: start; padding: 7px 10px; border-radius: 12px; background: rgba(6, 18, 26, .92); border: 1px solid rgba(127, 209, 192, .55); box-shadow: 0 8px 22px rgba(0, 0, 0, .45); color: #e8efe9; animation: lab-moment-in 260ms ease-out both; }
+.lab-moment-enemy { border-color: rgba(229, 128, 107, .6); }
+.lab-moment-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #7fd1c0; color: #062027; font-weight: 900; font-size: 14px; }
+.lab-moment-enemy .lab-moment-icon { background: #e5806b; color: #2a0d07; }
+.lab-moment-body { display: grid; gap: 1px; min-width: 0; }
+.lab-moment-title { display: flex; flex-wrap: wrap; gap: 0 6px; align-items: baseline; font-size: 12px; }
+.lab-moment-title b { color: #f4ecd6; }
+.lab-moment-source { font-size: 11px; font-weight: 700; color: #9fc2b8; }
+.lab-moment-enemy .lab-moment-source { color: #f0b3a4; }
+.lab-moment-detail { font-size: 12px; line-height: 1.3; color: #d6e2dd; }
+.lab-moment[data-kind='chain'], .lab-moment[data-kind='echo'] { border-width: 2px; }
+.lab-moment.compact { animation: none; box-shadow: none; background: rgba(13, 34, 46, .9); }
+
+.lab-moments-pill { position: absolute; left: 50%; top: 11%; transform: translateX(-50%); pointer-events: auto; min-height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid rgba(240, 213, 154, .55); background: rgba(6, 18, 26, .88); color: #f0d59a; font: 800 12px/1 var(--moon-ui, system-ui, sans-serif); }
+.lab-moments-pill::after { content: ''; position: absolute; inset: -8px -4px; }
+.lab-moments-sheet { position: absolute; left: 50%; top: calc(11% + 38px); transform: translateX(-50%); width: min(94%, 380px); max-height: 52%; display: grid; grid-template-rows: auto 1fr auto; pointer-events: auto; padding: 10px; border-radius: 16px; background: rgb(13, 34, 46); border: 1px solid rgba(240, 213, 154, .4); box-shadow: 0 14px 32px rgba(0, 8, 14, .55); }
+.lab-moments-sheet-head { display: flex; justify-content: space-between; align-items: center; color: #f4ecd6; font-size: 13px; }
+.lab-moments-sheet-head button { min-width: 40px; min-height: 40px; border: 0; background: none; color: #c8d8d2; font-size: 16px; }
+.lab-moments-list { display: grid; gap: 6px; overflow-y: auto; align-content: start; }
+.lab-moments-foot { margin: 6px 0 0; font-size: 11px; color: #9fc2b8; }
+
+@keyframes lab-moment-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+.lab-layer.reduced-motion .lab-moment { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .lab-moment { animation: none; }
+}
