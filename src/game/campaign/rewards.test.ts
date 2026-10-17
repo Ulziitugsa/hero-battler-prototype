@@ -96,6 +96,8 @@ describe('the Core package unlocks in the first Campaign stages', () => {
     const palisade = win('battle-broken-palisade');
     expect(palisade.coreUnlocked).toBe('undead');
     expect(isStarterDeckUnlocked('starter-undead')).toBe(true);
+    // Pass 5: the result no longer also reports the deck as "2 / 15 cards collected" (measured before the unlock).
+    expect(palisade.starterProgress).toBeNull();
     expect(isDeckPlayable(STARTER_DECKS.undead)).toBe(true);
     for (const [id, n] of Object.entries(corePackage('undead'))) expect(getOwnedCount(id), id).toBeGreaterThanOrEqual(n);
     expect(getOwnedCount('und-bone-soldier')).toBe(3); // the stage's own 3 copies; the package only raises to 2, never adds

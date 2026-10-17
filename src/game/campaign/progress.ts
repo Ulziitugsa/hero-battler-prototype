@@ -6,7 +6,7 @@ import { getCollection, grantCard, setCollection } from '../collection/collectio
 import { coreUnlockForNode, unlockCorePackage } from '../core/coreAccess';
 import type { StarterFaction } from '../cards/starterDecks';
 import type { GrantResult } from '../collection/types';
-import { getStarterProgressUpdate, type StarterProgressUpdate } from '../collection/starterUnlock';
+import { getStarterProgressUpdate, starterDeckId, type StarterProgressUpdate } from '../collection/starterUnlock';
 import { grantCampaignXp } from '../progression/rewards';
 import type { XpGrantResult } from '../progression/types';
 import { grantGems, grantGold } from '../economy/economy';
@@ -215,6 +215,9 @@ export function recordBattleResult(nodeId: string, status: GameState['status'], 
       if (core) {
         unlockCorePackage(core, { getOwned: getCollection, setOwned: setCollection }, `campaign:${nodeId}`);
         coreUnlocked = core;
+        // The card reward's starter progress was measured before this unlock: for the deck the unlock just completed it
+        // read "2 / 15 cards collected" under "the Starter is ready in Decks". The Core line speaks for that deck.
+        if (granted.starterProgress?.deckId === starterDeckId(core)) granted = { ...granted, starterProgress: null };
       }
     }
     gems = grantCampaignGems(node, claimNew, chapterWasComplete, isChapterComplete(progress));

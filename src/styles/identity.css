@@ -9,6 +9,8 @@
   /* Surfaces: one recipe, three weights. */
   --mw-surface: linear-gradient(180deg, rgba(21, 45, 57, .95), rgba(9, 26, 37, .95));
   --mw-surface-raised: linear-gradient(180deg, rgba(33, 62, 71, .97), rgba(13, 34, 46, .97));
+  /* Sheets laid over a screen are fully opaque: at 97% the bright text beneath still read through (Pass 5). */
+  --mw-surface-sheet: linear-gradient(180deg, rgb(33, 62, 71), rgb(13, 34, 46));
   --mw-surface-sunk: rgba(5, 16, 24, .62);
   --mw-hairline: rgba(176, 204, 195, .14);
   --mw-rim: rgba(240, 213, 154, .62);
@@ -208,7 +210,7 @@
   border: 1px solid var(--mw-hairline);
   border-top-color: var(--mw-rim);
   border-radius: 24px 24px 0 0;
-  background: var(--mw-surface-raised);
+  background: var(--mw-surface-sheet);
   box-shadow: var(--mw-light), 0 -16px 40px rgba(0, 6, 11, .55);
   clip-path: none;
   color: var(--moon-ivory);
@@ -266,10 +268,10 @@
   border: 1px solid var(--mw-hairline);
   border-top: 1px solid var(--mw-rim);
   border-radius: 24px;
-  background: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(240, 213, 154, .12), transparent 70%), var(--mw-surface-raised);
+  background: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(240, 213, 154, .12), transparent 70%), var(--mw-surface-sheet);
   box-shadow: var(--mw-light), 0 24px 54px rgba(0, 6, 11, .6);
 }
-.moon-game .campaign-result-sheet.defeat { background: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(232, 120, 104, .12), transparent 70%), var(--mw-surface-raised); }
+.moon-game .campaign-result-sheet.defeat { background: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(232, 120, 104, .12), transparent 70%), var(--mw-surface-sheet); }
 .moon-game :is(.campaign-reward-kicker, .campaign-result-kicker) { color: #b9cbc5; font: var(--mw-eyebrow); letter-spacing: .12em; text-transform: uppercase; }
 .moon-game :is(.campaign-reward-title, .campaign-result-title) { color: #f7ecd2; font-family: var(--moon-display); }
 .moon-game :is(.campaign-reward-sub, .campaign-result-blurb) { color: #c4d2cc; font-family: var(--moon-ui); }
@@ -331,7 +333,7 @@
   border: 1px solid var(--mw-hairline);
   border-top: 1px solid var(--mw-rim);
   border-radius: 24px 24px 0 0;
-  background: radial-gradient(ellipse 80% 30% at 50% 0%, rgba(240, 213, 154, .08), transparent 70%), var(--mw-surface-raised);
+  background: radial-gradient(ellipse 80% 30% at 50% 0%, rgba(240, 213, 154, .08), transparent 70%), var(--mw-surface-sheet);
   box-shadow: var(--mw-light), 0 -16px 40px rgba(0, 6, 11, .6);
   font-family: var(--moon-ui);
 }
@@ -358,7 +360,7 @@
 .moon-game .dk-plaque { background: var(--mw-surface-raised); box-shadow: var(--mw-light); }
 
 /* ---- Missions, Journey and Offers sheets: one sheet material with Home's reward rail ---- */
-.moon-game .missions-sheet { border: 1px solid var(--mw-hairline); border-top: 1px solid var(--mw-rim); border-radius: 24px 24px 0 0; background: var(--mw-surface-raised); box-shadow: var(--mw-light), 0 -16px 40px rgba(0, 6, 11, .6); }
+.moon-game .missions-sheet { border: 1px solid var(--mw-hairline); border-top: 1px solid var(--mw-rim); border-radius: 24px 24px 0 0; background: var(--mw-surface-sheet); box-shadow: var(--mw-light), 0 -16px 40px rgba(0, 6, 11, .6); }
 .moon-game .missions-title { color: #f5e7c4; font: 400 22px/1.15 var(--moon-display); }
 .moon-game .missions-close { border-color: var(--mw-hairline); border-radius: 50%; background: rgba(9, 26, 37, .85); }
 .moon-game .missions-tab { border-color: var(--mw-hairline); border-radius: 999px; background: var(--mw-surface-sunk); font: 800 12px/1 var(--moon-ui); letter-spacing: .02em; }
@@ -377,6 +379,22 @@
 .moon-game :is(.missions-claimed-tag, .journey-day-lock) { border-color: var(--mw-hairline); border-radius: 50%; background: var(--mw-surface-sunk); }
 .moon-game .offers-more-options { border-color: var(--mw-hairline); border-radius: 999px; font: 700 12px/1 var(--moon-ui); }
 .moon-game :is(.offers-test-banner, .offers-bonus-banner, .offers-granted-banner) { border-radius: var(--mw-radius-sm); }
+
+/* Friendly Battle (Pass 5): the pier was the last screen in square panels and typewriter labels. Same layout, the
+   shared Moonwater materials: rounded panels and fields, the UI face for labels, the gold primary. */
+.moon-game .friendly-page { font-family: var(--moon-ui); }
+.moon-game :is(.friendly-panel, .friendly-invite, .friendly-seats > div) { border: 1px solid var(--mw-hairline); border-top-color: var(--mw-rim); border-radius: var(--mw-radius); background: var(--mw-surface); box-shadow: var(--mw-light), var(--mw-cast); }
+.moon-game :is(.friendly-header, .friendly-panel label, .friendly-divider, .friendly-footer, .friendly-seats span) { font-family: var(--moon-ui); font-weight: 800; }
+.moon-game .friendly-page button { border-radius: var(--mw-radius-sm); font: 800 14px/1.2 var(--moon-ui); }
+.moon-game .friendly-panel :is(input, select) { border-radius: var(--mw-radius-sm); font-family: var(--moon-ui); }
+.moon-game .friendly-page .moon-primary { border: 1px solid #f7e5b8; background: var(--mw-gold-face); color: var(--mw-gold-ink); box-shadow: inset 0 1px rgba(255, 255, 255, .6), var(--mw-gold-ledge); font: 800 17px/1 var(--moon-display); }
+.moon-game .friendly-error { border-radius: var(--mw-radius-sm); }
+
+/* Touch reach (Pass 5): controls drawn at 21-22px tall keep their look but take a finger-sized press (38px+), the way the
+   hand card's and deck builder's small buttons already do. The battle's Exit X is left as it is: a bigger target there
+   would make leaving a battle by accident easier. */
+.moon-game :is(.side-header-pill.interactive, .home-shop-gift-link, .home-collection-link, .event-row-state > button) { position: relative; }
+.moon-game :is(.side-header-pill.interactive, .home-shop-gift-link, .home-collection-link, .event-row-state > button)::after { content: ''; position: absolute; inset: -8px -4px; }
 
 @media (prefers-reduced-motion: reduce) {
   .moon-world-mist i { animation: none; }
